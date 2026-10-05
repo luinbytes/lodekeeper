@@ -1,0 +1,2 @@
+# Lodekeeper
+Keep builds resource bounded: one Gradle worker, no parallel game clients, no background daemons. Core and navigation are Java 17 and have no Minecraft dependencies. Fabric adapters own all game API interactions. Never declare a Minecraft version supported without compiling its artifact; runtime verification is a separate status. No Baritone dependency. Preserve client-side command interception and fail closed when a mechanic is unsupported. Do not add tests without Lu approval. Do not spawn nested agents.
