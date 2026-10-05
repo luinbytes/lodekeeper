@@ -49,10 +49,10 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37328119353). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
+Experimental jars are available in [Development Preview 1](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.1), with all 24 exact-version builds inspected. Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Download the matching `lodekeeper-<version>-development` artifact, unzip it, and place its jar plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-dev.jar` from the release assets and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
 Each jar targets one exact release. Every stable Java release from 1.20 through the current stable release, 26.3, has a passing development build, including 1.21.1. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.
