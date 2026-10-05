@@ -131,7 +131,10 @@ final class GameApi {
 
     static FoodInfo food(ItemStack stack) {
         FoodComponent food = stack.get(DataComponentTypes.FOOD);
-        return food == null ? null : new FoodInfo(food.nutrition(), food.saturation(), food.effects().isEmpty());
+        var consumable = stack.get(DataComponentTypes.CONSUMABLE);
+        boolean safe = consumable != null && consumable.onConsumeEffects().stream()
+                .allMatch(effect -> effect instanceof net.minecraft.item.consume.PlaySoundConsumeEffect);
+        return food == null ? null : new FoodInfo(food.nutrition(), food.saturation(), safe);
     }
 
     private static Map<ItemId, Long> fuelSnapshot(World world) {
@@ -199,7 +202,7 @@ final class GameApi {
             for (int slot = 0; slot < nativeSlots.size(); slot++) {
                 SlotFacts shown = slotFacts(shapedDisplay.ingredients().get(slot));
                 Optional<Ingredient> actual = nativeSlots.get(slot);
-                if (actual.isEmpty() || actual.get().isEmpty()) {
+                if (actual.isEmpty()) {
                     if (!shown.empty() || !shown.remainder().isEmpty()) {
                         throw new IllegalArgumentException("display fills native shaped-recipe hole " + slot);
                     }

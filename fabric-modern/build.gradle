@@ -48,6 +48,7 @@ tasks.named('jar') {
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'minecraft', rootProject.minecraft_version
     filesMatching('fabric.mod.json') {
         expand version: project.version, minecraft: rootProject.minecraft_version
     }

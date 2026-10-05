@@ -25,7 +25,7 @@ final class GameTerrain implements Terrain {
     void changedChunk(int chunkX, int chunkZ) { WorldRevision.changedChunk(chunkX, chunkZ); }
     @Override public long revision() { return revision + WorldRevision.value(); }
     private boolean loaded(int x, int y, int z) {
-        if (client.world == null || y < client.world.getBottomY() || y >= client.world.getTopY()) return false;
+        if (client.world == null || client.world.isOutOfHeightLimit(y)) return false;
         WorldRevision.watch(x >> 4, z >> 4);
         return client.world.getChunkManager().getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
     }
