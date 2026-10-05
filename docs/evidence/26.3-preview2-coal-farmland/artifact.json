@@ -1,0 +1,46 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "3edead1ceaac98ea4233218266bdc2ddaa55dada13dd6054dd96458020a0de75",
+  "sourceCommit": "bfb9fdc0fb9f02d74a9e6445f7d9cd68a8b9fc2d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37357160313",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.coalRecovery=true",
+    "-Dlodekeeper.verify.coalStartSurface=farmland"
+  ],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.modern.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-ci-bfb9fdc/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.modern.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-ci-bfb9fdc/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-ci-bfb9fdc/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-ci-bfb9fdc/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-ci-bfb9fdc/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar",
+  "runtimeJarSha256": "3edead1ceaac98ea4233218266bdc2ddaa55dada13dd6054dd96458020a0de75",
+  "unchangedCoreNavigationClassesVerified": 100,
+  "runtimeTransformation": "none",
+  "verificationMode": "coal_recovery",
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}

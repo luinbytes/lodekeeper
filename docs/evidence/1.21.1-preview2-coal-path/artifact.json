@@ -1,0 +1,46 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-dev.jar",
+  "artifactSha256": "17a3edc318f82de770cb1f39686cfaa077a50503f2ba010a7c27b45a1c50ff18",
+  "sourceCommit": "bfb9fdc0fb9f02d74a9e6445f7d9cd68a8b9fc2d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37357160313",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.coalRecovery=true",
+    "-Dlodekeeper.verify.coalStartSurface=dirt_path"
+  ],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-coal-path/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-coal-path/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-coal-path/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-coal-path/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-preview2-bfb9-1211-coal-path/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar",
+  "runtimeJarSha256": "6869b61b508cc6be9f64a1f8757c86b53c34c6882b943d9c9dc0a2851b79b77e",
+  "unchangedCoreNavigationClassesVerified": 100,
+  "runtimeTransformation": "Fabric Loader intermediary-to-development remapping",
+  "verificationMode": "coal_recovery",
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}

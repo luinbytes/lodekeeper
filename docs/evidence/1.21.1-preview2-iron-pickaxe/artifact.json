@@ -1,0 +1,45 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-dev.jar",
+  "artifactSha256": "17a3edc318f82de770cb1f39686cfaa077a50503f2ba010a7c27b45a1c50ff18",
+  "sourceCommit": "bfb9fdc0fb9f02d74a9e6445f7d9cd68a8b9fc2d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37357160313",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.ironPickaxe=true"
+  ],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "Root observed exec session 97280 completion: Client exit 0; wrapper exit_code 0; PASS 1.21.1 iron_pickaxe 1 cases 126621 ms",
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-iron/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-iron/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-iron/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-preview2-bfb9-1211-iron/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-preview2-bfb9-1211-iron/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar",
+  "runtimeJarSha256": "ab9d13dffe57a8cb479503d0b044cb703570bb1e692c60485b19741b32e6a4ec",
+  "unchangedCoreNavigationClassesVerified": 100,
+  "runtimeTransformation": "Fabric Loader intermediary-to-development remapping",
+  "verificationMode": "iron_pickaxe",
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}
