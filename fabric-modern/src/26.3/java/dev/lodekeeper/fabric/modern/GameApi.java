@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.advancements.predicates.BlockPredicate;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -70,8 +70,8 @@ final class GameApi {
         CookingFuel fuel = stack.get(DataComponents.COOKING_FUEL);
         if (fuel == null) return 0;
         try {
-            Registry<ContextIntProvider> intProviders = level.registryAccess().lookupOrThrow(Registries.CONTEXT_INT_PROVIDER);
-            Registry<ContextFloatProvider> floatProviders = level.registryAccess().lookupOrThrow(Registries.CONTEXT_FLOAT_PROVIDER);
+            HolderLookup.RegistryLookup<ContextIntProvider> intProviders = level.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.CONTEXT_INT_PROVIDER);
+            HolderLookup.RegistryLookup<ContextFloatProvider> floatProviders = level.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.CONTEXT_FLOAT_PROVIDER);
             OptionalInt burnTime = resolveInt(fuel.burnTime(), intProviders);
             Optional<Float> speed = resolveFloat(fuel.speedMultiplier(), floatProviders);
             if (burnTime.isEmpty() || speed.isEmpty() || !Float.isFinite(speed.get()) || speed.get() != 1.0f) return 0;
@@ -85,10 +85,10 @@ final class GameApi {
     private static final int MAX_PROVIDER_DEPTH = 16;
     private static final int MAX_PROVIDER_NODES = 64;
 
-    private static OptionalInt resolveInt(ResolvableInt provider, Registry<ContextIntProvider> registry) {
+    private static OptionalInt resolveInt(ResolvableInt provider, HolderLookup.RegistryLookup<ContextIntProvider> registry) {
         if (provider instanceof ResolvableInt.Constant constant) return OptionalInt.of(constant.value());
         if (provider instanceof ResolvableInt.Reference reference) {
-            ContextIntProvider resolved = registry.getOptional(reference.key()).orElse(null);
+            ContextIntProvider resolved = registry.get(reference.key()).map(Holder::value).orElse(null);
             if (resolved == null) return OptionalInt.empty();
             return resolveInt(resolved, registry, 0, new int[]{MAX_PROVIDER_NODES},
                     Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -96,7 +96,7 @@ final class GameApi {
         return OptionalInt.empty();
     }
 
-    private static OptionalInt resolveInt(ContextIntProvider provider, Registry<ContextIntProvider> registry,
+    private static OptionalInt resolveInt(ContextIntProvider provider, HolderLookup.RegistryLookup<ContextIntProvider> registry,
                                           int depth, int[] remaining, Set<ContextIntProvider> path) {
         if (depth > MAX_PROVIDER_DEPTH || remaining[0]-- <= 0 || !path.add(provider)) return OptionalInt.empty();
         try {
@@ -133,10 +133,10 @@ final class GameApi {
         }
     }
 
-    private static Optional<Float> resolveFloat(ResolvableFloat provider, Registry<ContextFloatProvider> registry) {
+    private static Optional<Float> resolveFloat(ResolvableFloat provider, HolderLookup.RegistryLookup<ContextFloatProvider> registry) {
         if (provider instanceof ResolvableFloat.Constant constant) return Optional.of(constant.value());
         if (provider instanceof ResolvableFloat.Reference reference) {
-            ContextFloatProvider resolved = registry.getOptional(reference.key()).orElse(null);
+            ContextFloatProvider resolved = registry.get(reference.key()).map(Holder::value).orElse(null);
             if (resolved == null) return Optional.empty();
             return resolveFloat(resolved, registry, 0, new int[]{MAX_PROVIDER_NODES},
                     Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -144,7 +144,7 @@ final class GameApi {
         return Optional.empty();
     }
 
-    private static Optional<Float> resolveFloat(ContextFloatProvider provider, Registry<ContextFloatProvider> registry,
+    private static Optional<Float> resolveFloat(ContextFloatProvider provider, HolderLookup.RegistryLookup<ContextFloatProvider> registry,
                                                 int depth, int[] remaining, Set<ContextFloatProvider> path) {
         if (depth > MAX_PROVIDER_DEPTH || remaining[0]-- <= 0 || !path.add(provider)) return Optional.empty();
         try {
