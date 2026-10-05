@@ -17,7 +17,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Pending | Pending |
 | 26.1, 26.1.1, 26.1.2 | 25 | Pending; unobfuscated source boundary | Pending |
 | 26.2 | 25 | Pending | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | First four controlled cases pass; stone-pickaxe case stops at a route safety check; full suite pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Six controlled cases pass after route fix; iron smelting has no plan; full suite pending |
 
 ## What a check proves
 
@@ -36,7 +36,9 @@ Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20
 
 Controlled 1.21.1 evidence at `a795995`: [nine-case observations and screenshots](evidence/1.21.1-progression/run.json), with the [paired artifact digest](evidence/1.21.1-progression/artifact.json). The 160,429 ms run begins empty and passes the same progression, custom-content and food checks with health 20 throughout. Waiting for resource overlays before verifier startup resolved the earlier startup stall.
 
-First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-first-run/run.json), paired with the [development artifact digest](evidence/26.3-first-run/artifact.json). Logs, inventory crafting, sticks and a wooden pickaxe passed. Stone-pickaxe acquisition stopped at the route corridor safeguard; later cases were not run. The captured-position route fix at `a795995` is awaiting its full 26.3 rerun.
+First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-first-run/run.json), paired with the [development artifact digest](evidence/26.3-first-run/artifact.json). Logs, inventory crafting, sticks and a wooden pickaxe passed. Stone-pickaxe acquisition stopped at the route corridor safeguard; later cases were not run.
+
+The `a795995` route fix then passes stone-pickaxe and furnace construction as well: [six-case observations and smelting blocker](evidence/26.3-furnace-run/run.json), with [artifact digest](evidence/26.3-furnace-run/artifact.json). Iron smelting has no plan, with cooking-fuel provider resolution under investigation; later cases remain unverified.
 
 Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37273002879) passed at `46f3496`. [Artifact inspection](evidence/builds/46f3496.json) verifies downloaded SHA-256 digests, exact Minecraft metadata, Java class versions, bundled Java 17 core, and exclusion of verifier fixtures. These checks prove packaging, not gameplay. This run predates the modern automatic-eating addition, which passed its separate local 26.3 build.
 

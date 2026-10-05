@@ -1,0 +1,19 @@
+{
+  "minecraftVersion": "26.3",
+  "sourceCommit": "a795995",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "ac3638bb4bfc702c3f334864ea24ef1fb160012a55c3f38f3e30b445609c441e",
+  "sourceTreeSha256": "0c44fd0d39eedb0c83aa0869020e33df93b90f704b7d96aee76a6dbf0f8df0ae",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "core/src/main",
+    "nav/src/main",
+    "fabric-modern/src/main",
+    "fabric-modern/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "gameRunId": "2026-10-05T08-03-59-383160Z-5039b1c9",
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired remapped build; gameplay used matching development classes",
+  "result": "Six cases pass after actual-origin route fix. Iron smelting has no plan; fuel-provider resolution remains under investigation. Later cases not run."
+}
