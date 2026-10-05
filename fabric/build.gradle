@@ -19,3 +19,4 @@ processResources {
     filesMatching('fabric.mod.json') { expand version: project.version, minecraft: rootProject.minecraft_version }
 }
 loom { runs { client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' } } }
+loom { mixin { defaultRefmapName = 'lodekeeper-refmap.json' } }

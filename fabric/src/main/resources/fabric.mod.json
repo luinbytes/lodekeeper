@@ -6,6 +6,7 @@
   "description": "Goal-driven survival automation with independent navigation.",
   "environment": "client",
   "license": "MIT",
+  "mixins": ["lodekeeper.mixins.json"],
   "entrypoints": {"client": ["dev.lodekeeper.fabric.LodekeeperClient"]},
   "depends": {"fabricloader": ">=0.15.0", "fabric-api": "*", "minecraft": "${minecraft}", "java": ">=17"}
 }

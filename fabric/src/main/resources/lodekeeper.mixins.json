@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.lodekeeper.fabric.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "ClientWorldMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "lodekeeper-refmap.json"
+}

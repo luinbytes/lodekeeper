@@ -37,33 +37,32 @@ final class PlayerActions {
         return count;
     }
     boolean select(Item item) {
+        if (client.player == null) return false;
+        for (int i = 0; i < 36; i++) if (client.player.getInventory().getStack(i).isOf(item)) return selectSlot(i);
+        return false;
+    }
+    private boolean selectSlot(int slot) {
         if (client.player == null || client.interactionManager == null) return false;
         var inventory = client.player.getInventory();
-        for (int i = 0; i < 9; i++) {
-            if (inventory.getStack(i).isOf(item)) { inventory.selectedSlot = i; return true; }
-        }
-        // Never swap while another container owns the player's inventory slots.
+        if (slot < 9) { inventory.selectedSlot = slot; return true; }
         if (client.player.currentScreenHandler != client.player.playerScreenHandler) return false;
-        for (int i = 9; i < 36; i++) {
-            if (inventory.getStack(i).isOf(item)) {
-                client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, i, inventory.selectedSlot, SlotActionType.SWAP, client.player);
-                return inventory.getMainHandStack().isOf(item);
-            }
-        }
-        return false;
+        ItemStack chosen = inventory.getStack(slot).copy();
+        client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, inventory.selectedSlot, SlotActionType.SWAP, client.player);
+        return ItemStack.areEqual(inventory.getMainHandStack(), chosen);
     }
     boolean bestTool(BlockState state) {
         if (client.player == null) return false;
-        ItemStack best = ItemStack.EMPTY;
-        float speed = 0;
-        for (ItemStack stack : client.player.getInventory().main) {
+        int bestSlot = -1; float speed = 0; int durability = -1;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = client.player.getInventory().getStack(i);
             if (stack.isEmpty() || stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= 1) continue;
             if (state.isToolRequired() && !stack.isSuitableFor(state)) continue;
             float candidate = stack.getMiningSpeedMultiplier(state);
-            if (candidate > speed) { speed = candidate; best = stack; }
+            int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : Integer.MAX_VALUE;
+            if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
-        if (state.isToolRequired() && best.isEmpty()) return false;
-        return best.isEmpty() || select(best.getItem());
+        if (state.isToolRequired() && bestSlot < 0) return false;
+        return bestSlot < 0 || selectSlot(bestSlot);
     }
     void look(Vec3d point) {
         if (client.player == null) return;

@@ -23,9 +23,10 @@ final class GameCatalog {
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
     private final MinecraftClient client;
+    private CatalogSnapshot cachedSnapshot;
     GameCatalog(MinecraftClient client) { this.client = client; }
     void load() {
-        sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
+        cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
         for (Item item : Registries.ITEM) {
             items.add(id(item));
             Registries.ITEM.getEntry(item).streamTags().forEach(tag -> tags.computeIfAbsent(TagId.parse(tag.id().toString()), ignored -> new ArrayList<>()).add(id(item)));
@@ -100,12 +101,14 @@ final class GameCatalog {
         }
     }
     CatalogSnapshot snapshot() {
+        if (cachedSnapshot != null) return cachedSnapshot;
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         Map<Item, Integer> fuels = net.minecraft.block.entity.AbstractFurnaceBlockEntity.createFuelTimeMap();
         for (Item item : Registries.ITEM) builder.item(id(item), item.getMaxDamage(), fuels.getOrDefault(item, 0));
         tags.forEach(builder::tag);
         sources.forEach(builder::source);
-        return builder.build();
+        cachedSnapshot = builder.build();
+        return cachedSnapshot;
     }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
