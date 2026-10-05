@@ -20,7 +20,11 @@ final class GameApi {
 
     static double blockReach(net.minecraft.client.MinecraftClient client) { return client.player.getBlockInteractionRange(); }
 
-    static Identifier identifier(String value) { return Identifier.of(value); }
+    static Identifier identifier(String value) {
+        int separator = value.indexOf(':');
+        return separator < 0 ? Identifier.of("minecraft", value)
+                : Identifier.of(value.substring(0, separator), value.substring(separator + 1));
+    }
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.areItemsAndComponentsEqual(first, second); }
 
