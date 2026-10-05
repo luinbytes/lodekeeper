@@ -7,7 +7,8 @@ java {
 tasks.withType(JavaCompile).configureEach { options.release = 21 }
 sourceSets {
     main {
-        java.srcDirs = [rootProject.file('fabric/src/main/java'), 'src/main/java']
+        def profileApi = ['1.20.5', '1.20.6'].contains(rootProject.minecraft_version) ? 'src/1205/java' : 'src/main/java'
+        java.srcDirs = [rootProject.file('fabric/src/main/java'), profileApi]
     }
     test.java.srcDir rootProject.file('fabric/src/test/java')
     verification {
@@ -78,7 +79,7 @@ def prepareVerificationOptions = tasks.register('prepareVerificationOptions') {
         if (!file.exists()) {
             file.parentFile.mkdirs()
             file.setText('''renderDistance:2
-simulationDistance:2
+simulationDistance:5
 maxFps:30
 fullscreen:false
 enableVsync:true
