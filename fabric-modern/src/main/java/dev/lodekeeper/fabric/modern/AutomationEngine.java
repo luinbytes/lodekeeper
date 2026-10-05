@@ -522,18 +522,22 @@ final class AutomationEngine {
 
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(), durability = new HashMap<>();
+        Map<ItemId, List<Integer>> durabilityLots = new HashMap<>();
         actions.inventory().forEach((name, count) -> counts.put(ItemId.parse(name), count));
         for (int index = 0; index < 36; index++) {
             ItemStack stack = client.player.getInventory().getItem(index);
             if (!stack.isEmpty() && stack.isDamageableItem()) {
-                durability.merge(GameCatalog.id(stack.getItem()), stack.getMaxDamage() - stack.getDamageValue(), Math::max);
+                ItemId item = GameCatalog.id(stack.getItem());
+                int remaining = stack.getMaxDamage() - stack.getDamageValue();
+                durability.merge(item, remaining, Math::max);
+                durabilityLots.computeIfAbsent(item, ignored -> new ArrayList<>()).add(remaining);
             }
         }
         Set<StationId> stations = new HashSet<>();
         ownedStations.forEach((id, position) -> {
             if (client.level.getBlockState(position).getBlock() == BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString()))) stations.add(id);
         });
-        return new InventorySnapshot(counts, stations, durability, protectedCounts(counts, activeTarget));
+        return new InventorySnapshot(counts, stations, durability, protectedCounts(counts, activeTarget), durabilityLots);
     }
 
     private Map<ItemId, Integer> protectedCounts(Map<ItemId, Integer> counts, ItemId activeTarget) {

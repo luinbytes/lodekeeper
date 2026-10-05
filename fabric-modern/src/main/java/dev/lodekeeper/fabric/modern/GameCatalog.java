@@ -216,7 +216,7 @@ final class GameCatalog {
                 else if (state.is(BlockTags.NEEDS_IRON_TOOL)) tools = itemIds("minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe");
                 else if (state.is(BlockTags.NEEDS_STONE_TOOL)) tools = itemIds("minecraft:stone_pickaxe", "minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe");
                 else tools = itemIds("minecraft:wooden_pickaxe", "minecraft:stone_pickaxe", "minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe");
-                if (tools.length > 0) requirements.add(new ToolRequirement(Ingredient.choices(List.of(tools), 1), 8, "harvest " + blockId));
+                if (tools.length > 0) requirements.add(new ToolRequirement(Ingredient.choices(List.of(tools), 1), 2, "harvest " + blockId, 1));
             }
             sources.add(new dev.lodekeeper.core.GatherSource("gather:" + blockKey, id(drop), 1,
                     List.of(BlockId.parse(blockId)), requirements));

@@ -122,6 +122,17 @@ final class GameApi {
         }
     }
 
+    static int blockBreakWear(ItemStack stack) {
+        if (stack.getItem() instanceof net.minecraft.item.ShearsItem) {
+            if (stack.getItem().getClass() != net.minecraft.item.ShearsItem.class) return -1;
+            var shearTool = stack.get(DataComponentTypes.TOOL);
+            return shearTool == null ? 1 : Math.max(1, shearTool.damagePerBlock());
+        }
+        if (!stack.isDamageable()) return 0;
+        var tool = stack.get(DataComponentTypes.TOOL);
+        return tool == null ? -1 : tool.damagePerBlock();
+    }
+
     static dev.lodekeeper.core.Ingredient ingredient(Ingredient ingredient) {
         List<ItemId> choices = new ArrayList<>();
         ingredient.getMatchingItems().forEach(entry -> choices.add(GameCatalog.id(entry.value())));

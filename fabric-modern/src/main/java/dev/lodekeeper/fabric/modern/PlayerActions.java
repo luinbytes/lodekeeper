@@ -59,7 +59,8 @@ final class PlayerActions {
     }
 
     boolean selectSlot(int slot) {
-        if (client.player == null || client.gameMode == null || slot < 0 || slot >= 36) return false;
+        if (client.player == null || client.gameMode == null || slot < 0 || slot >= 36
+                || !client.player.containerMenu.getCarried().isEmpty()) return false;
         Inventory inventory = client.player.getInventory();
         if (slot < 9) {
             inventory.setSelectedSlot(slot);
@@ -67,7 +68,6 @@ final class PlayerActions {
         }
         if (client.player.containerMenu != client.player.inventoryMenu) return false;
         ItemStack chosen = inventory.getItem(slot).copy();
-        if (chosen.isEmpty()) return false;
         AbstractContainerMenu menu = client.player.inventoryMenu;
         int menuSlot = -1;
         for (int i = 0; i < menu.slots.size(); i++) {
@@ -86,14 +86,14 @@ final class PlayerActions {
         float speed = 0;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inventory.getItem(i);
-            if (stack.isEmpty() || stack.isDamageableItem() && stack.getMaxDamage() - stack.getDamageValue() <= 1) continue;
+            if (!hasSafeDurability(stack, 1)) continue;
             if (state.requiresCorrectToolForDrops() && !stack.isCorrectToolForDrops(state)) continue;
-            float candidate = stack.getDestroySpeed(state);
+            float candidate = stack.isEmpty() ? 1 : stack.getDestroySpeed(state);
             int remaining = stack.isDamageableItem() ? stack.getMaxDamage() - stack.getDamageValue() : Integer.MAX_VALUE;
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
         if (state.requiresCorrectToolForDrops() && bestSlot < 0) return false;
-        return bestSlot < 0 || selectSlot(bestSlot);
+        return bestSlot >= 0 && selectSlot(bestSlot);
     }
 
     boolean hasTool(SelectedToolRequirement required) {
@@ -102,10 +102,17 @@ final class PlayerActions {
         Inventory inventory = client.player.getInventory();
         for (int index = 0; index < 36; index++) {
             ItemStack stack = inventory.getItem(index);
-            int remaining = stack.isDamageableItem() ? stack.getMaxDamage() - stack.getDamageValue() : Integer.MAX_VALUE;
-            if (stack.is(item) && remaining >= required.minimumDurability()) return true;
+            if (!stack.isEmpty() && stack.is(item) && hasSafeDurability(stack, required.minimumDurability())) return true;
         }
         return false;
+    }
+
+    private static boolean hasSafeDurability(ItemStack stack, int minimumDurability) {
+        int wear = GameApi.blockBreakWear(stack);
+        if (wear < 0) return false;
+        if (!stack.isDamageableItem()) return true;
+        int remaining = stack.getMaxDamage() - stack.getDamageValue();
+        return remaining >= minimumDurability && remaining > wear;
     }
 
     void look(Vec3 point) {
@@ -152,8 +159,7 @@ final class PlayerActions {
             Inventory inventory = client.player.getInventory();
             for (int index = 0; index < 36; index++) {
                 ItemStack candidate = inventory.getItem(index);
-                int remaining = candidate.isDamageableItem() ? candidate.getMaxDamage() - candidate.getDamageValue() : Integer.MAX_VALUE;
-                if (candidate.is(required) && remaining >= requiredTool.minimumDurability()
+                if (candidate.is(required) && hasSafeDurability(candidate, requiredTool.minimumDurability())
                         && (!state.requiresCorrectToolForDrops() || candidate.isCorrectToolForDrops(state))) {
                     slot = index;
                     break;
@@ -161,6 +167,9 @@ final class PlayerActions {
             }
             if (slot < 0 || !selectSlot(slot)) return false;
         }
+        ItemStack held = client.player.getInventory().getSelectedItem();
+        if (!hasSafeDurability(held, requiredTool == null ? 1 : requiredTool.minimumDurability())
+                || state.requiresCorrectToolForDrops() && !held.isCorrectToolForDrops(state)) return false;
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getLocation());

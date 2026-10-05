@@ -73,7 +73,7 @@ final class VerificationApi {
     static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo,
                                GeneratorOptions options) {
         loader.createAndStart(saveName, levelInfo, options,
-            registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT)
+            registry -> registry.getOrThrow(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).value()
                 .createDimensionsRegistryHolder(), (Screen) null);
     }
 }

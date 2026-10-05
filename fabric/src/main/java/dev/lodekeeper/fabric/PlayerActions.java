@@ -44,7 +44,8 @@ final class PlayerActions {
         return false;
     }
     boolean selectSlot(int slot) {
-        if (client.player == null || client.interactionManager == null) return false;
+        if (client.player == null || client.interactionManager == null || slot < 0 || slot >= 36
+                || !client.player.currentScreenHandler.getCursorStack().isEmpty()) return false;
         var inventory = client.player.getInventory();
         if (slot < 9) { inventory.selectedSlot = slot; return true; }
         if (client.player.currentScreenHandler != client.player.playerScreenHandler) return false;

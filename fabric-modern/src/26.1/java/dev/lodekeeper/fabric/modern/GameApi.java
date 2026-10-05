@@ -28,6 +28,12 @@ final class GameApi {
         return new KeyMapping(name, InputConstants.Type.KEYSYM, keyCode, category);
     }
 
+    static int blockBreakWear(ItemStack stack) {
+        if (!stack.isDamageableItem()) return 0;
+        var tool = stack.get(net.minecraft.core.component.DataComponents.TOOL);
+        return tool == null ? -1 : tool.damagePerBlock();
+    }
+
     static void swing(LocalPlayer player, InteractionHand hand) { player.swing(hand); }
 
     static Set<Item> tagItems(SlotDisplay.TagSlotDisplay display, Level level) {

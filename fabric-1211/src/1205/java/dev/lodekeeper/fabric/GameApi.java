@@ -49,8 +49,13 @@ final class GameApi {
 
     /** Reads the effective per-block wear from this stack's tool component. */
     static int blockBreakWear(ItemStack stack) {
+        if (stack.getItem() instanceof net.minecraft.item.ShearsItem) {
+            if (stack.getItem().getClass() != net.minecraft.item.ShearsItem.class) return -1;
+            var shearTool = stack.get(DataComponentTypes.TOOL);
+            return shearTool == null ? 1 : Math.max(1, shearTool.damagePerBlock());
+        }
         ToolComponent tool = stack.get(DataComponentTypes.TOOL);
-        return tool == null ? 0 : tool.damagePerBlock();
+        return tool == null ? (stack.isDamageable() ? -1 : 0) : tool.damagePerBlock();
     }
 
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }

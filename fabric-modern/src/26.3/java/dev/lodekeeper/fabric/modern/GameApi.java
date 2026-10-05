@@ -44,6 +44,12 @@ final class GameApi {
         return new KeyMapping(name, InputConstants.Type.KEYBOARD, keyCode, category);
     }
 
+    static int blockBreakWear(ItemStack stack) {
+        if (!stack.isDamageableItem()) return 0;
+        var tool = stack.get(net.minecraft.core.component.DataComponents.TOOL);
+        return tool == null ? -1 : tool.damagePerBlock();
+    }
+
     static void swing(LocalPlayer player, InteractionHand hand) {
         player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
     }
