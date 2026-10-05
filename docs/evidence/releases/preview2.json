@@ -1,0 +1,171 @@
+{
+  "checkedAt": "2026-10-05T18:55:57.919885+00:00",
+  "releaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.2",
+  "releaseTag": "v0.1.0-preview.2",
+  "releaseTagCommit": "7dad8d526c4422553bc43e4e4f33bf54cc55eb14",
+  "productionBuildCommit": "bfb9fdc0fb9f02d74a9e6445f7d9cd68a8b9fc2d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37357160313",
+  "productionTreeMatchesTag": true,
+  "draft": false,
+  "prerelease": true,
+  "assetsVerified": 26,
+  "verification": "Every GitHub asset upload state, byte size and SHA-256 digest matched the inspected local staging files. Gameplay proof digests match the published 1.21.1 and 26.3 assets. Ordinary-launcher, natural-world and remote-server acceptance remain open.",
+  "assets": [
+    {
+      "name": "SHA256SUMS",
+      "size": 2344,
+      "sha256": "3e087be3e62a63e74aa04fdc80cfa9b961fe13743b484c97ee788d4980de972c",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/SHA256SUMS"
+    },
+    {
+      "name": "build-evidence.json",
+      "size": 9702,
+      "sha256": "f1c641378a125aad2e62a545d4b883f4d239599a7ca3af9bd4952a66878b2e48",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/build-evidence.json"
+    },
+    {
+      "name": "lodekeeper-1.20-0.1.0-dev.jar",
+      "size": 384135,
+      "sha256": "51361c950f51dfb6ff9a9b690c2438e4afd04969cffe1211857c35208a0682bc",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.1-0.1.0-dev.jar",
+      "size": 384138,
+      "sha256": "ff10c081e656b58cdff9d426766d4003738145be209fa38c9cf26cf46eabbd68",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.1-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.2-0.1.0-dev.jar",
+      "size": 384265,
+      "sha256": "ce0833bda9341d70ef816827e5ce2640322613e5f04ab5a836e07c99f2fa6e29",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.2-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.3-0.1.0-dev.jar",
+      "size": 384266,
+      "sha256": "3df4f07cb636dbaeac8d211c8f4522f71c7a36796c73141decb8991d2600f9b2",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.3-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.4-0.1.0-dev.jar",
+      "size": 384267,
+      "sha256": "e935d98d3a636378dba3d8f47f1c218a9685250f1794c4de6a31a0afb74dc8e0",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.4-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.5-0.1.0-dev.jar",
+      "size": 384198,
+      "sha256": "c5dfc8739a8736121d6b43d3ea365cb2bfebbba09fa527862b54bd352102618c",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.5-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.20.6-0.1.0-dev.jar",
+      "size": 384198,
+      "sha256": "cd004fcdfdb6f8ea82a31d77399b8a8ec128a2098d226825734d40c03024d518",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.20.6-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21-0.1.0-dev.jar",
+      "size": 384375,
+      "sha256": "4773f83a1710d34742bc946eb4d547e5abde93e5212a23635030b403dd0c32aa",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.1-0.1.0-dev.jar",
+      "size": 384379,
+      "sha256": "17a3edc318f82de770cb1f39686cfaa077a50503f2ba010a7c27b45a1c50ff18",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.1-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.10-0.1.0-dev.jar",
+      "size": 394786,
+      "sha256": "373c01f36cb0618e55f49528d6ef66e43f3a4f8aa49da1cc5e47e5b286ea709d",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.10-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.11-0.1.0-dev.jar",
+      "size": 394787,
+      "sha256": "bb15f3a506f0bcc81ce64c57a55c51d7358d3095597b975e6feb5226da1de396",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.11-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.2-0.1.0-dev.jar",
+      "size": 394636,
+      "sha256": "900fba35ad8713aa597f0a4203b1717af1df2e14fcff7a76d1d2f43f25f13682",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.2-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.3-0.1.0-dev.jar",
+      "size": 394638,
+      "sha256": "bf452ac963c966bd1370c6b93f92d7ad686735dc60a20437408163b3b6add5f2",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.3-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.4-0.1.0-dev.jar",
+      "size": 394667,
+      "sha256": "254782df1091f59bce72793b69477fdfd257b7aaaa219e9acb1e608904bcb0bb",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.4-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.5-0.1.0-dev.jar",
+      "size": 394697,
+      "sha256": "82ef8f64d4e9e35515b08ad75a8aec3f88f0c0f507f1f92cde2e51945963de3f",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.5-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.6-0.1.0-dev.jar",
+      "size": 394695,
+      "sha256": "744bbc568b1629fa4dc1d82cd480d852d515317ab850a8b5b3821b455eb2df4e",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.6-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.7-0.1.0-dev.jar",
+      "size": 394695,
+      "sha256": "7988ab6ea06e49871a0d68752ec3c1350c1832c5cf2b3bc855c4cbda0a249d68",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.7-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.8-0.1.0-dev.jar",
+      "size": 394694,
+      "sha256": "f2509e1ab33d71130cf9b406be21816d7049722f1c3083b2acb61eb59a0c37c2",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.8-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-1.21.9-0.1.0-dev.jar",
+      "size": 394788,
+      "sha256": "bf4dfda4c459acaf2177f2e1ac0d0deaa12855ccb96a7d039b6e5a41f578d4f0",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-1.21.9-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-26.1-0.1.0-dev.jar",
+      "size": 376817,
+      "sha256": "07a8a2b3ef3af5c0c4ffcbde305d77289a96df31bb791a7c28092d4c35126891",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-26.1-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-26.1.1-0.1.0-dev.jar",
+      "size": 376820,
+      "sha256": "6693efacc59cc2fc3a200e11d6901d1988ed0ee3c2eeb2e0311220a9bf9711f7",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-26.1.1-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-26.1.2-0.1.0-dev.jar",
+      "size": 376820,
+      "sha256": "41bc4b4d782785e566b15395e935f190585443a8bf5b356c3c79f235921ac23e",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-26.1.2-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-26.2-0.1.0-dev.jar",
+      "size": 376872,
+      "sha256": "e510b02b4d2d3afcbaf641cb4c4cba8d0b8fcaabe93482937f9ed6f7e5e4c6cb",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-26.2-0.1.0-dev.jar"
+    },
+    {
+      "name": "lodekeeper-26.3-0.1.0-dev.jar",
+      "size": 380945,
+      "sha256": "3edead1ceaac98ea4233218266bdc2ddaa55dada13dd6054dd96458020a0de75",
+      "downloadUrl": "https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.2/lodekeeper-26.3-0.1.0-dev.jar"
+    }
+  ]
+}
