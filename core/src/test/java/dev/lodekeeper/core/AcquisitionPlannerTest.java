@@ -455,6 +455,29 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void largeFuelCatalogPrioritizesHeldFuelWithinTheNodeBudget() {
+        ItemId raw = ItemId.parse("test:raw_ore");
+        ItemId output = ItemId.parse("test:ingot");
+        ItemId heldFuel = ItemId.parse("test:zz_held_fuel");
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(raw, 0).item(output, 0).item(heldFuel, 0, 300);
+        var fuels = new java.util.ArrayList<ItemSelector>();
+        for (int index = 0; index < 255; index++) {
+            ItemId unavailable = ItemId.parse("test:unused_fuel_" + index);
+            builder.item(unavailable, 0, 300);
+            fuels.add(ItemSelector.item(unavailable));
+        }
+        fuels.add(ItemSelector.item(heldFuel));
+        builder.source(new SmeltingSource("smelt:ingot", output, 1, Ingredient.of(raw), fuels, 200, List.of()));
+        PlannerLimits limits = new PlannerLimits(48, 40, 20, 12, 4096, 1000);
+        PlanResult result = planner().plan(builder.build(), new InventorySnapshot(Map.of(raw, 1, heldFuel, 1)), output, 1, limits);
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertFalse(result.optimal());
+        assertTrue(result.expandedNodes() <= 40);
+        assertTrue(result.steps().get(0).requirements().stream().filter(SelectedItemRequirement.class::isInstance)
+                .map(SelectedItemRequirement.class::cast).anyMatch(requirement -> requirement.item().equals(heldFuel)));
+    }
+
+    @Test
     void replacementToolsAccountForTheirOwnMiningMaterials() {
         ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
         ItemId cobble = ItemId.parse("minecraft:cobblestone");
