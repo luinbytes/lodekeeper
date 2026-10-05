@@ -263,6 +263,11 @@ public final class PathEdgeValidator {
         if (!grounded) return true;
 
         if (!probeCurrentStance(terrain, feetX, feetY, feetZ, movement, stanceProbe)) return false;
+        // A validated drop leaves full launch support before vanilla clears its grounded flag.
+        if (movement == Path.Movement.DROP) {
+            return stanceProbe.loaded && !stanceProbe.hazard && stanceProbe.bodyClear
+                    && stanceProbe.breakCount == 0 && stanceProbe.hasGroundSupport();
+        }
         return safeStance(stanceProbe, movement, true);
     }
 

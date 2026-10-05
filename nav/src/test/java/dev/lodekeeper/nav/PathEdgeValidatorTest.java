@@ -112,6 +112,36 @@ final class PathEdgeValidatorTest {
     }
 
     @Test
+    void validatedDropCanLeaveFullSupportWithoutBypassingLaunchOrHazardChecks() {
+        FakeTerrain terrain = new FakeTerrain();
+        Path.Step source = step(0, 1, 0, Path.Movement.START);
+        Path.Step landing = step(1, 0, 0, Path.Movement.DROP);
+        StanceProbe current = terrain.stance(0, 1, 0);
+        current.fullSupport = true;
+        terrain.stance(1, 0, 0).fullSupport = true;
+        assertTrue(edge(terrain, source, landing, .5, 1, .5, true, true));
+
+        current.fullSupport = false;
+        current.surfaceSupport = true;
+        assertTrue(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
+        assertFalse(edge(terrain, source, landing, .85, 1, .5, true, true),
+                "a new drop still needs full launch support");
+
+        current.surfaceSupport = false;
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
+        current.surfaceSupport = true;
+        current.hazard = true;
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
+        current.hazard = false;
+        terrain.sweepClear = false;
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
+    }
+
+    @Test
     void parkourPermissionAndSweptLoadedStateAreCheckedLive() {
         FakeTerrain terrain = new FakeTerrain();
         Path.Step source = step(0, 0, 0, Path.Movement.START);
