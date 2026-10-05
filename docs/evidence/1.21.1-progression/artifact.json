@@ -1,0 +1,20 @@
+{
+  "minecraftVersion": "1.21.1",
+  "sourceCommit": "a795995",
+  "artifact": "lodekeeper-1.21.1-0.1.0-dev.jar",
+  "artifactSha256": "6802297ba6d7e24e454660ce559764f3bcf81fa620eb7d9d084ce49205498adf",
+  "sourceTreeSha256": "2e402f92a828f1a1151840913e8a527ff67b5632d35198cf6e2b007d36af1593",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "core/src/main",
+    "nav/src/main",
+    "fabric/src/main",
+    "fabric/src/verification",
+    "fabric-1211/src/main",
+    "fabric-1211/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "gameRunId": "2026-10-05T07-59-22-218429Z-192a0f55",
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired remapped build; gameplay used matching development classes"
+}

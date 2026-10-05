@@ -10,7 +10,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.3, 1.20.4 | 17 | Each exact CI development build passes | Pending |
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
-| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Pending** |
+| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
 | 1.21.2, 1.21.3 | 21 | Pending; recipe-display API boundary | Pending |
 | 1.21.4, 1.21.5 | 21 | Pending | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Pending | Pending |
@@ -34,7 +34,9 @@ The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, o
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.
 
-First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-first-run/run.json), paired with the [development artifact digest](evidence/26.3-first-run/artifact.json). Logs, inventory crafting, sticks and a wooden pickaxe passed. Stone-pickaxe acquisition stopped at the route corridor safeguard; later cases were not run. The 1.21.1 verifier currently stalls during isolated-world startup, before automation begins; its passing build does not establish gameplay compatibility.
+Controlled 1.21.1 evidence at `a795995`: [nine-case observations and screenshots](evidence/1.21.1-progression/run.json), with the [paired artifact digest](evidence/1.21.1-progression/artifact.json). The 160,429 ms run begins empty and passes the same progression, custom-content and food checks with health 20 throughout. Waiting for resource overlays before verifier startup resolved the earlier startup stall.
+
+First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-first-run/run.json), paired with the [development artifact digest](evidence/26.3-first-run/artifact.json). Logs, inventory crafting, sticks and a wooden pickaxe passed. Stone-pickaxe acquisition stopped at the route corridor safeguard; later cases were not run. The captured-position route fix at `a795995` is awaiting its full 26.3 rerun.
 
 Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37273002879) passed at `46f3496`. [Artifact inspection](evidence/builds/46f3496.json) verifies downloaded SHA-256 digests, exact Minecraft metadata, Java class versions, bundled Java 17 core, and exclusion of verifier fixtures. These checks prove packaging, not gameplay. This run predates the modern automatic-eating addition, which passed its separate local 26.3 build.
 
