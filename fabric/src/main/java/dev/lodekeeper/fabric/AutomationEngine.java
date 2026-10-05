@@ -175,7 +175,8 @@ final class AutomationEngine {
             if (target == null) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
         }
         if (!blocks.contains(client.world.getBlockState(target).getBlock())) { target = null; actions.cancel(); return; }
-        if (!actions.mine(target)) { movement.start(target, 1); moving = true; }
+        SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance).map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
+        if (!actions.mine(target, tool)) { movement.start(target, 1); moving = true; }
     }
     private void placeStation() {
         Block block = Registries.BLOCK.get(new Identifier(step.station().toString()));

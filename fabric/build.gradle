@@ -20,3 +20,29 @@ processResources {
 }
 loom { runs { client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' } } }
 loom { mixin { defaultRefmapName = 'lodekeeper-refmap.json' } }
+sourceSets {
+    verification {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+loom {
+    mods {
+        lodekeeper { sourceSet sourceSets.main }
+        'lodekeeper-verification' { sourceSet sourceSets.verification }
+    }
+    runs {
+        verificationClient {
+            client()
+            source sourceSets.verification
+            runDir 'run'
+            vmArg '-Dlodekeeper.verify=true'
+            vmArg '-Xmx1536m'
+            vmArg '-XX:ActiveProcessorCount=2'
+            programArg '--width'
+            programArg '640'
+            programArg '--height'
+            programArg '360'
+        }
+    }
+}

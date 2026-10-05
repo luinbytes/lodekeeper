@@ -1,0 +1,14 @@
+{
+  "runId":"2026-10-05T03-58-51-924338Z-aaa44e12",
+  "status":"passed",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "elapsedMillis":76542,
+  "clientTicks":1341,
+  "failure":"",
+  "cases":[
+    {"name":"gather_wood_8","item":"minecraft:oak_log","expected":8,"serverObserved":8,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":979,"worldTicks":979,"engineStatus":"idle · 0 queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverPosition":[12.597971038067637,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-05T03-58-51-924338Z-aaa44e12-gather_wood_8.png"},
+    {"name":"craft_crafting_table","item":"minecraft:crafting_table","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":100,"worldTicks":101,"engineStatus":"idle · 0 queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverPosition":[12.597971038067637,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-05T03-58-51-924338Z-aaa44e12-craft_crafting_table.png"},
+    {"name":"craft_sticks_8","item":"minecraft:stick","expected":8,"serverObserved":8,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":120,"worldTicks":120,"engineStatus":"idle · 0 queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverPosition":[12.597971038067637,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-05T03-58-51-924338Z-aaa44e12-craft_sticks_8.png"}
+  ]
+}

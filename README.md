@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Development preview:** there is no playable release yet. The commands below describe the intended experience. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
+> **Development preview:** there is no playable release yet. Basic log gathering and inventory crafting have passed a controlled 1.20.1 game check; broader progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
 
 ### Tell it what you need
 
@@ -21,7 +21,7 @@
 !lk stop
 ```
 
-`wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. The prefix will be configurable. Commands stay on your client.
+`wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.
 
 ### From an empty inventory to a finished goal
 
@@ -31,7 +31,7 @@ You will be able to inspect a plan, queue goals, pause or stop. Unknown recipes 
 
 ### Installation and compatibility
 
-Installable artifacts and exact instructions will appear here after verification. **No Minecraft version is currently claimed as supported.** The target is every stable Java release from 1.20 through the current stable release, 26.3; each needs its own compatibility evidence. Use server automation only where the server permits it.
+Installable artifacts and exact instructions will appear here after verification. **No Minecraft version is currently claimed as supported.** The target is every stable Java release from 1.20 through the current stable release, 26.3, including an explicit 1.21.1 build; each needs its own compatibility evidence. Use server automation only where the server permits it.
 
 ---
 
@@ -42,6 +42,9 @@ Source lives in `core` (acquisition and commands), `nav` (custom navigation), an
 
 - [Stack and delivery plan](docs/STACK.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Version and gameplay evidence](docs/COMPATIBILITY.md)
+- [Isolated gameplay verifier](docs/GAME-VERIFICATION.md)
+- [Custom block drop contracts](docs/CUSTOM-CONTENT.md)
 - [Repository instructions](AGENTS.md)
 
 Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks; this project makes no superiority claim before those measurements exist.

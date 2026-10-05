@@ -59,6 +59,7 @@ final class GameCatalog {
             } catch (IllegalArgumentException ex) { unsupported.add(key + ": " + ex.getMessage()); }
         }
         gatherSources();
+        ExtensionCatalog.append(this);
     }
     private List<RecipeSlot> slots(List<net.minecraft.recipe.Ingredient> ingredients, boolean shaped) {
         List<RecipeSlot> slots = new ArrayList<>();

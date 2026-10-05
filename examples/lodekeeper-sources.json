@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "gather": [
+    {
+      "id": "ruby_ore",
+      "enabled": false,
+      "item": "example:ruby",
+      "blocks": ["example:ruby_ore", "example:deepslate_ruby_ore"],
+      "tools": ["minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"]
+    }
+  ]
+}

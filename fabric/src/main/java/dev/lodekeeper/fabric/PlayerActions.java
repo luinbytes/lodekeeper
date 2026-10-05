@@ -1,5 +1,6 @@
 package dev.lodekeeper.fabric;
 
+import dev.lodekeeper.core.SelectedToolRequirement;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -83,10 +84,28 @@ final class PlayerActions {
         }
         return null;
     }
-    boolean mine(BlockPos position) {
+    private BlockHitResult hitFace(BlockPos position, Direction face) {
+        Vec3d eye = client.player.getEyePos();
+        Vec3d aim = Vec3d.ofCenter(position).add(Vec3d.of(face.getVector()).multiply(.499));
+        double reach = client.interactionManager.getReachDistance();
+        if (eye.squaredDistanceTo(aim) > reach * reach) return null;
+        BlockHitResult hit = client.world.raycast(new RaycastContext(eye, aim, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, client.player));
+        return hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(position) && hit.getSide() == face ? hit : null;
+    }
+    boolean mine(BlockPos position) { return mine(position, null); }
+    boolean mine(BlockPos position, SelectedToolRequirement tool) {
         if (client.world == null || client.player == null || client.interactionManager == null) return false;
         BlockState state = client.world.getBlockState(position);
-        if (state.isAir() || state.getHardness(client.world, position) < 0 || !bestTool(state)) return false;
+        if (state.isAir() || state.getHardness(client.world, position) < 0) return false;
+        if (tool == null) { if (!bestTool(state)) return false; }
+        else {
+            int slot = -1;
+            for (int i = 0; i < 36; i++) {
+                ItemStack stack = client.player.getInventory().getStack(i);
+                if (stack.isOf(GameCatalog.item(tool.item())) && (!stack.isDamageable() || stack.getMaxDamage() - stack.getDamage() >= tool.minimumDurability()) && (!state.isToolRequired() || stack.isSuitableFor(state))) { slot = i; break; }
+            }
+            if (slot < 0 || !selectSlot(slot)) return false;
+        }
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getPos());
@@ -107,7 +126,7 @@ final class PlayerActions {
         if (client.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(destination))) return false;
         for (Direction side : Direction.values()) {
             BlockPos support = destination.offset(side);
-            BlockHitResult hit = hit(support);
+            BlockHitResult hit = hitFace(support, side.getOpposite());
             if (hit == null || hit.getSide() != side.getOpposite()) continue;
             look(hit.getPos());
             // Avoid opening support containers while placing; executor supplies sneak when needed.

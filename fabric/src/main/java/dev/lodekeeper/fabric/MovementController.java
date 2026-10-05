@@ -73,7 +73,19 @@ final class MovementController {
                 Block block = Block.getBlockFromItem(item);
                 if (state.isOf(block)) { actionIndex++; return false; }
                 input.drive(0, 0, false, true);
-                if (!actions.place(position, block)) { retry("Bridge placement denied or out of reach"); return false; }
+                if (!actions.place(position, block)) {
+                    // A side face below the player cannot be seen from the center of its support.
+                    // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
+                    Path.Step previous = path.step(pathIndex - 1);
+                    Vec3d edge = new Vec3d(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
+                    Vec3d delta = edge.subtract(client.player.getPos());
+                    if (Math.hypot(delta.x, delta.z) > .08) {
+                        client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
+                        input.drive(.4f, 0, false, true);
+                    }
+                    if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
+                    return false;
+                }
             }
             if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new IllegalStateException("World action made no progress");
             return false;
