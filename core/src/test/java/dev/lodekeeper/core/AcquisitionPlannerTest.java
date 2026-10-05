@@ -15,6 +15,29 @@ final class AcquisitionPlannerTest {
     private static final ItemId PLANKS = ItemId.parse("minecraft:oak_planks");
     private static final ItemId STICKS = ItemId.parse("minecraft:stick");
 
+    // Quantity and inventory checks use a stationary clock, independently of CI scheduling.
+    private static AcquisitionPlanner planner() { return new AcquisitionPlanner(() -> 0L); }
+
+    @Test
+    void elapsedBudgetRejectsTheExactDeadlineWithoutTimingFunctionalChecks() {
+        CatalogSnapshot catalog = woodToSticksCatalog();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(LOG, 1));
+        long deadline = PlannerLimits.DEFAULT.maximumElapsedMillis() * 1_000_000L;
+        for (long observed : new long[]{deadline - 1, deadline}) {
+            var reads = new java.util.concurrent.atomic.AtomicInteger();
+            AcquisitionPlanner planner = new AcquisitionPlanner(() -> reads.getAndIncrement() == 0 ? 0L : observed);
+            PlanResult result = planner.plan(catalog, inventory, LOG, 1);
+            if (observed < deadline) {
+                assertTrue(result.success());
+                assertEquals(observed, result.elapsedNanos());
+            } else {
+                assertFalse(result.success());
+                assertTrue(result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT));
+                assertEquals(0, result.expandedNodes());
+            }
+        }
+    }
+
     @Test
     void reservesInventoryAndPlansOnlyMissingQuantity() {
         CatalogSnapshot catalog = CatalogSnapshot.builder()
@@ -22,7 +45,7 @@ final class AcquisitionPlannerTest {
                 .source(new GatherSource("gather:oak", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
                 .build();
 
-        PlanResult result = new AcquisitionPlanner().plan(catalog, new InventorySnapshot(Map.of(LOG, 60)), LOG, 64);
+        PlanResult result = planner().plan(catalog, new InventorySnapshot(Map.of(LOG, 60)), LOG, 64);
 
         assertTrue(result.success());
         assertEquals(1, result.steps().size());
@@ -39,7 +62,7 @@ final class AcquisitionPlannerTest {
                         List.of(new RecipeSlot(-1, Ingredient.of(PLANKS)), new RecipeSlot(-1, Ingredient.of(PLANKS))), List.of()))
                 .build();
 
-        PlanResult result = new AcquisitionPlanner().plan(catalog, new InventorySnapshot(Map.of(PLANKS, 4)), STICKS, 8);
+        PlanResult result = planner().plan(catalog, new InventorySnapshot(Map.of(PLANKS, 4)), STICKS, 8);
 
         assertTrue(result.success());
         assertEquals(1, result.steps().size());
@@ -64,7 +87,7 @@ final class AcquisitionPlannerTest {
                                 new RecipeSlot(-1, Ingredient.of(a))), List.of()))
                 .build();
 
-        PlanResult result = new AcquisitionPlanner().plan(catalog, new InventorySnapshot(Map.of(a, 2, b, 2)), output, 2);
+        PlanResult result = planner().plan(catalog, new InventorySnapshot(Map.of(a, 2, b, 2)), output, 2);
 
         assertTrue(result.success());
         PlanStep craft = result.steps().stream().filter(step -> step.kind() == PlanKind.CRAFT).findFirst().orElseThrow();
@@ -95,7 +118,7 @@ final class AcquisitionPlannerTest {
                 .build();
         InventorySnapshot inventory = new InventorySnapshot(Map.of(coal, 1), Set.of(furnace), Map.of());
 
-        PlanResult result = new AcquisitionPlanner().plan(catalog, inventory, iron, 3);
+        PlanResult result = planner().plan(catalog, inventory, iron, 3);
 
         assertTrue(result.success());
         PlanStep smelt = result.steps().stream().filter(step -> step.kind() == PlanKind.SMELT).findFirst().orElseThrow();
@@ -121,7 +144,7 @@ final class AcquisitionPlannerTest {
                         List.of(new RecipeSlot(-1, Ingredient.of(a))), List.of()))
                 .build();
 
-        PlanResult result = new AcquisitionPlanner().plan(catalog, new InventorySnapshot(Map.of()), a, 1);
+        PlanResult result = planner().plan(catalog, new InventorySnapshot(Map.of()), a, 1);
 
         assertFalse(result.success());
         assertTrue(result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.CYCLE));
@@ -144,7 +167,7 @@ final class AcquisitionPlannerTest {
                         new RecipeSlot(2, tagIngredient), new RecipeSlot(3, tagIngredient)), List.of()));
         Map<ItemId, Integer> mixedInventory = Map.of(variants.get(0), 1, variants.get(1), 1, variants.get(2), 1, variants.get(3), 1);
 
-        PlanResult result = new AcquisitionPlanner().plan(builder.build(), new InventorySnapshot(mixedInventory), table, 1);
+        PlanResult result = planner().plan(builder.build(), new InventorySnapshot(mixedInventory), table, 1);
 
         assertTrue(result.success());
         assertEquals(1, result.steps().size());
@@ -287,7 +310,7 @@ final class AcquisitionPlannerTest {
         CatalogSnapshot catalog = woodToSticksCatalog();
         InventorySnapshot protectedLog = new InventorySnapshot(Map.of(LOG, 1), Set.of(), Map.of(), Map.of(LOG, 1));
 
-        PlanResult protectedResult = new AcquisitionPlanner().plan(catalog, protectedLog, STICKS, 4);
+        PlanResult protectedResult = planner().plan(catalog, protectedLog, STICKS, 4);
         assertTrue(protectedResult.success());
         assertTrue(protectedResult.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER && step.output().equals(LOG)));
         assertEquals(1, protectedLog.count(LOG));
@@ -297,7 +320,7 @@ final class AcquisitionPlannerTest {
         InventorySnapshot legacyThreeArgument = new InventorySnapshot(Map.of(LOG, 1), Set.of(), Map.of());
         assertTrue(oneArgument.protectedCounts().isEmpty());
         assertTrue(legacyThreeArgument.protectedCounts().isEmpty());
-        PlanResult legacyResult = new AcquisitionPlanner().plan(catalog, oneArgument, STICKS, 4);
+        PlanResult legacyResult = planner().plan(catalog, oneArgument, STICKS, 4);
         assertTrue(legacyResult.success());
         assertFalse(legacyResult.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER && step.output().equals(LOG)));
         assertThrows(IllegalArgumentException.class,
@@ -316,7 +339,7 @@ final class AcquisitionPlannerTest {
                 .build();
         InventorySnapshot partialProtected = new InventorySnapshot(Map.of(LOG, 6), Set.of(), Map.of(), Map.of(LOG, 4));
 
-        PlanResult materialPlan = new AcquisitionPlanner().plan(materialCatalog, partialProtected, widget, 1);
+        PlanResult materialPlan = planner().plan(materialCatalog, partialProtected, widget, 1);
         assertTrue(materialPlan.success());
         PlanStep gather = materialPlan.steps().stream().filter(step -> step.kind() == PlanKind.GATHER && step.output().equals(LOG)).findFirst().orElseThrow();
         assertEquals(2, gather.outputCount());
@@ -334,7 +357,7 @@ final class AcquisitionPlannerTest {
                         List.of(new RecipeSlot(-1, Ingredient.of(LOG)), new RecipeSlot(-1, Ingredient.of(2, LOG))), List.of()))
                 .build();
         InventorySnapshot twoConsumptionSnapshot = new InventorySnapshot(Map.of(LOG, 5), Set.of(), Map.of(), Map.of(LOG, 2));
-        PlanResult repeatedPlan = new AcquisitionPlanner().plan(repeatedConsumption, twoConsumptionSnapshot, widget, 1);
+        PlanResult repeatedPlan = planner().plan(repeatedConsumption, twoConsumptionSnapshot, widget, 1);
         assertTrue(repeatedPlan.success());
         assertFalse(repeatedPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER));
         assertEquals(5, twoConsumptionSnapshot.count(LOG));
@@ -350,7 +373,7 @@ final class AcquisitionPlannerTest {
                 .build();
         InventorySnapshot protectedPickaxe = new InventorySnapshot(Map.of(pickaxe, 1), Set.of(), Map.of(pickaxe, 100), Map.of(pickaxe, 1));
 
-        PlanResult miningPlan = new AcquisitionPlanner().plan(miningCatalog, protectedPickaxe, ore, 1);
+        PlanResult miningPlan = planner().plan(miningCatalog, protectedPickaxe, ore, 1);
         assertTrue(miningPlan.success());
         assertEquals(1, miningPlan.steps().size());
         assertEquals(PlanKind.GATHER, miningPlan.steps().get(0).kind());
@@ -382,7 +405,7 @@ final class AcquisitionPlannerTest {
                 List.of(new RecipeSlot(-1, Ingredient.of(8, cobblestone))),
                 List.of(new ToolRequirement(Ingredient.choices(picks, 1), 1, "furnace crafting pickaxe"))));
 
-        PlanResult result = new AcquisitionPlanner().plan(builder.build(),
+        PlanResult result = planner().plan(builder.build(),
                 new InventorySnapshot(Map.of(cobblestone, 8, picks.get(1), 1), Set.of(), Map.of(picks.get(1), 100)),
                 furnace, 1, new PlannerLimits(48, 6, 25, 12, 4_096, 1_000_000));
 
@@ -408,7 +431,7 @@ final class AcquisitionPlannerTest {
         builder.source(new CraftingSource("limited:target", target, 1, RecipeType.SHAPELESS, 0, 0,
                 List.of(new RecipeSlot(-1, Ingredient.choices(alternatives, 1))), List.of()));
 
-        PlanResult result = new AcquisitionPlanner().plan(builder.build(), new InventorySnapshot(Map.of()), target, 1,
+        PlanResult result = planner().plan(builder.build(), new InventorySnapshot(Map.of()), target, 1,
                 new PlannerLimits(48, 99, 25, 64, 4_096, 1_000_000));
 
         assertFalse(result.success());

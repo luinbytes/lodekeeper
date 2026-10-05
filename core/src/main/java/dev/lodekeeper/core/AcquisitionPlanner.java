@@ -11,10 +11,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.LongSupplier;
 
 /** Bounded, deterministic backward planner for catalog-described item sources. */
 public final class AcquisitionPlanner {
     private static final int MAX_REASONS = 32;
+    private final LongSupplier clock;
+
+    public AcquisitionPlanner() { this(System::nanoTime); }
+
+    AcquisitionPlanner(LongSupplier clock) { this.clock = Objects.requireNonNull(clock, "clock"); }
 
     public PlanResult plan(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count) {
         return plan(catalog, inventory, target, count, PlannerLimits.DEFAULT);
@@ -25,7 +31,7 @@ public final class AcquisitionPlanner {
         Objects.requireNonNull(inventory, "inventory");
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(limits, "limits");
-        long started = System.nanoTime();
+        long started = clock.getAsLong();
         if (count < 1 || count > limits.maximumRequestedCount()) {
             return failure(target, count, BlockedReason.Code.INVALID_COUNT, "Requested count must be between 1 and " + limits.maximumRequestedCount(), 0, elapsed(started));
         }
@@ -33,7 +39,7 @@ public final class AcquisitionPlanner {
             return failure(target, count, BlockedReason.Code.UNKNOWN_ITEM, "Item is not present in the current catalog", 0, elapsed(started));
         }
 
-        Search search = new Search(catalog, limits, started);
+        Search search = new Search(catalog, limits, started, clock);
         State initial = new State(inventory, catalog);
         List<State> plans = search.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
         if (plans.isEmpty()) {
@@ -52,22 +58,24 @@ public final class AcquisitionPlanner {
         return new PlanResult(target, count, List.of(), List.of(new BlockedReason(code, target, detail, List.of(target))), false, nodes, nanos);
     }
 
-    private static long elapsed(long started) { return Math.max(0, System.nanoTime() - started); }
+    private long elapsed(long started) { return Math.max(0, clock.getAsLong() - started); }
 
     private static final class Search {
         private final CatalogSnapshot catalog;
         private final PlannerLimits limits;
         private final long deadline;
+        private final LongSupplier clock;
         private final LinkedHashSet<BlockedReason> failures = new LinkedHashSet<>();
         private int expanded;
         private boolean truncated;
         private BlockedReason.Code limitCode;
         private BlockedReason limitReason;
 
-        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started) {
+        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock) {
             this.catalog = catalog;
             this.limits = limits;
             this.deadline = started + limits.maximumElapsedMillis() * 1_000_000L;
+            this.clock = clock;
         }
 
         private List<State> satisfy(ItemId item, int count, boolean consume, State state, Set<ItemId> path, int depth, String purpose, int recipeSlot) {
@@ -511,7 +519,7 @@ public final class AcquisitionPlanner {
                 setLimit(BlockedReason.Code.NODE_LIMIT, item, path);
                 return false;
             }
-            if (System.nanoTime() >= deadline) {
+            if (clock.getAsLong() >= deadline) {
                 setLimit(BlockedReason.Code.TIME_LIMIT, item, path);
                 return false;
             }

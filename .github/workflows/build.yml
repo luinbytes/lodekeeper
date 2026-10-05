@@ -56,6 +56,17 @@ jobs:
           cache: gradle
       - name: Compile, check and package the exact game adapter
         run: ./scripts/build-version.sh '${{ matrix.minecraft }}' --no-daemon
+      - name: Preserve regression failure details
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: regression-failures-${{ matrix.minecraft }}
+          path: |
+            core/build/test-results/test/*.xml
+            nav/build/test-results/test/*.xml
+            ${{ matrix.module }}/build/test-results/test/*.xml
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Record artifact digest
         run: sha256sum '${{ matrix.module }}'/build/libs/*.jar > '${{ matrix.module }}'/build/libs/SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
