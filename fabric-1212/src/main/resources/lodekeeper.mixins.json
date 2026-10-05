@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "dev.lodekeeper.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ClientWorldMixin",
+    "AutomationUseMixin",
+    "RecipeBookSyncMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "lodekeeper-refmap.json"
+}

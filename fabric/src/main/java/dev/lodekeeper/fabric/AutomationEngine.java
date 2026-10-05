@@ -95,7 +95,7 @@ final class AutomationEngine {
             recipeRefreshPending = false;
             inventorySampleTicks = 0; inventoryFingerprintInitialized = false; observedInventory = Map.of();
         }
-        if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentRecipeManager())) {
+        if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentProvider())) {
             recipeRefreshPending = false;
             try { catalog.load(); }
             catch (RuntimeException exception) {
@@ -314,10 +314,13 @@ final class AutomationEngine {
         if (client.world == null || client.player == null) throw new IllegalStateException("Join a world first");
         if (catalog == null) { catalog = new GameCatalog(client); catalog.load(); recipeRefreshPending = false; }
     }
-    void recipeSynchronizationReceived(ClientWorld packetWorld, net.minecraft.recipe.RecipeManager manager) {
-        if (packetWorld == client.world && packetWorld == world && catalog != null && catalog.usesRecipeManager(manager)) {
+    void recipeSynchronizationReceived(ClientWorld packetWorld, Object provider) {
+        if (packetWorld == client.world && packetWorld == world && catalog != null && catalog.usesProvider(provider)) {
             recipeRefreshPending = true;
         }
+    }
+    void recipeDisplaysChanged(ClientWorld packetWorld) {
+        if (packetWorld == client.world && packetWorld == world && catalog != null) recipeRefreshPending = true;
     }
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(observedInventory), durability = new HashMap<>();
@@ -672,7 +675,9 @@ final class AutomationEngine {
             if (!stationReady()) return;
             var recipe = catalog.recipes.get(step.sourceId());
             if (recipe == null || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Recipe disappeared or changed before crafting could start");
-            crafting = new CraftingAction(client, actions, recipe, step);
+            crafting = new CraftingAction(client, actions, recipe, step,
+                    () -> catalog != null && catalog.ready() && catalog.generation() == stepCatalogGeneration
+                            && catalog.usesCurrentProvider());
         }
         if (shouldDrainActiveTransaction()) crafting.requestDrain();
         if (crafting.tick()) completeStep();

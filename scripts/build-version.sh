@@ -39,6 +39,15 @@ case "$target" in
       -Pyarn_mappings=1.21.1+build.3 -Ploader_version=0.19.5 \
       -Pfabric_version=0.110.0+1.21.1 :core:test :nav:test :fabric-1211:build "$@"
     ;;
+  1.21.2|1.21.3)
+    case "$target" in
+      1.21.2) mappings=1.21.2+build.1; api=0.106.1+1.21.2 ;;
+      1.21.3) mappings=1.21.3+build.2; api=0.114.1+1.21.3 ;;
+    esac
+    exec ./gradlew -Padapter=1212 "-Pminecraft_version=$target" \
+      "-Pyarn_mappings=$mappings" -Ploader_version=0.19.5 \
+      "-Pfabric_version=$api" :core:test :nav:test :fabric-1212:build "$@"
+    ;;
   26.1|26.1.1|26.1.2)
     case "$target" in
       26.1) api=0.145.1+26.1 ;;

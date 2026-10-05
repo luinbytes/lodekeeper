@@ -7,6 +7,7 @@ import net.minecraft.screen.ScreenHandler;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /** Version-neutral facts required by the crafting and furnace transaction executors. */
 record RecipeWork(
@@ -37,7 +38,7 @@ record RecipeWork(
      */
     @FunctionalInterface
     interface RemainderResolver {
-        List<ItemStack> resolve(ScreenHandler handler, int gridWidth, List<ItemStack> inputGrid);
+        CompletableFuture<List<ItemStack>> resolve(ScreenHandler handler, int gridWidth, List<ItemStack> inputGrid);
     }
 
     RecipeWork {

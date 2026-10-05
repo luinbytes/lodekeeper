@@ -9,6 +9,7 @@ rootProject.name = 'lodekeeper'
 include 'core', 'nav'
 switch (providers.gradleProperty('adapter').getOrElse('legacy')) {
     case 'modern': include 'fabric-modern'; break
+    case '1212': include 'fabric-1212'; break
     case '1211': include 'fabric-1211'; break
     case '1202': include 'fabric-1202'; break
     case 'legacy': include 'fabric'; break

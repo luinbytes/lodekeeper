@@ -13,8 +13,8 @@ Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on
 | 1.20.6 | 21 | 1211 | 1.20.6+build.3 | 0.100.8+1.20.6 |
 | 1.21 | 21 | 1211 | 1.21+build.9 | 0.102.0+1.21 |
 | 1.21.1 | 21 | 1211 | 1.21.1+build.3 | 0.116.17+1.21.1 |
-| 1.21.2 | 21 | recipe-display pending | 1.21.2+build.1 | 0.106.1+1.21.2 |
-| 1.21.3 | 21 | recipe-display pending | 1.21.3+build.2 | 0.114.1+1.21.3 |
+| 1.21.2 | 21 | 1212 (source implemented; build pending) | 1.21.2+build.1 | 0.106.1+1.21.2 |
+| 1.21.3 | 21 | 1212 (source implemented; build pending) | 1.21.3+build.2 | 0.114.1+1.21.3 |
 | 1.21.4 | 21 | recipe-display pending | 1.21.4+build.8 | 0.119.4+1.21.4 |
 | 1.21.5 | 21 | recipe-display pending | 1.21.5+build.1 | 0.128.2+1.21.5 |
 | 1.21.6 | 21 | recipe-display pending | 1.21.6+build.1 | 0.128.2+1.21.6 |

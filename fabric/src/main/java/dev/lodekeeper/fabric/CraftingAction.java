@@ -13,6 +13,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.BooleanSupplier;
 
 /** Manual grid placement works even for synchronized recipes absent from the unlocked recipe book. */
 final class CraftingAction {
@@ -21,6 +24,7 @@ final class CraftingAction {
     private final MinecraftClient client;
     private final PlayerActions actions;
     private final RecipeWork recipe;
+    private final BooleanSupplier recipeCurrent;
     private final ItemStack expectedOutput;
     private final int targetCount;
     private final PlanStep step;
@@ -31,6 +35,8 @@ final class CraftingAction {
     private ScreenHandler handler;
     private SlotTransfer transfer;
     private VerifiedQuickMove quickMove;
+    private CompletableFuture<List<ItemStack>> remainderFuture;
+    private List<ItemStack> remainderInputGrid;
     private MovePurpose movePurpose;
     private int placementIndex, cooldown;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested, remaindersResolved;
@@ -41,10 +47,12 @@ final class CraftingAction {
         @Override public ItemStack inputStack() { return inputStack.copy(); }
     }
 
-    CraftingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step) {
+    CraftingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step,
+                   BooleanSupplier recipeCurrent) {
         this.client = client;
         this.actions = actions;
         this.recipe = recipe;
+        this.recipeCurrent = recipeCurrent;
         if (recipe.kind() != RecipeWork.Kind.SHAPED_CRAFTING && recipe.kind() != RecipeWork.Kind.SHAPELESS_CRAFTING) {
             throw new IllegalArgumentException("Crafting action received non-crafting recipe work");
         }
@@ -103,6 +111,14 @@ final class CraftingAction {
             }
             return false;
         }
+        if (awaitingResult && drainRequested && !recipeCurrent.getAsBoolean()) {
+            awaitingResult = false;
+            remainderFuture = null;
+            remainderInputGrid = null;
+            remaindersResolved = false;
+            if (!drainKnownGridContents(true)) return false;
+            return true;
+        }
         if (awaitingResult) {
             ItemStack actual = handler.getSlot(0).getStack();
             if (actual.isEmpty()) return false;
@@ -121,7 +137,13 @@ final class CraftingAction {
                 return true;
             }
             if (!placements.isEmpty() && placementIndex == placements.size()) {
-                resolveExpectedRemainders();
+                if (!recipeCurrent.getAsBoolean()) {
+                    remainderFuture = null;
+                    remainderInputGrid = null;
+                    if (!drainKnownGridContents(true)) return false;
+                    return true;
+                }
+                if (!resolveExpectedRemainders()) return false;
                 awaitingResult = true;
                 return false;
             }
@@ -138,7 +160,7 @@ final class CraftingAction {
 
         if (placements.isEmpty()) buildPlacements();
         if (placementIndex == placements.size()) {
-            resolveExpectedRemainders();
+            if (!resolveExpectedRemainders()) return false;
             awaitingResult = true;
             cooldown = 3;
             return false;
@@ -233,13 +255,40 @@ final class CraftingAction {
         }
     }
 
-    private void resolveExpectedRemainders() {
-        if (remaindersResolved) return;
+    private boolean resolveExpectedRemainders() {
+        if (remaindersResolved) return true;
+        if (!recipeCurrent.getAsBoolean()) {
+            throw new IllegalStateException("Recipe catalog changed before the crafting result was authorized; leaving the grid open for safe recovery");
+        }
         int width = handler instanceof CraftingScreenHandler ? 3 : 2;
         int gridSlots = width * width;
-        List<ItemStack> grid = new ArrayList<>(gridSlots);
-        for (int index = 0; index < gridSlots; index++) grid.add(handler.getSlot(index + 1).getStack().copy());
-        List<ItemStack> remainders = recipe.remainderResolver().resolve(handler, width, List.copyOf(grid));
+        if (remainderFuture == null) {
+            List<ItemStack> grid = new ArrayList<>(gridSlots);
+            for (int index = 0; index < gridSlots; index++) grid.add(handler.getSlot(index + 1).getStack().copy());
+            remainderInputGrid = grid.stream().map(ItemStack::copy).toList();
+            remainderFuture = recipe.remainderResolver().resolve(handler, width, remainderInputGrid);
+            if (remainderFuture == null) {
+                throw new IllegalStateException("Recipe remainder resolver did not start; leaving the crafting container open");
+            }
+            return false;
+        }
+        if (!remainderFuture.isDone()) return false;
+        List<ItemStack> remainders;
+        try {
+            remainders = remainderFuture.join();
+        } catch (CompletionException exception) {
+            Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+            throw new IllegalStateException("Recipe remainder resolution failed; leaving the crafting container open: "
+                    + (cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage()), cause);
+        }
+        for (int index = 0; index < gridSlots; index++) {
+            ItemStack expected = remainderInputGrid.get(index);
+            ItemStack actual = handler.getSlot(index + 1).getStack();
+            if (expected.isEmpty() != actual.isEmpty() || (!expected.isEmpty()
+                    && (expected.getCount() != actual.getCount() || !GameApi.canCombine(expected, actual)))) {
+                throw new IllegalStateException("Crafting grid changed while recipe remainders were being checked; leaving the container open");
+            }
+        }
         if (remainders == null || remainders.size() != gridSlots) {
             throw new IllegalStateException("Recipe remainder prediction did not cover the complete crafting grid; leaving the container open");
         }
@@ -249,7 +298,10 @@ final class CraftingAction {
             if (remainder == null) throw new IllegalStateException("Recipe remainder prediction returned unknown contents; leaving the container open");
             if (!remainder.isEmpty()) addExpected(expectedGridRemainders, index + 1, remainder);
         }
+        remainderFuture = null;
+        remainderInputGrid = null;
         remaindersResolved = true;
+        return true;
     }
 
     /** Returns true only after every known ingredient or recipe remainder is observed in inventory. */

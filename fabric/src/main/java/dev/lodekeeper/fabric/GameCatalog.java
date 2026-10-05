@@ -7,13 +7,10 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.recipe.AbstractCookingRecipe;
-import net.minecraft.recipe.ShapedRecipe;
-import net.minecraft.recipe.ShapelessRecipe;
-import net.minecraft.recipe.RecipeManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
 import java.util.*;
+import java.util.function.Consumer;
 
 /** Discovers recipe transforms from synchronized data rather than a hardcoded item task list. */
 final class GameCatalog {
@@ -23,81 +20,95 @@ final class GameCatalog {
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
     private final MinecraftClient client;
-    private RecipeManager recipeManager;
+    private Object recipeProvider;
     private CatalogSnapshot cachedSnapshot;
     private long generation;
     private boolean ready;
+    private final Map<ItemId, Long> fuelBurnTicks = new TreeMap<>();
     GameCatalog(MinecraftClient client) { this.client = client; }
     void load() {
-        generation++;
+        long requestedGeneration = ++generation;
         ready = false;
-        RecipeManager manager = client.world == null ? null : client.world.getRecipeManager();
-        recipeManager = manager;
+        recipeProvider = GameApi.recipeProviderIdentity(client);
         cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
+        fuelBurnTicks.clear();
         for (Item item : Registries.ITEM) {
             items.add(id(item));
             Registries.ITEM.getEntry(item).streamTags().forEach(tag -> tags.computeIfAbsent(TagId.parse(tag.id().toString()), ignored -> new ArrayList<>()).add(id(item)));
         }
-        if (manager == null) { ready = true; return; }
-        for (GameApi.RecipeRef entry : GameApi.recipes(manager).stream().sorted(Comparator.comparing(GameApi.RecipeRef::id)).toList()) {
-            var recipe = entry.recipe();
-            ItemStack output = GameApi.result(recipe, client.world.getRegistryManager());
-            if (output.isEmpty()) continue;
-            String key = entry.id();
-            try {
-                List<Requirement> requirements = new ArrayList<>();
-                RecipeWork work;
-                AcquisitionSource source;
-                if (recipe instanceof ShapedRecipe shaped) {
-                    if (!recipe.fits(2, 2)) requirements.add(station(Blocks.CRAFTING_TABLE));
-                    List<RecipeSlot> slots = slots(recipe.getIngredients(), true);
-                    if (slots.isEmpty()) continue;
-                    source = new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPED, shaped.getWidth(), shaped.getHeight(), slots, requirements);
-                    work = new RecipeWork(RecipeWork.Kind.SHAPED_CRAFTING, output, shaped.getWidth(), shaped.getHeight(),
-                            workInputs(recipe.getIngredients(), true), 0, GameApi.remainderResolver(recipe));
-                } else if (recipe instanceof ShapelessRecipe) {
-                    if (recipe.getIngredients().size() > 4) requirements.add(station(Blocks.CRAFTING_TABLE));
-                    source = new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPELESS, 0, 0, slots(recipe.getIngredients(), false), requirements);
-                    work = new RecipeWork(RecipeWork.Kind.SHAPELESS_CRAFTING, output, 0, 0,
-                            workInputs(recipe.getIngredients(), false), 0, GameApi.remainderResolver(recipe));
-                } else if (recipe instanceof AbstractCookingRecipe cooking && recipe.getType() == net.minecraft.recipe.RecipeType.SMELTING) {
-                    requirements.add(station(Blocks.FURNACE));
-                    // The core computes fuel units from burn duration and total cook ticks.
-                    int cookTicks = GameApi.cookingTime(cooking);
-                    var input = recipe.getIngredients().get(0);
-                    source = new SmeltingSource(key, id(output.getItem()), output.getCount(), ingredient(input), List.of(ItemSelector.item(id(Items.COAL)), ItemSelector.tag(TagId.parse("minecraft:planks"))), cookTicks, requirements);
-                    work = new RecipeWork(RecipeWork.Kind.SMELTING, output, 0, 0,
-                            List.of(new RecipeWork.Input(-1, input)), cookTicks, null);
-                } else {
-                    unsupported.add(key + " (" + Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()) + ")");
-                    continue;
-                }
-                sources.add(source);
-                recipes.put(key, work);
-            } catch (IllegalArgumentException ex) { unsupported.add(key + ": " + ex.getMessage()); }
+        if (client.world == null) { ready = true; return; }
+        Consumer<RecipeCatalogSnapshot> publish = snapshot -> {
+            if (requestedGeneration != generation || client.world == null
+                    || recipeProvider != GameApi.recipeProviderIdentity(client)) return;
+            applyRecipeSnapshot(snapshot);
+        };
+        try {
+            GameApi.loadRecipes(client, publish);
+        } catch (RuntimeException exception) {
+            unsupported.add("recipe provider: " + describe(exception));
+            finishLoad();
         }
+    }
+    private void applyRecipeSnapshot(RecipeCatalogSnapshot snapshot) {
+        sources.clear(); recipes.clear(); unsupported.clear(); fuelBurnTicks.clear(); cachedSnapshot = null;
+        unsupported.addAll(snapshot.unsupported());
+        fuelBurnTicks.putAll(snapshot.fuelBurnTicks());
+        snapshot.recipes().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            String key = entry.getKey();
+            RecipeWork work = entry.getValue();
+            try {
+                ItemStack output = work.outputPerOperation();
+                List<Requirement> requirements = new ArrayList<>();
+                switch (work.kind()) {
+                    case SHAPED_CRAFTING -> {
+                        if (work.width() > 2 || work.height() > 2) requirements.add(station(Blocks.CRAFTING_TABLE));
+                        List<RecipeSlot> slots = recipeSlots(work.inputs(), true);
+                        if (slots.isEmpty()) return;
+                        sources.add(new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPED,
+                                work.width(), work.height(), slots, requirements));
+                    }
+                    case SHAPELESS_CRAFTING -> {
+                        if (work.inputs().size() > 4) requirements.add(station(Blocks.CRAFTING_TABLE));
+                        sources.add(new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPELESS,
+                                0, 0, recipeSlots(work.inputs(), false), requirements));
+                    }
+                    case SMELTING -> {
+                        requirements.add(station(Blocks.FURNACE));
+                        List<ItemSelector> fuels = fuelBurnTicks.keySet().stream().limit(256)
+                                .map(ItemSelector::item).toList();
+                        if (fuels.isEmpty()) {
+                            unsupported.add(key + ": world exposes no usable furnace fuels");
+                            return;
+                        }
+                        sources.add(new SmeltingSource(key, id(output.getItem()), output.getCount(),
+                                ingredient(work.inputs().get(0).predicate()), fuels, work.cookTicks(), requirements));
+                    }
+                }
+                recipes.put(key, work);
+            } catch (IllegalArgumentException ex) {
+                unsupported.add(key + ": " + ex.getMessage());
+            }
+        });
+        finishLoad();
+    }
+    private void finishLoad() {
         gatherSources();
         ExtensionCatalog.append(this);
+        cachedSnapshot = null;
         ready = true;
     }
-    private List<RecipeSlot> slots(List<net.minecraft.recipe.Ingredient> ingredients, boolean shaped) {
+    private List<RecipeSlot> recipeSlots(List<RecipeWork.Input> inputs, boolean shaped) {
         List<RecipeSlot> slots = new ArrayList<>();
-        for (int i = 0; i < ingredients.size(); i++) if (!ingredients.get(i).isEmpty()) slots.add(new RecipeSlot(shaped ? i : -1, ingredient(ingredients.get(i))));
+        for (RecipeWork.Input input : inputs) {
+            slots.add(new RecipeSlot(shaped ? input.slot() : -1, ingredient(input.predicate())));
+        }
         return slots;
     }
-    private List<RecipeWork.Input> workInputs(List<net.minecraft.recipe.Ingredient> ingredients, boolean shaped) {
-        List<RecipeWork.Input> inputs = new ArrayList<>();
-        int shapelessSlot = 0;
-        for (int index = 0; index < ingredients.size(); index++) {
-            var ingredient = ingredients.get(index);
-            if (ingredient.isEmpty()) continue;
-            inputs.add(new RecipeWork.Input(shaped ? index : shapelessSlot++, ingredient));
-        }
-        return inputs;
-    }
     private Ingredient ingredient(net.minecraft.recipe.Ingredient ingredient) {
-        List<ItemId> choices = Arrays.stream(ingredient.getMatchingStacks()).filter(s -> !s.isEmpty()).map(s -> id(s.getItem())).distinct().sorted().toList();
-        return Ingredient.choices(choices, 1);
+        return GameApi.ingredient(ingredient);
+    }
+    private static String describe(Throwable exception) {
+        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
     }
     private void gatherSources() {
         // Drop overrides are deliberate: a block's item form is not necessarily its survival drop.
@@ -133,8 +144,8 @@ final class GameCatalog {
     CatalogSnapshot snapshot() {
         if (cachedSnapshot != null) return cachedSnapshot;
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
-        Map<Item, Integer> fuels = net.minecraft.block.entity.AbstractFurnaceBlockEntity.createFuelTimeMap();
-        for (Item item : Registries.ITEM) builder.item(id(item), item.getDefaultStack().getMaxDamage(), fuels.getOrDefault(item, 0));
+        for (Item item : Registries.ITEM) builder.item(id(item), item.getDefaultStack().getMaxDamage(),
+                fuelBurnTicks.getOrDefault(id(item), 0L));
         tags.forEach(builder::tag);
         sources.forEach(builder::source);
         cachedSnapshot = builder.build();
@@ -142,8 +153,8 @@ final class GameCatalog {
     }
     long generation() { return generation; }
     boolean ready() { return ready; }
-    boolean usesRecipeManager(RecipeManager manager) { return recipeManager == manager; }
-    boolean usesCurrentRecipeManager() { return client.world != null && recipeManager == client.world.getRecipeManager(); }
+    boolean usesProvider(Object provider) { return recipeProvider == provider; }
+    boolean usesCurrentProvider() { return client.world != null && recipeProvider == GameApi.recipeProviderIdentity(client); }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }

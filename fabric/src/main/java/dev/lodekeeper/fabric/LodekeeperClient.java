@@ -43,6 +43,9 @@ public final class LodekeeperClient implements ClientModInitializer {
     public static void recipesSynchronized(ClientWorld packetWorld, RecipeManager manager) {
         if (engine != null) engine.recipeSynchronizationReceived(packetWorld, manager);
     }
+    public static void recipeDisplaysChanged(ClientWorld packetWorld) {
+        if (engine != null) engine.recipeDisplaysChanged(packetWorld);
+    }
     private void command(String body) {
         var parsed = parser.parse(body);
         if (!parsed.success()) { engine.message(parsed.error().message() + " " + parsed.error().usage()); return; }
