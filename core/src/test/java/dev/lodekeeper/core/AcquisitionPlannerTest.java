@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -230,6 +231,121 @@ final class AcquisitionPlannerTest {
                 .findFirst().orElseThrow();
         assertEquals(coal, fuel.item());
         assertEquals(1, fuel.count());
+    }
+
+    @Test
+    void stationSpecificFuelProgressControlsTheWholeBatchAndKeepsLegacyCapacity() {
+        ItemId coal = ItemId.parse("test:coal");
+        ItemId output = ItemId.parse("test:smelted");
+        ItemId raw = ItemId.parse("test:raw");
+        SmeltingSource olderFastStation = new SmeltingSource("test:smelt", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(coal)), 100, List.of(), Map.of(coal, 800L));
+        PlanResult olderFastPlan = planFuelBatch(olderFastStation, 9, 1_600, 2, false, Map.of());
+        assertEquals(2, selectedFuel(olderFastPlan).count());
+
+        // The unchanged seven-argument constructor retains catalog capacity (1,600 ticks).
+        SmeltingSource ordinaryFurnace = new SmeltingSource("test:smelt", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(coal)), 200, List.of());
+        PlanResult ordinaryPlan = planFuelBatch(ordinaryFurnace, 9, 1_600, 2, false, Map.of());
+        assertEquals(2, selectedFuel(ordinaryPlan).count());
+
+        // A modern provider's effective context can differ from the catalog burn duration.
+        SmeltingSource modernCustomFuel = new SmeltingSource("test:smelt", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(coal)), 200, List.of(), Map.of(coal, 400L));
+        PlanResult modernPlan = planFuelBatch(modernCustomFuel, 3, 1_600, 2, false, Map.of());
+        assertEquals(2, selectedFuel(modernPlan).count());
+    }
+
+    @Test
+    void explicitFuelCapacityMapDoesNotFallBackToGlobalFuelMetadata() {
+        ItemId coal = ItemId.parse("test:coal");
+        ItemId otherFuel = ItemId.parse("test:other_fuel");
+        SmeltingSource source = new SmeltingSource("test:smelt", ItemId.parse("test:smelted"), 1,
+                Ingredient.of(ItemId.parse("test:raw")), List.of(ItemSelector.item(coal)), 200,
+                List.of(), Map.of(otherFuel, 400L));
+
+        PlanResult result = planFuelBatch(source, 3, 1_600, 3, false, Map.of());
+
+        assertFalse(result.success());
+    }
+
+    @Test
+    void protectedFuelMustBeReplacedBeforeItCanSatisfySmelting() {
+        ItemId coal = ItemId.parse("test:coal");
+        SmeltingSource source = new SmeltingSource("test:smelt", ItemId.parse("test:smelted"), 1,
+                Ingredient.of(ItemId.parse("test:raw")), List.of(ItemSelector.item(coal)), 100,
+                List.of(), Map.of(coal, 800L));
+
+        PlanResult result = planFuelBatch(source, 9, 1_600, 1, true, Map.of(coal, 1));
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(2, result.steps().stream().filter(step -> step.kind() == PlanKind.GATHER && step.output().equals(coal))
+                .mapToInt(PlanStep::outputCount).sum());
+        assertEquals(2, selectedFuel(result).count());
+    }
+
+    @Test
+    void fuelProgressMapIsDefensivelyCopiedImmutableAndBounded() {
+        ItemId coal = ItemId.parse("test:coal");
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId output = ItemId.parse("test:smelted");
+        Map<ItemId, Long> capacities = new HashMap<>();
+        capacities.put(coal, 400L);
+        SmeltingSource source = new SmeltingSource("test:smelt", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(coal)), 200, List.of(), capacities);
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(coal, 0, 1_600).build();
+
+        capacities.put(coal, 900L);
+        assertEquals(400L, source.effectiveFuelTicks(catalog, coal));
+        assertEquals(400L, source.fuelProgressTicks().get(coal));
+        assertThrows(UnsupportedOperationException.class, () -> source.fuelProgressTicks().put(coal, 900L));
+
+        assertThrows(IllegalArgumentException.class, () -> fuelSource(Map.of(coal, 0L)));
+        assertThrows(IllegalArgumentException.class, () -> fuelSource(Map.of(coal, 1_000_000_001L)));
+        Map<ItemId, Long> nullKey = new HashMap<>();
+        nullKey.put(null, 100L);
+        assertThrows(IllegalArgumentException.class, () -> fuelSource(nullKey));
+        Map<ItemId, Long> nullValue = new HashMap<>();
+        nullValue.put(coal, null);
+        assertThrows(IllegalArgumentException.class, () -> fuelSource(nullValue));
+        Map<ItemId, Long> excessive = new HashMap<>();
+        for (int index = 0; index < 257; index++) {
+            excessive.put(ItemId.parse("test:fuel_" + index), 1L);
+        }
+        assertThrows(IllegalArgumentException.class, () -> fuelSource(excessive));
+    }
+
+    private static SmeltingSource fuelSource(Map<ItemId, Long> capacities) {
+        return new SmeltingSource("test:smelt", ItemId.parse("test:smelted"), 1,
+                Ingredient.of(ItemId.parse("test:raw")), List.of(ItemSelector.item(ItemId.parse("test:coal"))),
+                200, List.of(), capacities);
+    }
+
+    private static PlanResult planFuelBatch(SmeltingSource source, int operations, long globalFuelTicks,
+                                            int heldFuel, boolean gatherFuel, Map<ItemId, Integer> protectedFuel) {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId fuel = ItemId.parse("test:coal");
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder()
+                .item(raw, 0)
+                .item(source.output(), 0)
+                .item(fuel, 0, globalFuelTicks)
+                .source(source);
+        if (gatherFuel) {
+            builder.source(new GatherSource("test:gather_coal", fuel, 1, List.of(BlockId.parse("test:coal_ore"))));
+        }
+        CatalogSnapshot catalog = builder.build();
+        InventorySnapshot inventory = new InventorySnapshot(
+                Map.of(raw, operations, fuel, heldFuel), Set.of(), Map.of(), protectedFuel);
+        return planner().plan(catalog, inventory, source.output(), operations);
+    }
+
+    private static SelectedItemRequirement selectedFuel(PlanResult result) {
+        assertTrue(result.success(), result.blockedReasons().toString());
+        return result.steps().stream().filter(step -> step.kind() == PlanKind.SMELT)
+                .flatMap(step -> step.requirements().stream())
+                .filter(SelectedItemRequirement.class::isInstance).map(SelectedItemRequirement.class::cast)
+                .filter(requirement -> requirement.purpose().equals("smelting fuel"))
+                .findFirst().orElseThrow();
     }
 
     @Test

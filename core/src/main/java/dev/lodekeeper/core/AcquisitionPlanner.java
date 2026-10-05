@@ -352,28 +352,28 @@ public final class AcquisitionPlanner {
             var availableFuels = new TreeSet<ItemId>();
             for (ItemSelector selector : source.fuels()) {
                 for (ItemId fuel : expand(selector, source.output(), path)) {
-                    if (catalog.fuelBurnTicks(fuel) > 0) availableFuels.add(fuel);
+                    if (source.effectiveFuelTicks(catalog, fuel) > 0) availableFuels.add(fuel);
                     else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, fuel,
-                            "Item is not registered as fuel: " + fuel, pathWith(path, fuel));
+                            "Fuel is not usable for this source or station: " + fuel, pathWith(path, fuel));
                 }
             }
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : prepared) {
                 Comparator<ItemId> order = Comparator.comparingInt((ItemId fuel) -> {
-                    long needed = ceilDivLong(totalTicks, catalog.fuelBurnTicks(fuel));
+                    long needed = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
                     int held = candidate.state.spendableCount(fuel);
                     if (held >= needed) return 0;
                     if (held > 0) return 1;
                     if (catalog.sourcesFor(fuel).stream().anyMatch(GatherSource.class::isInstance)) return 2;
                     return catalog.sourcesFor(fuel).isEmpty() ? 4 : 3;
-                }).thenComparingLong(fuel -> ceilDivLong(totalTicks, catalog.fuelBurnTicks(fuel)))
+                }).thenComparingLong(fuel -> ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)))
                         .thenComparing(Comparator.naturalOrder());
                 List<ItemId> fuels = availableFuels.stream().sorted(order)
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 if (availableFuels.size() > fuels.size()) truncated = true;
                 for (ItemId fuel : fuels) {
                     if (!visit(fuel, path, depth + 1)) break;
-                    long neededLong = ceilDivLong(totalTicks, catalog.fuelBurnTicks(fuel));
+                    long neededLong = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
                     if (neededLong > limits.maximumRequestedCount()) {
                         fail(BlockedReason.Code.STEP_LIMIT, fuel, "Fuel quantity exceeds planner limits", pathWith(path, fuel));
                         continue;
