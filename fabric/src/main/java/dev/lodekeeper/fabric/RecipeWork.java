@@ -63,8 +63,9 @@ record RecipeWork(
                 }
             }
             case SHAPELESS_CRAFTING -> {
-                if (width != 0 || height != 0 || cookTicks != 0 || remainderResolver == null
-                        || inputs.stream().anyMatch(input -> input.slot() < 0 || input.slot() >= inputs.size())) {
+                boolean invalidSlot = false;
+                for (Input input : inputs) invalidSlot |= input.slot() < 0 || input.slot() >= inputs.size();
+                if (width != 0 || height != 0 || cookTicks != 0 || remainderResolver == null || invalidSlot) {
                     throw new IllegalArgumentException("invalid shapeless recipe work");
                 }
                 for (int slot = 0; slot < inputs.size(); slot++) {
@@ -86,16 +87,20 @@ record RecipeWork(
     }
 
     int gridIndex(Input input, int gridWidth) {
-        if (gridWidth < 2 || gridWidth > 3) throw new IllegalArgumentException("crafting grid width must be 2 or 3");
         if (kind == Kind.SHAPED_CRAFTING) {
-            if (width > gridWidth || height > gridWidth || input.slot() >= width * height) {
-                throw new IllegalArgumentException("recipe does not fit the crafting grid");
-            }
-            int rowOffset = (gridWidth - height) / 2;
-            int columnOffset = (gridWidth - width) / 2;
-            return (input.slot() / width + rowOffset) * gridWidth + input.slot() % width + columnOffset;
+            return RecipeGridLayout.craftingSlot(true, width, height, input.slot(), inputs.size(), gridWidth);
         }
-        if (kind == Kind.SHAPELESS_CRAFTING && input.slot() < inputs.size() && gridWidth * gridWidth >= inputs.size()) return input.slot();
+        if (kind == Kind.SHAPELESS_CRAFTING) {
+            return RecipeGridLayout.craftingSlot(false, 0, 0, input.slot(), inputs.size(), gridWidth);
+        }
         throw new IllegalArgumentException("recipe input has no crafting grid position");
+    }
+
+    static List<ItemStack> expandPositionedRemainders(int gridWidth, int gridHeight,
+                                                       int left, int top, int positionedWidth, int positionedHeight,
+                                                       List<ItemStack> positionedRemainders) {
+        List<ItemStack> fullGrid = RecipeGridLayout.expandPositioned(gridWidth, gridHeight,
+                left, top, positionedWidth, positionedHeight, positionedRemainders, ItemStack.EMPTY);
+        return fullGrid.stream().map(ItemStack::copy).toList();
     }
 }

@@ -78,6 +78,7 @@ final class AutomationEngine {
     private int inventorySampleTicks, foodCooldown;
     private boolean foodReplanPending;
     private boolean inventoryFingerprintInitialized;
+    private volatile boolean recipeRefreshPending;
     private long lastInventoryFingerprint;
     private Map<ItemId, Integer> observedInventory = Map.of();
     private long lastSmeltProgress;
@@ -91,7 +92,16 @@ final class AutomationEngine {
     void tick() {
         if (client.world != world) {
             stopNow(false); world = client.world; ownedStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
+            recipeRefreshPending = false;
             inventorySampleTicks = 0; inventoryFingerprintInitialized = false; observedInventory = Map.of();
+        }
+        if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentRecipeManager())) {
+            recipeRefreshPending = false;
+            try { catalog.load(); }
+            catch (RuntimeException exception) {
+                status = "recipe catalog update failed: " + (exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage());
+                message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
+            }
         }
         if (client.player == null || client.world == null) { food.stop(); input.release(); return; }
         if (foodCooldown > 0) foodCooldown--;
@@ -302,7 +312,12 @@ final class AutomationEngine {
     }
     private void ensureCatalog() {
         if (client.world == null || client.player == null) throw new IllegalStateException("Join a world first");
-        if (catalog == null) { catalog = new GameCatalog(client); catalog.load(); }
+        if (catalog == null) { catalog = new GameCatalog(client); catalog.load(); recipeRefreshPending = false; }
+    }
+    void recipeSynchronizationReceived(ClientWorld packetWorld, net.minecraft.recipe.RecipeManager manager) {
+        if (packetWorld == client.world && packetWorld == world && catalog != null && catalog.usesRecipeManager(manager)) {
+            recipeRefreshPending = true;
+        }
     }
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(observedInventory), durability = new HashMap<>();

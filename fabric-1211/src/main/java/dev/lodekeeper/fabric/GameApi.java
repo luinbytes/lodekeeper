@@ -36,9 +36,11 @@ final class GameApi {
     static RecipeWork.RemainderResolver remainderResolver(Recipe<?> recipe) {
         return (handler, gridWidth, inputGrid) -> {
             List<ItemStack> copied = inputGrid.stream().map(ItemStack::copy).toList();
-            CraftingRecipeInput input = CraftingRecipeInput.create(gridWidth, gridWidth, copied);
+            CraftingRecipeInput.Positioned positioned = CraftingRecipeInput.createPositioned(gridWidth, gridWidth, copied);
+            CraftingRecipeInput input = positioned.input();
             @SuppressWarnings("rawtypes") Recipe raw = recipe;
-            return new java.util.ArrayList<>(raw.getRemainder(input));
+            return RecipeWork.expandPositionedRemainders(gridWidth, gridWidth,
+                    positioned.left(), positioned.top(), input.getWidth(), input.getHeight(), raw.getRemainder(input));
         };
     }
 

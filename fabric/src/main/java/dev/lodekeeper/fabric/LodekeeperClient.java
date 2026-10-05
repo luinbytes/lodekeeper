@@ -10,6 +10,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.recipe.RecipeManager;
 import org.lwjgl.glfw.GLFW;
 
 /** Client-only entry point: local chat is intercepted before any server message is sent. */
@@ -37,6 +39,9 @@ public final class LodekeeperClient implements ClientModInitializer {
             String status = "Lodekeeper · " + engine.status();
             context.drawTextWithShadow(client.textRenderer, status, 8, 8, 0xabf49b);
         });
+    }
+    public static void recipesSynchronized(ClientWorld packetWorld, RecipeManager manager) {
+        if (engine != null) engine.recipeSynchronizationReceived(packetWorld, manager);
     }
     private void command(String body) {
         var parsed = parser.parse(body);

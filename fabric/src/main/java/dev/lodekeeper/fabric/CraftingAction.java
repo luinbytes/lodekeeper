@@ -109,7 +109,7 @@ final class CraftingAction {
             if (!GameApi.canCombine(actual, expectedOutput) || actual.getCount() != expectedOutput.getCount()) {
                 throw new IllegalStateException("Crafting output disagrees with the planned recipe; leaving the container open");
             }
-            quickMove = new VerifiedQuickMove(client, handler, 0, output.getItem(), "crafting output");
+            quickMove = new VerifiedQuickMove(client, handler, 0, output, "crafting output");
             movePurpose = MovePurpose.OUTPUT;
             return false;
         }

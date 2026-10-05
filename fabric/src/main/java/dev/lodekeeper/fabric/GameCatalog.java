@@ -10,6 +10,7 @@ import net.minecraft.item.Items;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.recipe.ShapelessRecipe;
+import net.minecraft.recipe.RecipeManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
 import java.util.*;
@@ -22,6 +23,7 @@ final class GameCatalog {
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
     private final MinecraftClient client;
+    private RecipeManager recipeManager;
     private CatalogSnapshot cachedSnapshot;
     private long generation;
     private boolean ready;
@@ -29,13 +31,14 @@ final class GameCatalog {
     void load() {
         generation++;
         ready = false;
+        RecipeManager manager = client.world == null ? null : client.world.getRecipeManager();
+        recipeManager = manager;
         cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
         for (Item item : Registries.ITEM) {
             items.add(id(item));
             Registries.ITEM.getEntry(item).streamTags().forEach(tag -> tags.computeIfAbsent(TagId.parse(tag.id().toString()), ignored -> new ArrayList<>()).add(id(item)));
         }
-        if (client.world == null) { ready = true; return; }
-        var manager = client.world.getRecipeManager();
+        if (manager == null) { ready = true; return; }
         for (GameApi.RecipeRef entry : GameApi.recipes(manager).stream().sorted(Comparator.comparing(GameApi.RecipeRef::id)).toList()) {
             var recipe = entry.recipe();
             ItemStack output = GameApi.result(recipe, client.world.getRegistryManager());
@@ -139,6 +142,8 @@ final class GameCatalog {
     }
     long generation() { return generation; }
     boolean ready() { return ready; }
+    boolean usesRecipeManager(RecipeManager manager) { return recipeManager == manager; }
+    boolean usesCurrentRecipeManager() { return client.world != null && recipeManager == client.world.getRecipeManager(); }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }
