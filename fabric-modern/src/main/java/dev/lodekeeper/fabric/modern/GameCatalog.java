@@ -20,6 +20,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -69,13 +70,18 @@ final class GameCatalog {
     private final Minecraft client;
     private CatalogSnapshot cachedSnapshot;
     private boolean ready;
+    private long loadGeneration;
+    private Map<ItemId, Long> fuelTicksByItem = Map.of();
 
     GameCatalog(Minecraft client) { this.client = client; }
 
     void load() {
+        long generation = ++loadGeneration;
         cachedSnapshot = null;
         ready = false;
         sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
+        pendingDefinitions.clear();
+        fuelTicksByItem = Map.of();
         loadRegisteredItems();
         loadConservativeGatherSources();
         appendExtensions();
@@ -86,22 +92,29 @@ final class GameCatalog {
                 List<RecipeAddition> additions = new ArrayList<>();
                 List<String> rejected = new ArrayList<>();
                 var manager = server.getRecipeManager();
-                Level serverLevel = server.getLevel(level.dimension());
+                ServerLevel serverLevel = server.getLevel(level.dimension());
                 if (serverLevel == null) {
                     client.execute(() -> {
-                        if (client.level == level) {
+                        if (loadGeneration == generation && client.level == level) {
                             unsupported.add("Integrated-server recipe view is unavailable");
                             ready = true;
                         }
                     });
                     return;
                 }
+                Map<ItemId, Long> resolvedFuelTicks = new TreeMap<>();
+                for (Item item : BuiltInRegistries.ITEM) {
+                    long ticks = GameApi.fuelTicks(serverLevel, new ItemStack(item));
+                    if (ticks > 0) resolvedFuelTicks.put(id(item), ticks);
+                }
+                Map<ItemId, Long> fuelSnapshot = Map.copyOf(resolvedFuelTicks);
                 for (RecipeHolder<?> holder : manager.getRecipes()) {
                     String recipeId = holder.id().identifier().toString();
                     try {
                         manager.listDisplaysForRecipe(holder.id(), entry -> {
                             try {
-                                RecipeAddition addition = addition(entry, "server:" + recipeId + ":" + entry.id().index(), serverLevel, rejected, holder.value());
+                                RecipeAddition addition = addition(entry, "server:" + recipeId + ":" + entry.id().index(),
+                                        serverLevel, rejected, holder.value(), fuelSnapshot);
                                 if (addition != null) additions.add(addition);
                             } catch (RuntimeException ex) {
                                 rejected.add(recipeId + ": " + ex.getMessage());
@@ -112,7 +125,8 @@ final class GameCatalog {
                     }
                 }
                 client.execute(() -> {
-                    if (client.level != level) return;
+                    if (loadGeneration != generation || client.level != level) return;
+                    publishFuelSnapshot(fuelSnapshot);
                     additions.forEach(this::install);
                     unsupported.addAll(rejected);
                     ready = true;
@@ -123,6 +137,13 @@ final class GameCatalog {
         }
         refreshLearnedRecipes();
         ready = true;
+    }
+
+    private void publishFuelSnapshot(Map<ItemId, Long> fuelSnapshot) {
+        fuelTicksByItem = Map.copyOf(fuelSnapshot);
+        pendingDefinitions.replaceAll((item, definition) -> new ItemDefinitionCompat(definition.durability(),
+                fuelTicksByItem.getOrDefault(item, 0L), definition.aliases()));
+        cachedSnapshot = null;
     }
 
     boolean ready() { return ready; }
@@ -145,18 +166,20 @@ final class GameCatalog {
     }
 
     private void loadRegisteredItems() {
+        Map<ItemId, Long> initialFuelTicks = new TreeMap<>();
         for (Item item : BuiltInRegistries.ITEM) {
             ItemId itemId = id(item);
             items.add(itemId);
             String displayName = new ItemStack(item).getHoverName().getString();
             List<String> aliases = displayName.isBlank() ? List.of() : List.of(displayName);
             var stack = new ItemStack(item);
-            long fuelTicks = GameApi.fuelTicks(client.level, stack);
-            // Fuel entries come from the active version's authoritative world fuel API.
+            long fuelTicks = GameApi.initialFuelTicks(client.level, stack);
+            if (fuelTicks > 0) initialFuelTicks.put(itemId, fuelTicks);
             pendingDefinitions.put(itemId, new ItemDefinitionCompat(stack.getMaxDamage(), fuelTicks, aliases));
             item.builtInRegistryHolder().tags().forEach(tag ->
                     tags.computeIfAbsent(TagId.parse(tag.location().toString()), ignored -> new ArrayList<>()).add(itemId));
         }
+        fuelTicksByItem = Map.copyOf(initialFuelTicks);
         tags.replaceAll((key, values) -> values.stream().distinct().sorted().toList());
     }
 
@@ -215,11 +238,16 @@ final class GameCatalog {
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected) {
-        return addition(entry, sourceId, level, rejected, null);
+        return addition(entry, sourceId, level, rejected, null, fuelTicksByItem);
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected,
                                     Recipe<?> authoritativeRecipe) {
+        return addition(entry, sourceId, level, rejected, authoritativeRecipe, fuelTicksByItem);
+    }
+
+    private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected,
+                                    Recipe<?> authoritativeRecipe, Map<ItemId, Long> fuelTicks) {
         var context = SlotDisplayContext.fromLevel(level);
         List<ItemStack> resultStacks = entry.resultItems(context).stream().filter(stack -> !stack.isEmpty()).toList();
         if (resultStacks.isEmpty()) return null;
@@ -277,7 +305,8 @@ final class GameCatalog {
             }
             Block station = displayStation(entry, context, rejected);
             if (station == Blocks.AIR) return null;
-            return smeltingAddition(sourceId, output, outputCount, resultStack, requirements.get().getFirst(), furnace.duration(), station, rejected);
+            return smeltingAddition(sourceId, output, outputCount, resultStack, requirements.get().getFirst(),
+                    furnace.duration(), station, rejected, fuelTicks);
         }
         rejected.add(sourceId + ": unsupported recipe display " + entry.display().getClass().getSimpleName());
         return null;
@@ -358,16 +387,21 @@ final class GameCatalog {
 
     private RecipeAddition smeltingAddition(String sourceId, Item output, int outputCount, ItemStack resultStack,
                                               net.minecraft.world.item.crafting.Ingredient input, int cookTicks,
-                                              Block displayStation, List<String> rejected) {
-        List<ItemSelector> fuels = pendingDefinitions.entrySet().stream()
-                .filter(entry -> entry.getValue().fuelTicks() > 0)
+                                              Block displayStation, List<String> rejected,
+                                              Map<ItemId, Long> fuelTicks) {
+        Block station = displayStation == null ? Blocks.FURNACE : displayStation;
+        if (station != Blocks.FURNACE) {
+            rejected.add(sourceId + ": only the standard furnace fuel context is supported");
+            return null;
+        }
+        List<ItemSelector> fuels = fuelTicks.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
                 .map(entry -> ItemSelector.item(entry.getKey()))
                 .limit(256).toList();
         if (fuels.isEmpty()) {
             rejected.add(sourceId + ": no context-independent fuel data is available");
             return null;
         }
-        Block station = displayStation == null ? Blocks.FURNACE : displayStation;
         List<Requirement> requirements = List.of(GameCatalog.station(station));
         var source = new SmeltingSource(sourceId, id(output), outputCount, coreIngredient(input), fuels,
                 Math.max(1, cookTicks), requirements);

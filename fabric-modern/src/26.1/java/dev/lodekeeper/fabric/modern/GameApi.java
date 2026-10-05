@@ -39,6 +39,8 @@ final class GameApi {
         return items;
     }
 
+    static long initialFuelTicks(Level level, ItemStack stack) { return fuelTicks(level, stack); }
+
     static long fuelTicks(Level level, ItemStack stack) {
         if (level == null || stack.isEmpty()) return 0;
         return Math.max(0, Math.min(10_000_000, level.fuelValues().burnDuration(stack)));
