@@ -1,0 +1,19 @@
+{
+  "minecraftVersion": "26.3",
+  "sourceCommit": "c9b1825bd381b0f4c3b0805bd80b9c21904aea16",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "84cf6b820e211cdf852604835d58c42910547f71b5e2d91e45922ee55ea93580",
+  "sourceTreeSha256": "4d155b929d09181916d68d68329b49e9c07da2575002fa9582dbf9194158cdc7",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "core/src/main",
+    "nav/src/main",
+    "fabric-modern/src/main",
+    "fabric-modern/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "gameRunId": "2026-10-05T07-46-20-084360Z-2eb08786",
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired remapped build; gameplay used matching development classes",
+  "result": "Four cases passed; stone pickaxe acquisition stopped at route corridor safety check. Remaining cases were not run."
+}

@@ -17,7 +17,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Pending | Pending |
 | 26.1, 26.1.1, 26.1.2 | 25 | Pending; unobfuscated source boundary | Pending |
 | 26.2 | 25 | Pending | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | First four controlled cases pass; stone-pickaxe case stops at a route safety check; full suite pending |
 
 ## What a check proves
 
@@ -34,4 +34,8 @@ The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, o
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.
 
+First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-first-run/run.json), paired with the [development artifact digest](evidence/26.3-first-run/artifact.json). Logs, inventory crafting, sticks and a wooden pickaxe passed. Stone-pickaxe acquisition stopped at the route corridor safeguard; later cases were not run. The 1.21.1 verifier currently stalls during isolated-world startup, before automation begins; its passing build does not establish gameplay compatibility.
+
 Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37273002879) passed at `46f3496`. [Artifact inspection](evidence/builds/46f3496.json) verifies downloaded SHA-256 digests, exact Minecraft metadata, Java class versions, bundled Java 17 core, and exclusion of verifier fixtures. These checks prove packaging, not gameplay. This run predates the modern automatic-eating addition, which passed its separate local 26.3 build.
+
+Updated exact build evidence: [all ten profiles pass at `c9b1825`](https://github.com/luinbytes/lodekeeper/actions/runs/37279029560). The [downloaded artifact inspection](evidence/builds/c9b1825.json) repeats those checks after normalized recipes, navigation safety changes and modern automatic eating, including the separate 1.20.5–1.20.6 crafting API overlay.
