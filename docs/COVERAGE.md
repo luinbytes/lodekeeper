@@ -43,3 +43,5 @@ Further work should make those guarantees useful in ordinary play: protected are
 ## Completion gates
 
 Each mechanic needs a real executor, a successful game scenario, safe interruption/recovery and documented adapter coverage. Natural-world chains must start with the inventory stated in their evidence. Comparative speed claims require equivalent worlds, inventories, goals, game settings and completion checks. Every remaining row stays visible until those gates pass.
+
+Bounded escape from dirt-path/farmland starts is implemented without loosening full-block navigation. Controlled path-start checks pass on [1.21.1](evidence/1.21.1-surface-recovery/README.md) and [26.3](evidence/26.3-surface-recovery/README.md). Full fractional-surface traversal remains open.

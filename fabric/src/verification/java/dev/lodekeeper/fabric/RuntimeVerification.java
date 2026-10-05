@@ -60,6 +60,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
     private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
+    private static final String COAL_START_SURFACE = System.getProperty("lodekeeper.verify.coalStartSurface", "full");
+    private double coalInitialServerFeetY = Double.NaN;
     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
     private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
@@ -181,6 +183,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) {
                 failure = "lodekeeper.verify.stonecuttingDrain requires lodekeeper.verify.stonecutting=true";
                 state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if ((!COAL_START_SURFACE.equals("full") && !COAL_START_SURFACE.equals("dirt_path") && !COAL_START_SURFACE.equals("farmland"))
+                    || (!COAL_START_SURFACE.equals("full") && !COAL_RECOVERY_MODE)) {
+                state = State.FAILED;
+                failure = "coalStartSurface must be full, dirt_path, or farmland; fractional surfaces require coalRecovery=true";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.scheduleStop();
@@ -330,10 +341,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestSnapshot.health == 20.0F
                         && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1))
                         && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
-                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1;
+                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1
+                        && latestSnapshot.coalStartSurfaceRemaining == 9
+                        && Math.abs(latestSnapshot.y - (COAL_START_SURFACE.equals("full") ? PLAYER_Y : PLAYER_Y - 0.0625)) < 0.0001;
                     if (startingStockObserved) {
                         if (++readyTicks >= 20 && client.player.getY() > PLAYER_Y - 1
-                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK)) {
+                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(coalStartFloor())) {
                             startCoalRecoveryCommand();
                         }
                     } else {
@@ -469,6 +482,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                     for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
                 }
                 if (COAL_RECOVERY_MODE) {
+                    if (COAL_START_SURFACE.equals("farmland")) {
+                        world.setBlockState(new BlockPos(-3, FIXTURE_FLOOR_Y, 0), Blocks.WATER.getDefaultState(), 3);
+                    }
+                    for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+                        world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), coalStartFloor().getDefaultState(), 3);
+                    }
                     for (int dx = -1; dx <= 1; dx++) {
                         for (int dy = -1; dy <= 1; dy++) {
                             for (int dz = -1; dz <= 1; dz++) {
@@ -855,7 +874,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startCoalRecoveryCommand() {
-        activeCase = "coal_recovery_reject_encased_nearer_resource";
+        coalInitialServerFeetY = latestSnapshot.y;
+        activeCase = "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
         activeItem = "minecraft:coal";
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -863,6 +883,22 @@ public final class RuntimeVerification implements ClientModInitializer {
         beginCaseClock();
         sendCommand("!lk get coal");
         state = State.GATHERING_COAL_RECOVERY;
+    }
+
+    private static Block coalStartFloor() {
+        return switch (COAL_START_SURFACE) {
+            case "dirt_path" -> Blocks.DIRT_PATH;
+            case "farmland" -> Blocks.FARMLAND;
+            default -> Blocks.BEDROCK;
+        };
+    }
+
+    private static int countCoalStartSurface(ServerWorld world) {
+        int count = 0;
+        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+            if (world.getBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z)).isOf(coalStartFloor())) count++;
+        }
+        return count;
     }
 
     private boolean coalRecoveryTargetRejected() {
@@ -875,6 +911,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             && latestSnapshot.health == 20.0F
             && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
             && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0
+            && latestSnapshot.coalStartSurfaceRemaining == 9
             && coalRecoveryTargetRejected()
             && requireEngine().status().startsWith("idle");
     }
@@ -1124,6 +1161,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).isOf(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ACCESSIBLE_ORE).isOf(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+                    COAL_RECOVERY_MODE ? countCoalStartSurface(world) : -1,
                     player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ());
                 capture.complete(snapshot);
@@ -1396,6 +1434,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(ironPickaxePlannerProbeEvidence == null ? "null" : ironPickaxePlannerProbeEvidence.toString());
         }
         if (COAL_RECOVERY_MODE) {
+            json.append(",\n  \"coalStartSurface\":\"").append(COAL_START_SURFACE).append("\"")
+                .append(",\n  \"coalStartSurfaceInitialServerFeetY\":").append(Double.isFinite(coalInitialServerFeetY) ? Double.toString(coalInitialServerFeetY) : "null")
+                .append(",\n  \"coalStartSurfaceInitialBlockCount\":9")
+                .append(",\n  \"coalStartSurfaceRemainingBlockCount\":").append(latestSnapshot == null ? -1 : latestSnapshot.coalStartSurfaceRemaining);
             json.append(",\n  \"coalRecoveryFixtureProvidedStock\":{\"minecraft:stone_pickaxe\":1}")
                 .append(",\n  \"coalRecoveryGoalCommand\":\"!lk get coal\"")
                 .append(",\n  \"coalRecoveryExpectedOutput\":1")
@@ -1486,7 +1528,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
-                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining,
+                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining, int coalStartSurfaceRemaining,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {

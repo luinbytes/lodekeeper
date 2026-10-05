@@ -1,0 +1,521 @@
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+index 68b5359..b7ca773 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+@@ -20,6 +20,7 @@ final class MovementController {
+     private final PlayerActions actions;
+     private final BotInput input;
+     private final GameTerrain terrain;
++    private final SurfaceRecovery surfaceRecovery;
+     private final StanceProbe probe = new StanceProbe();
+     private final StanceProbe sourceProbe = new StanceProbe();
+     private final StanceProbe emptyProbe = new StanceProbe();
+@@ -42,14 +43,15 @@ final class MovementController {
+     }
+     void startExploration(BlockPos waypoint) {
+         stop(); explorationRoute = true;
+-        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; search();
++        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+     }
+     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
+         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
++        this.surfaceRecovery = new SurfaceRecovery(client, terrain, input);
+     }
+     void start(BlockPos target, int radius) {
+         stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0; ticksWithoutProgress = 0;
+-        search();
++        prepareRoute();
+     }
+     void startInteraction(BlockPos target) {
+         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
+@@ -67,7 +69,7 @@ final class MovementController {
+             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+         }
+         if (stances.isEmpty()) { start(target, 1); return; }
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
++        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+     }
+     void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
+         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
+@@ -83,7 +85,15 @@ final class MovementController {
+             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+         }
+         if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
++        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
++    }
++
++    private void prepareRoute() {
++        if (planner != null) planner.cancel();
++        planner = null;
++        path = null;
++        clearPendingWorldAction();
++        if (!surfaceRecovery.begin()) search();
+     }
+ 
+     private void search() {
+@@ -135,6 +145,13 @@ final class MovementController {
+     boolean tick() {
+         input.acquire(client); input.idle();
+         if (client.player == null || client.level == null) throw new IllegalStateException("World unavailable");
++        if (surfaceRecovery.active()) {
++            if (surfaceRecovery.tick()) {
++                recordProgress();
++                search();
++            }
++            return false;
++        }
+         if (path == null) {
+             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
+             if (status == NavStatus.IN_PROGRESS) return false;
+@@ -294,14 +311,16 @@ final class MovementController {
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+         if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
+-        search();
++        prepareRoute();
+     }
+     void stop() {
+         explorationRoute = false;
++        surfaceRecovery.stop();
+         clearPendingWorldAction();
+         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+     }
+-    String status() { return path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
++    String status() { return surfaceRecovery.active() ? "recovering from fractional surface"
++            : path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
+ }
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SurfaceRecovery.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SurfaceRecovery.java
+new file mode 100644
+index 0000000..752f961
+--- /dev/null
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SurfaceRecovery.java
+@@ -0,0 +1,297 @@
++package dev.lodekeeper.fabric.modern;
++
++import dev.lodekeeper.nav.StanceProbe;
++import net.minecraft.client.Minecraft;
++import net.minecraft.core.BlockPos;
++import net.minecraft.tags.FluidTags;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++import net.minecraft.world.phys.AABB;
++
++/** Constrained escape from vanilla's 15/16-height path and farmland surfaces. */
++final class SurfaceRecovery {
++    private static final int MAX_TICKS = 80;
++    private static final double SURFACE_HEIGHT = 15.0 / 16.0;
++    private static final double HEIGHT_EPSILON = 1.0 / 64.0;
++    private static final double COLLISION_EPSILON = 1.0 / 64.0;
++
++    private final Minecraft client;
++    private final GameTerrain terrain;
++    private final BotInput input;
++    private final StanceProbe stance = new StanceProbe();
++    private BlockPos recoveryOrigin;
++    private Object budgetWorld;
++    private BlockPos destinationSupport;
++    private int ticksUsed;
++    private boolean active;
++
++    SurfaceRecovery(Minecraft client, GameTerrain terrain, BotInput input) {
++        this.client = client;
++        this.terrain = terrain;
++        this.input = input;
++    }
++
++    boolean begin() {
++        active = false;
++        destinationSupport = null;
++        if (client.level == null || client.player == null) return false;
++        if (budgetWorld != null && budgetWorld != client.level) resetBudget();
++        if (isIntegralFullGround()) {
++            resetBudget();
++            return false;
++        }
++
++        BlockPos surface = supportPosition(client.player.getX(), client.player.getY(), client.player.getZ());
++        if (!client.player.onGround() || !loaded(surface)) return false;
++        BlockState currentSurface = client.level.getBlockState(surface);
++        if (!isPathOrFarmland(currentSurface)
++                || Math.abs(client.player.getY() - (surface.getY() + SURFACE_HEIGHT)) > HEIGHT_EPSILON) return false;
++
++        if (budgetWorld == null) budgetWorld = client.level;
++        if (recoveryOrigin == null) recoveryOrigin = surface;
++        if (ticksUsed >= MAX_TICKS) {
++            throw failure("Fractional-surface recovery from " + recoveryOrigin + " exceeded its 80-tick limit");
++        }
++
++        BlockPos candidate = findDestination(surface);
++        if (candidate == null) {
++            throw failure("No safe full-block recovery stance is reachable within two blocks of the fractional surface");
++        }
++        destinationSupport = candidate;
++        active = true;
++        return true;
++    }
++
++    boolean active() { return active; }
++
++    /** Returns true only after the player reaches and is observed grounded on the destination. */
++    boolean tick() {
++        if (!active || client.level == null || client.player == null) return false;
++        if (++ticksUsed > MAX_TICKS) throw fail("Fractional-surface recovery exceeded its 80-tick limit");
++        if (!safeRoute(destinationSupport)) throw fail("Fractional-surface recovery path became unsafe");
++
++        var player = client.player;
++        double destinationX = destinationSupport.getX() + .5;
++        double destinationY = destinationSupport.getY() + 1.0;
++        double destinationZ = destinationSupport.getZ() + .5;
++        double dx = destinationX - player.getX();
++        double dz = destinationZ - player.getZ();
++        double horizontal = Math.hypot(dx, dz);
++        player.setSprinting(false);
++
++        if (horizontal <= .12 && isIntegralFullGround()
++                && player.onGround()
++                && supportPosition(player.getX(), player.getY(), player.getZ()).equals(destinationSupport)) {
++            input.idle();
++            active = false;
++            resetBudget();
++            return true;
++        }
++
++        if (horizontal > .035) {
++            player.setYRot((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90));
++            player.setXRot(0);
++            input.drive(.22f, 0, false, false);
++        } else {
++            input.idle();
++        }
++        return false;
++    }
++
++    /** Cancels movement but deliberately preserves the world-scoped 80-tick retry budget. */
++    void stop() {
++        active = false;
++        destinationSupport = null;
++        input.idle();
++    }
++
++    private BlockPos findDestination(BlockPos surface) {
++        BlockPos best = null;
++        int bestDistance = Integer.MAX_VALUE;
++        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
++            int distanceSquared = dx * dx + dz * dz;
++            if (distanceSquared == 0 || distanceSquared > 4 || distanceSquared > bestDistance) continue;
++            BlockPos candidate = surface.offset(dx, 0, dz);
++            if (!validDestination(candidate) || !safeRoute(candidate)) continue;
++            if (distanceSquared < bestDistance) {
++                best = candidate;
++                bestDistance = distanceSquared;
++            }
++        }
++        return best;
++    }
++
++    private boolean validDestination(BlockPos support) {
++        if (!loaded(support)) return false;
++        BlockState state = client.level.getBlockState(support);
++        if (hazardous(state) || !state.getFluidState().isEmpty()
++                || !Block.isShapeFullBlock(state.getCollisionShape(client.level, support))) return false;
++        terrain.probeStance(support.getX(), support.getY() + 1, support.getZ(), stance);
++        return stance.loaded && stance.fullSupport && !stance.hazard && stance.bodyClear
++                && !stance.water && !stance.climbable;
++    }
++
++    private boolean safeRoute(BlockPos support) {
++        if (support == null || !validDestination(support) || !validCurrentSupport(support.getY())) return false;
++        var player = client.player;
++        double startX = player.getX();
++        double startY = player.getY();
++        double startZ = player.getZ();
++        double endY = support.getY() + 1.0;
++        double endX = support.getX() + .5;
++        double endZ = support.getZ() + .5;
++        if (Math.hypot(endX - startX, endZ - startZ) > 2.0 + .001
++                || startY < support.getY() + SURFACE_HEIGHT - HEIGHT_EPSILON
++                || startY > endY + HEIGHT_EPSILON
++                || Math.abs(endY - startY) > 1.0 - SURFACE_HEIGHT + 2 * HEIGHT_EPSILON) return false;
++
++        AABB original = player.getBoundingBox();
++        BlockPos currentSupport = supportPosition(startX, startY, startZ);
++        // Prove a conservative vertical lift first, then a level horizontal walk. No jump is issued.
++        AABB verticalStart = original.move(0, startY - player.getY(), 0);
++        AABB verticalEnd = original.move(0, endY - player.getY(), 0);
++        if (!bodyClear(union(verticalStart, verticalEnd), currentSupport)) return false;
++        double horizontalDistance = Math.hypot(endX - startX, endZ - startZ);
++        int samples = Math.max(1, (int) Math.ceil(horizontalDistance / .1));
++        AABB previousBody = null;
++        for (int i = 0; i <= samples; i++) {
++            double t = (double) i / samples;
++            double x = startX + (endX - startX) * t;
++            double z = startZ + (endZ - startZ) * t;
++            AABB body = original.move(x - player.getX(), endY - player.getY(), z - player.getZ());
++            if (!supportCoverage(body, support.getY()) || !bodyClear(body, currentSupport)) return false;
++            if (previousBody != null) {
++                AABB segment = union(previousBody, body);
++                if (!supportCoverage(segment, support.getY()) || !bodyClear(segment, currentSupport)) return false;
++            }
++            previousBody = body;
++        }
++        return true;
++    }
++
++    private boolean validCurrentSupport(int supportY) {
++        var player = client.player;
++        if (player == null || !player.onGround()) return false;
++        AABB body = player.getBoundingBox();
++        int minX = (int) Math.floor(body.minX + 1.0e-7);
++        int maxX = (int) Math.floor(body.maxX - 1.0e-7);
++        int minZ = (int) Math.floor(body.minZ + 1.0e-7);
++        int maxZ = (int) Math.floor(body.maxZ - 1.0e-7);
++        double highestSupport = Double.NEGATIVE_INFINITY;
++        for (int bx = minX; bx <= maxX; bx++) for (int bz = minZ; bz <= maxZ; bz++) {
++            BlockPos position = new BlockPos(bx, supportY, bz);
++            if (!loaded(position)) return false;
++            BlockState state = client.level.getBlockState(position);
++            if (hazardous(state) || !state.getFluidState().isEmpty()) return false;
++            if (isPathOrFarmland(state)) highestSupport = Math.max(highestSupport, supportY + SURFACE_HEIGHT);
++            else if (Block.isShapeFullBlock(state.getCollisionShape(client.level, position))) {
++                highestSupport = Math.max(highestSupport, supportY + 1.0);
++            } else return false;
++        }
++        return Double.isFinite(highestSupport) && Math.abs(player.getY() - highestSupport) <= HEIGHT_EPSILON;
++    }
++
++    private boolean supportCoverage(AABB body, int supportY) {
++        int minX = (int) Math.floor(body.minX + 1.0e-7);
++        int maxX = (int) Math.floor(body.maxX - 1.0e-7);
++        int minZ = (int) Math.floor(body.minZ + 1.0e-7);
++        int maxZ = (int) Math.floor(body.maxZ - 1.0e-7);
++        for (int bx = minX; bx <= maxX; bx++) for (int bz = minZ; bz <= maxZ; bz++) {
++            BlockPos position = new BlockPos(bx, supportY, bz);
++            if (!loaded(position)) return false;
++            BlockState state = client.level.getBlockState(position);
++            if (hazardous(state) || !state.getFluidState().isEmpty()
++                    || !(isPathOrFarmland(state)
++                    || Block.isShapeFullBlock(state.getCollisionShape(client.level, position)))) return false;
++        }
++        return true;
++    }
++
++    private boolean bodyClear(AABB body, BlockPos currentSupport) {
++        int minX = (int) Math.floor(body.minX + 1.0e-7);
++        int maxX = (int) Math.floor(body.maxX - 1.0e-7);
++        int minY = (int) Math.floor(body.minY + 1.0e-7);
++        int maxY = (int) Math.floor(body.maxY - 1.0e-7);
++        int minZ = (int) Math.floor(body.minZ + 1.0e-7);
++        int maxZ = (int) Math.floor(body.maxZ - 1.0e-7);
++        for (int bx = minX; bx <= maxX; bx++) for (int by = minY; by <= maxY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
++            BlockPos position = new BlockPos(bx, by, bz);
++            if (!loaded(position)) return false;
++            BlockState state = client.level.getBlockState(position);
++            if (hazardous(state) || !state.getFluidState().isEmpty()) return false;
++            for (AABB local : state.getCollisionShape(client.level, position).toAabbs()) {
++                AABB collision = local.move(bx, by, bz);
++                if (!collision.intersects(body)) continue;
++                if (position.equals(currentSupport) && floorContactOnly(collision, body)) continue;
++                return false;
++            }
++        }
++        return true;
++    }
++
++    private AABB union(AABB first, AABB second) {
++        return new AABB(Math.min(first.minX, second.minX), Math.min(first.minY, second.minY),
++                Math.min(first.minZ, second.minZ), Math.max(first.maxX, second.maxX),
++                Math.max(first.maxY, second.maxY), Math.max(first.maxZ, second.maxZ));
++    }
++
++    private boolean floorContactOnly(AABB collision, AABB body) {
++        return collision.maxY >= body.minY - COLLISION_EPSILON
++                && collision.maxY <= body.minY + COLLISION_EPSILON
++                && collision.minY < body.minY;
++    }
++
++    private boolean isIntegralFullGround() {
++        var player = client.player;
++        if (player == null || !player.onGround()) return false;
++        double y = player.getY();
++        if (Math.abs(y - Math.rint(y)) > 1.0e-4) return false;
++        BlockPos feet = new BlockPos((int) Math.floor(player.getX()), (int) Math.floor(y),
++                (int) Math.floor(player.getZ()));
++        terrain.probeStance(feet.getX(), feet.getY(), feet.getZ(), stance);
++        return stance.loaded && stance.fullSupport && !stance.hazard && stance.bodyClear
++                && !stance.water && !stance.climbable;
++    }
++
++    private BlockPos supportPosition(double x, double y, double z) {
++        return new BlockPos((int) Math.floor(x), (int) Math.floor(y - 1.0e-5), (int) Math.floor(z));
++    }
++
++    private boolean loaded(BlockPos position) {
++        return client.level != null && position.getY() >= client.level.getMinY()
++                && position.getY() < client.level.getMaxY()
++                && client.level.getChunk(position.getX() >> 4, position.getZ() >> 4,
++                ChunkStatus.FULL, false) != null;
++    }
++
++    private static boolean isPathOrFarmland(BlockState state) {
++        return state.is(Blocks.DIRT_PATH) || state.is(Blocks.FARMLAND);
++    }
++
++    private static boolean hazardous(BlockState state) {
++        return !state.getFluidState().isEmpty() || state.getFluidState().is(FluidTags.LAVA)
++                || state.is(Blocks.FIRE) || state.is(Blocks.SOUL_FIRE) || state.is(Blocks.CACTUS)
++                || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE)
++                || state.is(Blocks.SOUL_CAMPFIRE) || state.is(Blocks.POWDER_SNOW)
++                || state.is(Blocks.SWEET_BERRY_BUSH) || state.is(Blocks.WITHER_ROSE);
++    }
++
++    private void resetBudget() {
++        recoveryOrigin = null;
++        budgetWorld = client.level;
++        ticksUsed = 0;
++    }
++
++    private MovementController.NavigationFailure fail(String reason) {
++        active = false;
++        input.idle();
++        if (client.player != null) client.player.setSprinting(false);
++        return failure(reason);
++    }
++
++    private static MovementController.NavigationFailure failure(String reason) {
++        return new MovementController.NavigationFailure(reason);
++    }
++}
+diff --git a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+index bc56d27..6fddbf8 100644
+--- a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
++++ b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+@@ -65,6 +65,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
+     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
+     private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
++    private static final String COAL_START_SURFACE = System.getProperty("lodekeeper.verify.coalStartSurface", "full");
++    private double coalInitialServerFeetY = Double.NaN;
+     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
+     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
+     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
+@@ -171,6 +173,15 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 client.stop();
+                 return;
+             }
++            if ((!COAL_START_SURFACE.equals("full") && !COAL_START_SURFACE.equals("dirt_path") && !COAL_START_SURFACE.equals("farmland"))
++                    || (!COAL_START_SURFACE.equals("full") && !COAL_RECOVERY_MODE)) {
++                state = State.FAILED;
++                failure = "coalStartSurface must be full, dirt_path, or farmland; fractional surfaces require coalRecovery=true";
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.stop();
++                return;
++            }
+             if (selectedFixtureModes() > 1) {
+                 state = State.FAILED;
+                 failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+@@ -321,10 +332,12 @@ public final class RuntimeVerification implements ClientModInitializer {
+                         && latestSnapshot.health == 20.0F
+                         && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1))
+                         && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+-                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1;
++                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1
++                        && latestSnapshot.coalStartSurfaceRemaining == 9
++                        && Math.abs(latestSnapshot.y - (COAL_START_SURFACE.equals("full") ? PLAYER_Y : PLAYER_Y - 0.0625)) < 0.0001;
+                     if (startingStockObserved) {
+                         if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
+-                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)) {
++                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(coalStartFloor())) {
+                             startCoalRecoveryCommand();
+                         }
+                     } else {
+@@ -438,6 +451,12 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
+                 }
+                 if (COAL_RECOVERY_MODE) {
++                    if (COAL_START_SURFACE.equals("farmland")) {
++                        world.setBlockAndUpdate(new BlockPos(-3, FLOOR_Y, 0), Blocks.WATER.defaultBlockState());
++                    }
++                    for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
++                        world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), coalStartFloor().defaultBlockState());
++                    }
+                     for (int dx = -1; dx <= 1; dx++) {
+                         for (int dy = -1; dy <= 1; dy++) {
+                             for (int dz = -1; dz <= 1; dz++) {
+@@ -859,7 +878,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private void startCoalRecoveryCommand() {
+-        activeCase = "coal_recovery_reject_encased_nearer_resource";
++        coalInitialServerFeetY = latestSnapshot.y;
++        activeCase = "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
+         activeItem = "minecraft:coal";
+         activeCount = 1;
+         activeRequiresEmpty = false;
+@@ -869,6 +889,22 @@ public final class RuntimeVerification implements ClientModInitializer {
+         state = State.GATHERING_COAL_RECOVERY;
+     }
+ 
++    private static Block coalStartFloor() {
++        return switch (COAL_START_SURFACE) {
++            case "dirt_path" -> Blocks.DIRT_PATH;
++            case "farmland" -> Blocks.FARMLAND;
++            default -> Blocks.BEDROCK;
++        };
++    }
++
++    private static int countCoalStartSurface(ServerLevel world) {
++        int count = 0;
++        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
++            if (world.getBlockState(new BlockPos(x, FLOOR_Y, z)).is(coalStartFloor())) count++;
++        }
++        return count;
++    }
++
+     private boolean coalRecoveryTargetRejected() {
+         return LodekeeperClient.engine != null && LodekeeperClient.engine.resourceRejected(COAL_RECOVERY_ENCASED_ORE);
+     }
+@@ -879,6 +915,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+             && latestSnapshot.health == 20.0F
+             && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+             && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0
++            && latestSnapshot.coalStartSurfaceRemaining == 9
+             && coalRecoveryTargetRejected()
+             && requireEngine().status().startsWith("idle");
+     }
+@@ -1119,6 +1156,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
+                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ACCESSIBLE_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
++                    COAL_RECOVERY_MODE ? countCoalStartSurface(world) : -1,
+                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
+                     player.getX(), player.getY(), player.getZ()));
+             } catch (Throwable throwable) {
+@@ -1278,6 +1316,13 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 if (ironPickaxePlannerProbeEvidence != null) root.add("ironPickaxePlannerProbe", ironPickaxePlannerProbeEvidence);
+             }
+             root.addProperty("coalRecoveryFixture", COAL_RECOVERY_MODE);
++            if (COAL_RECOVERY_MODE) {
++                root.addProperty("coalStartSurface", COAL_START_SURFACE);
++                if (Double.isFinite(coalInitialServerFeetY)) root.addProperty("coalStartSurfaceInitialServerFeetY", coalInitialServerFeetY);
++                else root.add("coalStartSurfaceInitialServerFeetY", com.google.gson.JsonNull.INSTANCE);
++                root.addProperty("coalStartSurfaceInitialBlockCount", 9);
++                root.addProperty("coalStartSurfaceRemainingBlockCount", latestSnapshot == null ? -1 : latestSnapshot.coalStartSurfaceRemaining);
++            }
+             if (COAL_RECOVERY_MODE) {
+                 JsonObject initialStock = new JsonObject();
+                 initialStock.addProperty("minecraft:stone_pickaxe", 1);
+@@ -1452,7 +1497,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
+                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
+-                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining,
++                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining, int coalStartSurfaceRemaining,
+                                   float health, int foodLevel,
+                                   String difficulty, double x, double y, double z) {
+         private ServerSnapshot {

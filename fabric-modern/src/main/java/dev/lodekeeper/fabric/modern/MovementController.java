@@ -20,6 +20,7 @@ final class MovementController {
     private final PlayerActions actions;
     private final BotInput input;
     private final GameTerrain terrain;
+    private final SurfaceRecovery surfaceRecovery;
     private final StanceProbe probe = new StanceProbe();
     private final StanceProbe sourceProbe = new StanceProbe();
     private final StanceProbe emptyProbe = new StanceProbe();
@@ -42,14 +43,15 @@ final class MovementController {
     }
     void startExploration(BlockPos waypoint) {
         stop(); explorationRoute = true;
-        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; search();
+        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
     }
     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
+        this.surfaceRecovery = new SurfaceRecovery(client, terrain, input);
     }
     void start(BlockPos target, int radius) {
         stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0; ticksWithoutProgress = 0;
-        search();
+        prepareRoute();
     }
     void startInteraction(BlockPos target) {
         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
@@ -67,7 +69,7 @@ final class MovementController {
             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
         if (stances.isEmpty()) { start(target, 1); return; }
-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
     }
     void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
@@ -83,7 +85,15 @@ final class MovementController {
             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
         if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+    }
+
+    private void prepareRoute() {
+        if (planner != null) planner.cancel();
+        planner = null;
+        path = null;
+        clearPendingWorldAction();
+        if (!surfaceRecovery.begin()) search();
     }
 
     private void search() {
@@ -135,6 +145,13 @@ final class MovementController {
     boolean tick() {
         input.acquire(client); input.idle();
         if (client.player == null || client.level == null) throw new IllegalStateException("World unavailable");
+        if (surfaceRecovery.active()) {
+            if (surfaceRecovery.tick()) {
+                recordProgress();
+                search();
+            }
+            return false;
+        }
         if (path == null) {
             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
             if (status == NavStatus.IN_PROGRESS) return false;
@@ -294,14 +311,16 @@ final class MovementController {
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
         if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
-        search();
+        prepareRoute();
     }
     void stop() {
         explorationRoute = false;
+        surfaceRecovery.stop();
         clearPendingWorldAction();
         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
     }
-    String status() { return path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
+    String status() { return surfaceRecovery.active() ? "recovering from fractional surface"
+            : path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
 }
