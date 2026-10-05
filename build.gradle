@@ -9,3 +9,11 @@ subprojects {
     java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 17 }
 }
+subprojects {
+    dependencies { testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2' }
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        maxHeapSize = '256m'
+        maxParallelForks = 1
+    }
+}
