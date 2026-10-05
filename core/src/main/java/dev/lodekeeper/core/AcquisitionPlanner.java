@@ -421,8 +421,12 @@ public final class AcquisitionPlanner {
                 var valid = new ArrayList<State>();
                 for (State candidate : candidates) {
                     if (candidate.canUseTool(item, requirement, operations, catalog)) valid.add(candidate);
-                    else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item,
-                            "Available tools do not provide enough safe durability for the whole operation batch", pathWith(path, item));
+                    else if (candidate.toolCapacity(item, requirement, catalog) > currentCapacity) {
+                        // Producing a replacement may itself consume mining charges. Recompute
+                        // the shortfall from the resulting state under the same search limits.
+                        valid.addAll(ensureTool(item, requirement, operations, candidate, path, depth + 1));
+                    } else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item,
+                            "Making replacement tools does not increase safe mining capacity", pathWith(path, item));
                 }
                 return trim(valid);
             }

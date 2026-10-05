@@ -6,7 +6,12 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
-import net.minecraft.item.MiningToolItem;
+import net.minecraft.item.PickaxeItem;
+import net.minecraft.item.AxeItem;
+import net.minecraft.item.ShovelItem;
+import net.minecraft.item.HoeItem;
+import net.minecraft.item.SwordItem;
+import net.minecraft.item.ShearsItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.Ingredient;
@@ -35,8 +40,16 @@ final class GameApi {
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.canCombine(first, second); }
 
-    /** Vanilla mining tools in this profile have a fixed one point of wear per block. */
-    static int blockBreakWear(ItemStack stack) { return stack.getItem() instanceof MiningToolItem ? 1 : 0; }
+    /** Unknown legacy damageable implementations cannot disclose their mining wear. */
+    static int blockBreakWear(ItemStack stack) {
+        if (!stack.isDamageable()) return 0;
+        Class<?> type = stack.getItem().getClass();
+        if (type == SwordItem.class) return 2;
+        if (type == ShearsItem.class || type == PickaxeItem.class || type == AxeItem.class
+                || type == ShovelItem.class || type == HoeItem.class) return 1;
+        return -1;
+    }
+
 
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }
 

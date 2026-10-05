@@ -455,6 +455,25 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void replacementToolsAccountForTheirOwnMiningMaterials() {
+        ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
+        ItemId cobble = ItemId.parse("minecraft:cobblestone");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pickaxe, 131).item(cobble, 0).item(STICKS, 0)
+                .source(new GatherSource("mine:stone", cobble, 1, List.of(BlockId.parse("minecraft:stone")),
+                        List.of(new ToolRequirement(Ingredient.of(pickaxe), 2, "mine stone", 1))))
+                .source(new CraftingSource("craft:stone_pickaxe", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(3, cobble)), new RecipeSlot(-1, Ingredient.of(2, STICKS))), List.of()))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(pickaxe, 1, STICKS, 4), Set.of(),
+                Map.of(pickaxe, 5), Map.of(), Map.of(pickaxe, List.of(5)));
+        PlanResult result = planner().plan(catalog, inventory, cobble, 132);
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(2, result.steps().stream().filter(step -> pickaxe.equals(step.output())).mapToInt(PlanStep::outputCount).sum());
+        assertEquals(138, result.steps().stream().filter(step -> cobble.equals(step.output())).mapToInt(PlanStep::outputCount).sum());
+        assertEquals(List.of(5), inventory.durabilityLots().get(pickaxe));
+    }
+
+    @Test
     void insufficientBatchWearPlansReplacementToolsBeforeMining() {
         ItemId pickaxe = ItemId.parse("test:short_lived_pick");
         ItemId material = ItemId.parse("test:pick_material");

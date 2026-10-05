@@ -58,13 +58,13 @@ final class PlayerActions {
         for (int i = 0; i < 36; i++) {
             ItemStack stack = client.player.getInventory().getStack(i);
             int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : Integer.MAX_VALUE;
-            if (stack.isEmpty() || !hasSafeDurability(stack, 1)) continue;
+            if (!hasSafeDurability(stack, 1)) continue;
             if (state.isToolRequired() && !stack.isSuitableFor(state)) continue;
-            float candidate = stack.getMiningSpeedMultiplier(state);
+            float candidate = stack.isEmpty() ? 1 : stack.getMiningSpeedMultiplier(state);
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
         if (state.isToolRequired() && bestSlot < 0) return false;
-        return bestSlot < 0 || selectSlot(bestSlot);
+        return bestSlot >= 0 && selectSlot(bestSlot);
     }
     void look(Vec3d point) {
         if (client.player == null) return;
@@ -131,6 +131,9 @@ final class PlayerActions {
             }
             if (slot < 0 || !selectSlot(slot)) return false;
         }
+        ItemStack held = client.player.getMainHandStack();
+        if (!hasSafeDurability(held, tool == null ? 1 : tool.minimumDurability())
+                || state.isToolRequired() && !held.isSuitableFor(state)) return false;
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getPos());
