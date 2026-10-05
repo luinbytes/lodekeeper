@@ -29,6 +29,8 @@ final class AutomationEngine {
         boolean maintained() { return maintenanceTaskId != null; }
     }
 
+    private record PlanningOutcome(PlanResult result, boolean explorationProven) { }
+
     private static final class ProjectRun {
         final ProjectSpec spec;
         final Set<ItemId> pending = new TreeSet<>();
@@ -60,7 +62,8 @@ final class AutomationEngine {
     private ClientWorld world;
     private GameCatalog catalog;
     private Request active;
-    private CompletableFuture<PlanResult> pendingPlan;
+    private CompletableFuture<PlanningOutcome> pendingPlan;
+    private boolean previewPending;
     private long pendingPlanGeneration;
     private long stepCatalogGeneration;
     private PlanStep step;
@@ -152,7 +155,8 @@ final class AutomationEngine {
             if (exploring) { explore(); return; }
             if (pendingPlan != null) {
                 if (!pendingPlan.isDone()) return;
-                PlanResult result = pendingPlan.join();
+                PlanningOutcome outcome = pendingPlan.join();
+                PlanResult result = outcome.result();
                 long resultGeneration = pendingPlanGeneration;
                 pendingPlan = null;
                 if (!catalog.ready() || resultGeneration != catalog.generation()) {
@@ -162,7 +166,7 @@ final class AutomationEngine {
                 }
                 if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
                 if (!result.success() && tryNextLogPlan(result)) return;
-                if (!result.success() && canExplore(result)) { beginExploration(); return; }
+                if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
                 if (result.steps().isEmpty()) { finishGoal(); return; }
                 begin(result.steps().get(0), resultGeneration);
@@ -316,18 +320,35 @@ final class AutomationEngine {
         return resolution.item();
     }
     void preview(String name, int count) {
+        if (previewPending) { message("A plan preview is already in progress"); return; }
         ensureCatalog();
+        if (!catalog.ready()) { message("Recipe catalog is loading; try plan again shortly"); return; }
         observeInventory();
         ItemId item = name == null ? active != null ? active.item : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item : queue.peekFirst().item : resolve(name);
         if (item == null) { message("No active or queued goal"); return; }
         CatalogSnapshot snapshot = catalog.snapshot(); InventorySnapshot inventory = inventorySnapshot(item);
-        CompletableFuture.supplyAsync(() -> planner.plan(snapshot, inventory, item, count), plannerWorker).thenAccept(result -> client.execute(() -> {
+        var previewWorld = client.world;
+        long previewGeneration = catalog.generation();
+        previewPending = true;
+        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
+            previewPending = false;
+            if (client.world != previewWorld || catalog == null) return;
+            if (!catalog.ready() || catalog.generation() != previewGeneration) { message("Recipe catalog changed; try plan again"); return; }
+            if (failure != null) { message("Plan preview failed; try again"); return; }
             if (!result.success()) message("Blocked: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(4).toList());
             else {
-                message("Plan: " + result.steps().size() + " steps, " + result.expandedNodes() + " branches, " + String.format(Locale.ROOT, "%.2f", result.elapsedNanos() / 1_000_000d) + " ms");
+                message((result.optimal() ? "Plan: " : "Feasible plan: ") + result.steps().size() + " steps, " + result.expandedNodes() + " branches, " + String.format(Locale.ROOT, "%.2f", result.elapsedNanos() / 1_000_000d) + " ms");
                 result.steps().stream().limit(12).forEach(s -> message(s.kind() + " " + (s.output() == null ? s.station() : s.outputCount() + " × " + s.output())));
             }
         }));
+    }
+    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count) {
+        PlanResult result = planner.planFast(snapshot, inventory, item, count);
+        for (int retry = 0; retry < 4 && !result.success()
+                && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT); retry++) {
+            result = planner.planFast(snapshot, inventory, item, count);
+        }
+        return result;
     }
     private void ensureNotStopping() {
         if (stopAfterStep) throw new IllegalStateException("Finishing the current safe transaction before stopping; retry after it completes");
@@ -521,18 +542,34 @@ final class AutomationEngine {
             item = chooseLogs();
             if (item == null) { if (logScan == null) beginExploration(); return; }
         }
-        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         CatalogSnapshot full = catalog.snapshot();
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         if (!unavailableSources.isEmpty()) {
             full.itemDefinitions().values().forEach(builder::item); catalog.tags.forEach(builder::tag);
             catalog.sources.stream().filter(s -> !unavailableSources.contains(s.sourceId())).forEach(builder::source);
         }
         CatalogSnapshot snapshot = unavailableSources.isEmpty() ? full : builder.build();
+        Set<String> excludedGatherSourceIds = catalog.sources.stream()
+                .filter(GatherSource.class::isInstance).map(GatherSource.class::cast)
+                .filter(source -> unavailableSources.contains(source.sourceId()))
+                .map(GatherSource::sourceId).collect(java.util.stream.Collectors.toUnmodifiableSet());
+        boolean explorationEnabled = config.allowExploration;
         InventorySnapshot inventory = inventorySnapshot(active.item);
         int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item) : active.count;
         final ItemId targetItem = item; final int targetCount = requested;
         pendingPlanGeneration = catalog.generation();
-        pendingPlan = CompletableFuture.supplyAsync(() -> planner.planFast(snapshot, inventory, targetItem, targetCount), plannerWorker);
+        CatalogSnapshot filteredSnapshot = snapshot;
+        pendingPlan = CompletableFuture.supplyAsync(() -> {
+            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount);
+            if (!explorationEnabled || excludedGatherSourceIds.isEmpty()
+                    || !ExplorationRecovery.isLogicalFailure(filteredPlan)) {
+                return new PlanningOutcome(filteredPlan, false);
+            }
+            // Recovery has its own default fast-planner budget (20 ms); each planner call remains independently capped.
+            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount);
+            return new PlanningOutcome(filteredPlan,
+                    ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds));
+        }, plannerWorker);
     }
     private ItemId chooseLogs() {
         if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
@@ -621,15 +658,8 @@ final class AutomationEngine {
     }
     int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
 
-    private boolean canExplore(PlanResult result) {
-        if (!config.allowExploration || unavailableSources.isEmpty()) return false;
-        List<BlockedReason> missing = result.blockedReasons().stream()
-            .filter(reason -> reason.code() == BlockedReason.Code.NO_SOURCE).toList();
-        return !missing.isEmpty() && result.blockedReasons().stream().allMatch(reason ->
-                reason.code() == BlockedReason.Code.NO_SOURCE || reason.code() == BlockedReason.Code.CYCLE)
-            && missing.stream().allMatch(reason -> catalog.sources.stream().anyMatch(source ->
-                source instanceof GatherSource && source.output().equals(reason.item())
-                    && unavailableSources.contains(source.sourceId())));
+    private boolean canExplore(PlanningOutcome outcome) {
+        return config.allowExploration && !unavailableSources.isEmpty() && outcome.explorationProven();
     }
     private void beginExploration() {
         if (!config.allowExploration) throw new IllegalStateException("Resource not found nearby; exploration is disabled");

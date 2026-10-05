@@ -39,6 +39,107 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void explorationRecoveryProvesAnExcludedGatherPathDespiteOtherImpossibleRecipeBranches() {
+        ItemId goal = ItemId.parse("test:iron_goal");
+        ItemId rawIron = ItemId.parse("test:raw_iron");
+        ItemId chainmail = ItemId.parse("test:chainmail");
+        String ironGatherId = "test:gather_raw_iron";
+        CatalogSnapshot full = recoveryCatalog(goal, rawIron, chainmail, true);
+        CatalogSnapshot filtered = recoveryCatalog(goal, rawIron, chainmail, false);
+        InventorySnapshot inventory = new InventorySnapshot(Map.of());
+        PlanResult filteredPlan = planner().planFast(filtered, inventory, goal, 1);
+        PlanResult fullPlan = planner().planFast(full, inventory, goal, 1);
+
+        assertFalse(filteredPlan.success());
+        assertTrue(filteredPlan.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.NO_SOURCE));
+        assertTrue(fullPlan.success());
+        assertTrue(fullPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER && step.sourceId().equals(ironGatherId)));
+        assertTrue(ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, Set.of(ironGatherId)));
+    }
+
+    @Test
+    void explorationRecoveryRejectsIncompleteUnrelatedOrCustomPlans() {
+        ItemId goal = ItemId.parse("test:iron_goal");
+        ItemId rawIron = ItemId.parse("test:raw_iron");
+        ItemId chainmail = ItemId.parse("test:chainmail");
+        String ironGatherId = "test:gather_raw_iron";
+        CatalogSnapshot filtered = recoveryCatalog(goal, rawIron, chainmail, false);
+        CatalogSnapshot full = recoveryCatalog(goal, rawIron, chainmail, true);
+        InventorySnapshot inventory = new InventorySnapshot(Map.of());
+        PlanResult filteredPlan = planner().planFast(filtered, inventory, goal, 1);
+        PlanResult fullPlan = planner().planFast(full, inventory, goal, 1);
+
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, filteredPlan, full, Set.of(ironGatherId)));
+
+        CatalogSnapshot unrelatedGatherCatalog = CatalogSnapshot.builder()
+                .item(goal, 0).item(rawIron, 0).item(chainmail, 0)
+                .item(ItemId.parse("test:wood"), 0)
+                .source(new CraftingSource("goal-from-wood", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(ItemId.parse("test:wood")))), List.of()))
+                .source(new GatherSource(ironGatherId, rawIron, 1, List.of(BlockId.parse("test:iron_ore"))))
+                .source(new GatherSource("test:gather_wood", ItemId.parse("test:wood"), 1, List.of(BlockId.parse("test:wood_block"))))
+                .build();
+        PlanResult unrelatedGatherPlan = planner().planFast(unrelatedGatherCatalog, inventory, goal, 1);
+        assertTrue(unrelatedGatherPlan.success());
+        assertFalse(unrelatedGatherPlan.steps().stream().anyMatch(step -> step.sourceId().equals(ironGatherId)));
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, unrelatedGatherPlan,
+                unrelatedGatherCatalog, Set.of(ironGatherId)));
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, Set.of("test:goal-from-iron")));
+
+        CatalogSnapshot customCatalog = CatalogSnapshot.builder()
+                .item(goal, 0).item(rawIron, 0).item(chainmail, 0)
+                .source(new GatherSource(ironGatherId, rawIron, 1, List.of(BlockId.parse("test:iron_ore"))))
+                .source(new CustomSource("test:custom_goal", "test:custom", goal, 1,
+                        List.of(new ItemRequirement(Ingredient.of(rawIron), true, "material")), Map.of()))
+                .build();
+        PlanResult customPlan = planner().planFast(customCatalog, inventory, goal, 1);
+        assertTrue(customPlan.success());
+        assertTrue(customPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.CUSTOM));
+        assertTrue(customPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER && step.sourceId().equals(ironGatherId)));
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, customPlan, customCatalog, Set.of(ironGatherId)));
+
+        PlanResult mismatchedTarget = new PlanResult(ItemId.parse("test:other_goal"), 1,
+                fullPlan.steps(), List.of(), false, fullPlan.expandedNodes(), fullPlan.elapsedNanos());
+        PlanResult mismatchedCount = new PlanResult(goal, 2,
+                fullPlan.steps(), List.of(), false, fullPlan.expandedNodes(), fullPlan.elapsedNanos());
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, mismatchedTarget, full, Set.of(ironGatherId)));
+        assertFalse(ExplorationRecovery.provesExploration(filteredPlan, mismatchedCount, full, Set.of(ironGatherId)));
+    }
+
+    @Test
+    void explorationRecoveryDoesNotRunForUnknownInvalidCountOrPlannerLimits() {
+        ItemId goal = ItemId.parse("test:iron_goal");
+        ItemId rawIron = ItemId.parse("test:raw_iron");
+        ItemId chainmail = ItemId.parse("test:chainmail");
+        String ironGatherId = "test:gather_raw_iron";
+        CatalogSnapshot full = recoveryCatalog(goal, rawIron, chainmail, true);
+        CatalogSnapshot filtered = recoveryCatalog(goal, rawIron, chainmail, false);
+        InventorySnapshot inventory = new InventorySnapshot(Map.of());
+        PlanResult fullPlan = planner().planFast(full, inventory, goal, 1);
+
+        for (BlockedReason.Code code : List.of(BlockedReason.Code.UNKNOWN_ITEM, BlockedReason.Code.INVALID_COUNT,
+                BlockedReason.Code.TIME_LIMIT, BlockedReason.Code.NODE_LIMIT,
+                BlockedReason.Code.DEPTH_LIMIT, BlockedReason.Code.STEP_LIMIT)) {
+            PlanResult failure = new PlanResult(goal, 1, List.of(),
+                    List.of(new BlockedReason(code, goal, "bounded planner failure", List.of(goal))), false, 0, 0);
+            assertFalse(ExplorationRecovery.isLogicalFailure(failure), code.toString());
+            assertFalse(ExplorationRecovery.provesExploration(failure, fullPlan, full, Set.of(ironGatherId)), code.toString());
+        }
+    }
+
+    private static CatalogSnapshot recoveryCatalog(ItemId goal, ItemId rawIron, ItemId chainmail, boolean includeIronGather) {
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(goal, 0).item(rawIron, 0).item(chainmail, 0)
+                .source(new CraftingSource("test:goal_from_iron", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(rawIron))), List.of()))
+                .source(new CraftingSource("test:goal_from_chainmail", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(chainmail))), List.of()));
+        if (includeIronGather) {
+            builder.source(new GatherSource("test:gather_raw_iron", rawIron, 1, List.of(BlockId.parse("test:iron_ore"))));
+        }
+        return builder.build();
+    }
+
+    @Test
     void reservesInventoryAndPlansOnlyMissingQuantity() {
         CatalogSnapshot catalog = CatalogSnapshot.builder()
                 .item(LOG, 0, "wood")

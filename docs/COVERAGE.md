@@ -4,7 +4,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 | Capability | Current evidence | Next acceptance scenario |
 | --- | --- | --- |
-| Client commands, configurable prefix, plan preview, queues | Implemented; parser regression checks | Remote-server command interception and bounded preview spam |
+| Client commands, configurable prefix, plan preview, queues | Implemented; parser regression checks, inventory-refreshed previews with one request in flight | Remote-server command interception and bounded preview spam |
 | Quantity planning, ingredient alternatives, tool and fuel reservations | Java regression checks; controlled single-command boots from empty inventory on [1.21.1](evidence/1.21.1-diamond-boots/run.json) and [26.3](evidence/26.3-diamond-boots/run.json) | Long acquisition chains with interruptions and inventory changes |
 | Walking and mining reachable resources | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 logs and stone | Natural forest, cave and underground ore discovery |
 | Jumping, drops, swimming, climbing, parkour | Navigation model and hazard regressions; physical behavior pending | Separate obstacle courses, submerged exits and safe fall limits |
@@ -15,7 +15,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | Modded registry items and ordinary recipes | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 custom ore to custom 3×3 recipe, without target-item grants | Additional modded recipes, remainders and adapter families |
 | Project inventory loadouts and maintained stock | Implemented; quantity and hysteresis regressions | Foreground preemption, removal and protected stock during real crafting |
 | Full recipe knowledge | Legacy synchronized catalogs; modern local-server/learned-display prototype | Local reload and remote recipe-book updates; explicit locked-recipe blocker |
-| Exploration and persistent resource knowledge | Controlled [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3 distant wood](evidence/26.3-exploration/run.json): initially unloaded resource, empty inventory, two bounded waypoints, eight server-observed logs | Natural forests, varied terrain, other adapter families and persistent world memory |
+| Exploration and persistent resource knowledge | Controlled [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3 distant wood](evidence/26.3-exploration/run.json): initially unloaded resource, empty inventory, two bounded waypoints, eight server-observed logs. Source-aware acquisition recovery has Java regressions and a native-catalog replay; its multi-stage game scenario is pending | Natural forests, varied terrain, other adapter families and persistent world memory |
 | Inventory policy and storage | Owned station cleanup in development | Reserved slots, permitted containers, deposit/retrieve and full-inventory recovery |
 | Smokers, blast furnaces and campfires | Pending | Select faster suitable station and account for fuel/input/output |
 | Stonecutting and smithing | Pending | Alternate stone recipes; templates, trims and netherite upgrades |
