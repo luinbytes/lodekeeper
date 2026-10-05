@@ -27,10 +27,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CookingFuel;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -100,7 +103,7 @@ final class GameCatalog {
                     try {
                         manager.listDisplaysForRecipe(holder.id(), entry -> {
                             try {
-                                RecipeAddition addition = addition(entry, "server:" + recipeId + ":" + entry.id().index(), serverLevel, rejected);
+                                RecipeAddition addition = addition(entry, "server:" + recipeId + ":" + entry.id().index(), serverLevel, rejected, holder.value());
                                 if (addition != null) additions.add(addition);
                             } catch (RuntimeException ex) {
                                 rejected.add(recipeId + ": " + ex.getMessage());
@@ -226,6 +229,11 @@ final class GameCatalog {
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected) {
+        return addition(entry, sourceId, level, rejected, null);
+    }
+
+    private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected,
+                                    Recipe<?> authoritativeRecipe) {
         var context = SlotDisplayContext.fromLevel(level);
         List<ItemStack> resultStacks = entry.resultItems(context).stream().filter(stack -> !stack.isEmpty()).toList();
         if (resultStacks.isEmpty()) return null;
@@ -238,13 +246,34 @@ final class GameCatalog {
         }
         Optional<List<net.minecraft.world.item.crafting.Ingredient>> requirements = entry.craftingRequirements();
         if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped) {
+            if (authoritativeRecipe instanceof ShapedRecipe nativeShape) {
+                if (nativeShape.getWidth() != shaped.width() || nativeShape.getHeight() != shaped.height()) {
+                    rejected.add(sourceId + ": shaped display dimensions disagree with its authoritative recipe");
+                    return null;
+                }
+                List<net.minecraft.world.item.crafting.Ingredient> grid = new ArrayList<>();
+                nativeShape.getIngredients().forEach(cell -> grid.add(cell.orElse(null)));
+                if (grid.size() != nativeShape.getWidth() * nativeShape.getHeight()) {
+                    rejected.add(sourceId + ": authoritative shaped recipe has an invalid grid");
+                    return null;
+                }
+                Block station = displayStation(entry, context, rejected);
+                if (station == Blocks.AIR) return null;
+                return craftingAddition(sourceId, output, outputCount, resultStack, RecipeType.SHAPED,
+                        nativeShape.getWidth(), nativeShape.getHeight(), grid, station, rejected);
+            }
             if (requirements.isEmpty()) {
                 rejected.add(sourceId + ": shaped display omits executable ingredient requirements");
                 return null;
             }
+            List<net.minecraft.world.item.crafting.Ingredient> grid = remoteShapedGrid(shaped, requirements.get());
+            if (grid == null) {
+                rejected.add(sourceId + ": shaped display cannot be matched safely to its native ingredient predicates");
+                return null;
+            }
             Block station = displayStation(entry, context, rejected);
             if (station == Blocks.AIR) return null;
-            return craftingAddition(sourceId, output, outputCount, resultStack, RecipeType.SHAPED, shaped.width(), shaped.height(), requirements.get(), station, rejected);
+            return craftingAddition(sourceId, output, outputCount, resultStack, RecipeType.SHAPED, shaped.width(), shaped.height(), grid, station, rejected);
         }
         if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless) {
             if (requirements.isEmpty()) {
@@ -266,6 +295,41 @@ final class GameCatalog {
         }
         rejected.add(sourceId + ": unsupported recipe display " + entry.display().getClass().getSimpleName());
         return null;
+    }
+
+    /** Display cells keep holes; compact requirements supply the exact executable predicates. */
+    private List<net.minecraft.world.item.crafting.Ingredient> remoteShapedGrid(
+            ShapedCraftingRecipeDisplay shaped, List<net.minecraft.world.item.crafting.Ingredient> requirements) {
+        int cells = shaped.width() * shaped.height();
+        if (shaped.width() < 1 || shaped.width() > 3 || shaped.height() < 1 || shaped.height() > 3
+                || shaped.ingredients().size() != cells || requirements.isEmpty() || requirements.size() > cells) return null;
+        List<Set<Item>> allowed = new ArrayList<>();
+        for (var ingredient : requirements) {
+            if (ingredient == null || ingredient.getClass() != net.minecraft.world.item.crafting.Ingredient.class) return null;
+            Set<Item> items = ingredient.items().map(Holder::value).collect(java.util.stream.Collectors.toSet());
+            if (items.isEmpty()) return null;
+            allowed.add(items);
+        }
+        boolean[] used = new boolean[requirements.size()];
+        List<net.minecraft.world.item.crafting.Ingredient> grid = new ArrayList<>(cells);
+        for (SlotDisplay display : shaped.ingredients()) {
+            if (display == SlotDisplay.Empty.INSTANCE) { grid.add(null); continue; }
+            Set<Item> displayed;
+            if (display instanceof SlotDisplay.TagSlotDisplay tag) {
+                displayed = tag.tag().stream().map(Holder::value).collect(java.util.stream.Collectors.toSet());
+            } else if (display instanceof SlotDisplay.ItemSlotDisplay item) {
+                displayed = Set.of(item.item().value());
+            } else return null;
+            int match = -1;
+            for (int index = 0; index < allowed.size(); index++) {
+                if (!used[index] && allowed.get(index).equals(displayed)) { match = index; break; }
+            }
+            if (match < 0) return null;
+            used[match] = true;
+            grid.add(requirements.get(match));
+        }
+        for (boolean matched : used) if (!matched) return null;
+        return grid;
     }
 
     private Block displayStation(RecipeDisplayEntry entry, net.minecraft.util.context.ContextMap context,

@@ -12,7 +12,7 @@ Use client chat commands with the configured prefix (default `!lk `), for exampl
 
 The adapter only acts through the connected player's normal survival interaction and container protocols. It reads loaded chunks only; unexplored or unloaded terrain is treated as blocked. Route searches, world scans, and planning work use bounded budgets. No Baritone or AltoClef code is used.
 
-Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. The 26.3 implementation is source-complete but still needs isolated gameplay verification.
+Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. The 26.3 implementation compiles and has passed source review; isolated gameplay verification is pending.
 
 Modded item names are resolved from registered items, including namespaced IDs and available aliases. Recipe automation uses the integrated world's live recipes in single-player, or only the recipe displays the remote server has revealed to the client. Custom loot tables cannot be inferred from block and item registries. To teach a verified one-item block drop, create `config/lodekeeper-sources.json`:
 
@@ -31,6 +31,8 @@ Modded item names are resolved from registered items, including namespaced IDs a
 ```
 
 Each entry maps registered block IDs to a registered output item and assumes one output per broken block. Add the actual eligible tool IDs when drops require a tool; verify the mapping against that modpack's loot rules. The adapter does not guess arbitrary modded drops, recipes, station behavior, or output yields.
+
+Shaped recipe layouts preserve empty grid cells. Integrated recipes use the authoritative native grid; remote displays match each explicit cell to an unused native ingredient with the same complete item set. Unknown display types and ambiguous mappings are rejected rather than filled in a guessed order.
 
 Recipe visibility follows the information available to the client. A client cannot infer hidden server recipes, server-only loot rules, or undisclosed mod behavior. The adapter must report unavailable or incomplete source knowledge instead of claiming universal mod recipe coverage. In local single-player, recipe inspection is permitted only through the integrated server's live registry state on its server thread; this is separate from remote-server client discovery.
 
