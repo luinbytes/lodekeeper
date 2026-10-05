@@ -921,6 +921,146 @@ final class AcquisitionPlannerTest {
         assertEquals(BlockedReason.Code.NODE_LIMIT, bounded.blockedReasons().get(0).code());
     }
 
+    @Test
+    void harvestDemandUsesExplicitWornLotsAndCapsAdditionalCopies() {
+        ItemId axe = ItemId.parse("test:axe");
+        InventorySnapshot wornAndUnknown = new InventorySnapshot(Map.of(axe, 3), Set.of(), Map.of(), Map.of(),
+                Map.of(axe, List.of(59, 1)));
+
+        HarvestInvestment.ToolDemand demand = HarvestInvestment.additionalDemand(
+                wornAndUnknown, axe, 100, 59, 1, 2, 2).orElseThrow();
+
+        assertEquals(3, demand.heldCount());
+        assertEquals(1, demand.additionalCount()); // Only one retained slot remains.
+        assertEquals(4, demand.targetCount());
+        assertEquals(58, demand.usableHeldCapacity()); // The worn and unreported copies add no capacity.
+        assertEquals(58, demand.addedSafeCapacity());
+        assertTrue(HarvestInvestment.additionalDemand(wornAndUnknown, axe, 58, 59, 1, 2, 2).isEmpty());
+
+        InventorySnapshot oneKnownCopy = new InventorySnapshot(Map.of(axe, 1), Set.of(), Map.of(axe, 59));
+        HarvestInvestment.ToolDemand capped = HarvestInvestment.additionalDemand(
+                oneKnownCopy, axe, 500, 59, 1, 2, 2).orElseThrow();
+        assertEquals(2, capped.additionalCount());
+        assertEquals(3, capped.targetCount());
+        assertEquals(116, capped.addedSafeCapacity());
+        assertTrue(HarvestInvestment.additionalDemand(
+                new InventorySnapshot(Map.of(axe, 1), Set.of(), Map.of(axe, 59), Map.of(axe, 1)),
+                axe, 100, 59, 1, 2, 2).isEmpty());
+        assertTrue(HarvestInvestment.additionalDemand(oneKnownCopy, axe, 1_000_001, 59, 1, 2, 2).isEmpty());
+        assertTrue(HarvestInvestment.additionalDemand(oneKnownCopy, axe, 100, 0, 1, 2, 2).isEmpty());
+        assertTrue(HarvestInvestment.additionalDemand(oneKnownCopy, axe, 100, 59, 0, 2, 2).isEmpty());
+        assertTrue(HarvestInvestment.additionalDemand(oneKnownCopy, axe, 100, 59, 1, 1, 2).isEmpty());
+        assertTrue(HarvestInvestment.additionalDemand(oneKnownCopy, axe, 100, 59, 1_000_001, 1_000_002, 2).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> new HarvestInvestment.ToolDemand(
+                axe, 1, 1, 2, 100, 40_000_001, 1));
+    }
+
+    @Test
+    void harvestInvestmentPricesTheWholeToolBootstrapAgainstTheMatchedPlan() {
+        ItemId log = ItemId.parse("test:local_log");
+        ItemId plank = ItemId.parse("test:plank");
+        ItemId table = ItemId.parse("test:table");
+        ItemId axe = ItemId.parse("test:axe");
+        StationId craftingTable = StationId.parse("test:crafting_table");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(log, 0).item(plank, 0).item(table, 0).item(axe, 59)
+                .source(new GatherSource("local:logs", log, 1, List.of(BlockId.parse("test:log_block"))))
+                .source(new CraftingSource("craft:planks", plank, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(log))), List.of()))
+                .source(new CraftingSource("craft:table", table, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(4, plank))), List.of()))
+                .source(new CraftingSource("craft:axe", axe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(3, plank))),
+                        List.of(new StationRequirement(craftingTable, table, "crafting"))))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(axe, 1), Set.of(), Map.of(axe, 59));
+        HarvestInvestment.ToolDemand demand = HarvestInvestment.additionalDemand(
+                inventory, axe, 100, 59, 1, 2, 1).orElseThrow();
+        PlanResult ordinary = planner().planFast(catalog, new InventorySnapshot(Map.of()), log, 1);
+        PlanResult investment = planner().planFast(catalog, inventory, axe, demand.targetCount());
+
+        assertTrue(ordinary.success());
+        assertTrue(investment.success(), investment.blockedReasons().toString());
+        assertTrue(investment.steps().stream().anyMatch(step -> step.kind() == PlanKind.PLACE_STATION));
+        HarvestInvestment.Decision decision = HarvestInvestment.approve(ordinary, investment, demand,
+                Set.of(log), Set.of(craftingTable), new HarvestInvestment.TickEstimates(55, 10, 5, 7, 8));
+
+        assertTrue(decision.approved(), decision.reason());
+        assertEquals(47, decision.estimatedCostTicks()); // 2 logs, 4 craft operations, and one station placement.
+        assertEquals(8, decision.estimatedNetSavingTicks());
+        PlanResult mismatched = new PlanResult(axe, demand.targetCount() + 1, investment.steps(),
+                List.of(), investment.optimal(), investment.expandedNodes(), investment.elapsedNanos());
+        assertFalse(HarvestInvestment.approve(ordinary, mismatched, demand,
+                Set.of(log), Set.of(craftingTable), new HarvestInvestment.TickEstimates(55, 10, 5, 7, 8)).approved());
+    }
+
+    @Test
+    void harvestInvestmentRejectsUnsafeAuxiliaryStepsAndIncompleteOrdinaryPlans() {
+        ItemId axe = ItemId.parse("test:axe");
+        ItemId log = ItemId.parse("test:local_log");
+        ItemId remoteOre = ItemId.parse("test:remote_ore");
+        StationId unsupported = StationId.parse("test:unsupported_station");
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(axe, 1), Set.of(), Map.of(axe, 59));
+        HarvestInvestment.ToolDemand demand = HarvestInvestment.additionalDemand(
+                inventory, axe, 100, 59, 1, 2, 1).orElseThrow();
+        PlanResult ordinary = simpleSuccessfulPlan(log, 1, List.of(gatherStep(log, 1)));
+        HarvestInvestment.TickEstimates estimates = new HarvestInvestment.TickEstimates(100, 1, 1, 1, 1);
+        List<PlanStep> unsafeSteps = List.of(
+                new PlanStep(PlanKind.CUSTOM, "custom:bootstrap", log, 1, 1, List.of(), List.of(),
+                        null, 0, 0, null, "custom", Map.of()),
+                new PlanStep(PlanKind.SMELT, "smelt:bootstrap", log, 1, 1, List.of(), List.of(),
+                        null, 0, 0, null, null, Map.of()),
+                new PlanStep(PlanKind.CRAFT, "craft:unsupported_station", log, 1, 1, List.of(), List.of(),
+                        RecipeType.SHAPELESS, 0, 0, unsupported, null, Map.of()),
+                gatherStep(remoteOre, 1),
+                stationPlacementStep(unsupported));
+        for (PlanStep unsafe : unsafeSteps) {
+            PlanResult investment = simpleSuccessfulPlan(axe, demand.targetCount(), List.of(unsafe));
+            assertFalse(HarvestInvestment.approve(ordinary, investment, demand,
+                    Set.of(log), Set.of(), estimates).approved(), unsafe.kind().toString());
+        }
+        PlanResult incompleteOrdinary = new PlanResult(log, 1, List.of(),
+                List.of(new BlockedReason(BlockedReason.Code.NO_SOURCE, log, "incomplete", List.of(log))), false, 0, 0);
+        PlanResult safeInvestment = simpleSuccessfulPlan(axe, demand.targetCount(), List.of(gatherStep(log, 1)));
+        assertFalse(HarvestInvestment.approve(incompleteOrdinary, safeInvestment, demand,
+                Set.of(log), Set.of(), estimates).approved());
+        PlanResult emptyInvestment = simpleSuccessfulPlan(axe, demand.targetCount(), List.of());
+        assertFalse(HarvestInvestment.approve(ordinary, emptyInvestment, demand,
+                Set.of(log), Set.of(), estimates).approved());
+    }
+
+    @Test
+    void harvestInvestmentRejectsBenefitBelowFullCostAndMinimumSaving() {
+        ItemId axe = ItemId.parse("test:axe");
+        ItemId log = ItemId.parse("test:local_log");
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(axe, 1), Set.of(), Map.of(axe, 59));
+        HarvestInvestment.ToolDemand demand = HarvestInvestment.additionalDemand(
+                inventory, axe, 100, 59, 1, 2, 1).orElseThrow();
+        PlanResult ordinary = simpleSuccessfulPlan(log, 1, List.of(gatherStep(log, 1)));
+        PlanResult investment = simpleSuccessfulPlan(axe, demand.targetCount(), List.of(gatherStep(log, 2)));
+
+        HarvestInvestment.Decision decision = HarvestInvestment.approve(ordinary, investment, demand,
+                Set.of(log), Set.of(), new HarvestInvestment.TickEstimates(20, 6, 0, 0, 9));
+
+        assertFalse(decision.approved());
+        assertEquals(12, decision.estimatedCostTicks());
+        assertEquals(8, decision.estimatedNetSavingTicks());
+    }
+
+    private static PlanResult simpleSuccessfulPlan(ItemId target, int count, List<PlanStep> steps) {
+        return new PlanResult(target, count, steps, List.of(), false, 0, 0);
+    }
+
+    private static PlanStep gatherStep(ItemId output, int operations) {
+        return new PlanStep(PlanKind.GATHER, "gather:" + output.path(), output, operations, operations,
+                List.of(), List.of(BlockId.parse("test:local_block")), null, 0, 0, null, null, Map.of());
+    }
+
+    private static PlanStep stationPlacementStep(StationId station) {
+        return new PlanStep(PlanKind.PLACE_STATION, "place:" + station, null, 0, 1,
+                List.of(), List.of(), null, 0, 0, station, null, Map.of());
+    }
+
     private static CatalogSnapshot woodToSticksCatalog() {
         return CatalogSnapshot.builder()
                 .item(LOG, 0)
