@@ -252,7 +252,7 @@ final class GameCatalog {
                 rejected.add(sourceId + ": shaped display omits executable ingredient requirements");
                 return null;
             }
-            List<net.minecraft.world.item.crafting.Ingredient> grid = remoteShapedGrid(shaped, requirements.get());
+            List<net.minecraft.world.item.crafting.Ingredient> grid = remoteShapedGrid(shaped, requirements.get(), level);
             if (grid == null) {
                 rejected.add(sourceId + ": shaped display cannot be matched safely to its native ingredient predicates");
                 return null;
@@ -285,7 +285,8 @@ final class GameCatalog {
 
     /** Display cells keep holes; compact requirements supply the exact executable predicates. */
     private List<net.minecraft.world.item.crafting.Ingredient> remoteShapedGrid(
-            ShapedCraftingRecipeDisplay shaped, List<net.minecraft.world.item.crafting.Ingredient> requirements) {
+            ShapedCraftingRecipeDisplay shaped, List<net.minecraft.world.item.crafting.Ingredient> requirements,
+            Level level) {
         int cells = shaped.width() * shaped.height();
         if (shaped.width() < 1 || shaped.width() > 3 || shaped.height() < 1 || shaped.height() > 3
                 || shaped.ingredients().size() != cells || requirements.isEmpty() || requirements.size() > cells) return null;
@@ -302,7 +303,7 @@ final class GameCatalog {
             if (display == SlotDisplay.Empty.INSTANCE) { grid.add(null); continue; }
             Set<Item> displayed;
             if (display instanceof SlotDisplay.TagSlotDisplay tag) {
-                displayed = tag.tag().stream().map(Holder::value).collect(java.util.stream.Collectors.toSet());
+                displayed = GameApi.tagItems(tag, level);
             } else if (display instanceof SlotDisplay.ItemSlotDisplay item) {
                 displayed = Set.of(item.item().value());
             } else return null;

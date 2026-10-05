@@ -3,11 +3,19 @@ package dev.lodekeeper.fabric.modern;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CookingFuel;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.Level;
 import com.mojang.blaze3d.platform.InputConstants;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Small Mojang API seam for GUI and item-component fuel access in 26.3. */
 final class GameApi {
@@ -19,6 +27,18 @@ final class GameApi {
 
     static KeyMapping keyMapping(String name, int keyCode, KeyMapping.Category category) {
         return new KeyMapping(name, InputConstants.Type.KEYBOARD, keyCode, category);
+    }
+
+    static void swing(LocalPlayer player, InteractionHand hand) {
+        player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true);
+    }
+
+    static Set<Item> tagItems(SlotDisplay.TagSlotDisplay display, Level level) {
+        if (level == null) throw new IllegalArgumentException("Item tag lookup needs a loaded level");
+        if (!display.tag().isBound()) throw new IllegalArgumentException("Unbound item tag display");
+        Set<Item> items = display.tag().stream().map(Holder::value).collect(Collectors.toUnmodifiableSet());
+        if (items.isEmpty()) throw new IllegalArgumentException("Empty item tag display");
+        return items;
     }
 
     static long fuelTicks(Level level, ItemStack stack) {

@@ -9,7 +9,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -171,7 +170,7 @@ final class PlayerActions {
         } else {
             client.gameMode.continueDestroyBlock(position, hit.getDirection());
         }
-        client.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+        GameApi.swing(client.player, InteractionHand.MAIN_HAND);
         return true;
     }
 
