@@ -4,4 +4,4 @@ The integrated server confirmed starting feet at 63.9375 on a 3×3 dirt-path or 
 
 Gameplay uses frozen development classes identified by the source manifest and exact patch. These checks establish bounded escape to nearby full-block ground, not general fractional-surface traversal, natural cave exploration or remote-server acceptance.
 
-[Path run](run.json), [source and paired artifact](artifact.json). Farmland evidence is added after its separate run passes.
+[Path run](run.json), [farmland run](farmland-run.json), [source and paired artifact](artifact.json). Both surface checks passed.

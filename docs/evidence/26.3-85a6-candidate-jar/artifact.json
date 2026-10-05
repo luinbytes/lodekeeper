@@ -1,0 +1,42 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "58404ddab10f9cbfcfc6e6272107cde2d16556779848d85d7d30c573d3164ed0",
+  "sourceCommit": "85a6d0edc16b0b8d442bd8656aeaafc9b0f45d7d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37354953055",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [],
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.modern.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-ci-85a6d0e/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.modern.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-ci-85a6d0e/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-ci-85a6d0e/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-ci-85a6d0e/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-ci-85a6d0e/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar",
+  "runtimeJarSha256": "58404ddab10f9cbfcfc6e6272107cde2d16556779848d85d7d30c573d3164ed0",
+  "unchangedCoreNavigationClassesVerified": 100,
+  "runtimeTransformation": "none",
+  "verificationMode": "default",
+  "ownedClientExitCode": 0,
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}

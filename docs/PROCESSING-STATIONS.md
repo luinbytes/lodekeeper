@@ -58,3 +58,5 @@ Interruption recovery, outsider edits, full-inventory recovery, natural-world ac
 The [26.3 blast-furnace run](evidence/26.3-blast-furnace/run.json) passed the 72-output batch with exactly 56 raw iron left and nine coal consumed, in 361,958 ms from the command. Its [source and artifact record](evidence/26.3-blast-furnace/artifact.json) identifies the frozen development client.
 
 The [1.21.1 smoker run](evidence/1.21.1-smoker/run.json) passed the same batch contract with exactly 56 raw porkchops left and nine coal consumed, in 361,457 ms from the command. The [24-version artifact inspection](evidence/builds/53c48a6.json) records exact builds and packaging separately from those game scenarios.
+
+After the authoritative stonecutter receipt fix, a repeated [1.21.1 cancellation check](evidence/1.21.1-stonecutting-receipts-drain/run.json) again returned all 128 owned stone with zero slabs, full health and fresh server confirmation. This uses frozen development classes; corresponding exact Preview 2 artifact checks are recorded separately.

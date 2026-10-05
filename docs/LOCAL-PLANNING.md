@@ -26,4 +26,6 @@ Gather approach timeouts can reject a live target and try another candidate, wit
 
 Village paths and farmland have a 15/16-height collision surface. The integer-height planner cannot use them as ordinary stances. A bounded adapter recovery walks from a grounded path/farmland start to nearby full-block ground after checking the actual body sweep, support, loaded terrain and hazards. It makes no jump, break or placement and has a fixed 80-tick limit. Broader fractional-surface traversal still requires shape-aware navigation.
 
-Controlled dirt-path starts pass on [1.21.1](evidence/1.21.1-surface-recovery/run.json) and [26.3](evidence/26.3-surface-recovery/run.json), including unchanged starting floors and successful coal fallback. Farmland and final candidate-jar checks are separate gates.
+Controlled dirt-path starts pass on [1.21.1](evidence/1.21.1-surface-recovery/run.json) and [26.3](evidence/26.3-surface-recovery/run.json), including unchanged starting floors and successful coal fallback. Separate farmland starts also pass on [1.21.1](evidence/1.21.1-surface-recovery/farmland-run.json) and [26.3](evidence/26.3-surface-recovery/farmland-run.json). Final candidate-jar checks remain a separate gate.
+
+The recovery budget survives same-world cancellations. Disconnecting or replacing the world clears the recovery reference and budget. This cleanup passed independent source review and local builds; no heap-retention measurement was performed.
