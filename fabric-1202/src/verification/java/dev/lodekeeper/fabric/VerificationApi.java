@@ -1,21 +1,20 @@
 package dev.lodekeeper.fabric;
 
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.world.CreateWorldScreen;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.world.CreateWorldScreen;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.level.LevelInfo;
 import net.minecraft.world.gen.GeneratorOptions;
 import net.minecraft.world.gen.WorldPresets;
 
-/** Minecraft 1.21.1 signature for creating the isolated verifier world. */
+/** Minecraft 1.20.2–1.20.4 verifier construction hooks. */
 final class VerificationApi {
     private VerificationApi() {}
 
@@ -43,16 +42,17 @@ final class VerificationApi {
         CreateWorldScreen.create(client, parent);
     }
 
-    static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo, GeneratorOptions options) {
+    static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo,
+                               GeneratorOptions options) {
         loader.createAndStart(saveName, levelInfo, options,
-            registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).createDimensionsRegistryHolder(),
-            (Screen) null);
+            registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT)
+                .createDimensionsRegistryHolder());
     }
 
     private static final class RubyOreBlock extends Block {
         private RubyOreBlock(Identifier lootTableId) {
             super(AbstractBlock.Settings.create().strength(3.0f, 3.0f).requiresTool());
-            lootTableKey = RegistryKey.of(RegistryKeys.LOOT_TABLE, lootTableId);
+            this.lootTableId = lootTableId;
         }
     }
 }

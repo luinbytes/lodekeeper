@@ -4,8 +4,6 @@ import com.google.gson.JsonParser;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
@@ -30,11 +28,14 @@ public final class VerificationContentInitializer implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        Block rubyOre = Registry.register(Registries.BLOCK, GameApi.identifier(RUBY_ORE_ID),
-            VerificationApi.rubyOre());
-        Registry.register(Registries.ITEM, GameApi.identifier(RUBY_ORE_ID), new BlockItem(rubyOre, new Item.Settings()));
-        Registry.register(Registries.ITEM, GameApi.identifier(RUBY_ID), new Item(new Item.Settings()));
-        Registry.register(Registries.ITEM, GameApi.identifier(RUBY_GEAR_ID), new Item(new Item.Settings().maxCount(1)));
+        var rubyOreId = GameApi.identifier(RUBY_ORE_ID);
+        Block rubyOre = Registry.register(Registries.BLOCK, rubyOreId,
+            VerificationApi.rubyOre(rubyOreId, GameApi.identifier("lodekeeper_verification:blocks/ruby_ore")));
+        Registry.register(Registries.ITEM, rubyOreId, VerificationApi.rubyOreItem(rubyOre, rubyOreId));
+        Registry.register(Registries.ITEM, GameApi.identifier(RUBY_ID),
+            VerificationApi.ruby(GameApi.identifier(RUBY_ID)));
+        Registry.register(Registries.ITEM, GameApi.identifier(RUBY_GEAR_ID),
+            VerificationApi.rubyGear(GameApi.identifier(RUBY_GEAR_ID)));
     }
 
     static void ensureSourceContract(Path runDirectory) throws IOException {

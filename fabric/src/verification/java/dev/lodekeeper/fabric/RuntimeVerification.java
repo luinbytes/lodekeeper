@@ -158,7 +158,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 // Startup and resource-reload overlays must finish on ordinary client frames.
                 if (client.getOverlay() != null) return;
                 if (client.world != null) throw new IllegalStateException("start from the title screen; an existing world is active");
-                CreateWorldScreen.create(client, client.currentScreen);
+                VerificationApi.openCreateWorldScreen(client, client.currentScreen);
                 state = State.WAITING_FOR_WORLD;
                 return;
             }

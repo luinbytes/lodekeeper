@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "lodekeeper-verification",
+  "version": "${version}",
+  "name": "Lodekeeper Runtime Verification",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["dev.lodekeeper.fabric.VerificationContentInitializer"],
+    "client": ["dev.lodekeeper.fabric.RuntimeVerification"]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "${minecraft}",
+    "java": ">=21",
+    "lodekeeper": "*"
+  }
+}

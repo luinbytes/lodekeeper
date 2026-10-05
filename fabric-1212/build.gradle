@@ -25,6 +25,12 @@ sourceSets {
         resources.srcDirs = ['src/main/resources']
     }
     test.java.srcDir rootProject.file('fabric/src/test/java')
+    verification {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+        java.srcDir(layout.buildDirectory.dir('generated/shared-verification'))
+        resources.srcDirs = ['src/verification/resources']
+    }
 }
 tasks.named('compileJava').configure { dependsOn copySharedSources }
 
@@ -53,6 +59,70 @@ processResources {
 }
 loom {
     mixin { defaultRefmapName = 'lodekeeper-refmap.json' }
-    runs { client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' } }
-    mods { lodekeeper { sourceSet sourceSets.main } }
+    runs {
+        client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' }
+        verificationClient {
+            client()
+            source sourceSets.verification
+            runDir 'run'
+            vmArg '-Dlodekeeper.verify=true'
+            vmArg '-Xmx1536m'
+            vmArg '-XX:ActiveProcessorCount=2'
+            programArg '--width'
+            programArg '640'
+            programArg '--height'
+            programArg '360'
+        }
+    }
+    mods {
+        lodekeeper { sourceSet sourceSets.main }
+        'lodekeeper-verification' { sourceSet sourceSets.verification }
+    }
+}
+
+def sharedVerificationSources = [
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java')
+]
+def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
+def copySharedVerifier = tasks.register('copySharedVerifier', Copy) {
+    from(sharedVerificationSources) { into 'dev/lodekeeper/fabric' }
+    into(generatedVerifierDir)
+}
+tasks.named('compileVerificationJava').configure { dependsOn copySharedVerifier }
+
+tasks.named('processVerificationResources').configure {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft', rootProject.minecraft_version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version, minecraft: rootProject.minecraft_version
+    }
+}
+
+def prepareVerificationOptions = tasks.register('prepareVerificationOptions') {
+    def optionsFile = layout.projectDirectory.file('run/options.txt')
+    outputs.file(optionsFile)
+    doLast {
+        File file = optionsFile.asFile
+        if (!file.exists()) {
+            file.parentFile.mkdirs()
+            file.setText('''renderDistance:2
+simulationDistance:5
+maxFps:30
+fullscreen:false
+enableVsync:true
+guiScale:2
+soundCategory_master:0.0
+particles:2
+clouds:false
+entityDistanceScaling:0.5
+useNativeTransport:false
+
+pauseOnLostFocus:false
+''', 'UTF-8')
+        }
+    }
+}
+tasks.configureEach {
+    if (name == 'runVerificationClient') dependsOn prepareVerificationOptions
 }
