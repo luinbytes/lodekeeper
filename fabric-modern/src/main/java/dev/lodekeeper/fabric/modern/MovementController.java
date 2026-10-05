@@ -20,10 +20,15 @@ final class MovementController {
     private final BotInput input;
     private final GameTerrain terrain;
     private final StanceProbe probe = new StanceProbe();
+    private final StanceProbe sourceProbe = new StanceProbe();
+    private final StanceProbe emptyProbe = new StanceProbe();
     private Planner planner;
     private Path path;
     private Goal goal;
     private int pathIndex, actionIndex, ticksWithoutProgress;
+    private int validatedPathIndex = -1;
+    private long validatedRevision = Long.MIN_VALUE;
+    private double edgeStartX, edgeStartY, edgeStartZ;
     private double lastDistance = Double.POSITIVE_INFINITY;
     private int replans;
     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
@@ -65,6 +70,7 @@ final class MovementController {
             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
         planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
         path = null; pathIndex = 1; actionIndex = 0; ticksWithoutProgress = 0; lastDistance = Double.POSITIVE_INFINITY;
+        validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
     }
     boolean tick() {
         input.acquire(client); input.idle();
@@ -76,6 +82,8 @@ final class MovementController {
             if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new IllegalStateException("Navigation: " + status
                     + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
             path = planner.getPath();
+            validatedPathIndex = -1;
+            validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
             if (path == null || path.length() < 2) {
                 BlockPos player = client.player.blockPosition();
                 if (goal.matches(player.getX(), player.getY(), player.getZ())) return true;
@@ -92,16 +100,29 @@ final class MovementController {
             Action action = next.action(actionIndex);
             BlockPos position = new BlockPos(action.x, action.y, action.z);
             BlockState state = client.level.getBlockState(position);
+            Path.Step source = path.step(pathIndex - 1);
+            if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
+                    client.player.getX(), client.player.getY(), client.player.getZ(), sourceProbe, emptyProbe)) {
+                retry("Current stance became unsafe before world action"); return false;
+            }
             if (action.type == Action.Type.BREAK_BLOCK) {
                 if (state.isAir() || state.getCollisionShape(client.level, position).isEmpty()) { actionIndex++; actions.cancel(); return false; }
                 if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
                 if (Block.getId(state) != action.token) { retry("Mining obstruction changed"); return false; }
+                if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
+                    retry("Mining obstruction is no longer safe or reachable"); return false;
+                }
                 if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
             } else {
                 Item item = Item.byId(action.token);
                 Block block = Block.byItem(item);
                 if (state.is(block)) { actionIndex++; return false; }
                 if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
+                if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
+                if (!state.canBeReplaced()) { retry("Bridge target is no longer replaceable"); return false; }
+                if (!PathEdgeValidator.isBridgeActionSafe(terrain, source, next, action, sourceProbe, probe)) {
+                    retry("Bridge placement is no longer safe or supported"); return false;
+                }
                 input.drive(0, 0, false, true);
                 if (!actions.place(position, block)) {
                     // A side face below the player cannot be seen from the center of its support.
@@ -110,6 +131,12 @@ final class MovementController {
                     Vec3 edge = new Vec3(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
                     Vec3 delta = edge.subtract(client.player.position());
                     if (Math.hypot(delta.x, delta.z) > .08) {
+                        if (!PathEdgeValidator.isSweepClear(terrain,
+                                client.player.getX(), client.player.getY(), client.player.getZ(),
+                                edge.x, edge.y, edge.z, emptyProbe)) {
+                            retry("Bridge approach became unsafe"); return false;
+                        }
+                        client.player.setSprinting(false);
                         client.player.setYRot((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
                         input.drive(.4f, 0, false, true);
                     }
@@ -120,12 +147,46 @@ final class MovementController {
             if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new IllegalStateException("World action made no progress");
             return false;
         }
-        terrain.probeStance(next.x, next.y, next.z, probe);
-        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)) { retry("Next stance became unsafe"); return false; }
+        if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
+            retry("Parkour was disabled while following the route"); return false;
+        }
+        long currentRevision = terrain.revision();
+        boolean newEdge = validatedPathIndex != pathIndex;
+        if (newEdge || currentRevision != validatedRevision) {
+            Path.Step source = path.step(pathIndex - 1);
+            double feetX = client.player.getX();
+            double feetY = client.player.getY();
+            double feetZ = client.player.getZ();
+            boolean safe = newEdge
+                    ? PathEdgeValidator.isSafeEdge(terrain, source, next, feetX, feetY, feetZ,
+                    true, true, config.allowParkour, sourceProbe, probe)
+                    : PathEdgeValidator.isSafeContinuation(terrain, source, next,
+                    edgeStartX, edgeStartY, edgeStartZ, feetX, feetY, feetZ,
+                    client.player.onGround(), config.allowParkour, sourceProbe, probe);
+            if (!safe) {
+                retry("Route edge became unsafe"); return false;
+            }
+            if (newEdge) { edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ; }
+            validatedPathIndex = pathIndex;
+            validatedRevision = terrain.revision();
+        }
         Vec3 destination = new Vec3(next.x + .5, next.y, next.z + .5);
         Vec3 delta = destination.subtract(client.player.position());
         double horizontal = Math.hypot(delta.x, delta.z);
+        double currentFeetX = client.player.getX();
+        double currentFeetY = client.player.getY();
+        double currentFeetZ = client.player.getZ();
+        if (!PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
+                currentFeetX, currentFeetY, currentFeetZ)) {
+            retry("Player left the safe route corridor"); return false;
+        }
+        if (!PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
+                currentFeetX, currentFeetY, currentFeetZ,
+                client.player.onGround(), sourceProbe, emptyProbe)) {
+            retry("Current player volume or support became unsafe"); return false;
+        }
         if (horizontal < .22 && Math.abs(delta.y) < .35 && (client.player.onGround() || probe.water || probe.climbable)) {
+            client.player.setSprinting(false);
             pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; ticksWithoutProgress = 0; return false;
         }
         double distance = delta.lengthSqr();
@@ -141,6 +202,7 @@ final class MovementController {
     }
     private void retry(String reason) {
         input.idle(); actions.cancel();
+        if (client.player != null) client.player.setSprinting(false);
         if (++replans > 8) throw new IllegalStateException(reason + " (retry limit reached)");
         search();
     }

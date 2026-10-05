@@ -25,15 +25,16 @@ public interface Terrain {
                           double arcHeight, StanceProbe destinationAfterBreak);
 
     /**
-     * Check motion from a stance whose entry obstruction may already have been mined. The
-     * default fails closed for such a virtual source; adapters that support routes through
-     * successive obstructions override this overload and ignore the source's listed break cells.
+     * Check motion from a stance whose entry obstruction may already have been mined. A null
+     * {@code sourceAfterBreak} means there is no virtual source. The default fails closed for a
+     * non-null virtual source; adapters that support routes through successive obstructions
+     * override this overload and ignore the source's listed break cells.
      */
     default boolean isMotionClear(double fromX, double fromFeetY, double fromZ,
                                   double toX, double toFeetY, double toZ,
                                   double arcHeight, StanceProbe sourceAfterBreak,
                                   StanceProbe destinationAfterBreak) {
-        if (sourceAfterBreak.breakCount != 0) return false;
+        if (sourceAfterBreak != null && sourceAfterBreak.breakCount != 0) return false;
         return isMotionClear(fromX, fromFeetY, fromZ, toX, toFeetY, toZ,
                 arcHeight, destinationAfterBreak);
     }
