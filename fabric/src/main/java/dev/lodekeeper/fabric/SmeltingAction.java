@@ -1,16 +1,24 @@
 package dev.lodekeeper.fabric;
 
 import dev.lodekeeper.core.PlanStep;
+import dev.lodekeeper.core.PlanKind;
 import dev.lodekeeper.core.SelectedItemRequirement;
+import dev.lodekeeper.core.StationId;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.screen.FurnaceScreenHandler;
+import net.minecraft.screen.AbstractFurnaceScreenHandler;
+import net.minecraft.screen.ScreenHandler;
 
-/** Uses one initially empty furnace, feeds planned materials, and returns only confirmed owned stacks. */
+/** Uses one initially empty native cooking station, feeds planned materials, and returns only confirmed owned stacks. */
 final class SmeltingAction {
+    private static final StationId FURNACE = StationId.parse("minecraft:furnace");
+    private static final StationId SMOKER = StationId.parse("minecraft:smoker");
+    private static final StationId BLAST_FURNACE = StationId.parse("minecraft:blast_furnace");
+
     private final MinecraftClient client;
     private final PlayerActions actions;
+    private final StationId station;
     private final Item output, inputItem, fuelItem;
     private final ItemStack expectedOutput;
     private final int target, plannedOutput, plannedInput, plannedFuel;
@@ -19,7 +27,7 @@ final class SmeltingAction {
     private int submittedInput, submittedFuel, returnedInput, returnedFuel;
     private int lastInputBalance, lastFuelBalance, lastOutputBalance, lastAuthorizedOutput;
     private ItemStack expectedInput, expectedFuel;
-    private FurnaceScreenHandler handler;
+    private AbstractFurnaceScreenHandler handler;
     private SlotTransfer transfer;
     private VerifiedQuickMove quickMove;
     private int transferAmount, transferDestination, quickMoveSlot = -1, cooldown;
@@ -28,7 +36,9 @@ final class SmeltingAction {
     SmeltingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step) {
         this.client = client;
         this.actions = actions;
-        if (recipe.kind() != RecipeWork.Kind.SMELTING) throw new IllegalArgumentException("Smelting action received non-smelting recipe work");
+        if (recipe.kind() != RecipeWork.Kind.SMELTING) throw new IllegalArgumentException("Cooking station action received non-smelting recipe work");
+        if (step.kind() != PlanKind.SMELT) throw new IllegalArgumentException("Cooking station action received a non-smelting plan step");
+        station = validateStation(recipe, step);
         output = GameCatalog.item(step.output());
         expectedOutput = recipe.outputPerOperation();
         target = actions.count(output) + step.outputCount();
@@ -40,17 +50,46 @@ final class SmeltingAction {
         plannedInput = input.count();
         plannedFuel = fuel.count();
         if (plannedInput % step.operationCount() != 0 || plannedOutput % step.operationCount() != 0) {
-            throw new IllegalStateException("Smelting plan has inconsistent per-operation quantities");
+            throw new IllegalStateException("Cooking plan has inconsistent per-operation quantities");
         }
         inputPerOperation = plannedInput / step.operationCount();
         outputPerOperation = plannedOutput / step.operationCount();
         if (inputPerOperation < 1 || outputPerOperation < 1 || !expectedOutput.isOf(output)
                 || expectedOutput.getCount() != outputPerOperation) {
-            throw new IllegalStateException("Smelting plan disagrees with its recipe output");
+            throw new IllegalStateException("Cooking plan disagrees with its recipe output");
         }
         remainingInput = plannedInput;
         remainingFuel = plannedFuel;
     }
+
+    private static StationId validateStation(RecipeWork recipe, PlanStep step) {
+        StationId station = recipe.cookingStation();
+        if (station == null || !station.equals(step.station())) {
+            throw new IllegalStateException("Planned cooking station " + step.station()
+                    + " does not match recipe cooking station " + station);
+        }
+        if (!FURNACE.equals(station) && !SMOKER.equals(station) && !BLAST_FURNACE.equals(station)) {
+            throw new IllegalStateException("Unsupported cooking station " + station);
+        }
+        return station;
+    }
+
+    private boolean exactNativeHandler(ScreenHandler candidate) {
+        if (candidate == null) return false;
+        if (FURNACE.equals(station)) return candidate.getClass() == net.minecraft.screen.FurnaceScreenHandler.class;
+        if (SMOKER.equals(station)) return candidate.getClass() == net.minecraft.screen.SmokerScreenHandler.class;
+        if (BLAST_FURNACE.equals(station)) return candidate.getClass() == net.minecraft.screen.BlastFurnaceScreenHandler.class;
+        return false;
+    }
+
+    private String stationName() {
+        if (FURNACE.equals(station)) return "furnace";
+        if (SMOKER.equals(station)) return "smoker";
+        if (BLAST_FURNACE.equals(station)) return "blast furnace";
+        return "cooking station";
+    }
+
+    private String slotName(String slot) { return stationName() + " " + slot; }
 
     private static SelectedItemRequirement selected(PlanStep step, String purpose) {
         return step.requirements().stream().filter(SelectedItemRequirement.class::isInstance)
@@ -62,7 +101,7 @@ final class SmeltingAction {
         if (client.player == null || client.interactionManager == null) throw new IllegalStateException("No player");
         if (cooldown-- > 0) return false;
         if (!initialized) initialize();
-        if (client.player.currentScreenHandler != handler) throw new IllegalStateException("Furnace changed or closed");
+        if (client.player.currentScreenHandler != handler) throw new IllegalStateException("Cooking station changed or closed");
         if (transfer == null && !handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor occupied; finish your inventory action first");
 
         if (transfer != null) {
@@ -70,7 +109,7 @@ final class SmeltingAction {
                 if (!transfer.tick()) return false;
             } catch (RuntimeException exception) {
                 if (transferDestination == 0 && !handler.getSlot(2).getStack().isEmpty()) {
-                    throw new IllegalStateException("This short-cook recipe consumed input before its inventory transfer was confirmed; this timing is unsupported and the furnace is left open", exception);
+                    throw new IllegalStateException("This short-cook recipe consumed input before its inventory transfer was confirmed; this timing is unsupported and the " + stationName() + " is left open", exception);
                 }
                 throw exception;
             }
@@ -110,27 +149,57 @@ final class SmeltingAction {
         if (drainRequested) return drainKnownContents();
         if (actions.count(output) >= target) return drainKnownContents();
 
+        boolean inputNeedsTopUp = remainingInput > 0 && needsTopUp(0);
+        boolean fuelNeedsTopUp = remainingFuel > 0 && needsTopUp(1);
+        if (submittedInput == 0 && inputNeedsTopUp) feed(inputItem, 0, remainingInput);
+        else if (fuelNeedsTopUp) feed(fuelItem, 1, remainingFuel);
+        else if (inputNeedsTopUp) feed(inputItem, 0, remainingInput);
+        if (transfer != null) return false;
         if (!handler.getSlot(2).getStack().isEmpty()) {
-            quickMove = new VerifiedQuickMove(client, handler, 2, output, "furnace output", this::authorizedOutputCount, this::validateKnownContents);
+            quickMove = new VerifiedQuickMove(client, handler, 2, output, slotName("output"), this::authorizedOutputCount, this::validateKnownContents);
             quickMoveSlot = 2;
             return false;
         }
-        if (handler.getSlot(0).getStack().isEmpty() && remainingInput > 0) feed(inputItem, 0, remainingInput);
-        else if (handler.getSlot(1).getStack().isEmpty() && remainingFuel > 0) feed(fuelItem, 1, remainingFuel);
         return false;
     }
 
+    private boolean needsTopUp(int slotIndex) {
+        var slot = handler.getSlot(slotIndex);
+        ItemStack current = slot.getStack();
+        if (current.isEmpty()) return true;
+        int capacity = slot.getMaxItemCount(current);
+        int lowWatermark = Math.max(2, capacity / 2);
+        return current.getCount() < capacity && current.getCount() <= lowWatermark;
+    }
+
     private void initialize() {
-        if (!(client.player.currentScreenHandler instanceof FurnaceScreenHandler furnace)) {
-            throw new IllegalStateException("Open the owned furnace");
+        ScreenHandler current = client.player.currentScreenHandler;
+        if (!exactNativeHandler(current)) {
+            throw new IllegalStateException("Open the owned " + stationName() + " cooking station");
         }
-        handler = furnace;
+        handler = (AbstractFurnaceScreenHandler) current;
         if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor occupied");
         for (int slot = 0; slot < 3; slot++) {
             if (!handler.getSlot(slot).getStack().isEmpty()) {
-                throw new IllegalStateException("Furnace already contains items; automation will not take them");
+                throw new IllegalStateException("The owned " + stationName() + " already contains items; automation will not take them");
             }
         }
+        if (plannedOutput > outputPerOperation
+                && handler.getSlot(2).getMaxItemCount(expectedOutput) / outputPerOperation < 16)
+            throw new IllegalStateException("Bulk cooking output needs room for at least 16 operations; no materials were inserted");
+        int usableFuel = 0;
+        for (var slot : handler.slots) {
+            if (slot.inventory != client.player.getInventory() || slot.getIndex() >= 36) continue;
+            ItemStack stack = slot.getStack();
+            if (stack.isOf(inputItem) && (stack.getMaxCount() > 99 || stack.getCount() > stack.getMaxCount()))
+                throw new IllegalStateException("Cooking input exceeds the bounded cursor-transfer capacity; no materials were inserted");
+            if (stack.isOf(inputItem) && plannedInput > inputPerOperation && handler.getSlot(0).getMaxItemCount(stack) < 16 * inputPerOperation)
+                throw new IllegalStateException("Bulk cooking input needs room for at least 16 operations to refill without burn gaps; no materials were inserted");
+            if (stack.isOf(fuelItem) && stack.getMaxCount() == fuelItem.getDefaultStack().getMaxCount())
+                usableFuel += stack.getCount();
+        }
+        if (usableFuel < plannedFuel)
+            throw new IllegalStateException("Planned fuel has an unsupported stack-size override or is missing; no materials were inserted");
         initialized = true;
     }
 
@@ -138,19 +207,19 @@ final class SmeltingAction {
         ItemStack input = handler.getSlot(0).getStack();
         ItemStack fuel = handler.getSlot(1).getStack();
         ItemStack result = handler.getSlot(2).getStack();
-        validateOwnedSlot(input, expectedInput, submittedInput - returnedInput, lastInputBalance, "furnace input");
-        validateOwnedSlot(fuel, expectedFuel, submittedFuel - returnedFuel, lastFuelBalance, "furnace fuel");
+        validateOwnedSlot(input, expectedInput, submittedInput - returnedInput, lastInputBalance, slotName("input"));
+        validateOwnedSlot(fuel, expectedFuel, submittedFuel - returnedFuel, lastFuelBalance, slotName("fuel"));
 
-        if (returnedInput > submittedInput || returnedFuel > submittedFuel) throw unexpected("furnace returned-material conservation");
+        if (returnedInput > submittedInput || returnedFuel > submittedFuel) throw unexpected(slotName("returned-material conservation"));
         int authorizedOutput = authorizedOutputCount();
-        if (collectedOutput > authorizedOutput) throw unexpected("furnace output conservation");
+        if (collectedOutput > authorizedOutput) throw unexpected(slotName("output conservation"));
         if (!result.isEmpty() && (!GameApi.canCombine(result, expectedOutput)
                 || result.getCount() > Math.max(0, authorizedOutput - collectedOutput))) {
-            throw unexpected("furnace output");
+            throw unexpected(slotName("output"));
         }
         int authorizedIncrease = Math.max(0, authorizedOutput - lastAuthorizedOutput);
         if (result.getCount() > lastOutputBalance + authorizedIncrease || result.getCount() < lastOutputBalance) {
-            throw unexpected("furnace output balance");
+            throw unexpected(slotName("output balance"));
         }
         lastInputBalance = input.getCount();
         lastFuelBalance = fuel.getCount();
@@ -167,7 +236,7 @@ final class SmeltingAction {
     }
 
     private IllegalStateException unexpected(String name) {
-        return new IllegalStateException("Unexpected or unexplained " + name + " contents; leaving the owned furnace open");
+        return new IllegalStateException("Unexpected or unexplained " + name + " contents; leaving the owned " + stationName() + " open");
     }
 
     private int consumedInputCount() {
@@ -187,7 +256,7 @@ final class SmeltingAction {
             ItemStack stack = handler.getSlot(slot).getStack();
             if (stack.isEmpty()) continue;
             Item expected = slot == 0 ? inputItem : slot == 1 ? fuelItem : output;
-            String description = slot == 0 ? "furnace input" : slot == 1 ? "furnace fuel" : "furnace output";
+            String description = slotName(slot == 0 ? "input" : slot == 1 ? "fuel" : "output");
             VerifiedQuickMove move = slot == 2 ? new VerifiedQuickMove(client, handler, slot, expected, description, this::authorizedOutputCount, this::validateKnownContents)
                     : slot == 0 ? new VerifiedQuickMove(client, handler, slot, expected, description, this::inputConsumptionAdjustment, this::validateKnownContents)
                     : new VerifiedQuickMove(client, handler, slot, expected, description, null, this::validateKnownContents);
@@ -205,24 +274,43 @@ final class SmeltingAction {
     }
 
     private void feed(Item item, int destination, int remaining) {
-        int source = source(item, destination == 0 ? expectedInput : expectedFuel);
+        int source = source(item, destination == 0 ? expectedInput : expectedFuel, destination == 1);
         ItemStack supply = handler.getSlot(source).getStack();
+        if (destination == 1 && supply.getMaxCount() != fuelItem.getDefaultStack().getMaxCount())
+            throw new IllegalStateException("Cooking fuel stack size changed from the captured native capacity");
         if (destination == 0 && expectedInput == null) expectedInput = supply.copyWithCount(1);
         if (destination == 1 && expectedFuel == null) expectedFuel = supply.copyWithCount(1);
         ItemStack expected = destination == 0 ? expectedInput : expectedFuel;
-        if (!GameApi.canCombine(supply, expected)) throw new IllegalStateException("Furnace supply components changed: " + item);
-        transferAmount = Math.min(remaining, Math.min(supply.getCount(), item.getMaxCount()));
+        if (!GameApi.canCombine(supply, expected)) throw new IllegalStateException("Cooking station supply components changed: " + item);
+        var destinationSlot = handler.getSlot(destination);
+        ItemStack existing = destinationSlot.getStack();
+        if (!existing.isEmpty() && !GameApi.canCombine(existing, expected)) throw unexpected(slotName(destination == 0 ? "input" : "fuel"));
+        int destinationRoom = destinationSlot.getMaxItemCount(supply) - existing.getCount();
+        transferAmount = Math.min(64, Math.min(remaining, Math.min(supply.getCount(), destinationRoom)));
+        if (destinationRoom < supply.getCount()) {
+            int half = supply.getCount() / 2 + supply.getCount() % 2;
+            if (half < supply.getCount() && half <= transferAmount) transferAmount = half;
+        }
+        if (transferAmount < 1) throw new IllegalStateException("Cooking station " + (destination == 0 ? "input" : "fuel") + " has no room for the planned supply");
         transferDestination = destination;
         transfer = new SlotTransfer(client, handler, source, destination, transferAmount,
-                destination == 1 ? () -> handler.isBurning() ? handler.getFuelProgress() + 1 : 0 : null);
+                destination == 1 ? () -> handler.isBurning() ? handler.getFuelProgress() + 1 : 0
+                        : this::completedOutputOperations);
     }
 
-    private int source(Item item, ItemStack expected) {
+    private double completedOutputOperations() {
+        long produced = (long) collectedOutput + handler.getSlot(2).getStack().getCount();
+        return produced / (double) outputPerOperation;
+    }
+
+    private int source(Item item, ItemStack expected, boolean fuel) {
         for (var slot : handler.slots) {
             if (slot.inventory == client.player.getInventory() && slot.getIndex() < 36
-                    && slot.getStack().isOf(item) && (expected == null || GameApi.canCombine(slot.getStack(), expected))) return slot.id;
+                    && slot.getStack().isOf(item)
+                    && (!fuel || slot.getStack().getMaxCount() == item.getDefaultStack().getMaxCount())
+                    && (expected == null || GameApi.canCombine(slot.getStack(), expected))) return slot.id;
         }
-        throw new IllegalStateException("Missing furnace supply: " + item);
+        throw new IllegalStateException("Missing cooking station supply: " + item);
     }
 
     long progressToken() {

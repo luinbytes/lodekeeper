@@ -32,6 +32,9 @@ final class AutomationEngine {
     private static final int WOOD_TOOL_MINIMUM_SAVING_TICKS = 100;
     private static final ItemId WOODEN_AXE = ItemId.parse("minecraft:wooden_axe");
     private static final StationId CRAFTING_TABLE = StationId.parse("minecraft:crafting_table");
+    private static final StationId FURNACE = StationId.parse("minecraft:furnace");
+    private static final StationId SMOKER = StationId.parse("minecraft:smoker");
+    private static final StationId BLAST_FURNACE = StationId.parse("minecraft:blast_furnace");
     private static final TagId LOGS_TAG = TagId.parse("minecraft:logs");
 
     private record Request(String name, ItemId item, int count, boolean anyLogs,
@@ -1156,15 +1159,26 @@ final class AutomationEngine {
     }
     private boolean stationReady() {
         var handler = client.player.currentScreenHandler;
+        if (step.kind() == PlanKind.SMELT && step.station() == null) {
+            throw new IllegalStateException("Smelting plan omitted its cooking station");
+        }
+        if (step.kind() == PlanKind.SMELT && !isSupportedCookingStation(step.station())) {
+            throw new IllegalStateException("Unsupported planned cooking station " + step.station());
+        }
         if (openingStation) {
-            boolean correct = step.kind() == PlanKind.CRAFT ? handler instanceof net.minecraft.screen.CraftingScreenHandler : handler instanceof net.minecraft.screen.FurnaceScreenHandler;
+            boolean correct = step.kind() == PlanKind.CRAFT
+                    ? handler instanceof net.minecraft.screen.CraftingScreenHandler
+                    : step.kind() == PlanKind.SMELT && isExactCookingStationHandler(handler, step.station());
             if (correct) {
                 if (handler != stationOpeningFrom) ownedStationHandler = handler;
                 openingStation = false;
                 stationOpeningFrom = null;
                 return true;
             }
-            if (!(handler instanceof PlayerScreenHandler)) throw new IllegalStateException("An unexpected container opened");
+            if (!(handler instanceof PlayerScreenHandler)) {
+                String container = step.kind() == PlanKind.SMELT ? "cooking station" : "container";
+                throw new IllegalStateException("An unexpected " + container + " opened");
+            }
             return false;
         }
         if (step.station() == null) {
@@ -1194,14 +1208,33 @@ final class AutomationEngine {
     }
     private void smelt() {
         if (smelting == null) {
-            if (!stationReady()) return;
             var recipe = catalog.recipes.get(step.sourceId());
             if (recipe == null || recipe.kind() != RecipeWork.Kind.SMELTING
-                    || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Smelting recipe disappeared or changed before smelting could start");
+                    || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Cooking recipe disappeared or changed before it could start");
+            if (!isSupportedCookingStation(recipe.cookingStation())) {
+                throw new IllegalStateException("Unsupported recipe cooking station " + recipe.cookingStation());
+            }
+            if (!Objects.equals(recipe.cookingStation(), step.station())) {
+                throw new IllegalStateException("Planned cooking station " + step.station()
+                        + " does not match the recipe cooking station " + recipe.cookingStation());
+            }
+            if (!stationReady()) return;
             smelting = new SmeltingAction(client, actions, recipe, step);
         }
         if (shouldDrainActiveTransaction()) smelting.requestDrain();
         if (smelting.tick()) completeStep();
+    }
+
+    private static boolean isSupportedCookingStation(StationId station) {
+        return FURNACE.equals(station) || SMOKER.equals(station) || BLAST_FURNACE.equals(station);
+    }
+
+    private static boolean isExactCookingStationHandler(ScreenHandler handler, StationId station) {
+        if (handler == null || station == null) return false;
+        if (FURNACE.equals(station)) return handler.getClass() == net.minecraft.screen.FurnaceScreenHandler.class;
+        if (SMOKER.equals(station)) return handler.getClass() == net.minecraft.screen.SmokerScreenHandler.class;
+        if (BLAST_FURNACE.equals(station)) return handler.getClass() == net.minecraft.screen.BlastFurnaceScreenHandler.class;
+        return false;
     }
     private void completeStep() {
         if (stopAfterStep) { stopNow(true); return; }
@@ -1298,7 +1331,7 @@ final class AutomationEngine {
             return;
         }
         if (transactionInProgress()) {
-            pause(reason + ". The current crafting/furnace transaction is preserved in its open handler");
+            pause(reason + ". The current crafting/cooking-station transaction is preserved in its open handler");
             return;
         }
         if (failed != null && failed.maintained()) {
@@ -1386,7 +1419,7 @@ final class AutomationEngine {
             paused = false;
             requestActiveTransactionDrain();
             status = "stopping after current safe station transaction";
-            message("Stopping after the current crafting/furnace transaction is safely recovered");
+            message("Stopping after the current crafting/cooking-station transaction is safely recovered");
             return;
         }
         stopNow(true);

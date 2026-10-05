@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screen.world.WorldCreator;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
@@ -19,6 +20,8 @@ import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.screen.SmokerScreenHandler;
+import net.minecraft.screen.BlastFurnaceScreenHandler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
@@ -46,18 +49,25 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
+    private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
+    private static final boolean COOKING_MODE = COOKING_STATION_MODE != null;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
     private static final String OAK_LOG_ID = "minecraft:oak_log";
     private static final String WOODEN_AXE_ID = "minecraft:wooden_axe";
+    private static final String RAW_PORKCHOP_ID = "minecraft:porkchop";
+    private static final String COOKED_PORKCHOP_ID = "minecraft:cooked_porkchop";
+    private static final String RAW_IRON_ID = "minecraft:raw_iron";
+    private static final String IRON_INGOT_ID = "minecraft:iron_ingot";
     private boolean resourceInitiallyLoaded;
-    private static final int MAX_RUN_TICKS = 6_000; // five minutes at 20 client ticks per second
+    private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : 6_000;
+    private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L : 300_000_000_000L;
     private static final int OBSERVE_EVERY_TICKS = 20;
     private static final int FIXTURE_FLOOR_Y = 63;
     private static final int PLAYER_Y = FIXTURE_FLOOR_Y + 1;
 
     private enum State { DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK, CRAFTING_FURNACE,
-        SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
+        SMELTING_IRON, COOKING, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
         CAPTURING, COMPLETE, FAILED }
 
     private MinecraftClient client;
@@ -89,11 +99,16 @@ public final class RuntimeVerification implements ClientModInitializer {
     private int activeBreadCountAtStart;
     private int activeTableOpeningsAtStart;
     private int activeFurnaceOpeningsAtStart;
+    private int activeSmokerOpeningsAtStart;
+    private int activeBlastFurnaceOpeningsAtStart;
+    private Map<String, Integer> activeInitialResources = Map.of();
     private int foodBreadCountBeforeSetup;
     private String failure = "";
     private volatile boolean serverTableOpened, serverFurnaceOpened;
     private volatile int serverTableOpenings;
     private volatile int serverFurnaceOpenings;
+    private volatile boolean serverSmokerOpened, serverBlastFurnaceOpened;
+    private volatile int serverSmokerOpenings, serverBlastFurnaceOpenings;
     private net.minecraft.screen.ScreenHandler lastServerScreenHandler;
 
     @Override
@@ -122,8 +137,16 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (COOKING_MODE && !isSupportedCookingStationMode()) {
+                failure = "lodekeeper.verify.cookingStation must be exactly smoker or blast_furnace";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
             if (selectedFixtureModes() > 1) {
-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, and lodekeeper.verify.bulkWood are mutually exclusive";
+                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.bulkWood, and lodekeeper.verify.cookingStation are mutually exclusive";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -155,6 +178,14 @@ public final class RuntimeVerification implements ClientModInitializer {
                         serverFurnaceOpened = true;
                         serverFurnaceOpenings++;
                     }
+                    if (handler instanceof SmokerScreenHandler) {
+                        serverSmokerOpened = true;
+                        serverSmokerOpenings++;
+                    }
+                    if (handler instanceof BlastFurnaceScreenHandler) {
+                        serverBlastFurnaceOpened = true;
+                        serverBlastFurnaceOpenings++;
+                    }
                     lastServerScreenHandler = handler;
                 }
             });
@@ -170,8 +201,9 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (state == State.COMPLETE || state == State.FAILED || state == State.DISABLED) return;
         clientTicks++;
         if (clientTicks % 100 == 0) System.out.println("[Lodekeeper verification] state=" + state + ", engine=" + requireEngine().status() + ", screen=" + (client.currentScreen == null ? "none" : client.currentScreen.getClass().getSimpleName()) + ", server=" + latestSnapshot);
-        if (clientTicks > MAX_RUN_TICKS || System.nanoTime() - startedAtNanos > 300_000_000_000L) {
-            fail("verification exceeded the five-minute limit");
+        if (clientTicks > MAX_RUN_TICKS || System.nanoTime() - startedAtNanos > MAX_RUN_WALL_NANOS) {
+            fail(COOKING_MODE ? "verification exceeded the 500-second cooking-mode limit"
+                : "verification exceeded the five-minute limit");
             return;
         }
         try {
@@ -248,6 +280,22 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (COOKING_MODE) {
+                    boolean startingResourcesObserved = latestSnapshot != null
+                        && latestSnapshot.serverTick >= fixtureReadyServerTick
+                        && latestSnapshot.inventory.equals(cookingProvidedStock())
+                        && latestSnapshot.count(cookingOutputId()) == 0;
+                    if (startingResourcesObserved) {
+                        readyTicks++;
+                        if (readyTicks >= 20 && client.player.getY() > PLAYER_Y - 1
+                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK)) {
+                            startCookingCommand();
+                        }
+                    } else {
+                        readyTicks = 0;
+                    }
+                    return;
+                }
                 if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick && latestSnapshot.inventoryEmpty()) {
                     readyTicks++;
                     boolean fixtureVisible = EXPLORATION_MODE
@@ -333,36 +381,39 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerPlayerEntity player = requireServerPlayer(server);
                 ServerWorld world = server.getOverworld();
                 // A bounded, level pad makes the fixture deterministic while retaining normal survival physics.
-                for (int x = -12; x <= (BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE ? 30 : 18); x++) {
+                for (int x = -12; x <= (COOKING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE ? 30 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
                 }
-                for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
-                    world.setBlockState(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
-                }
-                if (!BULK_WOOD_MODE) {
-                    for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE ? 25 : 17); x++) {
-                        world.setBlockState(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.getDefaultState(), 3);
+                if (!COOKING_MODE) {
+                    for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
+                        world.setBlockState(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
                     }
-                    if (DIAMOND_BOOTSTRAP_MODE) {
-                        world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
-                        world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
-                        world.setBlockState(new BlockPos(18, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
-                        world.setBlockState(new BlockPos(16, PLAYER_Y + 1, 4), Blocks.IRON_ORE.getDefaultState(), 3);
-                        world.setBlockState(new BlockPos(17, PLAYER_Y + 1, 4), Blocks.IRON_ORE.getDefaultState(), 3);
-                        for (int x = 20; x <= 23; x++) {
-                            world.setBlockState(new BlockPos(x, PLAYER_Y, 4), Blocks.DIAMOND_ORE.getDefaultState(), 3);
+                    if (!BULK_WOOD_MODE) {
+                        for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE ? 25 : 17); x++) {
+                            world.setBlockState(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.getDefaultState(), 3);
                         }
-                    } else {
-                        world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
-                        world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
-                        Block rubyOre = Registries.BLOCK.get(GameApi.identifier(VerificationContentInitializer.RUBY_ORE_ID));
-                        if (rubyOre == Blocks.AIR) throw new IllegalStateException("verifier ruby ore was not registered");
-                        for (int index = 0; index < 4; index++) {
-                            world.setBlockState(new BlockPos(8 + index, PLAYER_Y, 4), rubyOre.getDefaultState(), 3);
+                        if (DIAMOND_BOOTSTRAP_MODE) {
+                            world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(18, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(16, PLAYER_Y + 1, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(17, PLAYER_Y + 1, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+                            for (int x = 20; x <= 23; x++) {
+                                world.setBlockState(new BlockPos(x, PLAYER_Y, 4), Blocks.DIAMOND_ORE.getDefaultState(), 3);
+                            }
+                        } else {
+                            world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+                            Block rubyOre = Registries.BLOCK.get(GameApi.identifier(VerificationContentInitializer.RUBY_ORE_ID));
+                            if (rubyOre == Blocks.AIR) throw new IllegalStateException("verifier ruby ore was not registered");
+                            for (int index = 0; index < 4; index++) {
+                                world.setBlockState(new BlockPos(8 + index, PLAYER_Y, 4), rubyOre.getDefaultState(), 3);
+                            }
                         }
                     }
                 }
                 clearInventory(player.getInventory());
+                if (COOKING_MODE) seedCookingInventory(player);
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
                 if (!VerificationApi.teleport(player, world, 0.5, PLAYER_Y, 0.5, 0.0F, 0.0F)) {
@@ -379,6 +430,69 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static void clearInventory(PlayerInventory inventory) {
         inventory.clear();
         inventory.markDirty();
+    }
+
+    private static boolean isSupportedCookingStationMode() {
+        return "smoker".equals(COOKING_STATION_MODE) || "blast_furnace".equals(COOKING_STATION_MODE);
+    }
+
+    private static Item cookingRawItem() {
+        return "smoker".equals(COOKING_STATION_MODE) ? Items.PORKCHOP : Items.RAW_IRON;
+    }
+
+    private static Item cookingStationItem() {
+        return "smoker".equals(COOKING_STATION_MODE) ? Items.SMOKER : Items.BLAST_FURNACE;
+    }
+
+    private static String cookingRawItemId() {
+        return "smoker".equals(COOKING_STATION_MODE) ? RAW_PORKCHOP_ID : RAW_IRON_ID;
+    }
+
+    private static String cookingOutputId() {
+        return "smoker".equals(COOKING_STATION_MODE) ? COOKED_PORKCHOP_ID : IRON_INGOT_ID;
+    }
+
+    private static String cookingRecipeType() {
+        return switch (COOKING_STATION_MODE == null ? "" : COOKING_STATION_MODE) {
+            case "smoker" -> "smoking";
+            case "blast_furnace" -> "blasting";
+            default -> "unsupported";
+        };
+    }
+
+    private static String cookingOutputCommandName() {
+        return "smoker".equals(COOKING_STATION_MODE) ? "cooked_porkchop" : "iron_ingot";
+    }
+
+    private static Map<String, Integer> cookingProvidedStock() {
+        return Map.of(cookingRawItemId(), 128, "minecraft:coal", 9,
+            "minecraft:" + COOKING_STATION_MODE, 1);
+    }
+
+    private static void seedCookingInventory(ServerPlayerEntity player) {
+        for (int stack = 0; stack < 2; stack++) {
+            if (!player.getInventory().insertStack(new ItemStack(cookingRawItem(), 64))) {
+                throw new IllegalStateException("could not seed two 64-item raw cooking stacks");
+            }
+        }
+        if (!player.getInventory().insertStack(new ItemStack(Items.COAL, 9))) {
+            throw new IllegalStateException("could not seed nine verifier coal");
+        }
+        if (!player.getInventory().insertStack(new ItemStack(cookingStationItem(), 1))) {
+            throw new IllegalStateException("could not seed the verifier cooking station item");
+        }
+    }
+
+    private void startCookingCommand() {
+        activeCase = "native_" + COOKING_STATION_MODE + "_72";
+        activeItem = cookingOutputId();
+        activeCount = 72;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        beginCaseClock();
+        sendCommand("!lk get " + cookingOutputCommandName() + " 72");
+        state = State.COOKING;
     }
 
     private void startGatherCommand() {
@@ -424,10 +538,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (activeCase == null || state == State.CAPTURING) return;
         if (latestSnapshot == null) return;
         int observed = latestSnapshot.count(activeItem);
-        boolean targetReached = (BULK_WOOD_MODE ? observed == activeCount : observed >= activeCount)
+        boolean targetReached = (BULK_WOOD_MODE || COOKING_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
+            && (!COOKING_MODE || (state == State.COOKING
+                && latestSnapshot.count(cookingRawItemId()) == 56
+                && latestSnapshot.count("minecraft:coal") == 0
+                && latestSnapshot.health == 20.0F
+                && correctCookingStationMenuOpened()))
             && (!DIAMOND_BOOTSTRAP_MODE || (state == State.GATHERING_WOOD
                 && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
                 && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
@@ -449,7 +568,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("food-use case reached its log target without server-confirmed bread consumption and hunger recovery");
         } else if (targetReached) {
             String screenshot = capture(activeCase);
-            String detail = BULK_WOOD_MODE
+            String detail = COOKING_MODE
+                ? "server inventory reached 72 " + cookingOutputId() + " with 56 raw inputs and no coal in inventory after opening the native " + COOKING_STATION_MODE + " menu"
+                : BULK_WOOD_MODE
                 ? (WOOD_TOOLS_MODE
                     ? "server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes"
                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
@@ -584,6 +705,14 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeBreadCountAtStart = latestSnapshot == null ? 0 : latestSnapshot.count(VerificationContentInitializer.BREAD_ID);
         activeTableOpeningsAtStart = serverTableOpenings;
         activeFurnaceOpeningsAtStart = serverFurnaceOpenings;
+        activeSmokerOpeningsAtStart = serverSmokerOpenings;
+        activeBlastFurnaceOpeningsAtStart = serverBlastFurnaceOpenings;
+    }
+
+    private boolean correctCookingStationMenuOpened() {
+        return "smoker".equals(COOKING_STATION_MODE)
+            ? serverSmokerOpened && serverSmokerOpenings > activeSmokerOpeningsAtStart
+            : serverBlastFurnaceOpened && serverBlastFurnaceOpenings > activeBlastFurnaceOpeningsAtStart;
     }
 
     private void sendCommand(String command) {
@@ -667,7 +796,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void addResult(boolean passed, int observed, String detail, String screenshot) {
         long gameTicks = client.world == null ? 0 : Math.max(0, client.world.getTime() - caseStartedAtWorldTime);
         results.add(new CaseResult(activeCase, activeItem, activeCount, observed, activeStartedEmpty,
-            passed && (!activeRequiresEmpty || activeStartedEmpty), clientTicks - caseStartedAtTick, gameTicks,
+            activeRequiresEmpty, passed && (!activeRequiresEmpty || activeStartedEmpty), clientTicks - caseStartedAtTick, gameTicks,
             Math.max(0, (System.nanoTime() - caseStartedAtNanos) / 1_000_000L),
             requireEngine().status(), detail, screenshot, latestSnapshot == null ? 0 : latestSnapshot.health,
             latestSnapshot == null ? "unknown" : latestSnapshot.difficulty,
@@ -680,7 +809,16 @@ public final class RuntimeVerification implements ClientModInitializer {
             latestSnapshot == null ? 0 : latestSnapshot.z,
             latestSnapshot == null ? Map.of() : latestSnapshot.inventory,
             latestSnapshot == null ? List.of() : latestSnapshot.woodenAxeRemainingDurability,
-            clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime));
+            clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime,
+            COOKING_MODE ? COOKING_STATION_MODE : "", COOKING_MODE ? cookingRecipeType() : "",
+            COOKING_MODE ? activeInitialResources : Map.of(), COOKING_MODE && correctCookingStationMenuOpened(),
+            COOKING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
+            COOKING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
+            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
+            latestSnapshot == null ? 0 : latestSnapshot.count("minecraft:coal"),
+            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:" + COOKING_STATION_MODE, 0) : 0,
+            latestSnapshot == null || !COOKING_MODE ? 0
+                : latestSnapshot.count("minecraft:" + COOKING_STATION_MODE)));
     }
 
     private String capture(String name) {
@@ -701,7 +839,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void finishRun() {
         state = State.COMPLETE;
-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE ? 1 : 9;
+        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE || COOKING_MODE ? 1 : 9;
         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(allPassed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence: " + evidenceDirectory);
@@ -751,8 +889,18 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"serverTableOpened\":").append(serverTableOpened).append(",\n")
             .append("  \"serverFurnaceOpened\":").append(serverFurnaceOpened).append(",\n")
             .append("  \"serverTableOpenings\":").append(serverTableOpenings).append(",\n")
-            .append("  \"serverFurnaceOpenings\":").append(serverFurnaceOpenings).append(",\n")
-            .append("  \"cases\":[\n");
+            .append("  \"serverFurnaceOpenings\":").append(serverFurnaceOpenings).append(",\n");
+        if (COOKING_MODE) {
+            json.append("  \"serverSmokerOpened\":").append(serverSmokerOpened).append(",\n")
+                .append("  \"serverSmokerOpenings\":").append(serverSmokerOpenings).append(",\n")
+                .append("  \"serverBlastFurnaceOpened\":").append(serverBlastFurnaceOpened).append(",\n")
+                .append("  \"serverBlastFurnaceOpenings\":").append(serverBlastFurnaceOpenings).append(",\n")
+                .append("  \"cookingStationProperty\":\"").append(escape(COOKING_STATION_MODE)).append("\",\n")
+                .append("  \"cookingFixtureProvidedStock\":");
+            appendStringIntMap(json, isSupportedCookingStationMode() ? cookingProvidedStock() : Map.of());
+            json.append(",\n");
+        }
+        json.append("  \"cases\":[\n");
         for (int index = 0; index < results.size(); index++) {
             CaseResult result = results.get(index);
             json.append("    {\"name\":\"").append(escape(result.name)).append("\",\"item\":\"").append(escape(result.item))
@@ -788,14 +936,37 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 json.append(']');
             }
+            if (COOKING_MODE) {
+                json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
+                    .append(",\"completionClientTick\":").append(result.completionClientTick)
+                    .append(",\"completionWorldTick\":").append(result.completionWorldTick)
+                    .append(",\"completionHealth\":").append(result.health)
+                    .append(",\"fullServerInventory\":");
+                appendStringIntMap(json, result.serverInventory);
+                json.append(",\"requiresEmptyAtStart\":").append(result.requiresEmptyAtStart)
+                    .append(",\"cookingStation\":\"").append(escape(result.cookingStation)).append('\"')
+                    .append(",\"nativeCookingRecipeType\":\"").append(escape(result.cookingRecipeType)).append('\"')
+                    .append(",\"initialResources\":");
+                appendStringIntMap(json, result.initialResources);
+                json.append(",\"serverCorrectStationMenuOpenedDuringCase\":")
+                    .append(result.correctCookingStationMenuOpenedDuringCase)
+                    .append(",\"initialRawInputCount\":").append(result.initialRawInputCount)
+                    .append(",\"finalRawInputCount\":").append(result.finalRawInputCount)
+                    .append(",\"initialCoalCount\":").append(result.initialCoalCount)
+                    .append(",\"finalCoalCount\":").append(result.finalCoalCount)
+                    .append(",\"initialStationItemCount\":").append(result.initialStationItemCount)
+                    .append(",\"finalStationItemCount\":").append(result.finalStationItemCount);
+            }
             json.append('}').append(index + 1 == results.size() ? "\n" : ",\n");
         }
         json.append("  ],\n  \"explorationFixture\":").append(EXPLORATION_MODE)
             .append(",\n  \"diamondBootsFixture\":").append(DIAMOND_BOOTSTRAP_MODE)
             .append(",\n  \"bulkWoodFixtureLogCount\":").append(BULK_WOOD_MODE ? 80 : 0)
             .append(",\n  \"woodToolsFlag\":").append(WOOD_TOOLS_MODE)
-            .append(",\n  \"woodToolsEnabled\":").append(BULK_WOOD_MODE && WOOD_TOOLS_MODE)
-            .append(",\n  \"resourceInitiallyLoaded\":").append(resourceInitiallyLoaded)
+            .append(",\n  \"woodToolsEnabled\":").append(BULK_WOOD_MODE && WOOD_TOOLS_MODE);
+        if (COOKING_MODE) json.append(",\n  \"cookingStationFixture\":true,\n  \"cookingRecipeType\":\"")
+            .append(cookingRecipeType()).append('\"');
+        json.append(",\n  \"resourceInitiallyLoaded\":").append(resourceInitiallyLoaded)
             .append(",\n  \"explorationAttempts\":")
             .append(LodekeeperClient.engine == null ? 0 : LodekeeperClient.engine.explorationAttemptsMade());
         return json.append("\n}\n").toString();
@@ -806,15 +977,28 @@ public final class RuntimeVerification implements ClientModInitializer {
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 
+    private static void appendStringIntMap(StringBuilder json, Map<String, Integer> values) {
+        json.append('{');
+        int index = 0;
+        for (Map.Entry<String, Integer> entry : values.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            if (index++ > 0) json.append(',');
+            json.append('\"').append(escape(entry.getKey())).append("\":").append(entry.getValue());
+        }
+        json.append('}');
+    }
+
     private static String verificationMode() {
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
+        if (COOKING_MODE && !isSupportedCookingStationMode()) return "invalid_cooking_station";
+        if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
         if (BULK_WOOD_MODE) return "bulk_wood";
         if (DIAMOND_BOOTSTRAP_MODE) return "diamond_boots";
         return EXPLORATION_MODE ? "exploration" : "default";
     }
 
     private static int selectedFixtureModes() {
-        return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0);
+        return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+            + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0);
     }
 
     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
@@ -836,16 +1020,20 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private record CaseResult(String name, String item, int expected, int observed, boolean inventoryEmptyAtStart,
-                              boolean passed, int clientTicks, long worldTicks, long elapsedMillis, String engineStatus,
+                              boolean requiresEmptyAtStart, boolean passed, int clientTicks, long worldTicks, long elapsedMillis, String engineStatus,
                               String detail, String screenshot, float health, String difficulty, boolean tableOpenedDuringCase,
                               boolean furnaceOpenedDuringCase, int ironPickaxeCount,
                               int foodLevelAtStart, int foodLevelObserved, int breadAtStart, int breadObserved,
                               double x, double y, double z, Map<String, Integer> serverInventory,
                               List<Integer> woodenAxeRemainingDurability, int completionClientTick,
-                              long completionWorldTick) {
+                              long completionWorldTick, String cookingStation, String cookingRecipeType,
+                              Map<String, Integer> initialResources, boolean correctCookingStationMenuOpenedDuringCase,
+                              int initialRawInputCount, int finalRawInputCount, int initialCoalCount, int finalCoalCount,
+                              int initialStationItemCount, int finalStationItemCount) {
         private CaseResult {
             serverInventory = Map.copyOf(serverInventory);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
+            initialResources = Map.copyOf(initialResources);
         }
     }
 }

@@ -29,7 +29,21 @@ For large wood requests, try `!lk config optimizeWoodTools true`. This experimen
 
 The planned flow works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables or furnaces, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
 
-You will be able to inspect a plan, queue goals, pause or stop. Unknown recipes or unsupported mod mechanics will produce a clear blocker rather than pretend the task succeeded. Modded items using ordinary recipes and interactions are a design target; special machines need providers.
+Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
+
+| Command | Use it to |
+| --- | --- |
+| `!lk status` / `!lk queue` | Check progress and queued goals |
+| `!lk pause` / `!lk resume` | Interrupt and continue automation |
+| `!lk clear` | Clear queued foreground goals |
+| `!lk stop` | Stop and clear goals, including maintained stock |
+| `!lk maintain oak_planks 64` | Experimentally replenish a stock target |
+| `!lk maintained` / `!lk unmaintain all` | Inspect or remove stock targets |
+| `!lk projects` / `!lk project <name>` | List or queue experimental inventory loadouts |
+
+Stock maintenance yields to foreground goals. Projects collect inventory targets; supply projects do not build structures or farms. Some presets include mechanics still in development and can report a blocker. Their gameplay acceptance is pending.
+
+Unknown recipes or unsupported mechanics report a blocker. Modded items using ordinary recipes and interactions are a design target; special machines need providers.
 
 ### Installation and compatibility
 

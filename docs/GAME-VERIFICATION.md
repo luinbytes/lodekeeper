@@ -87,3 +87,11 @@ A pass requires an idle engine, one server-observed pair of diamond boots, a ret
 The [1.21.1 check](evidence/1.21.1-diamond-boots/run.json) passed in 166,032 ms with full health and 2,995 goal ticks. Its [artifact manifest](evidence/1.21.1-diamond-boots/artifact.json) and archived source patch identify the development client. The [earlier failed check](evidence/1.21.1-diamond-boots-failed/run.json) is retained with its own source evidence. The planning and approach changes are described in [bootstrap planning](BOOTSTRAP-PLANNER.md).
 
 The [26.3 check](evidence/26.3-diamond-boots/run.json) passed the same command from empty inventory in 171,892 ms and 3,069 goal ticks, with full health, a retained iron pickaxe and both native menus observed on the server. Its [paired artifact manifest](evidence/26.3-diamond-boots/artifact.json) preserves the exact source patch. This modern harness records server evidence without a screenshot. The clients ran sequentially, without Gradle during gameplay.
+
+## Native fast-cooking batch
+
+The optional JVM flag `-Dlodekeeper.verify.cookingStation=smoker` or `blast_furnace` selects one native 72-output batch. It is mutually exclusive with the exploration, diamond-boots and bulk-wood fixtures; an invalid selector fails before world creation. Only this mode extends the verifier limit to 10,000 ticks and 500 seconds.
+
+The disposable bedrock pad contains no acquisition resources. The verifier supplies two 64-item raw stacks, nine coal and one station item: porkchops for a smoker or raw iron for a blast furnace. It supplies no cooked porkchops or ingots. Before sending one command it requires that exact starting inventory and a visible supported floor. Completion requires exactly 72 outputs, 56 raw items remaining, zero inventory coal, full health, an idle engine and an integrated-server observation of the correct native menu. Initial stock, final inventory and command timing are recorded separately from world startup.
+
+This checks station placement and native multi-stack cooking with an exact coal budget. It does not establish acquisition of the supplied resources, cancellation, cold-start waiting, custom short timers or remote-server behavior. Controlled gameplay records will be added after the isolated clients finish.

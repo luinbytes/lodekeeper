@@ -73,15 +73,34 @@ final class GameCatalog {
                                 0, 0, recipeSlots(work.inputs(), false), requirements));
                     }
                     case SMELTING -> {
-                        requirements.add(station(Blocks.FURNACE));
-                        List<ItemSelector> fuels = fuelBurnTicks.keySet().stream().limit(256)
-                                .map(ItemSelector::item).toList();
+                        StationId cookingStation = work.cookingStation();
+                        if (work.cookTicks() < 100) {
+                            unsupported.add(key + ": cooking timers below 100 ticks need a separate transfer schedule");
+                            return;
+                        }
+                        requirements.add(station(cookingBlock(cookingStation)));
+                        Map<ItemId, Long> fuelProgressTicks = new TreeMap<>();
+                        for (Map.Entry<ItemId, Long> fuel : fuelBurnTicks.entrySet()) {
+                            Item nativeFuel = item(fuel.getKey());
+                            long progressTicks = GameApi.cookingFuelProgressTicks(
+                                    nativeFuel, cookingStation, fuel.getValue());
+                            int fuelStackLimit = nativeFuel.getDefaultStack().getMaxCount();
+                            if (fuelStackLimit > 99 || progressTicks < 32 || fuelStackLimit > 1
+                                    && (long) Math.max(1, fuelStackLimit / 2) * progressTicks < 800) continue;
+                            if (nativeFuel.getDefaultStack().getMaxCount() == 1) {
+                                progressTicks -= progressTicks % work.cookTicks();
+                            }
+                            if (progressTicks > 0) fuelProgressTicks.put(fuel.getKey(), progressTicks);
+                            if (fuelProgressTicks.size() == 256) break;
+                        }
+                        List<ItemSelector> fuels = fuelProgressTicks.keySet().stream().map(ItemSelector::item).toList();
                         if (fuels.isEmpty()) {
-                            unsupported.add(key + ": world exposes no usable furnace fuels");
+                            unsupported.add(key + ": world exposes no usable " + cookingStation + " fuels");
                             return;
                         }
                         sources.add(new SmeltingSource(key, id(output.getItem()), output.getCount(),
-                                ingredient(work.inputs().get(0).predicate()), fuels, work.cookTicks(), requirements));
+                                ingredient(work.inputs().get(0).predicate()), fuels, work.cookTicks(), requirements,
+                                fuelProgressTicks));
                     }
                 }
                 recipes.put(key, work);
@@ -164,4 +183,16 @@ final class GameCatalog {
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }
+
+    private static Block cookingBlock(StationId station) {
+        if (station == null || !station.namespace().equals("minecraft")) {
+            throw new IllegalArgumentException("unsupported cooking station " + station);
+        }
+        return switch (station.path()) {
+            case "furnace" -> Blocks.FURNACE;
+            case "smoker" -> Blocks.SMOKER;
+            case "blast_furnace" -> Blocks.BLAST_FURNACE;
+            default -> throw new IllegalArgumentException("unsupported cooking station " + station);
+        };
+    }
 }

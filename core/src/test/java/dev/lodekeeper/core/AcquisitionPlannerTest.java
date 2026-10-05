@@ -266,6 +266,13 @@ final class AcquisitionPlannerTest {
                 List.of(), Map.of(coal, capacity));
         assertEquals(2, selectedFuel(planFuelBatch(source, 3, 600, 2, false, Map.of())).count());
         assertEquals(100, CookingFuelCapacity.progressTicks(100, 200, 1));
+        assertEquals(0, CookingFuelCapacity.progressTicks(100, 200, 1, false));
+        assertEquals(400, CookingFuelCapacity.progressTicks(400, 200, 1.5f, false));
+        assertEquals(3, selectedFuel(planFuelBatch(new SmeltingSource("test:discontinuous",
+                ItemId.parse("test:smelted"), 1, Ingredient.of(ItemId.parse("test:raw")),
+                List.of(ItemSelector.item(coal)), 200, List.of(),
+                Map.of(coal, CookingFuelCapacity.progressTicks(400, 200, 1.5f, false))),
+                5, 600, 3, false, Map.of())).count());
         assertEquals(294, CookingFuelCapacity.progressTicks(100, 100, 3));
         assertEquals(0, CookingFuelCapacity.progressTicks(Long.MAX_VALUE, 200, 1));
         assertEquals(0, CookingFuelCapacity.progressTicks(100, 200, Float.NaN));

@@ -35,7 +35,9 @@ final class SlotTransfer {
             if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
             ItemStack stack = handler.getSlot(source).getStack();
             if (!GameApi.canCombine(stack, expected) || stack.getCount() < remaining) throw new IllegalStateException("Ingredient changed during transfer");
-            click(source, 0); phase = 1;
+            int half = stack.getCount() / 2 + stack.getCount() % 2;
+            boolean pickupRequestedHalf = remaining < stack.getCount() && remaining == half;
+            click(source, pickupRequestedHalf ? 1 : 0); phase = 1;
         } else if (phase == 1) {
             ItemStack cursor = handler.getCursorStack();
             if (cursor.isEmpty() || !GameApi.canCombine(cursor, expected)) throw new IllegalStateException("Cursor pickup rejected or changed");
@@ -63,8 +65,8 @@ final class SlotTransfer {
         int expectedCount = beforeDestination + pendingAmount;
         boolean identicalItem = destinationStack.isEmpty() || GameApi.canCombine(destinationStack, expected);
         boolean exactPlacement = !destinationStack.isEmpty() && identicalItem && destinationStack.getCount() == expectedCount;
-        // Furnaces can consume one fuel unit before slot synchronization arrives. The caller must
-        // supply independent burn progress proving that consumption, rather than accept missing items.
+        // Cooking may consume one inserted item before slot synchronization arrives. The caller
+        // must supply independent progress proving that consumption, rather than accept missing items.
         boolean consumedOne = consumptionProgress != null && identicalItem && destinationStack.getCount() == expectedCount - 1
             && consumptionProgress.getAsDouble() > beforeConsumptionProgress;
         if ((!exactPlacement && !consumedOne) || cursor.getCount() != beforeCursor - pendingAmount || !cursor.isEmpty() && !GameApi.canCombine(cursor, expected)) throw new IllegalStateException("Inventory transfer was rejected or modified");

@@ -53,10 +53,19 @@ import java.util.TreeSet;
 final class GameCatalog {
     record RecipeInput(int recipeSlot, net.minecraft.world.item.crafting.Ingredient ingredient) {}
     record RecipeWork(Item output, int outputCount, ItemStack resultStack, RecipeType type, int width, int height,
-                      List<RecipeInput> ingredients, int cookTicks) {
+                      List<RecipeInput> ingredients, int cookTicks, StationId cookingStation) {
+        RecipeWork(Item output, int outputCount, ItemStack resultStack, RecipeType type, int width, int height,
+                   List<RecipeInput> ingredients, int cookTicks) {
+            this(output, outputCount, resultStack, type, width, height, ingredients, cookTicks,
+                    cookTicks > 0 ? StationId.parse("minecraft:furnace") : null);
+        }
         RecipeWork {
             resultStack = resultStack.copy();
             ingredients = List.copyOf(ingredients);
+            if (cookTicks < 0 || (cookTicks == 0) != (cookingStation == null)
+                    || cookingStation != null && !Set.of(StationId.parse("minecraft:furnace"),
+                        StationId.parse("minecraft:smoker"), StationId.parse("minecraft:blast_furnace")).contains(cookingStation))
+                throw new IllegalArgumentException("Unsupported cooking recipe station");
         }
         public ItemStack resultStack() { return resultStack.copy(); }
     }
@@ -72,6 +81,8 @@ final class GameCatalog {
     private boolean ready;
     private long loadGeneration;
     private Map<ItemId, Long> fuelTicksByItem = Map.of();
+    private record CookingFuelContext(Block station, int duration) {}
+    private final Map<CookingFuelContext, Map<ItemId, Long>> remoteCookingFuels = new HashMap<>();
 
     GameCatalog(Minecraft client) { this.client = client; }
 
@@ -82,6 +93,7 @@ final class GameCatalog {
         sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
         pendingDefinitions.clear();
         fuelTicksByItem = Map.of();
+        remoteCookingFuels.clear();
         loadRegisteredItems();
         loadConservativeGatherSources();
         appendExtensions();
@@ -108,13 +120,14 @@ final class GameCatalog {
                     if (ticks > 0) resolvedFuelTicks.put(id(item), ticks);
                 }
                 Map<ItemId, Long> fuelSnapshot = Map.copyOf(resolvedFuelTicks);
+                Map<CookingFuelContext, Map<ItemId, Long>> cookingFuels = new HashMap<>();
                 for (RecipeHolder<?> holder : manager.getRecipes()) {
                     String recipeId = holder.id().identifier().toString();
                     try {
                         manager.listDisplaysForRecipe(holder.id(), entry -> {
                             try {
                                 RecipeAddition addition = addition(entry, "server:" + recipeId + ":" + entry.id().index(),
-                                        serverLevel, rejected, holder.value(), fuelSnapshot);
+                                        serverLevel, rejected, holder.value(), cookingFuels);
                                 if (addition != null) additions.add(addition);
                             } catch (RuntimeException ex) {
                                 rejected.add(recipeId + ": " + ex.getMessage());
@@ -239,23 +252,28 @@ final class GameCatalog {
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected) {
-        return addition(entry, sourceId, level, rejected, null, fuelTicksByItem);
+        return addition(entry, sourceId, level, rejected, null, remoteCookingFuels);
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected,
                                     Recipe<?> authoritativeRecipe) {
-        return addition(entry, sourceId, level, rejected, authoritativeRecipe, fuelTicksByItem);
+        return addition(entry, sourceId, level, rejected, authoritativeRecipe, remoteCookingFuels);
     }
 
     private RecipeAddition addition(RecipeDisplayEntry entry, String sourceId, Level level, List<String> rejected,
-                                    Recipe<?> authoritativeRecipe, Map<ItemId, Long> fuelTicks) {
+                                    Recipe<?> authoritativeRecipe, Map<CookingFuelContext, Map<ItemId, Long>> cookingFuels) {
         var context = SlotDisplayContext.fromLevel(level);
-        List<ItemStack> resultStacks = entry.resultItems(context).stream().filter(stack -> !stack.isEmpty()).toList();
-        if (resultStacks.isEmpty()) return null;
+        List<ItemStack> resultStacks = entry.display().result().resolve(context, SlotDisplay.ItemStackContentsFactory.INSTANCE)
+                .limit(65).toList();
+        if (resultStacks.isEmpty() || resultStacks.size() > 64 || resultStacks.stream().anyMatch(ItemStack::isEmpty)) {
+            rejected.add(sourceId + ": recipe display output is missing or too broad");
+            return null;
+        }
         Item output = resultStacks.getFirst().getItem();
         int outputCount = resultStacks.getFirst().getCount();
         ItemStack resultStack = resultStacks.getFirst().copy();
-        if (resultStacks.stream().anyMatch(stack -> !ItemStack.isSameItemSameComponents(stack, resultStack))) {
+        if (resultStacks.stream().anyMatch(stack -> stack.getCount() != outputCount
+                || !ItemStack.isSameItemSameComponents(stack, resultStack))) {
             rejected.add(sourceId + ": recipe has multiple distinct display outputs");
             return null;
         }
@@ -304,10 +322,18 @@ final class GameCatalog {
                 rejected.add(sourceId + ": furnace display omits executable ingredient requirements");
                 return null;
             }
-            Block station = displayStation(entry, context, rejected);
+            if (requirements.get().size() != 1 || furnace.duration() < 1 || furnace.duration() > 1_000_000) {
+                rejected.add(sourceId + ": cooking display has invalid input or duration");
+                return null;
+            }
+            Block station = cookingDisplayStation(entry, context, rejected);
             if (station == Blocks.AIR) return null;
+            if (authoritativeRecipe != null && nativeCookingStation(authoritativeRecipe) != station) {
+                rejected.add(sourceId + ": cooking display disagrees with its authoritative recipe type");
+                return null;
+            }
             return smeltingAddition(sourceId, output, outputCount, resultStack, requirements.get().getFirst(),
-                    furnace.duration(), station, rejected, fuelTicks);
+                    furnace.duration(), station, rejected, level, cookingFuels);
         }
         rejected.add(sourceId + ": unsupported recipe display " + entry.display().getClass().getSimpleName());
         return null;
@@ -386,28 +412,67 @@ final class GameCatalog {
         return new RecipeAddition(source, new RecipeWork(output, outputCount, resultStack, type, width, height, workInputs, 0));
     }
 
+    private static Block nativeCookingStation(Recipe<?> recipe) {
+        if (recipe.getType() == net.minecraft.world.item.crafting.RecipeType.SMELTING) return Blocks.FURNACE;
+        if (recipe.getType() == net.minecraft.world.item.crafting.RecipeType.SMOKING) return Blocks.SMOKER;
+        if (recipe.getType() == net.minecraft.world.item.crafting.RecipeType.BLASTING) return Blocks.BLAST_FURNACE;
+        return Blocks.AIR;
+    }
+
+    private Block cookingDisplayStation(RecipeDisplayEntry entry, net.minecraft.util.context.ContextMap context,
+                                         List<String> rejected) {
+        List<ItemStack> alternatives = entry.display().craftingStation().resolve(context, SlotDisplay.ItemStackContentsFactory.INSTANCE)
+                .limit(65).toList();
+        if (alternatives.isEmpty() || alternatives.size() > 64) {
+            rejected.add("display " + entry.id().index() + ": cooking station is missing or too broad");
+            return Blocks.AIR;
+        }
+        Block station = null;
+        for (ItemStack stack : alternatives) {
+            Block block = stack.isEmpty() ? Blocks.AIR : Block.byItem(stack.getItem());
+            if (block != Blocks.FURNACE && block != Blocks.SMOKER && block != Blocks.BLAST_FURNACE
+                    || station != null && station != block) {
+                rejected.add("display " + entry.id().index() + ": cooking station is unsupported or ambiguous");
+                return Blocks.AIR;
+            }
+            station = block;
+        }
+        return station;
+    }
+
     private RecipeAddition smeltingAddition(String sourceId, Item output, int outputCount, ItemStack resultStack,
                                               net.minecraft.world.item.crafting.Ingredient input, int cookTicks,
-                                              Block displayStation, List<String> rejected,
-                                              Map<ItemId, Long> fuelTicks) {
-        Block station = displayStation == null ? Blocks.FURNACE : displayStation;
-        if (station != Blocks.FURNACE) {
-            rejected.add(sourceId + ": only the standard furnace fuel context is supported");
+                                              Block station, List<String> rejected, Level level,
+                                              Map<CookingFuelContext, Map<ItemId, Long>> cookingFuels) {
+        CookingFuelContext context = new CookingFuelContext(station, cookTicks);
+        Map<ItemId, Long> capacities = cookingFuels.get(context);
+        if (capacities == null) {
+            if (cookingFuels.size() >= 64) {
+                rejected.add(sourceId + ": cooking fuel context limit reached");
+                return null;
+            }
+            Map<ItemId, Long> resolved = new TreeMap<>();
+            for (Item item : BuiltInRegistries.ITEM) {
+                ItemStack fuel = new ItemStack(item);
+                if (!GameApi.supportedCookingFuelStack(fuel)) continue;
+                long capacity = GameApi.cookingFuelProgressTicks(level, fuel, station, cookTicks);
+                if (capacity > 0 && capacity <= 1_000_000_000L) resolved.put(id(item), capacity);
+                if (resolved.size() == 256) break;
+            }
+            capacities = Map.copyOf(resolved);
+            cookingFuels.put(context, capacities);
+        }
+        if (capacities.isEmpty()) {
+            rejected.add(sourceId + ": no supported cooking fuels for this station and recipe");
             return null;
         }
-        List<ItemSelector> fuels = fuelTicks.entrySet().stream()
-                .filter(entry -> entry.getValue() > 0)
-                .map(entry -> ItemSelector.item(entry.getKey()))
-                .limit(256).toList();
-        if (fuels.isEmpty()) {
-            rejected.add(sourceId + ": no context-independent fuel data is available");
-            return null;
-        }
+        List<ItemSelector> fuels = capacities.keySet().stream().sorted().map(ItemSelector::item).toList();
         List<Requirement> requirements = List.of(GameCatalog.station(station));
         var source = new SmeltingSource(sourceId, id(output), outputCount, coreIngredient(input), fuels,
-                Math.max(1, cookTicks), requirements);
+                cookTicks, requirements, capacities);
         List<RecipeInput> workInputs = List.of(new RecipeInput(-1, input));
-        return new RecipeAddition(source, new RecipeWork(output, outputCount, resultStack, RecipeType.SHAPELESS, 0, 0, workInputs, cookTicks));
+        return new RecipeAddition(source, new RecipeWork(output, outputCount, resultStack, RecipeType.SHAPELESS,
+                0, 0, workInputs, cookTicks, GameCatalog.station(station).station()));
     }
 
     private Ingredient coreIngredient(net.minecraft.world.item.crafting.Ingredient ingredient) {

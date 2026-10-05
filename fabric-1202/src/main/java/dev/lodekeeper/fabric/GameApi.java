@@ -1,6 +1,7 @@
 package dev.lodekeeper.fabric;
 
 import dev.lodekeeper.core.ItemId;
+import dev.lodekeeper.core.StationId;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.inventory.CraftingInventory;
@@ -55,6 +56,23 @@ final class GameApi {
 
     static int cookingTime(AbstractCookingRecipe recipe) { return recipe.getCookingTime(); }
 
+    private static StationId cookingStation(AbstractCookingRecipe recipe) {
+        if (recipe.getType() == net.minecraft.recipe.RecipeType.SMELTING) return StationId.parse("minecraft:furnace");
+        if (recipe.getType() == net.minecraft.recipe.RecipeType.SMOKING) return StationId.parse("minecraft:smoker");
+        if (recipe.getType() == net.minecraft.recipe.RecipeType.BLASTING) return StationId.parse("minecraft:blast_furnace");
+        return null;
+    }
+
+    static long cookingFuelProgressTicks(Item fuel, StationId station, long rawBurnTicks) {
+        if (fuel == null || fuel.getRecipeRemainder() != null || rawBurnTicks < 1) return 0;
+        long progress = switch (station == null ? "" : station.toString()) {
+            case "minecraft:furnace" -> rawBurnTicks;
+            case "minecraft:smoker", "minecraft:blast_furnace" -> rawBurnTicks / 2;
+            default -> 0;
+        };
+        return progress <= 1_000_000_000L ? progress : 0;
+    }
+
     static RecipeWork.RemainderResolver remainderResolver(Recipe<?> recipe) {
         return (handler, gridWidth, inputGrid) -> {
             CraftingInventory input = new CraftingInventory(handler, gridWidth, gridWidth);
@@ -97,11 +115,12 @@ final class GameApi {
                     }
                     if (!inputs.isEmpty()) works.put(entry.id(), new RecipeWork(RecipeWork.Kind.SHAPELESS_CRAFTING,
                             output, 0, 0, inputs, 0, remainderResolver(recipe)));
-                } else if (recipe instanceof AbstractCookingRecipe cooking && recipe.getType() == net.minecraft.recipe.RecipeType.SMELTING) {
+                } else if (recipe instanceof AbstractCookingRecipe cooking && cookingStation(cooking) != null) {
                     List<Ingredient> ingredients = recipe.getIngredients();
                     if (ingredients.size() == 1 && !ingredients.get(0).isEmpty()) {
                         works.put(entry.id(), new RecipeWork(RecipeWork.Kind.SMELTING, output, 0, 0,
-                                List.of(new RecipeWork.Input(-1, ingredients.get(0))), cookingTime(cooking), null));
+                                List.of(new RecipeWork.Input(-1, ingredients.get(0))), cookingTime(cooking),
+                                cookingStation(cooking), null));
                     }
                 } else {
                     unsupported.add(entry.id() + " (" + Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()) + ")");

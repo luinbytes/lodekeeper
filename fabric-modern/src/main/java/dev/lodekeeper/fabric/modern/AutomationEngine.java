@@ -1367,7 +1367,7 @@ final class AutomationEngine {
         var menu = client.player.containerMenu;
         if (openingStation) {
             boolean correct = step.kind() == PlanKind.CRAFT ? menu instanceof net.minecraft.world.inventory.CraftingMenu
-                    : menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu;
+                    : SmeltingAction.matchesStation(menu, step.station());
             if (correct) {
                 if (menu != stationOpeningFrom) ownedStationMenu = menu;
                 openingStation = false;

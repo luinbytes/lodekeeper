@@ -1,6 +1,8 @@
 package dev.lodekeeper.fabric.modern;
 
 import dev.lodekeeper.core.PlanStep;
+import dev.lodekeeper.core.PlanKind;
+import dev.lodekeeper.core.StationId;
 import dev.lodekeeper.core.SelectedItemRequirement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Inventory;
@@ -13,8 +15,11 @@ import java.util.function.IntSupplier;
 
 /** Feeds a verified empty furnace and returns only component-exact, plan-owned contents. */
 final class SmeltingAction {
+    private static final int MAX_DYNAMIC_SPEED_COLD_WAIT_TICKS = 1_800;
+
     private final Minecraft client;
     private final PlayerActions actions;
+    private final StationId station;
     private final Item output, inputItem, fuelItem;
     private final ItemStack expectedOutput;
     private final int target, plannedOutput, plannedInput, plannedFuel;
@@ -27,11 +32,17 @@ final class SmeltingAction {
     private SlotTransfer transfer;
     private VerifiedQuickMove quickMove;
     private int transferAmount, transferDestination, quickMoveSlot = -1, cooldown;
+    private int dynamicSpeedColdWaitTicks;
     private boolean initialized, drainRequested;
+    private boolean dynamicColdStartPending;
 
     SmeltingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
         this.client = client;
         this.actions = actions;
+        station = recipe.cookingStation();
+        if (step.kind() != PlanKind.SMELT || recipe.cookTicks() < 1 || station == null || !station.equals(step.station()))
+            throw new IllegalArgumentException("Cooking plan disagrees with its native recipe station");
+        dynamicColdStartPending = GameApi.dynamicCookingSpeed();
         expectedOutput = recipe.resultStack();
         output = expectedOutput.getItem();
         target = actions.count(output) + step.outputCount();
@@ -64,8 +75,21 @@ final class SmeltingAction {
         if (client.player == null || client.gameMode == null) throw new IllegalStateException("No player");
         if (cooldown-- > 0) return false;
         if (!initialized) initialize();
-        if (client.player.containerMenu != menu) throw new IllegalStateException("Furnace changed or closed");
+        if (client.player.containerMenu != menu || !matchesStation(menu, station))
+            throw new IllegalStateException("Cooking station changed or closed");
         if (transfer == null && !menu.getCarried().isEmpty()) throw new IllegalStateException("Cursor occupied; finish your inventory action first");
+        if (dynamicColdStartPending) {
+            validateKnownContents();
+            if (drainRequested) return drainKnownContents();
+            if (menu.isLit()) {
+                if (++dynamicSpeedColdWaitTicks >= MAX_DYNAMIC_SPEED_COLD_WAIT_TICKS) {
+                    throw new IllegalStateException("The cooking station stayed lit for " + MAX_DYNAMIC_SPEED_COLD_WAIT_TICKS
+                            + " ticks; its remaining 26.3 fuel speed is unknown, so automation will not start this recipe");
+                }
+                return false;
+            }
+            dynamicColdStartPending = false;
+        }
 
         if (transfer != null) {
             try {
@@ -114,6 +138,12 @@ final class SmeltingAction {
         if (drainRequested) return drainKnownContents();
         if (actions.count(output) >= target) return drainKnownContents();
 
+        boolean inputNeedsTopUp = remainingInput > 0 && needsTopUp(AbstractFurnaceMenu.INGREDIENT_SLOT);
+        boolean fuelNeedsTopUp = remainingFuel > 0 && needsTopUp(AbstractFurnaceMenu.FUEL_SLOT);
+        if (submittedInput == 0 && inputNeedsTopUp) feed(inputItem, AbstractFurnaceMenu.INGREDIENT_SLOT, remainingInput);
+        else if (fuelNeedsTopUp) feed(fuelItem, AbstractFurnaceMenu.FUEL_SLOT, remainingFuel);
+        else if (inputNeedsTopUp) feed(inputItem, AbstractFurnaceMenu.INGREDIENT_SLOT, remainingInput);
+        if (transfer != null) return false;
         ItemStack result = menu.getSlot(AbstractFurnaceMenu.RESULT_SLOT).getItem();
         if (!result.isEmpty()) {
             if (!same(result, expectedOutput)) throw unexpected("furnace output");
@@ -122,16 +152,31 @@ final class SmeltingAction {
             quickMoveSlot = AbstractFurnaceMenu.RESULT_SLOT;
             return false;
         }
-        if (menu.getSlot(AbstractFurnaceMenu.INGREDIENT_SLOT).getItem().isEmpty() && remainingInput > 0) {
-            feed(inputItem, AbstractFurnaceMenu.INGREDIENT_SLOT, remainingInput);
-        } else if (menu.getSlot(AbstractFurnaceMenu.FUEL_SLOT).getItem().isEmpty() && remainingFuel > 0) {
-            feed(fuelItem, AbstractFurnaceMenu.FUEL_SLOT, remainingFuel);
-        }
         return false;
     }
 
+    private boolean needsTopUp(int slotIndex) {
+        Slot slot = menu.getSlot(slotIndex);
+        ItemStack current = slot.getItem();
+        if (current.isEmpty()) return true;
+        int capacity = slot.getMaxStackSize(current);
+        int lowWatermark = Math.max(2, capacity / 2);
+        return current.getCount() < capacity && current.getCount() <= lowWatermark;
+    }
+
+    static boolean matchesStation(net.minecraft.world.inventory.AbstractContainerMenu menu, StationId station) {
+        if (menu == null || station == null) return false;
+        return switch (station.toString()) {
+            case "minecraft:furnace" -> menu.getClass() == net.minecraft.world.inventory.FurnaceMenu.class;
+            case "minecraft:smoker" -> menu.getClass() == net.minecraft.world.inventory.SmokerMenu.class;
+            case "minecraft:blast_furnace" -> menu.getClass() == net.minecraft.world.inventory.BlastFurnaceMenu.class;
+            default -> false;
+        };
+    }
+
     private void initialize() {
-        if (!(client.player.containerMenu instanceof AbstractFurnaceMenu furnace)) {
+        if (!matchesStation(client.player.containerMenu, station)
+                || !(client.player.containerMenu instanceof AbstractFurnaceMenu furnace)) {
             throw new IllegalStateException("Open the owned cooking station");
         }
         menu = furnace;
@@ -141,6 +186,23 @@ final class SmeltingAction {
                 throw new IllegalStateException("Furnace already contains items; automation will not take them");
             }
         }
+        if (plannedOutput > outputPerOperation
+                && menu.getSlot(AbstractFurnaceMenu.RESULT_SLOT).getMaxStackSize(expectedOutput) / outputPerOperation < 16)
+            throw new IllegalStateException("Bulk cooking output needs room for at least 16 operations; no materials were inserted");
+        int usableFuel = 0;
+        for (Slot slot : menu.slots) {
+            if (slot.container != client.player.getInventory() || slot.getContainerSlot() >= 36) continue;
+            ItemStack stack = slot.getItem();
+            if (stack.is(inputItem) && (stack.getMaxStackSize() > 99 || stack.getCount() > stack.getMaxStackSize()))
+                throw new IllegalStateException("Cooking input exceeds the bounded cursor-transfer capacity; no materials were inserted");
+            if (stack.is(inputItem) && plannedInput > inputPerOperation && menu.getSlot(AbstractFurnaceMenu.INGREDIENT_SLOT).getMaxStackSize(stack) < 16 * inputPerOperation)
+                throw new IllegalStateException("Bulk cooking input needs room for at least 16 operations to refill without burn gaps; no materials were inserted");
+            if (stack.is(fuelItem) && GameApi.supportedCookingFuelStack(stack)
+                    && stack.getMaxStackSize() == fuelItem.getDefaultInstance().getMaxStackSize())
+                usableFuel += stack.getCount();
+        }
+        if (usableFuel < plannedFuel)
+            throw new IllegalStateException("Planned fuel has unsupported components, stack size or is missing; no materials were inserted");
         initialized = true;
     }
 
@@ -218,37 +280,59 @@ final class SmeltingAction {
     }
 
     private void feed(Item item, int destination, int remaining) {
-        int source = source(item, destination == AbstractFurnaceMenu.INGREDIENT_SLOT ? expectedInput : expectedFuel);
+        int source = source(item, destination == AbstractFurnaceMenu.INGREDIENT_SLOT ? expectedInput : expectedFuel,
+                destination == AbstractFurnaceMenu.FUEL_SLOT);
         ItemStack supply = menu.getSlot(source).getItem();
+        if (destination == AbstractFurnaceMenu.FUEL_SLOT && !GameApi.supportedCookingFuelStack(supply))
+            throw new IllegalStateException("Cooking fuel has unsupported components or a container remainder");
         if (destination == AbstractFurnaceMenu.INGREDIENT_SLOT && expectedInput == null) expectedInput = supply.copyWithCount(1);
         if (destination == AbstractFurnaceMenu.FUEL_SLOT && expectedFuel == null) expectedFuel = supply.copyWithCount(1);
         ItemStack expected = destination == AbstractFurnaceMenu.INGREDIENT_SLOT ? expectedInput : expectedFuel;
         if (!same(supply, expected)) throw new IllegalStateException("Furnace supply components changed: " + item);
-        transferAmount = Math.min(remaining, Math.min(supply.getCount(), item.getDefaultMaxStackSize()));
+        Slot destinationSlot = menu.getSlot(destination);
+        ItemStack existing = destinationSlot.getItem();
+        if (!existing.isEmpty() && !same(existing, expected)) throw unexpected("cooking station input or fuel");
+        int destinationRoom = destinationSlot.getMaxStackSize(supply) - existing.getCount();
+        transferAmount = Math.min(64, Math.min(remaining, Math.min(supply.getCount(), destinationRoom)));
+        if (destinationRoom < supply.getCount()) {
+            int half = supply.getCount() / 2 + supply.getCount() % 2;
+            if (half < supply.getCount() && half <= transferAmount) transferAmount = half;
+        }
+        if (transferAmount < 1) throw new IllegalStateException("Cooking station has no room for the planned supply");
         transferDestination = destination;
         transfer = new SlotTransfer(client, menu, source, destination, transferAmount,
                 destination == AbstractFurnaceMenu.FUEL_SLOT
                         ? () -> menu.isLit() ? Math.round(menu.getLitProgress() * 1_000_000f) + 1 : 0
-                        : null);
+                        : this::completedOutputOperations);
     }
 
-    private int source(Item item, ItemStack expected) {
+    private double completedOutputOperations() {
+        long produced = (long) collectedOutput + menu.getSlot(AbstractFurnaceMenu.RESULT_SLOT).getItem().getCount();
+        return produced / (double) outputPerOperation;
+    }
+
+    private int source(Item item, ItemStack expected, boolean cookingFuel) {
         Inventory inventory = client.player.getInventory();
         for (int index = 0; index < menu.slots.size(); index++) {
             Slot slot = menu.getSlot(index);
             ItemStack stack = slot.getItem();
-            if (slot.container == inventory && slot.getContainerSlot() < 36 && stack.is(item)
-                    && (expected == null || same(stack, expected))) return index;
+            if (slot.container != inventory || slot.getContainerSlot() >= 36 || !stack.is(item)) continue;
+            if (cookingFuel && (!GameApi.supportedCookingFuelStack(stack)
+                    || stack.getMaxStackSize() != item.getDefaultInstance().getMaxStackSize())) continue;
+            if (expected != null && !same(stack, expected)) continue;
+            return index;
         }
         throw new IllegalStateException("Missing furnace supply: " + GameCatalog.id(item));
     }
 
     long progressToken() {
         if (menu == null) return 0;
-        return ((long) remainingInput << 32) ^ ((long) remainingFuel << 20)
+        long token = ((long) remainingInput << 32) ^ ((long) remainingFuel << 20)
                 ^ ((long) menu.getSlot(AbstractFurnaceMenu.INGREDIENT_SLOT).getItem().getCount() << 12)
                 ^ ((long) menu.getSlot(AbstractFurnaceMenu.RESULT_SLOT).getItem().getCount() << 5)
                 ^ ((long) collectedOutput << 3) ^ (int) (menu.getBurnProgress() * 10_000);
+        if (dynamicColdStartPending) token = token * 31 + Math.round(menu.getLitProgress() * 1_000_000f);
+        return token;
     }
 
     void pause() { if (transfer != null) transfer.recover(); }

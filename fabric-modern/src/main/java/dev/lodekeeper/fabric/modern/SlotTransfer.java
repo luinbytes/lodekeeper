@@ -45,7 +45,9 @@ final class SlotTransfer {
             if (!menu.getCarried().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
             ItemStack stack = menu.getSlot(source).getItem();
             if (!same(stack, expected) || stack.getCount() < remaining) throw new IllegalStateException("Ingredient changed during transfer");
-            click(source, 0);
+            int half = stack.getCount() / 2 + stack.getCount() % 2;
+            boolean pickupRequestedHalf = remaining < stack.getCount() && remaining == half;
+            click(source, pickupRequestedHalf ? 1 : 0);
             phase = 1;
         } else if (phase == 1) {
             ItemStack cursor = menu.getCarried();
@@ -81,8 +83,8 @@ final class SlotTransfer {
         int expectedCount = beforeDestination + pendingAmount;
         boolean sameDestinationItem = placed.isEmpty() || same(placed, expected);
         boolean exactPlacement = !placed.isEmpty() && sameDestinationItem && placed.getCount() == expectedCount;
-        // A furnace may consume one just-inserted fuel item before its slot sync is observed.
-        // Accept that one-item delta only when lit progress independently shows fuel consumption.
+        // Cooking may consume one inserted item before its slot sync is observed. Accept that
+        // one-item delta only when the caller independently proves recipe or fuel progress.
         boolean consumedOne = consumptionProgress != null && sameDestinationItem
                 && placed.getCount() == expectedCount - 1
                 && consumptionProgress.getAsDouble() > beforeConsumptionProgress;

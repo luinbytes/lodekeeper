@@ -1,5 +1,6 @@
 package dev.lodekeeper.fabric;
 
+import dev.lodekeeper.core.StationId;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.screen.ScreenHandler;
@@ -17,9 +18,21 @@ record RecipeWork(
         int height,
         List<Input> inputs,
         int cookTicks,
+        StationId cookingStation,
         RemainderResolver remainderResolver
 ) {
     enum Kind { SHAPED_CRAFTING, SHAPELESS_CRAFTING, SMELTING }
+
+    private static final StationId FURNACE = StationId.parse("minecraft:furnace");
+    private static final StationId SMOKER = StationId.parse("minecraft:smoker");
+    private static final StationId BLAST_FURNACE = StationId.parse("minecraft:blast_furnace");
+
+    /** Compatibility constructor for existing callers: ordinary smelting uses a furnace. */
+    RecipeWork(Kind kind, ItemStack outputPerOperation, int width, int height, List<Input> inputs,
+               int cookTicks, RemainderResolver remainderResolver) {
+        this(kind, outputPerOperation, width, height, inputs, cookTicks,
+                kind == Kind.SMELTING ? FURNACE : null, remainderResolver);
+    }
 
     /**
      * slot is the planner's selected-requirement index: sparse source index for shaped,
@@ -61,7 +74,7 @@ record RecipeWork(
         switch (kind) {
             case SHAPED_CRAFTING -> {
                 if (width < 1 || height < 1 || width > 3 || height > 3 || width * height > 9
-                        || cookTicks != 0 || remainderResolver == null
+                        || cookTicks != 0 || cookingStation != null || remainderResolver == null
                         || inputs.stream().anyMatch(input -> input.slot() < 0 || input.slot() >= width * height)) {
                     throw new IllegalArgumentException("invalid shaped recipe work");
                 }
@@ -69,7 +82,8 @@ record RecipeWork(
             case SHAPELESS_CRAFTING -> {
                 boolean invalidSlot = false;
                 for (Input input : inputs) invalidSlot |= input.slot() < 0 || input.slot() >= inputs.size();
-                if (width != 0 || height != 0 || cookTicks != 0 || remainderResolver == null || invalidSlot) {
+                if (width != 0 || height != 0 || cookTicks != 0 || cookingStation != null
+                        || remainderResolver == null || invalidSlot) {
                     throw new IllegalArgumentException("invalid shapeless recipe work");
                 }
                 for (int slot = 0; slot < inputs.size(); slot++) {
@@ -78,11 +92,16 @@ record RecipeWork(
             }
             case SMELTING -> {
                 if (width != 0 || height != 0 || cookTicks < 1 || remainderResolver != null
-                        || inputs.size() != 1 || inputs.get(0).slot() != -1) {
+                        || inputs.size() != 1 || inputs.get(0).slot() != -1
+                        || !isSupportedCookingStation(cookingStation)) {
                     throw new IllegalArgumentException("invalid smelting recipe work");
                 }
             }
         }
+    }
+
+    private static boolean isSupportedCookingStation(StationId station) {
+        return FURNACE.equals(station) || SMOKER.equals(station) || BLAST_FURNACE.equals(station);
     }
 
     @Override

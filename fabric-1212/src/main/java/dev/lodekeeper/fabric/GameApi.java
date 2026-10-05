@@ -1,6 +1,7 @@
 package dev.lodekeeper.fabric;
 
 import dev.lodekeeper.core.ItemId;
+import dev.lodekeeper.core.StationId;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.recipebook.RecipeResultCollection;
 import net.minecraft.client.recipebook.ClientRecipeBook;
@@ -76,6 +77,39 @@ final class GameApi {
 
     static boolean canCombine(ItemStack first, ItemStack second) {
         return ItemStack.areItemsAndComponentsEqual(first, second);
+    }
+
+    static long cookingFuelProgressTicks(Item fuel, StationId station, long rawBurnTicks) {
+        if (fuel == null || !fuel.getRecipeRemainder().isEmpty() || rawBurnTicks < 1) return 0;
+        long progress = switch (station == null ? "" : station.toString()) {
+            case "minecraft:furnace" -> rawBurnTicks;
+            case "minecraft:smoker", "minecraft:blast_furnace" -> rawBurnTicks / 2;
+            default -> 0;
+        };
+        return progress <= 1_000_000_000L ? progress : 0;
+    }
+
+    private static StationId cookingStation(RecipeType<?> type) {
+        if (type == RecipeType.SMELTING) return StationId.parse("minecraft:furnace");
+        if (type == RecipeType.SMOKING) return StationId.parse("minecraft:smoker");
+        if (type == RecipeType.BLASTING) return StationId.parse("minecraft:blast_furnace");
+        return null;
+    }
+
+    /** Only an exact, single native block-item display can establish a remote station. */
+    private static StationId cookingStation(SlotDisplay display) {
+        if (!(display instanceof SlotDisplay.ItemSlotDisplay)
+                && !(display instanceof SlotDisplay.StackSlotDisplay)) return null;
+        SlotFacts shown = slotFacts(display);
+        if (shown.empty() || shown.remainderDeclared() || !shown.remainder().isEmpty() || shown.items().size() != 1) {
+            return null;
+        }
+        return switch (shown.items().iterator().next().toString()) {
+            case "minecraft:furnace" -> StationId.parse("minecraft:furnace");
+            case "minecraft:smoker" -> StationId.parse("minecraft:smoker");
+            case "minecraft:blast_furnace" -> StationId.parse("minecraft:blast_furnace");
+            default -> null;
+        };
     }
 
     static Object recipeProviderIdentity(MinecraftClient client) {
@@ -248,8 +282,12 @@ final class GameApi {
                     inputs, 0, serverRemainderResolver(client, expectedWorld, server, manager, (CraftingRecipe) recipe));
         }
 
-        if (recipe instanceof AbstractCookingRecipe cooking && recipe.getType() == RecipeType.SMELTING
-                && display instanceof FurnaceRecipeDisplay furnaceDisplay) {
+        if (recipe instanceof AbstractCookingRecipe cooking && display instanceof FurnaceRecipeDisplay furnaceDisplay) {
+            StationId nativeStation = cookingStation(recipe.getType());
+            StationId displayStation = cookingStation(furnaceDisplay.craftingStation());
+            if (nativeStation == null || !nativeStation.equals(displayStation)) {
+                throw new IllegalArgumentException("furnace display station disagrees with its native recipe type");
+            }
             List<Ingredient> nativeInputs = cooking.getIngredientPlacement().getIngredients();
             SlotFacts shown = slotFacts(furnaceDisplay.ingredient());
             if (nativeInputs.size() != 1 || shown.empty() || !shown.remainder().isEmpty()
@@ -260,7 +298,8 @@ final class GameApi {
                 throw new IllegalArgumentException("furnace display duration disagrees with its native recipe");
             }
             return new RecipeWork(RecipeWork.Kind.SMELTING, outputStack(furnaceDisplay.result()), 0, 0,
-                    List.of(new RecipeWork.Input(-1, nativeInputs.get(0))), furnaceDisplay.duration(), null);
+                    List.of(new RecipeWork.Input(-1, nativeInputs.get(0))), furnaceDisplay.duration(),
+                    nativeStation, null);
         }
         return null;
     }
@@ -404,17 +443,18 @@ final class GameApi {
         }
 
         if (display instanceof FurnaceRecipeDisplay furnace) {
+            StationId station = cookingStation(furnace.craftingStation());
             SlotFacts shown = slotFacts(furnace.ingredient());
-            if (shown.empty() || !shown.remainder().isEmpty() || furnace.duration() < 1
+            if (station == null || shown.empty() || !shown.remainder().isEmpty() || furnace.duration() < 1
                     || remaining.size() != 1) {
-                throw new IllegalArgumentException("furnace display and compact native requirement do not match");
+                throw new IllegalArgumentException("furnace display station or compact native requirement is unsupported");
             }
             Ingredient nativeInput = takeMatching(shown.items(), remaining);
             if (!remaining.isEmpty()) {
                 throw new IllegalArgumentException("furnace display left unmatched native requirements");
             }
             return new RecipeWork(RecipeWork.Kind.SMELTING, outputStack(furnace.result()), 0, 0,
-                    List.of(new RecipeWork.Input(-1, nativeInput)), furnace.duration(), null);
+                    List.of(new RecipeWork.Input(-1, nativeInput)), furnace.duration(), station, null);
         }
         return null;
     }

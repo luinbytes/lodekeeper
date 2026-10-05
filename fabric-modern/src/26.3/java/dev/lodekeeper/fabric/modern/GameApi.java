@@ -62,6 +62,46 @@ final class GameApi {
         return items;
     }
 
+    static boolean dynamicCookingSpeed() { return true; }
+
+    static boolean supportedCookingFuelStack(ItemStack stack) {
+        return !stack.isEmpty() && stack.getMaxStackSize() <= 99
+                && stack.getItem().getCraftingRemainder() == null
+                && !stack.hasNonDefault(DataComponents.COOKING_FUEL);
+    }
+
+    static long cookingFuelProgressTicks(net.minecraft.world.level.Level level, ItemStack stack,
+            net.minecraft.world.level.block.Block station, int recipeDuration) {
+        if (recipeDuration < 1 || recipeDuration > 10_000_000 || !supportedCookingFuelStack(stack)
+                || station != Blocks.FURNACE && station != Blocks.SMOKER && station != Blocks.BLAST_FURNACE) return 0;
+        CookingFuel fuel = stack.get(DataComponents.COOKING_FUEL);
+        if (fuel == null) return 0;
+        OptionalInt burn;
+        Optional<Float> speed;
+        try {
+            if (level instanceof ServerLevel serverLevel && serverLevel.getServer().isSameThread()) {
+                var lookup = serverLevel.getServer().reloadableRegistries().lookup();
+                burn = resolveInt(fuel.burnTime(), lookup.lookupOrThrow(Registries.CONTEXT_INT_PROVIDER), station);
+                speed = resolveFloat(fuel.speedMultiplier(), lookup.lookupOrThrow(Registries.CONTEXT_FLOAT_PROVIDER), station);
+            } else {
+                burn = fuel.burnTime() instanceof ResolvableInt.Constant constant
+                        ? OptionalInt.of(constant.value()) : OptionalInt.empty();
+                speed = fuel.speedMultiplier() instanceof ResolvableFloat.Constant constant
+                        ? Optional.of(constant.value()) : Optional.empty();
+            }
+            if (burn.isEmpty() || burn.getAsInt() < 32 || speed.isEmpty()
+                    || !Float.isFinite(speed.get()) || speed.get() <= 0 || speed.get() > 1024) return 0;
+            if (stack.getMaxStackSize() > 1
+                    && (long) Math.max(1, stack.getMaxStackSize() / 2) * burn.getAsInt() < 800) return 0;
+            // Serialized cursor work needs enough timer slack for early refills and output recovery.
+            if (Math.ceil((double) (recipeDuration / speed.get())) < 100) return 0;
+            return dev.lodekeeper.core.CookingFuelCapacity.progressTicks(
+                    Math.min(10_000_000, burn.getAsInt()), recipeDuration, speed.get(), stack.getMaxStackSize() > 1);
+        } catch (RuntimeException unsupported) {
+            return 0;
+        }
+    }
+
     static long initialFuelTicks(net.minecraft.world.level.Level level, ItemStack stack) {
         if (stack.isEmpty()) return 0;
         CookingFuel fuel = stack.get(DataComponents.COOKING_FUEL);
@@ -78,8 +118,8 @@ final class GameApi {
         try {
             HolderLookup.RegistryLookup<ContextIntProvider> intProviders = level.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.CONTEXT_INT_PROVIDER);
             HolderLookup.RegistryLookup<ContextFloatProvider> floatProviders = level.getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.CONTEXT_FLOAT_PROVIDER);
-            OptionalInt burnTime = resolveInt(fuel.burnTime(), intProviders);
-            Optional<Float> speed = resolveFloat(fuel.speedMultiplier(), floatProviders);
+            OptionalInt burnTime = resolveInt(fuel.burnTime(), intProviders, Blocks.FURNACE);
+            Optional<Float> speed = resolveFloat(fuel.speedMultiplier(), floatProviders, Blocks.FURNACE);
             if (burnTime.isEmpty() || speed.isEmpty() || !Float.isFinite(speed.get()) || speed.get() != 1.0f) return 0;
             int ticks = burnTime.getAsInt();
             return Math.max(0, Math.min(10_000_000, ticks));
@@ -91,19 +131,19 @@ final class GameApi {
     private static final int MAX_PROVIDER_DEPTH = 16;
     private static final int MAX_PROVIDER_NODES = 64;
 
-    private static OptionalInt resolveInt(ResolvableInt provider, HolderLookup.RegistryLookup<ContextIntProvider> registry) {
+    private static OptionalInt resolveInt(ResolvableInt provider, HolderLookup.RegistryLookup<ContextIntProvider> registry, net.minecraft.world.level.block.Block station) {
         if (provider instanceof ResolvableInt.Constant constant) return OptionalInt.of(constant.value());
         if (provider instanceof ResolvableInt.Reference reference) {
             ContextIntProvider resolved = registry.get(reference.key()).map(Holder::value).orElse(null);
             if (resolved == null) return OptionalInt.empty();
-            return resolveInt(resolved, registry, 0, new int[]{MAX_PROVIDER_NODES},
+            return resolveInt(resolved, registry, station, 0, new int[]{MAX_PROVIDER_NODES},
                     Collections.newSetFromMap(new IdentityHashMap<>()));
         }
         return OptionalInt.empty();
     }
 
     private static OptionalInt resolveInt(ContextIntProvider provider, HolderLookup.RegistryLookup<ContextIntProvider> registry,
-                                          int depth, int[] remaining, Set<ContextIntProvider> path) {
+                                          net.minecraft.world.level.block.Block station, int depth, int[] remaining, Set<ContextIntProvider> path) {
         if (depth > MAX_PROVIDER_DEPTH || remaining[0]-- <= 0 || !path.add(provider)) return OptionalInt.empty();
         try {
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.ints.ConstantValue.class) {
@@ -112,24 +152,24 @@ final class GameApi {
             }
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.ints.Quotient.class) {
                 var quotient = (net.minecraft.world.level.storage.loot.providers.number.ints.Quotient) provider;
-                OptionalInt left = resolveInt(quotient.left().value(), registry, depth + 1, remaining, path);
-                OptionalInt right = resolveInt(quotient.right().value(), registry, depth + 1, remaining, path);
+                OptionalInt left = resolveInt(quotient.left().value(), registry, station, depth + 1, remaining, path);
+                OptionalInt right = resolveInt(quotient.right().value(), registry, station, depth + 1, remaining, path);
                 if (left.isEmpty() || right.isEmpty() || right.getAsInt() == 0) return OptionalInt.empty();
                 return OptionalInt.of(left.getAsInt() / right.getAsInt());
             }
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.ints.FloorQuotient.class) {
                 var quotient = (net.minecraft.world.level.storage.loot.providers.number.ints.FloorQuotient) provider;
-                OptionalInt left = resolveInt(quotient.left().value(), registry, depth + 1, remaining, path);
-                OptionalInt right = resolveInt(quotient.right().value(), registry, depth + 1, remaining, path);
+                OptionalInt left = resolveInt(quotient.left().value(), registry, station, depth + 1, remaining, path);
+                OptionalInt right = resolveInt(quotient.right().value(), registry, station, depth + 1, remaining, path);
                 if (left.isEmpty() || right.isEmpty() || right.getAsInt() == 0) return OptionalInt.empty();
                 return OptionalInt.of(Math.floorDivExact(left.getAsInt(), right.getAsInt()));
             }
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.ints.ConditionalValue.class) {
                 var conditional = (net.minecraft.world.level.storage.loot.providers.number.ints.ConditionalValue) provider;
-                Optional<Boolean> branch = furnaceBranch(conditional.condition());
+                Optional<Boolean> branch = cookingBranch(conditional.condition(), station);
                 if (branch.isEmpty()) return OptionalInt.empty();
                 ContextIntProvider selected = (branch.get() ? conditional.onTrue() : conditional.onFalse()).value();
-                return resolveInt(selected, registry, depth + 1, remaining, path);
+                return resolveInt(selected, registry, station, depth + 1, remaining, path);
             }
             return OptionalInt.empty();
         } catch (RuntimeException ignored) {
@@ -139,19 +179,19 @@ final class GameApi {
         }
     }
 
-    private static Optional<Float> resolveFloat(ResolvableFloat provider, HolderLookup.RegistryLookup<ContextFloatProvider> registry) {
+    private static Optional<Float> resolveFloat(ResolvableFloat provider, HolderLookup.RegistryLookup<ContextFloatProvider> registry, net.minecraft.world.level.block.Block station) {
         if (provider instanceof ResolvableFloat.Constant constant) return Optional.of(constant.value());
         if (provider instanceof ResolvableFloat.Reference reference) {
             ContextFloatProvider resolved = registry.get(reference.key()).map(Holder::value).orElse(null);
             if (resolved == null) return Optional.empty();
-            return resolveFloat(resolved, registry, 0, new int[]{MAX_PROVIDER_NODES},
+            return resolveFloat(resolved, registry, station, 0, new int[]{MAX_PROVIDER_NODES},
                     Collections.newSetFromMap(new IdentityHashMap<>()));
         }
         return Optional.empty();
     }
 
     private static Optional<Float> resolveFloat(ContextFloatProvider provider, HolderLookup.RegistryLookup<ContextFloatProvider> registry,
-                                                int depth, int[] remaining, Set<ContextFloatProvider> path) {
+                                                net.minecraft.world.level.block.Block station, int depth, int[] remaining, Set<ContextFloatProvider> path) {
         if (depth > MAX_PROVIDER_DEPTH || remaining[0]-- <= 0 || !path.add(provider)) return Optional.empty();
         try {
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.floats.ConstantValue.class) {
@@ -160,10 +200,10 @@ final class GameApi {
             }
             if (provider.getClass() == net.minecraft.world.level.storage.loot.providers.number.floats.ConditionalValue.class) {
                 var conditional = (net.minecraft.world.level.storage.loot.providers.number.floats.ConditionalValue) provider;
-                Optional<Boolean> branch = furnaceBranch(conditional.condition());
+                Optional<Boolean> branch = cookingBranch(conditional.condition(), station);
                 if (branch.isEmpty()) return Optional.empty();
                 ContextFloatProvider selected = (branch.get() ? conditional.onTrue() : conditional.onFalse()).value();
-                return resolveFloat(selected, registry, depth + 1, remaining, path);
+                return resolveFloat(selected, registry, station, depth + 1, remaining, path);
             }
             return Optional.empty();
         } catch (RuntimeException ignored) {
@@ -173,7 +213,7 @@ final class GameApi {
         }
     }
 
-    private static Optional<Boolean> furnaceBranch(Holder<LootItemCondition> holder) {
+    private static Optional<Boolean> cookingBranch(Holder<LootItemCondition> holder, net.minecraft.world.level.block.Block station) {
         try {
             LootItemCondition condition = holder.value();
             if (condition.getClass() != MatchBlock.class
@@ -183,7 +223,7 @@ final class GameApi {
             if (predicate.blocks().isEmpty() || !predicate.blocks().get().isBound()
                     || predicate.blocks().get().size() == 0 || predicate.properties().isPresent()
                     || predicate.nbt().isPresent() || !predicate.components().isEmpty()) return Optional.empty();
-            return Optional.of(predicate.matchesState(Blocks.FURNACE.defaultBlockState()));
+            return Optional.of(predicate.matchesState(station.defaultBlockState()));
         } catch (RuntimeException ignored) {
             return Optional.empty();
         }
