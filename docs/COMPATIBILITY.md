@@ -11,7 +11,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
 | **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
-| 1.21.2, 1.21.3 | 21 | Exact local development builds pass; 1.21.2 verification source set also compiles | Pending |
+| 1.21.2, 1.21.3 | 21 | Exact local development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
 | 1.21.4, 1.21.5 | 21 | 1.21.4 earlier exact CI passes; 1.21.5 exact local production and verification builds pass after client API/toolchain fixes | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Pending | Pending |
 | 1.21.9, 1.21.10, 1.21.11 | 21 | 1.21.11 exact local production and verification build passes after client API/toolchain fixes; 1.21.9/1.21.10 pending | Pending |
@@ -47,3 +47,5 @@ Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lode
 Updated exact build evidence: [all ten profiles pass at `c9b1825`](https://github.com/luinbytes/lodekeeper/actions/runs/37279029560). The [downloaded artifact inspection](evidence/builds/c9b1825.json) repeats those checks after normalized recipes, navigation safety changes and modern automatic eating, including the separate 1.20.5–1.20.6 crafting API overlay.
 
 The [first 24-profile CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37287589333) passed 17 exact builds and failed the seven 1.21.5–1.21.11 builds. Updated remapping tools and small inventory, position, keybinding and verifier seams address those failures; exact local 1.21.5/1.21.11 builds pass, and the new full matrix remains a separate gate. Earlier [16-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37285757052) passed 14 exact builds; its 1.21.2/1.21.3 verification compilation failed at API seams fixed in subsequent local builds. Neither partial CI nor source overlays establish gameplay compatibility.
+
+Controlled 1.21.2 progression: [nine-case observations and screenshots](evidence/1.21.2-progression/run.json), with [artifact/source provenance](evidence/1.21.2-progression/artifact.json). All nine cases pass in 159,467 ms with health 20 throughout. The artifact was built from `55a0936` plus the exact archived `source.patch`; the run predates the final nested-remainder hardening and removal of redundant local recipe-book rescans. The [first failed run](evidence/1.21.2-first-run/run.json) remains available: logs passed, crafting-table acquisition failed because executable recipe IDs were malformed. Native ingredient composite displays and exact registry identifiers were fixed before the successful replay. This remains a prepared resource-pad check.

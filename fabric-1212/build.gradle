@@ -60,6 +60,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
     implementation project(':core')
     implementation project(':nav')
+    testImplementation "net.fabricmc:fabric-loader-junit:${rootProject.loader_version}"
 }
 tasks.named('jar') {
     from project(':core').sourceSets.main.output

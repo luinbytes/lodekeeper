@@ -1,0 +1,17 @@
+{
+  "runId":"2026-10-05T09-31-11-947953Z-3a961f1d",
+  "status":"failed",
+  "minecraftVersion":"1.21.2",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "elapsedMillis":49818,
+  "clientTicks":903,
+  "failure":"automation paused during craft_crafting_table: paused · No plan: [No acquisition source is known for minecraft:crafting_table] · 0 foreground queued · 0 maintenance queued",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "cases":[
+    {"name":"gather_wood_8","item":"minecraft:oak_log","expected":8,"serverObserved":8,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":693,"worldTicks":694,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[11.47063000985322,64.0,0.46704736399556446],"screenshot":"screenshots/lodekeeper-2026-10-05T09-31-11-947953Z-3a961f1d-gather_wood_8.png"},
+    {"name":"craft_crafting_table","item":"minecraft:crafting_table","expected":1,"serverObserved":0,"inventoryEmptyAtStart":false,"passed":false,"clientTicks":2,"worldTicks":2,"engineStatus":"paused · No plan: [No acquisition source is known for minecraft:crafting_table] · 0 foreground queued · 0 maintenance queued","detail":"automation paused during craft_crafting_table: paused · No plan: [No acquisition source is known for minecraft:crafting_table] · 0 foreground queued · 0 maintenance queued","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[11.47063000985322,64.0,0.46704736399556446],"screenshot":"screenshots/lodekeeper-2026-10-05T09-31-11-947953Z-3a961f1d-failed-craft_crafting_table.png"}
+  ]
+}

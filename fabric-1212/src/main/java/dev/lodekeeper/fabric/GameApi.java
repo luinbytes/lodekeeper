@@ -53,8 +53,9 @@ import java.util.function.Consumer;
 final class GameApi {
     record FoodInfo(int nutrition, float saturation, boolean safe) {}
 
-    private record SlotFacts(Set<ItemId> items, ItemStack remainder, boolean remainderDeclared, boolean empty) {
-        private SlotFacts {
+    record SlotFacts(Set<ItemId> items, ItemStack remainder, boolean remainderDeclared,
+                     boolean containsExplicitDeclaration, boolean empty) {
+        SlotFacts {
             items = Set.copyOf(items);
             remainder = remainder.copy();
         }
@@ -163,9 +164,9 @@ final class GameApi {
         Map<String, RecipeWork> works = new TreeMap<>();
         List<String> unsupported = new ArrayList<>();
         Collection<RecipeEntry<?>> entries = manager.values();
-        for (RecipeEntry<?> entry : entries.stream().sorted(Comparator.comparing(value -> value.id().toString())).toList()) {
+        for (RecipeEntry<?> entry : entries.stream().sorted(Comparator.comparing(value -> value.id().getValue().toString())).toList()) {
             Recipe<?> recipe = entry.value();
-            String recipeId = entry.id().toString();
+            String recipeId = entry.id().getValue().toString();
             List<RecipeDisplay> displays;
             try {
                 displays = recipe.getDisplays();
@@ -436,7 +437,14 @@ final class GameApi {
         };
     }
 
-    private static SlotFacts slotFacts(SlotDisplay display) {
+    static SlotFacts slotFacts(SlotDisplay display) {
+        return slotFacts(display, 0, new int[]{256});
+    }
+
+    private static SlotFacts slotFacts(SlotDisplay display, int depth, int[] remainingNodes) {
+        if (depth > 8 || --remainingNodes[0] < 0) {
+            throw new IllegalArgumentException("ingredient display exceeds bounded nesting or alternative count");
+        }
         ItemStack remainder = ItemStack.EMPTY;
         SlotDisplay input = display;
         boolean remainderDeclared = false;
@@ -449,21 +457,53 @@ final class GameApi {
             if (remainder == null) throw new IllegalArgumentException("remainder display is not an exact item stack");
             remainderDeclared = true;
         }
-        if (input instanceof SlotDisplay.EmptySlotDisplay) return new SlotFacts(Set.of(), remainder, remainderDeclared, true);
+        if (input instanceof SlotDisplay.CompositeSlotDisplay composite) {
+            if (composite.contents().isEmpty()) throw new IllegalArgumentException("ingredient display has no alternatives");
+            Set<ItemId> alternatives = new TreeSet<>();
+            ItemStack commonRemainder = null;
+            boolean allDeclared = true;
+            boolean anyDeclared = false;
+            for (SlotDisplay child : composite.contents()) {
+                SlotFacts choice = slotFacts(child, depth + 1, remainingNodes);
+                if (choice.empty()) throw new IllegalArgumentException("ingredient alternative is an empty slot");
+                alternatives.addAll(choice.items());
+                if (commonRemainder == null) commonRemainder = choice.remainder();
+                else if (!sameRemainder(commonRemainder, choice.remainder())) {
+                    throw new IllegalArgumentException("ingredient alternatives have different remainder contracts");
+                }
+                allDeclared &= choice.remainderDeclared();
+                anyDeclared |= choice.containsExplicitDeclaration();
+            }
+            if (remainderDeclared) {
+                if ((anyDeclared || !commonRemainder.isEmpty()) && !sameRemainder(remainder, commonRemainder)) {
+                    throw new IllegalArgumentException("outer remainder disagrees with ingredient alternative");
+                }
+            } else {
+                remainder = commonRemainder;
+                remainderDeclared = allDeclared;
+            }
+            return new SlotFacts(alternatives, remainder, remainderDeclared, remainderDeclared || anyDeclared, false);
+        }
+        if (input instanceof SlotDisplay.EmptySlotDisplay) return new SlotFacts(Set.of(), remainder, remainderDeclared, remainderDeclared, true);
         if (input instanceof SlotDisplay.ItemSlotDisplay item) {
-            return new SlotFacts(Set.of(GameCatalog.id(item.item().value())), remainder, remainderDeclared, false);
+            return new SlotFacts(Set.of(GameCatalog.id(item.item().value())), remainder, remainderDeclared, remainderDeclared, false);
         }
         if (input instanceof SlotDisplay.StackSlotDisplay stack) {
             if (stack.stack().isEmpty()) throw new IllegalArgumentException("empty stack display is not an ingredient");
-            return new SlotFacts(Set.of(GameCatalog.id(stack.stack().getItem())), remainder, remainderDeclared, false);
+            return new SlotFacts(Set.of(GameCatalog.id(stack.stack().getItem())), remainder, remainderDeclared, remainderDeclared, false);
         }
         if (input instanceof SlotDisplay.TagSlotDisplay tag) {
             Set<ItemId> allowed = new TreeSet<>();
             Registries.ITEM.iterateEntries(tag.tag()).forEach(entry -> allowed.add(GameCatalog.id(entry.value())));
             if (allowed.isEmpty()) throw new IllegalArgumentException("tag display resolves to no registered items");
-            return new SlotFacts(allowed, remainder, remainderDeclared, false);
+            return new SlotFacts(allowed, remainder, remainderDeclared, remainderDeclared, false);
         }
         throw new IllegalArgumentException("unsupported slot display " + input.getClass().getSimpleName());
+    }
+
+    private static boolean sameRemainder(ItemStack first, ItemStack second) {
+        if (first.isEmpty() || second.isEmpty()) return first.isEmpty() && second.isEmpty();
+        return first.getCount() == second.getCount() && canCombine(first, second);
     }
 
     private static void requireRemoteRemainderContract(SlotFacts shown) {

@@ -4,8 +4,8 @@ A client-only survival automation mod with no Baritone dependency. The pure Java
 
 ## Ownership and API
 
-- `core`: `dev.lodekeeper.core` catalog/planner/command types (worker owns).
-- `nav`: `dev.lodekeeper.nav` geometry/A* interfaces (worker owns).
-- `fabric`: Minecraft integration, execution and configuration (root owns).
+- `core`: `dev.lodekeeper.core` catalog/planner/command types.
+- `nav`: `dev.lodekeeper.nav` geometry/A* interfaces.
+- `fabric`: Minecraft integration, execution and configuration.
 
-Integration uses public worker APIs; workers document their interfaces in their delivery. Runtime inventories are authoritative, replanning after completion or failure. Unknown sources remain explicit blocked goals, never success. Exact support includes only independently compiled versions; runtime acceptance has its own matrix.
+Adapters consume public core and navigation APIs. Runtime inventories are authoritative, replanning after completion or failure. Unknown sources remain explicit blocked goals, never success. Exact support includes only independently compiled versions; runtime acceptance has its own matrix.

@@ -96,6 +96,11 @@ final class GameCatalog {
         ExtensionCatalog.append(this);
         cachedSnapshot = null;
         ready = true;
+        if (Boolean.getBoolean("lodekeeper.verify")) {
+            System.out.println("[Lodekeeper verification] catalog recipes=" + recipes.size()
+                    + ", sources=" + sources.size() + ", rejected=" + unsupported.size()
+                    + ", samples=" + unsupported.stream().limit(3).toList());
+        }
     }
     private List<RecipeSlot> recipeSlots(List<RecipeWork.Input> inputs, boolean shaped) {
         List<RecipeSlot> slots = new ArrayList<>();

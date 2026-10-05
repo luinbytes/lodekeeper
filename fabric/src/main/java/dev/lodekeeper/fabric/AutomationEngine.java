@@ -320,7 +320,9 @@ final class AutomationEngine {
         }
     }
     void recipeDisplaysChanged(ClientWorld packetWorld) {
-        if (packetWorld == client.world && packetWorld == world && catalog != null) recipeRefreshPending = true;
+        if (client.getServer() == null && packetWorld == client.world && packetWorld == world && catalog != null) {
+            recipeRefreshPending = true;
+        }
     }
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(observedInventory), durability = new HashMap<>();

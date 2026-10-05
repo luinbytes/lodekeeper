@@ -1,0 +1,92 @@
+diff --git a/fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java b/fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java
+index 533e76f..4fae000 100644
+--- a/fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java
++++ b/fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java
+@@ -163,9 +163,9 @@ final class GameApi {
+         Map<String, RecipeWork> works = new TreeMap<>();
+         List<String> unsupported = new ArrayList<>();
+         Collection<RecipeEntry<?>> entries = manager.values();
+-        for (RecipeEntry<?> entry : entries.stream().sorted(Comparator.comparing(value -> value.id().toString())).toList()) {
++        for (RecipeEntry<?> entry : entries.stream().sorted(Comparator.comparing(value -> value.id().getValue().toString())).toList()) {
+             Recipe<?> recipe = entry.value();
+-            String recipeId = entry.id().toString();
++            String recipeId = entry.id().getValue().toString();
+             List<RecipeDisplay> displays;
+             try {
+                 displays = recipe.getDisplays();
+@@ -437,6 +437,13 @@ final class GameApi {
+     }
+ 
+     private static SlotFacts slotFacts(SlotDisplay display) {
++        return slotFacts(display, 0, new int[]{256});
++    }
++
++    private static SlotFacts slotFacts(SlotDisplay display, int depth, int[] remainingNodes) {
++        if (depth > 8 || --remainingNodes[0] < 0) {
++            throw new IllegalArgumentException("ingredient display exceeds bounded nesting or alternative count");
++        }
+         ItemStack remainder = ItemStack.EMPTY;
+         SlotDisplay input = display;
+         boolean remainderDeclared = false;
+@@ -449,6 +456,33 @@ final class GameApi {
+             if (remainder == null) throw new IllegalArgumentException("remainder display is not an exact item stack");
+             remainderDeclared = true;
+         }
++        if (input instanceof SlotDisplay.CompositeSlotDisplay composite) {
++            if (composite.contents().isEmpty()) throw new IllegalArgumentException("ingredient display has no alternatives");
++            Set<ItemId> alternatives = new TreeSet<>();
++            ItemStack commonRemainder = null;
++            boolean allDeclared = true;
++            boolean anyDeclared = false;
++            for (SlotDisplay child : composite.contents()) {
++                SlotFacts choice = slotFacts(child, depth + 1, remainingNodes);
++                if (choice.empty()) throw new IllegalArgumentException("ingredient alternative is an empty slot");
++                alternatives.addAll(choice.items());
++                if (commonRemainder == null) commonRemainder = choice.remainder();
++                else if (!sameRemainder(commonRemainder, choice.remainder())) {
++                    throw new IllegalArgumentException("ingredient alternatives have different remainder contracts");
++                }
++                allDeclared &= choice.remainderDeclared();
++                anyDeclared |= choice.remainderDeclared();
++            }
++            if (remainderDeclared) {
++                if ((anyDeclared || !commonRemainder.isEmpty()) && !sameRemainder(remainder, commonRemainder)) {
++                    throw new IllegalArgumentException("outer remainder disagrees with ingredient alternative");
++                }
++            } else {
++                remainder = commonRemainder;
++                remainderDeclared = allDeclared;
++            }
++            return new SlotFacts(alternatives, remainder, remainderDeclared, false);
++        }
+         if (input instanceof SlotDisplay.EmptySlotDisplay) return new SlotFacts(Set.of(), remainder, remainderDeclared, true);
+         if (input instanceof SlotDisplay.ItemSlotDisplay item) {
+             return new SlotFacts(Set.of(GameCatalog.id(item.item().value())), remainder, remainderDeclared, false);
+@@ -466,6 +500,11 @@ final class GameApi {
+         throw new IllegalArgumentException("unsupported slot display " + input.getClass().getSimpleName());
+     }
+ 
++    private static boolean sameRemainder(ItemStack first, ItemStack second) {
++        if (first.isEmpty() || second.isEmpty()) return first.isEmpty() && second.isEmpty();
++        return first.getCount() == second.getCount() && canCombine(first, second);
++    }
++
+     private static void requireRemoteRemainderContract(SlotFacts shown) {
+         if (shown.remainderDeclared()) return;
+         for (ItemId id : shown.items()) {
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java b/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
+index ac400e4..6344b1c 100644
+--- a/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
+@@ -96,6 +96,11 @@ final class GameCatalog {
+         ExtensionCatalog.append(this);
+         cachedSnapshot = null;
+         ready = true;
++        if (Boolean.getBoolean("lodekeeper.verify")) {
++            System.out.println("[Lodekeeper verification] catalog recipes=" + recipes.size()
++                    + ", sources=" + sources.size() + ", rejected=" + unsupported.size()
++                    + ", samples=" + unsupported.stream().limit(3).toList());
++        }
+     }
+     private List<RecipeSlot> recipeSlots(List<RecipeWork.Input> inputs, boolean shaped) {
+         List<RecipeSlot> slots = new ArrayList<>();
