@@ -33,3 +33,5 @@ Focused checks must verify recipe-to-station mapping, exact menu acceptance, old
 - Modern adapter: `GameCatalog` currently rejects non-furnace cooking stations; `RecipeWork` loses that station and menu acceptance is broader than the planned type. The 26.3 `GameApi` resolver currently evaluates only furnace fuel context.
 
 These changes require exact profiles from 1.20 through 26.3, including 1.21.1. Supporting the shared menu superclass alone is insufficient evidence of a working station.
+
+The pure `CookingFuelCapacity` helper now preserves native float division before the cooking-time ceiling and conservatively translates continuously supplied burn duration to recipe-progress capacity. Core regressions cover fractional-speed rounding, short fuel contributions and invalid limits. Fast planning prefers a confirmed station, then an unprotected held placement item, before station bootstrapping; declared cooking duration breaks equal station-cost ties. These Java checks do not establish continuous native refills or safe handling of pre-lit 26.3 stations. Those adapter changes remain in verification.

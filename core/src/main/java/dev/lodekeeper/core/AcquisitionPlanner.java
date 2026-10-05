@@ -151,6 +151,17 @@ public final class AcquisitionPlanner {
             return trim(results);
         }
 
+        private int stationBootstrapRank(AcquisitionSource source, State state) {
+            int rank = 0;
+            for (Requirement requirement : source.requirements()) {
+                if (!(requirement instanceof StationRequirement station) || state.stations.contains(station.station())) continue;
+                int usable = state.inventory.getOrDefault(station.placementItem(), 0)
+                        - state.protectedHeld.getOrDefault(station.placementItem(), 0);
+                rank = Math.max(rank, usable > 0 ? 1 : 2);
+            }
+            return rank;
+        }
+
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth) {
             return produce(item, missing, state, path, depth, false);
         }
@@ -162,6 +173,8 @@ public final class AcquisitionPlanner {
                 sources = sources.stream().sorted(Comparator
                         .comparingInt((AcquisitionSource source) -> source instanceof GatherSource ? 0
                                 : source instanceof SmeltingSource ? 1 : source instanceof CraftingSource ? 2 : 3)
+                        .thenComparingInt(source -> stationBootstrapRank(source, state))
+                        .thenComparingLong(source -> source instanceof SmeltingSource cooking ? cooking.cookTicks() : 0L)
                         .thenComparing(AcquisitionSource::sourceId)).toList();
             }
             if (sources.isEmpty()) {

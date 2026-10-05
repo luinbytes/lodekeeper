@@ -257,6 +257,55 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void modernCookingCapacityAccountsForCeilingAndContinuouslySuppliedShortFuel() {
+        long capacity = CookingFuelCapacity.progressTicks(400, 200, 1.5f);
+        assertEquals(597, capacity); // Three native 134-tick recipes need more than one 400-tick fuel.
+        ItemId coal = ItemId.parse("test:coal");
+        SmeltingSource source = new SmeltingSource("test:rounded_cooking", ItemId.parse("test:smelted"), 1,
+                Ingredient.of(ItemId.parse("test:raw")), List.of(ItemSelector.item(coal)), 200,
+                List.of(), Map.of(coal, capacity));
+        assertEquals(2, selectedFuel(planFuelBatch(source, 3, 600, 2, false, Map.of())).count());
+        assertEquals(100, CookingFuelCapacity.progressTicks(100, 200, 1));
+        assertEquals(294, CookingFuelCapacity.progressTicks(100, 100, 3));
+        assertEquals(0, CookingFuelCapacity.progressTicks(Long.MAX_VALUE, 200, 1));
+        assertEquals(0, CookingFuelCapacity.progressTicks(100, 200, Float.NaN));
+        assertEquals(0, CookingFuelCapacity.progressTicks(100, 200, 0));
+    }
+
+    @Test
+    void fastCookingPrefersAnAvailableStationAndThenShorterDeclaredDuration() {
+        ItemId raw = ItemId.parse("test:raw_food"), cooked = ItemId.parse("test:cooked_food");
+        ItemId coal = ItemId.parse("test:coal"), furnaceItem = ItemId.parse("minecraft:furnace");
+        ItemId smokerItem = ItemId.parse("minecraft:smoker");
+        StationId furnace = StationId.parse("minecraft:furnace"), smoker = StationId.parse("minecraft:smoker");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(raw, 0).item(cooked, 0).item(coal, 0, 1600)
+                .item(furnaceItem, 0).item(smokerItem, 0)
+                .source(new SmeltingSource("a:furnace", cooked, 1, Ingredient.of(raw), List.of(ItemSelector.item(coal)),
+                        200, List.of(new StationRequirement(furnace, furnaceItem, "cook")), Map.of(coal, 1600L)))
+                .source(new SmeltingSource("z:smoker", cooked, 1, Ingredient.of(raw), List.of(ItemSelector.item(coal)),
+                        100, List.of(new StationRequirement(smoker, smokerItem, "cook")), Map.of(coal, 800L)))
+                .build();
+        for (Set<StationId> stations : List.of(Set.of(smoker), Set.of(smoker, furnace))) {
+            InventorySnapshot inventory = new InventorySnapshot(Map.of(raw, 8, coal, 1, furnaceItem, 1), stations, Map.of());
+            PlanResult result = planner().planFast(catalog, inventory, cooked, 8);
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(1, result.steps().size());
+            assertEquals("z:smoker", result.steps().get(0).sourceId());
+            assertEquals(1, selectedFuel(result).count());
+        }
+        PlanResult heldSmoker = planner().planFast(catalog,
+                new InventorySnapshot(Map.of(raw, 8, coal, 1, smokerItem, 1), Set.of(), Map.of()), cooked, 8);
+        assertTrue(heldSmoker.success(), heldSmoker.blockedReasons().toString());
+        assertEquals(smoker, heldSmoker.steps().get(0).station());
+        assertEquals(PlanKind.PLACE_STATION, heldSmoker.steps().get(0).kind());
+        PlanResult reservedSmoker = planner().planFast(catalog,
+                new InventorySnapshot(Map.of(raw, 8, coal, 1, smokerItem, 1), Set.of(furnace), Map.of(),
+                        Map.of(smokerItem, 1)), cooked, 8);
+        assertTrue(reservedSmoker.success(), reservedSmoker.blockedReasons().toString());
+        assertEquals("a:furnace", reservedSmoker.steps().get(0).sourceId());
+    }
+
+    @Test
     void explicitFuelCapacityMapDoesNotFallBackToGlobalFuelMetadata() {
         ItemId coal = ItemId.parse("test:coal");
         ItemId otherFuel = ItemId.parse("test:other_fuel");
