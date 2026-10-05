@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "lodekeeper_verification:blocks/ruby_ore",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "lodekeeper_verification:ruby"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

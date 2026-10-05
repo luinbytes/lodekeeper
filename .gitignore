@@ -1,6 +1,7 @@
 .gradle/
 **/build/
 **/run/
+**/run-verification/
 .tools/
 .DS_Store
 *.log

@@ -21,6 +21,13 @@ dependencies {
     implementation project(':nav')
 }
 
+sourceSets {
+    verification {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
 tasks.named('jar') {
     from project(':core').sourceSets.main.output
     from project(':nav').sourceSets.main.output
@@ -36,10 +43,26 @@ processResources {
 }
 
 loom {
+    mods {
+        lodekeeper { sourceSet sourceSets.main }
+        'lodekeeper-verification' { sourceSet sourceSets.verification }
+    }
     runs {
         client {
             vmArg '-Xmx1536m'
             vmArg '-XX:ActiveProcessorCount=2'
+        }
+        verificationClient {
+            client()
+            source sourceSets.verification
+            runDir 'run-verification'
+            vmArg '-Dlodekeeper.verify=true'
+            vmArg '-Xmx1536m'
+            vmArg '-XX:ActiveProcessorCount=2'
+            programArg '--width'
+            programArg '640'
+            programArg '--height'
+            programArg '360'
         }
     }
 }

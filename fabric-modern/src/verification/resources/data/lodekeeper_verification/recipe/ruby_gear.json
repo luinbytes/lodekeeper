@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "R R",
+    " S ",
+    "R R"
+  ],
+  "key": {
+    "R": "lodekeeper_verification:ruby",
+    "S": "minecraft:stick"
+  },
+  "result": {
+    "count": 1,
+    "id": "lodekeeper_verification:ruby_gear"
+  }
+}
