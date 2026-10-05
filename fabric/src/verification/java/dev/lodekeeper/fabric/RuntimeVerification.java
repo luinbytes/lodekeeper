@@ -65,14 +65,26 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
+    private static final String NEARBY_WOOD_GOAL = System.getProperty("lodekeeper.verify.nearbyWoodGoal", "wood");
+    private static final boolean MEADOW_BENCHMARK = NEARBY_WOOD_MODE
+            && "meadow".equals(System.getProperty("lodekeeper.verify.nearbyWoodTerrain", "flat"));
+    private JsonArray routeBenchmark;
     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
+    private static final boolean IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE =
+        Boolean.getBoolean("lodekeeper.verify.ironPickaxeEmptyDistantWood");
     private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
     private static final String COAL_START_SURFACE = System.getProperty("lodekeeper.verify.coalStartSurface", "full");
+    private static final boolean COAL_RAISED_FULL_DROP_MODE = "raised_full".equals(COAL_START_SURFACE);
     private static final String NAVIGATION_COURSE = System.getProperty("lodekeeper.verify.navigationCourse");
     private static final boolean MIXED_NAVIGATION_COURSE = "mixed".equals(NAVIGATION_COURSE);
     private double coalInitialServerFeetY = Double.NaN;
+    private CoalDropStartingPosition coalDropInitialServerPosition;
+    private CoalDropEdge coalDropCompletedEdge;
+    private volatile CoalDropServerCheckpoint coalDropServerCheckpoint;
+    private volatile boolean coalDropCommandStarted;
     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
     private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
@@ -91,10 +103,15 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final int STONECUTTING_DRAIN_COMMAND_TARGET = 144;
     private static final int IRON_PICKAXE_PROBE_TIMEOUT_TICKS = 200;
     private static final int IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT = 4;
+    private static final int IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X = 20;
+    private static final int IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_COUNT = 8;
+    private static final int MAX_NEARBY_WOOD_WALK_OBSERVATIONS = 64;
     private static final Field ENGINE_MOVEMENT_FIELD = findField(AutomationEngine.class, "movement");
     private static final Field MOVEMENT_PATH_FIELD = findField("dev.lodekeeper.fabric.MovementController", "path");
     private static final Field MOVEMENT_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.MovementController", "pathIndex");
     private static final Field MOVEMENT_VALIDATED_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.MovementController", "validatedPathIndex");
+    private static final Field MOVEMENT_INPUT_FIELD = findField("dev.lodekeeper.fabric.MovementController", "input");
+    private static final Field BOT_INPUT_FORWARD_FIELD = findField("dev.lodekeeper.fabric.BotInput", "forward");
     private boolean resourceInitiallyLoaded;
     private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : 6_000;
     private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L : 300_000_000_000L;
@@ -153,6 +170,17 @@ public final class RuntimeVerification implements ClientModInitializer {
     private int captureStartedAtTick;
     private final List<CaseResult> results = new ArrayList<>();
     private String activeCase;
+    private String liveRouteScreenshot;
+    private int firstRouteTick = -1;
+    private volatile long firstMovementMillis = -1;
+    private volatile MovementClock movementClock;
+    private Object nearbyWoodObservedPath;
+    private int nearbyWoodPreviousPathIndex = -1;
+    private int nearbyWoodPathGeneration = -1;
+    private int nearbyWoodEligibleWalkArrivalCount;
+    private int nearbyWoodZeroForwardIntentArrivalCount;
+    private int nearbyWoodPositiveForwardArrivalCount;
+    private final List<NearbyWoodWalkObservation> nearbyWoodWalkObservations = new ArrayList<>();
     private String activeItem;
     private int activeCount;
     private boolean activeRequiresEmpty;
@@ -171,6 +199,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private long stonecuttingDrainRequiredObservationSequence = -1;
     private GameCatalog ironPickaxeProbeCatalog;
     private JsonObject ironPickaxePlannerProbeEvidence;
+    private Map<String, Integer> ironPickaxeFirstVerifiedServerStock;
+    private int ironPickaxeFirstVerifiedServerStockTick = -1;
     private int ironPickaxeProbeStartedAtTick = -1;
     private boolean ironPickaxeProbeStarted, ironPickaxeProbeFinished;
     private volatile int serverStonecutterOpenings;
@@ -210,6 +240,22 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE && !IRON_PICKAXE_MODE) {
+                failure = "lodekeeper.verify.ironPickaxeEmptyDistantWood requires lodekeeper.verify.ironPickaxe=true";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if (!(NEARBY_WOOD_GOAL.equals("wood") || NEARBY_WOOD_GOAL.equals("crafting_table"))
+                    || !NEARBY_WOOD_MODE && !NEARBY_WOOD_GOAL.equals("wood")) {
+                failure = "nearbyWoodGoal must be wood or crafting_table and requires nearbyWood=true";
+                state = State.FAILED;
+                writeEvidence("failed");
+                client.scheduleStop();
+                return;
+            }
             if (COOKING_MODE && !isSupportedCookingStationMode()) {
                 failure = "lodekeeper.verify.cookingStation must be exactly smoker or blast_furnace";
                 state = State.FAILED;
@@ -226,10 +272,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
-            if ((!COAL_START_SURFACE.equals("full") && !COAL_START_SURFACE.equals("dirt_path") && !COAL_START_SURFACE.equals("farmland"))
+            if ((!COAL_START_SURFACE.equals("full") && !COAL_START_SURFACE.equals("dirt_path")
+                    && !COAL_START_SURFACE.equals("farmland") && !COAL_RAISED_FULL_DROP_MODE)
                     || (!COAL_START_SURFACE.equals("full") && !COAL_RECOVERY_MODE)) {
                 state = State.FAILED;
-                failure = "coalStartSurface must be full, dirt_path, or farmland; fractional surfaces require coalRecovery=true";
+                failure = "coalStartSurface must be full, dirt_path, farmland, or raised_full; dirt_path, farmland, and raised_full require coalRecovery=true";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.scheduleStop();
@@ -259,9 +306,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
-            if (MIXED_NAVIGATION_COURSE && !navigationMovementReflectionAvailable()) {
+            if ((MIXED_NAVIGATION_COURSE || COAL_RAISED_FULL_DROP_MODE) && !navigationMovementReflectionAvailable()) {
                 state = State.FAILED;
-                failure = "navigation course cannot inspect active validated route movement (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex)";
+                failure = "coal navigation verifier cannot inspect active validated route movement (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex)";
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if (NEARBY_WOOD_MODE && !nearbyWoodWalkObservationReflectionAvailable()) {
+                state = State.FAILED;
+                failure = "nearbyWood verifier cannot inspect validated route input intent (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex/input plus BotInput.forward)";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.scheduleStop();
@@ -287,10 +342,12 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
+            ClientTickEvents.END_CLIENT_TICK.register(mc -> observeNearbyWoodWalkArrivalAfterEngineTick());
             ServerTickEvents.END_SERVER_TICK.register(server -> {
                 if (playerId == null) return;
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player == null) return;
+                observeFirstServerMovement(player);
                 net.minecraft.screen.ScreenHandler handler = player.currentScreenHandler;
                 if (handler != lastServerScreenHandler) {
                     if (handler instanceof net.minecraft.screen.CraftingScreenHandler) {
@@ -313,6 +370,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     lastServerScreenHandler = handler;
                 }
                 observeCoalNavigationCheckpoint(player, server.getTicks());
+                observeCoalDropServerCheckpoint(player, server.getTicks());
             });
             System.out.println("[Lodekeeper verification] Enabled. World and evidence paths are under " + verificationRoot);
         } catch (Exception exception) {
@@ -415,14 +473,19 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
                         && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1
                         && latestSnapshot.coalStartSurfaceRemaining == 9
+                        && (!COAL_RAISED_FULL_DROP_MODE || (Math.abs(latestSnapshot.x - 0.5) < 0.0001
+                            && Math.abs(latestSnapshot.z - 0.5) < 0.0001))
                         && (!MIXED_NAVIGATION_COURSE || (Math.abs(latestSnapshot.x - 0.25) < 0.0001
                             && Math.abs(latestSnapshot.z - 0.75) < 0.0001))
                         && (!MIXED_NAVIGATION_COURSE || (latestSnapshot.coalNavigationCourseMismatchCount == 0
                             && latestSnapshot.coalNavigationCourseObservedMask == 0))
-                        && Math.abs(latestSnapshot.y - (COAL_START_SURFACE.equals("full") ? PLAYER_Y : PLAYER_Y - 0.0625)) < 0.0001;
+                        && Math.abs(latestSnapshot.y - coalStartInitialFeetY()) < 0.0001;
                     if (startingStockObserved) {
-                        if (++readyTicks >= 20 && client.player.getY() > PLAYER_Y - 1
-                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(coalStartFloor())) {
+                        boolean clientAtStartHeight = COAL_RAISED_FULL_DROP_MODE
+                            ? Math.abs(client.player.getY() - coalStartInitialFeetY()) < 0.0001
+                            : client.player.getY() > PLAYER_Y - 1;
+                        if (++readyTicks >= 20 && clientAtStartHeight
+                                && client.world.getBlockState(new BlockPos(0, coalStartSurfaceY(), 0)).isOf(coalStartFloor())) {
                             startCoalRecoveryCommand();
                         }
                     } else {
@@ -434,10 +497,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     tickIronPickaxePlannerProbe();
                     if (state == State.FAILED) return;
+                    Map<String, Integer> expectedIronPickaxeStartingStock = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                        ? Map.of() : Map.of("minecraft:crafting_table", 1);
                     boolean startingStockObserved = latestSnapshot != null
                         && latestSnapshot.serverTick >= fixtureReadyServerTick
                         && latestSnapshot.health == 20.0F
-                        && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1));
+                        && latestSnapshot.inventory.equals(expectedIronPickaxeStartingStock);
+                    if (startingStockObserved && IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                            && ironPickaxeFirstVerifiedServerStock == null) {
+                        ironPickaxeFirstVerifiedServerStock = Map.copyOf(latestSnapshot.inventory);
+                        ironPickaxeFirstVerifiedServerStockTick = latestSnapshot.serverTick;
+                    }
                     if (startingStockObserved && ironPickaxeProbeFinished) {
                         if (++readyTicks >= 20 && client.player.getY() > PLAYER_Y - 1
                                 && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK)) {
@@ -468,7 +538,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     readyTicks++;
                     boolean fixtureVisible = EXPLORATION_MODE
                         ? client.world.getBlockState(new BlockPos(0,FIXTURE_FLOOR_Y,0)).isOf(Blocks.BEDROCK)
-                        : client.world.getBlockState(new BlockPos(6,PLAYER_Y,0)).isOf(Blocks.OAK_LOG);
+                        : client.world.getBlockState(new BlockPos(NEARBY_WOOD_MODE ? 20 : 6,PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0),0)).isOf(Blocks.OAK_LOG);
                     if (readyTicks >= 20 && client.player.getY() > 63 && fixtureVisible) startGatherCommand();
                 }
                 return;
@@ -538,7 +608,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.actionTimeoutTicks = 1_200;
         engine.config.pauseBelowHealth = 6.0F;
         engine.config.allowBreaking = true;
-        engine.config.allowBuilding = !MIXED_NAVIGATION_COURSE;
+        engine.config.allowBuilding = !MIXED_NAVIGATION_COURSE && !COAL_RAISED_FULL_DROP_MODE;
         engine.config.allowParkour = false;
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
@@ -563,9 +633,26 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
     }
 
+    private void observeCoalDropServerCheckpoint(ServerPlayerEntity player, int serverTick) {
+        if (!COAL_RAISED_FULL_DROP_MODE || !coalDropCommandStarted
+                || coalDropServerCheckpoint != null || !player.isOnGround()) return;
+        int feetY16 = (int) Math.round(player.getY() * 16.0);
+        int xCell = (int) Math.floor(player.getX());
+        int zCell = (int) Math.floor(player.getZ());
+        if (feetY16 != PLAYER_Y * 16 || isCoalDropPlatformCell(xCell, zCell)) return;
+        coalDropServerCheckpoint = new CoalDropServerCheckpoint(
+            player.getX(), player.getY(), player.getZ(), player.isOnGround(), serverTick);
+    }
+
+    private static boolean isCoalDropPlatformCell(int x, int z) {
+        return x >= -1 && x <= 1 && z >= -1 && z <= 1;
+    }
+
     private void observeCoalNavigationMovementAfterEngineTick() {
-        if (state == State.FAILED || state == State.COMPLETE
-                || !MIXED_NAVIGATION_COURSE || !coalNavigationCourseCommandStarted || client.player == null) return;
+        if (state == State.FAILED || state == State.COMPLETE || client.player == null
+                || (MIXED_NAVIGATION_COURSE && !coalNavigationCourseCommandStarted)
+                || (!MIXED_NAVIGATION_COURSE
+                    && (!COAL_RAISED_FULL_DROP_MODE || state != State.GATHERING_COAL_RECOVERY))) return;
         try {
             Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
             dev.lodekeeper.nav.Path path = (dev.lodekeeper.nav.Path) MOVEMENT_PATH_FIELD.get(movement);
@@ -581,6 +668,21 @@ public final class RuntimeVerification implements ClientModInitializer {
             int xCell = client.player.getBlockX();
             int zCell = client.player.getBlockZ();
             int feetY16 = (int) Math.round(client.player.getY() * 16.0);
+            if (COAL_RAISED_FULL_DROP_MODE) {
+                if (coalDropCompletedEdge == null && xCell == destination.x && zCell == destination.z
+                        && feetY16 == destination.feetY16
+                        && source.feetY16 == (PLAYER_Y + 1) * 16
+                        && destination.feetY16 == PLAYER_Y * 16
+                        && destination.movement == dev.lodekeeper.nav.Path.Movement.DROP
+                        && isCoalDropPlatformCell(source.x, source.z)
+                        && !isCoalDropPlatformCell(destination.x, destination.z)) {
+                    coalDropCompletedEdge = new CoalDropEdge(
+                        source.x, source.feetY16, source.z,
+                        destination.x, destination.feetY16, destination.z,
+                        destination.movement.name(), completedIndex, clientTicks);
+                }
+                return;
+            }
             if (xCell != destination.x || zCell != 0 || feetY16 != destination.feetY16) return;
 
             if (source.x == 11 && source.z == 0 && source.feetY16 == 66 * 16
@@ -598,6 +700,84 @@ public final class RuntimeVerification implements ClientModInitializer {
         } catch (ReflectiveOperationException | RuntimeException exception) {
             fail("could not inspect completed active navigation edge: " + exception.getMessage());
         }
+    }
+
+    private void observeNearbyWoodWalkArrivalAfterEngineTick() {
+        if (!NEARBY_WOOD_MODE) return;
+        if (state != State.GATHERING_WOOD || client.player == null) {
+            nearbyWoodObservedPath = null;
+            nearbyWoodPreviousPathIndex = -1;
+            return;
+        }
+        try {
+            Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
+            dev.lodekeeper.nav.Path path = (dev.lodekeeper.nav.Path) MOVEMENT_PATH_FIELD.get(movement);
+            int pathIndex = MOVEMENT_PATH_INDEX_FIELD.getInt(movement);
+            if (path != nearbyWoodObservedPath) {
+                nearbyWoodObservedPath = path;
+                nearbyWoodPreviousPathIndex = pathIndex;
+                nearbyWoodPathGeneration++;
+                return;
+            }
+            int previousPathIndex = nearbyWoodPreviousPathIndex;
+            nearbyWoodPreviousPathIndex = pathIndex;
+            if (path == null || previousPathIndex < 0 || pathIndex != previousPathIndex + 1) return;
+
+            int reachedPathIndex = pathIndex - 1;
+            if (reachedPathIndex <= 0 || reachedPathIndex >= path.length() - 1) return;
+            dev.lodekeeper.nav.Path.Step source = path.step(reachedPathIndex - 1);
+            dev.lodekeeper.nav.Path.Step reached = path.step(reachedPathIndex);
+            dev.lodekeeper.nav.Path.Step outgoing = path.step(reachedPathIndex + 1);
+            int incomingX = reached.x - source.x;
+            int incomingZ = reached.z - source.z;
+            int outgoingX = outgoing.x - reached.x;
+            int outgoingZ = outgoing.z - reached.z;
+            if (reached.movement != dev.lodekeeper.nav.Path.Movement.WALK
+                    || outgoing.movement != dev.lodekeeper.nav.Path.Movement.WALK
+                    || reached.actionCount() != 0 || outgoing.actionCount() != 0
+                    || source.feetY16 != reached.feetY16 || reached.feetY16 != outgoing.feetY16
+                    || !isUnitXZDirection(incomingX, incomingZ)
+                    || incomingX != outgoingX || incomingZ != outgoingZ) return;
+
+            int validatedPathIndex = MOVEMENT_VALIDATED_PATH_INDEX_FIELD.getInt(movement);
+            Object botInput = MOVEMENT_INPUT_FIELD.get(movement);
+            float forwardIntent = BOT_INPUT_FORWARD_FIELD.getFloat(botInput);
+            if (!Float.isFinite(forwardIntent)) {
+                fail("nearbyWood verifier observed a non-finite BotInput.forward value");
+                return;
+            }
+
+            nearbyWoodEligibleWalkArrivalCount++;
+            if (forwardIntent == 0.0f) nearbyWoodZeroForwardIntentArrivalCount++;
+            if (forwardIntent > 0.0f) nearbyWoodPositiveForwardArrivalCount++;
+            if (nearbyWoodWalkObservations.size() < MAX_NEARBY_WOOD_WALK_OBSERVATIONS) {
+                nearbyWoodWalkObservations.add(new NearbyWoodWalkObservation(
+                    nearbyWoodPathGeneration, previousPathIndex, pathIndex, reachedPathIndex,
+                    validatedPathIndex, clientTicks, forwardIntent,
+                    incomingX, incomingZ, outgoingX, outgoingZ,
+                    nearbyWoodWalkStepSnapshot(path, reachedPathIndex - 1),
+                    nearbyWoodWalkStepSnapshot(path, reachedPathIndex),
+                    nearbyWoodWalkStepSnapshot(path, reachedPathIndex + 1)));
+            }
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            fail("could not inspect nearbyWood walk input intent: " + exception.getMessage());
+        }
+    }
+
+    private static boolean isUnitXZDirection(int x, int z) {
+        return x >= -1 && x <= 1 && z >= -1 && z <= 1 && (x != 0 || z != 0);
+    }
+
+    private static NearbyWoodWalkStepSnapshot nearbyWoodWalkStepSnapshot(
+            dev.lodekeeper.nav.Path path, int pathIndex) {
+        dev.lodekeeper.nav.Path.Step step = path.step(pathIndex);
+        List<NearbyWoodWalkActionSnapshot> actions = new ArrayList<>(step.actionCount());
+        for (dev.lodekeeper.nav.Action action : step.actions()) {
+            actions.add(new NearbyWoodWalkActionSnapshot(
+                action.type.name(), action.x, action.y, action.z, action.token));
+        }
+        return new NearbyWoodWalkStepSnapshot(pathIndex, step.x, step.feetY16, step.z,
+            step.movement.name(), actions);
     }
 
     private static BlockPos coalRecoveryAccessibleOrePosition() {
@@ -707,13 +887,29 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerPlayerEntity player = requireServerPlayer(server);
                 ServerWorld world = server.getOverworld();
                 // A bounded, level pad makes the fixture deterministic while retaining normal survival physics.
-                for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 30 : 18); x++) {
+                for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || NEARBY_WOOD_MODE ? 30 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
+                }
+                if (MEADOW_BENCHMARK) {
+                    for (int x = -12; x <= 30; x++) for (int z = -6; z <= 6; z++) {
+                        int rise = Math.max(0, Math.min(3, x / 6));
+                        for (int y = FIXTURE_FLOOR_Y; y < FIXTURE_FLOOR_Y + rise; y++)
+                            world.setBlockState(new BlockPos(x, y, z), Blocks.DIRT.getDefaultState(), 3);
+                        boolean path = z == 0 && x >= 8 && x <= 10;
+                        world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y + rise, z),
+                            (path ? Blocks.DIRT_PATH : Blocks.GRASS_BLOCK).getDefaultState(), 3);
+                        if (!path && x > 2 && x < 18 && Math.floorMod(x + z, 3) == 0)
+                            world.setBlockState(new BlockPos(x, PLAYER_Y + rise, z), Blocks.DANDELION.getDefaultState(), 3);
+                    }
                 }
                 if (COAL_RECOVERY_MODE) {
                     coalNavigationCourseCommandStarted = false;
                     coalNavigationCourseObservedMask = 0;
                     coalNavigationExpectedStates = Map.of();
+                    coalDropInitialServerPosition = null;
+                    coalDropCompletedEdge = null;
+                    coalDropServerCheckpoint = null;
+                    coalDropCommandStarted = false;
                     for (int index = 0; index < coalNavigationCourseCheckpointServerTicks.length; index++) {
                         coalNavigationCourseCheckpointServerTicks[index] = -1;
                     }
@@ -725,7 +921,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                             world.setBlockState(new BlockPos(-3, FIXTURE_FLOOR_Y, 0), Blocks.WATER.getDefaultState(), 3);
                         }
                         for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
-                            world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), coalStartFloor().getDefaultState(), 3);
+                            world.setBlockState(new BlockPos(x, coalStartSurfaceY(), z), coalStartFloor().getDefaultState(), 3);
                         }
                     }
                     for (int dx = -1; dx <= 1; dx++) {
@@ -740,8 +936,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
                 } else if (!PROCESSING_MODE) {
-                    for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
-                        world.setBlockState(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
+                    int oakLogStartX = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
+                        : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
+                    int oakLogCount = BULK_WOOD_MODE ? 80
+                        : IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_COUNT : 8;
+                    for (int index = 0; index < oakLogCount; index++) {
+                        world.setBlockState(new BlockPos(oakLogStartX + index, PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0), 0), Blocks.OAK_LOG.getDefaultState(), 3);
                     }
                     if (!BULK_WOOD_MODE) {
                         for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 25 : 17); x++) {
@@ -777,12 +977,14 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (COAL_RECOVERY_MODE && !player.getInventory().insertStack(new ItemStack(Items.STONE_PICKAXE))) {
                     throw new IllegalStateException("could not seed the single coal-recovery verifier stone pickaxe");
                 }
-                if (IRON_PICKAXE_MODE && !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
+                if (IRON_PICKAXE_MODE && !IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                        && !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
                     throw new IllegalStateException("could not seed the single iron-pickaxe verifier crafting table");
                 }
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
-                if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, PLAYER_Y, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
+                double startFeetY = COAL_RAISED_FULL_DROP_MODE ? PLAYER_Y + 1.0 : PLAYER_Y;
+                if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
                 }
                 player.currentScreenHandler.sendContentUpdates();
@@ -874,7 +1076,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         ironPickaxePlannerProbeEvidence.addProperty("status", "loading");
         ironPickaxePlannerProbeEvidence.addProperty("planningPreferences", "none");
         ironPickaxePlannerProbeEvidence.addProperty("isGameplayEvidence", false);
-        ironPickaxePlannerProbeEvidence.addProperty("inventory", "minecraft:crafting_table x1 only");
+        ironPickaxePlannerProbeEvidence.addProperty("inventory", IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+            ? "empty" : "minecraft:crafting_table x1 only");
         try {
             ironPickaxeProbeCatalog.load();
         } catch (RuntimeException exception) {
@@ -887,7 +1090,9 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (ironPickaxeProbeCatalog != null && ironPickaxeProbeCatalog.ready()) {
             try {
                 CatalogSnapshot catalogSnapshot = ironPickaxeProbeCatalog.snapshot();
-                InventorySnapshot inventory = new InventorySnapshot(Map.of(ItemId.parse("minecraft:crafting_table"), 1));
+                Map<ItemId, Integer> plannerInventory = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                    ? Map.of() : Map.of(ItemId.parse("minecraft:crafting_table"), 1);
+                InventorySnapshot inventory = new InventorySnapshot(plannerInventory);
                 AcquisitionPlanner planner = new AcquisitionPlanner();
                 PlanResult ironPickaxe = planner.planFast(catalogSnapshot, inventory,
                     ItemId.parse("minecraft:iron_pickaxe"), 1);
@@ -1041,15 +1246,55 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startIronPickaxeCommand() {
-        activeCase = "iron_pickaxe_from_crafting_table_only";
+        activeCase = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+            ? "iron_pickaxe_from_empty_inventory_with_oak_logs_x"
+                + IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X + "_through_x"
+                + (IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X + IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_COUNT - 1)
+            : "iron_pickaxe_from_crafting_table_only";
         activeItem = IRON_PICKAXE_ID;
         activeCount = 1;
-        activeRequiresEmpty = false;
+        activeRequiresEmpty = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE;
         activeStartedEmpty = latestSnapshot.inventoryEmpty();
         activeInitialResources = Map.copyOf(latestSnapshot.inventory);
         beginCaseClock();
         sendCommand("!lk get iron_pickaxe");
         state = State.GATHERING_WOOD;
+    }
+
+    /** Same native terrain, policy and target across builds; timing is evidence, not a flaky pass threshold. */
+    private void benchmarkNativeRoute() {
+        routeBenchmark = new JsonArray();
+        for (int sample = 0; sample < 4; sample++) {
+            GameTerrain terrain = new GameTerrain(client, requireEngine().config);
+            terrain.beginSearch();
+            long started = System.nanoTime();
+            dev.lodekeeper.nav.Planner planner = new dev.lodekeeper.nav.Planner(terrain, 0, PLAYER_Y, -3,
+                dev.lodekeeper.nav.Goal.exact(20, PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0), -3),
+                new dev.lodekeeper.nav.Planner.Options().maxNodes(16000).maxDrop(3).allowBreaking(true));
+            int calls = 0;
+            while (planner.getStatus() == dev.lodekeeper.nav.NavStatus.IN_PROGRESS && calls < 10000
+                    && System.nanoTime() - started < 5_000_000_000L) {
+                planner.advance(128, 2_000_000L);
+                calls++;
+            }
+            JsonObject row = new JsonObject();
+            row.addProperty("warmup", sample == 0);
+            row.addProperty("elapsedNanos", System.nanoTime() - started);
+            row.addProperty("advanceCalls", calls);
+            row.addProperty("expanded", planner.getExpandedNodes());
+            row.addProperty("discovered", planner.getDiscoveredNodes());
+            row.addProperty("status", planner.getStatus().name());
+            row.addProperty("pathSteps", planner.getPath() == null ? 0 : planner.getPath().length());
+            routeBenchmark.add(row);
+            if (planner.getStatus() != dev.lodekeeper.nav.NavStatus.FOUND) {
+                fail("Native 20-block benchmark route failed: " + row);
+                return;
+            }
+        }
+        System.out.println("[Lodekeeper verification] Native route benchmark: " + routeBenchmark);
+        try {
+            Files.writeString(Path.of("navigation-benchmark.json"), routeBenchmark.toString());
+        } catch (IOException exception) { fail("Cannot save native benchmark: " + exception); }
     }
 
     private void maybeInjectStonecuttingDrainStop() {
@@ -1077,6 +1322,19 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startGatherCommand() {
+        if (NEARBY_WOOD_MODE) {
+            benchmarkNativeRoute();
+            if (state == State.FAILED) return;
+            activeCase = "nearby_" + NEARBY_WOOD_GOAL + "_20_blocks" + (MEADOW_BENCHMARK ? "_meadow" : "");
+            activeItem = NEARBY_WOOD_GOAL.equals("wood") ? OAK_LOG_ID : "minecraft:crafting_table";
+            activeCount = 1;
+            activeRequiresEmpty = true;
+            activeStartedEmpty = latestSnapshot.inventoryEmpty();
+            beginCaseClock();
+            sendCommand("!lk get " + NEARBY_WOOD_GOAL + " 1");
+            state = State.GATHERING_WOOD;
+            return;
+        }
         if (BULK_WOOD_MODE) {
             activeCase = "bulk_wood_64";
             activeItem = OAK_LOG_ID;
@@ -1208,6 +1466,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (MIXED_NAVIGATION_COURSE && !verifyFenceGeometry()) return;
         if (MIXED_NAVIGATION_COURSE) recordMixedNavigationDiagnostics();
         coalInitialServerFeetY = latestSnapshot.y;
+        if (COAL_RAISED_FULL_DROP_MODE) {
+            coalDropInitialServerPosition = new CoalDropStartingPosition(
+                latestSnapshot.x, latestSnapshot.y, latestSnapshot.z,
+                latestSnapshot.coalStartSurfaceRemaining, latestSnapshot.serverTick);
+        }
         coalNavigationInitialServerFeetX = latestSnapshot.x;
         coalNavigationInitialServerFeetZ = latestSnapshot.z;
         coalNavigationCourseMinimumHealth = latestSnapshot.health;
@@ -1219,13 +1482,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         coalNavigationLedgeEdgeMovement = "unobserved";
         coalNavigationLedgeEdgePathIndex = -1;
         activeCase = MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation_course"
-            : "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
+            : COAL_RAISED_FULL_DROP_MODE ? "coal_recovery_raised_full_drop_reject_encased_nearer_resource"
+                : "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
         activeItem = "minecraft:coal";
         activeCount = 1;
         activeRequiresEmpty = false;
         activeStartedEmpty = false;
         beginCaseClock();
         coalNavigationCourseCommandStarted = MIXED_NAVIGATION_COURSE;
+        coalDropCommandStarted = COAL_RAISED_FULL_DROP_MODE;
         sendCommand("!lk get coal");
         state = State.GATHERING_COAL_RECOVERY;
     }
@@ -1234,20 +1499,49 @@ public final class RuntimeVerification implements ClientModInitializer {
         return switch (COAL_START_SURFACE) {
             case "dirt_path" -> Blocks.DIRT_PATH;
             case "farmland" -> Blocks.FARMLAND;
+            case "full", "raised_full" -> Blocks.BEDROCK;
             default -> Blocks.BEDROCK;
         };
+    }
+
+    private static int coalStartSurfaceY() {
+        return COAL_RAISED_FULL_DROP_MODE ? FIXTURE_FLOOR_Y + 1 : FIXTURE_FLOOR_Y;
+    }
+
+    private static double coalStartInitialFeetY() {
+        if (COAL_RAISED_FULL_DROP_MODE) return PLAYER_Y + 1.0;
+        return COAL_START_SURFACE.equals("full") ? PLAYER_Y : PLAYER_Y - 0.0625;
     }
 
     private static int countCoalStartSurface(ServerWorld world) {
         int count = 0;
         for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
-            if (world.getBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z)).isOf(coalStartFloor())) count++;
+            if (world.getBlockState(new BlockPos(x, coalStartSurfaceY(), z)).isOf(coalStartFloor())) count++;
         }
         return count;
     }
 
     private boolean coalRecoveryTargetRejected() {
         return LodekeeperClient.engine != null && LodekeeperClient.engine.resourceRejected(COAL_RECOVERY_ENCASED_ORE);
+    }
+
+    private boolean coalDropCompletionObserved() {
+        if (!COAL_RAISED_FULL_DROP_MODE || coalDropInitialServerPosition == null
+                || coalDropCompletedEdge == null || coalDropServerCheckpoint == null) return false;
+        CoalDropEdge edge = coalDropCompletedEdge;
+        CoalDropServerCheckpoint checkpoint = coalDropServerCheckpoint;
+        return Math.abs(coalDropInitialServerPosition.x - 0.5) < 0.0001
+            && Math.abs(coalDropInitialServerPosition.feetY - (PLAYER_Y + 1.0)) < 0.0001
+            && Math.abs(coalDropInitialServerPosition.z - 0.5) < 0.0001
+            && coalDropInitialServerPosition.platformBlockCount == 9
+            && "DROP".equals(edge.movement)
+            && edge.sourceFeetY16 == (PLAYER_Y + 1) * 16
+            && edge.destinationFeetY16 == PLAYER_Y * 16
+            && isCoalDropPlatformCell(edge.sourceX, edge.sourceZ)
+            && !isCoalDropPlatformCell(edge.destinationX, edge.destinationZ)
+            && checkpoint.onGround
+            && Math.abs(checkpoint.feetY - PLAYER_Y) < 0.0001
+            && !isCoalDropPlatformCell((int) Math.floor(checkpoint.x), (int) Math.floor(checkpoint.z));
     }
 
     private boolean coalRecoveryOutcomeObserved() {
@@ -1264,6 +1558,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.coalNavigationCourseMinimumHealth == 20.0F
                 && coalNavigationStairEdgeCompleted && "WALK".equals(coalNavigationStairEdgeMovement)
                 && coalNavigationLedgeEdgeCompleted && "JUMP".equals(coalNavigationLedgeEdgeMovement)))
+            && (!COAL_RAISED_FULL_DROP_MODE || coalDropCompletionObserved())
             && coalRecoveryTargetRejected()
             && requireEngine().status().startsWith("idle");
     }
@@ -1291,6 +1586,24 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.count(cookingOutputId()) > 0) {
             fail("stonecutting drain stop was not injected before the first slab output");
             return;
+        }
+        if (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
+            if (liveRouteScreenshot == null && ENGINE_MOVEMENT_FIELD != null
+                    && MOVEMENT_PATH_FIELD != null && MOVEMENT_PATH_INDEX_FIELD != null) {
+                try {
+                    Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
+                    dev.lodekeeper.nav.Path route = (dev.lodekeeper.nav.Path) MOVEMENT_PATH_FIELD.get(movement);
+                    int nextStep = MOVEMENT_PATH_INDEX_FIELD.getInt(movement);
+                    if (route != null && nextStep >= 2 && nextStep < route.length()
+                            && requireEngine().status().startsWith("route ")) {
+                        if (firstRouteTick < 0) firstRouteTick = clientTicks;
+                        if (clientTicks - firstRouteTick >= 8) liveRouteScreenshot = capture(activeCase + "-active-route");
+                    }
+                } catch (ReflectiveOperationException exception) {
+                    fail("Cannot inspect active route for capture: " + exception);
+                    return;
+                }
+            }
         }
         int observed = latestSnapshot.count(activeItem);
         boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
@@ -1342,7 +1655,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                     ? "server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes"
                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
                 : IRON_PICKAXE_MODE
-                ? "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
+                ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                    ? "server inventory reached one iron pickaxe at full health from empty inventory with oak logs at x="
+                        + IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X + " through x="
+                        + (IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X + IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_COUNT - 1)
+                        + " after native crafting-table and furnace menu openings"
+                    : "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
                 : COAL_RECOVERY_MODE
                 ? "server inventory reached exactly one coal at full health after rejecting the nearer encased ore and mining the accessible ore"
                 : DIAMOND_BOOTSTRAP_MODE
@@ -1354,7 +1672,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 default -> "server inventory reached target and engine returned idle";
             };
             addResult(true, observed, detail, screenshot);
-            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE)) {
+            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE || NEARBY_WOOD_MODE)) {
                 state = State.CAPTURING; captureStartedAtTick = clientTicks;
             } else if (state == State.GATHERING_WOOD) {
                 startCraftingTableCommand();
@@ -1478,6 +1796,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void beginCaseClock() {
         caseStartedAtTick = clientTicks;
         caseStartedAtNanos = System.nanoTime();
+        firstMovementMillis = -1;
+        movementClock = latestSnapshot == null ? null : new MovementClock(
+            caseStartedAtNanos, latestSnapshot.x, latestSnapshot.z);
         caseStartedAtWorldTime = client.world == null ? 0 : client.world.getTime();
         activeFoodLevelAtStart = latestSnapshot == null ? 0 : latestSnapshot.foodLevel;
         activeBreadCountAtStart = latestSnapshot == null ? 0 : latestSnapshot.count(VerificationContentInitializer.BREAD_ID);
@@ -1647,9 +1968,37 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
     }
 
+    private void observeFirstServerMovement(ServerPlayerEntity player) {
+        MovementClock clock = movementClock;
+        if (!(NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE)
+                || clock == null || firstMovementMillis >= 0) return;
+        if (Math.abs(player.getX() - clock.x) > 0.1 || Math.abs(player.getZ() - clock.z) > 0.1) {
+            firstMovementMillis = Math.max(0, (System.nanoTime() - clock.startedAtNanos) / 1_000_000L);
+        }
+    }
+
+    private record MovementClock(long startedAtNanos, double x, double z) { }
+
     private void finishRun() {
+        if (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
+            if (firstMovementMillis < 0) {
+                fail("Server movement timestamp was not recorded");
+                return;
+            }
+            try {
+                if (liveRouteScreenshot == null || !Files.isRegularFile(evidenceDirectory.resolve(liveRouteScreenshot))
+                        || Files.size(evidenceDirectory.resolve(liveRouteScreenshot)) == 0
+                        || javax.imageio.ImageIO.read(evidenceDirectory.resolve(liveRouteScreenshot).toFile()) == null) {
+                    fail("Active-route screenshot was not saved");
+                    return;
+                }
+            } catch (java.io.IOException exception) {
+                fail("Cannot verify saved active-route screenshot: " + exception.getMessage());
+                return;
+            }
+        }
         state = State.COMPLETE;
-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
+        int expectedCases = NEARBY_WOOD_MODE || EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(allPassed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence: " + evidenceDirectory);
@@ -1726,6 +2075,14 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(",\"serverBreadAtStart\":").append(result.breadAtStart).append(",\"serverBreadObserved\":").append(result.breadObserved)
                 .append(",\"serverPosition\":[").append(result.x).append(',').append(result.y).append(',').append(result.z).append(']')
                 .append(",\"screenshot\":").append(result.screenshot == null ? "null" : "\"" + escape(result.screenshot) + "\"");
+            if (NEARBY_WOOD_MODE) {
+                json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
+                    .append(",\"liveRouteScreenshot\":").append(liveRouteScreenshot == null ? "null" : "\"" + escape(liveRouteScreenshot) + "\"")
+                    .append(",\"firstServerMovementMillisFromCommand\":").append(firstMovementMillis)
+                    .append(",\"nativeRouteBenchmark\":").append(routeBenchmark)
+                    .append(",\"walkArrivalInputEvidence\":");
+                appendNearbyWoodWalkInputEvidence(json);
+            }
             if (BULK_WOOD_MODE) {
                 json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
                     .append(",\"completionClientTick\":").append(result.completionClientTick)
@@ -1754,8 +2111,13 @@ public final class RuntimeVerification implements ClientModInitializer {
                         .append(",\"finalDeepslateFixtureBlockCount\":")
                         .append(latestSnapshot == null ? -1 : latestSnapshot.ironPickaxeDeepslateRemaining)
                         .append(",\"deepslateFixtureBlocksMined\":")
-                        .append(latestSnapshot == null ? -1 : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining)
-                        .append(",\"fullServerInventory\":");
+                        .append(latestSnapshot == null ? -1 : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining);
+                    if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
+                        json.append(",\"requiresEmptyAtStart\":").append(result.requiresEmptyAtStart)
+                            .append(",\"firstServerMovementMillisFromCommand\":").append(firstMovementMillis)
+                            .append(",\"liveRouteScreenshot\":").append(liveRouteScreenshot == null ? "null" : "\"" + escape(liveRouteScreenshot) + "\"");
+                    }
+                    json.append(",\"fullServerInventory\":");
                     appendStringIntMap(json, result.serverInventory);
                     json.append(",\"initialResources\":");
                     appendStringIntMap(json, result.initialResources);
@@ -1790,9 +2152,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append(",\n  \"bulkWoodFixtureLogCount\":").append(BULK_WOOD_MODE ? 80 : 0)
             .append(",\n  \"woodToolsFlag\":").append(WOOD_TOOLS_MODE)
             .append(",\n  \"woodToolsEnabled\":").append(BULK_WOOD_MODE && WOOD_TOOLS_MODE);
+        if (NEARBY_WOOD_MODE) {
+            json.append(",\n  \"nearbyWoodWalkArrivalInputEvidence\":");
+            appendNearbyWoodWalkInputEvidence(json);
+        }
         if (IRON_PICKAXE_MODE) {
-            json.append(",\n  \"ironPickaxeFixtureProvidedStock\":{\"minecraft:crafting_table\":1}")
-                .append(",\n  \"ironPickaxeGoalCommand\":\"!lk get iron_pickaxe\"")
+            json.append(",\n  \"ironPickaxeFixtureProvidedStock\":");
+            appendStringIntMap(json, IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+                ? Map.of() : Map.of("minecraft:crafting_table", 1));
+            json.append(",\n  \"ironPickaxeGoalCommand\":\"!lk get iron_pickaxe\"")
                 .append(",\n  \"ironPickaxeExpectedOutput\":1")
                 .append(",\n  \"ironPickaxeNativeTableOpenings\":").append(serverTableOpenings)
                 .append(",\n  \"ironPickaxeNativeFurnaceOpenings\":").append(serverFurnaceOpenings)
@@ -1804,6 +2172,22 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(latestSnapshot == null ? -1 : 4 - latestSnapshot.ironPickaxeDeepslateRemaining)
                 .append(",\n  \"ironPickaxePlannerProbe\":")
                 .append(ironPickaxePlannerProbeEvidence == null ? "null" : ironPickaxePlannerProbeEvidence.toString());
+            if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
+                json.append(",\n  \"ironPickaxeEmptyDistantWoodFixture\":true")
+                    .append(",\n  \"ironPickaxeFirstVerifiedServerStock\":");
+                if (ironPickaxeFirstVerifiedServerStock == null) json.append("null");
+                else appendStringIntMap(json, ironPickaxeFirstVerifiedServerStock);
+                json.append(",\n  \"ironPickaxeFirstVerifiedServerStockTick\":");
+                if (ironPickaxeFirstVerifiedServerStockTick < 0) json.append("null");
+                else json.append(ironPickaxeFirstVerifiedServerStockTick);
+                json.append(",\n  \"ironPickaxeFixtureOakLogPositions\":[");
+                for (int index = 0; index < IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_COUNT; index++) {
+                    if (index > 0) json.append(',');
+                    json.append('\"').append(IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X + index)
+                        .append(',').append(PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0)).append(",0\"");
+                }
+                json.append(']');
+            }
         }
         if (COAL_RECOVERY_MODE) {
             BlockPos accessibleCoal = coalRecoveryAccessibleOrePosition();
@@ -1830,6 +2214,73 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(",\n  \"coalRecoveryCompletionInventory\":");
             appendStringIntMap(json, latestSnapshot == null ? Map.of() : latestSnapshot.inventory);
             json.append(",\n  \"coalRecoveryOutcomeVerified\":").append(coalRecoveryOutcomeObserved());
+            if (COAL_RAISED_FULL_DROP_MODE) {
+                json.append(",\n  \"coalDropDevelopmentCase\":\"raised_full_departure_to_floor\"")
+                    .append(",\n  \"coalDropBaseFloorY\":").append(FIXTURE_FLOOR_Y)
+                    .append(",\n  \"coalDropBaseFloorBlock\":\"minecraft:bedrock\"")
+                    .append(",\n  \"coalDropPlatformY\":").append(coalStartSurfaceY())
+                    .append(",\n  \"coalDropPlatformBlock\":\"minecraft:bedrock\"")
+                    .append(",\n  \"coalDropPlatformFootprint\":\"x=-1..1,z=-1..1\"")
+                    .append(",\n  \"coalDropPlatformInitialBlockCount\":")
+                    .append(coalDropInitialServerPosition == null ? -1 : coalDropInitialServerPosition.platformBlockCount)
+                    .append(",\n  \"coalDropPlatformRemainingBlockCount\":")
+                    .append(latestSnapshot == null ? -1 : latestSnapshot.coalStartSurfaceRemaining)
+                    .append(",\n  \"coalDropPlatformPreserved\":")
+                    .append(latestSnapshot != null && latestSnapshot.coalStartSurfaceRemaining == 9)
+                    .append(",\n  \"coalDropInitialServerPosition\":");
+                if (coalDropInitialServerPosition == null) {
+                    json.append("null");
+                } else {
+                    json.append("{\"x\":").append(coalDropInitialServerPosition.x)
+                        .append(",\"feetY\":").append(coalDropInitialServerPosition.feetY)
+                        .append(",\"z\":").append(coalDropInitialServerPosition.z)
+                        .append(",\"platformBlockCount\":").append(coalDropInitialServerPosition.platformBlockCount)
+                        .append(",\"serverTick\":").append(coalDropInitialServerPosition.serverTick).append('}');
+                }
+                json.append(",\n  \"coalDropClientCompletedEdgeObserved\":").append(coalDropCompletedEdge != null)
+                    .append(",\n  \"coalDropClientCompletedEdge\":");
+                if (coalDropCompletedEdge == null) {
+                    json.append("null");
+                } else {
+                    CoalDropEdge edge = coalDropCompletedEdge;
+                    json.append("{\"source\":{\"x\":").append(edge.sourceX)
+                        .append(",\"feetY\":").append(edge.sourceFeetY16 / 16.0)
+                        .append(",\"z\":").append(edge.sourceZ)
+                        .append("},\"destination\":{\"x\":").append(edge.destinationX)
+                        .append(",\"feetY\":").append(edge.destinationFeetY16 / 16.0)
+                        .append(",\"z\":").append(edge.destinationZ)
+                        .append("},\"movement\":\"").append(escape(edge.movement))
+                        .append("\",\"pathIndex\":").append(edge.pathIndex)
+                        .append(",\"clientTick\":").append(edge.clientTick).append('}');
+                }
+                json.append(",\n  \"coalDropServerHeightCheckpointObserved\":").append(coalDropServerCheckpoint != null)
+                    .append(",\n  \"coalDropServerHeightCheckpoint\":");
+                if (coalDropServerCheckpoint == null) {
+                    json.append("null");
+                } else {
+                    json.append("{\"x\":").append(coalDropServerCheckpoint.x)
+                        .append(",\"feetY\":").append(coalDropServerCheckpoint.feetY)
+                        .append(",\"z\":").append(coalDropServerCheckpoint.z)
+                        .append(",\"onGround\":").append(coalDropServerCheckpoint.onGround)
+                        .append(",\"serverTick\":").append(coalDropServerCheckpoint.serverTick).append('}');
+                }
+                json.append(",\n  \"coalDropServerHeightTransitionFrom65To64\":")
+                    .append(coalDropInitialServerPosition != null && coalDropServerCheckpoint != null
+                        && Math.abs(coalDropInitialServerPosition.feetY - (PLAYER_Y + 1.0)) < 0.0001
+                        && Math.abs(coalDropServerCheckpoint.feetY - PLAYER_Y) < 0.0001
+                        && coalDropServerCheckpoint.onGround
+                        && !isCoalDropPlatformCell((int) Math.floor(coalDropServerCheckpoint.x),
+                            (int) Math.floor(coalDropServerCheckpoint.z)))
+                    .append(",\n  \"coalDropCompletionCoalCount\":")
+                    .append(latestSnapshot == null ? -1 : latestSnapshot.count("minecraft:coal"))
+                    .append(",\n  \"coalDropCompletionServerTick\":")
+                    .append(latestSnapshot == null ? -1 : latestSnapshot.serverTick)
+                    .append(",\n  \"coalDropCompletionHealth\":")
+                    .append(latestSnapshot == null ? -1.0F : latestSnapshot.health)
+                    .append(",\n  \"coalDropIdleCompletionObserved\":")
+                    .append(LodekeeperClient.engine != null && LodekeeperClient.engine.status().startsWith("idle"))
+                    .append(",\n  \"coalDropOutcomeVerified\":").append(coalRecoveryOutcomeObserved());
+            }
             if (MIXED_NAVIGATION_COURSE) {
                 int observedMask = latestSnapshot == null ? coalNavigationCourseObservedMask
                     : latestSnapshot.coalNavigationCourseObservedMask;
@@ -1909,6 +2360,60 @@ public final class RuntimeVerification implements ClientModInitializer {
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 
+    private void appendNearbyWoodWalkInputEvidence(StringBuilder json) {
+        json.append("{\"evidenceAuthority\":\"client_bot_input_intent\"")
+            .append(",\"serverTimingIncluded\":false")
+            .append(",\"observationLimit\":").append(MAX_NEARBY_WOOD_WALK_OBSERVATIONS)
+            .append(",\"eligibleWalkArrivalCount\":").append(nearbyWoodEligibleWalkArrivalCount)
+            .append(",\"zeroForwardIntentArrivalCount\":").append(nearbyWoodZeroForwardIntentArrivalCount)
+            .append(",\"positiveForwardIntentArrivalCount\":").append(nearbyWoodPositiveForwardArrivalCount)
+            .append(",\"recordedObservationCount\":").append(nearbyWoodWalkObservations.size())
+            .append(",\"observations\":[");
+        for (int index = 0; index < nearbyWoodWalkObservations.size(); index++) {
+            NearbyWoodWalkObservation observation = nearbyWoodWalkObservations.get(index);
+            if (index > 0) json.append(',');
+            json.append("{\"pathGeneration\":").append(observation.pathGeneration)
+                .append(",\"previousPathIndex\":").append(observation.previousPathIndex)
+                .append(",\"pathIndex\":").append(observation.pathIndex)
+                .append(",\"reachedPathIndex\":").append(observation.reachedPathIndex)
+                .append(",\"validatedPathIndex\":").append(observation.validatedPathIndex)
+                .append(",\"clientTick\":").append(observation.clientTick)
+                .append(",\"botInputForwardIntent\":").append(observation.forwardIntent)
+                .append(",\"eligible\":true")
+                .append(",\"incomingDirectionXZ\":[").append(observation.incomingX).append(',')
+                .append(observation.incomingZ).append(']')
+                .append(",\"outgoingDirectionXZ\":[").append(observation.outgoingX).append(',')
+                .append(observation.outgoingZ).append(']')
+                .append(",\"source\":");
+            appendNearbyWoodWalkStep(json, observation.source);
+            json.append(",\"reached\":");
+            appendNearbyWoodWalkStep(json, observation.reached);
+            json.append(",\"outgoing\":");
+            appendNearbyWoodWalkStep(json, observation.outgoing);
+            json.append('}');
+        }
+        json.append("]}");
+    }
+
+    private static void appendNearbyWoodWalkStep(StringBuilder json, NearbyWoodWalkStepSnapshot step) {
+        json.append("{\"pathIndex\":").append(step.pathIndex)
+            .append(",\"x\":").append(step.x)
+            .append(",\"feetY16\":").append(step.feetY16)
+            .append(",\"z\":").append(step.z)
+            .append(",\"movement\":\"").append(escape(step.movement)).append("\"")
+            .append(",\"actions\":[");
+        for (int index = 0; index < step.actions.size(); index++) {
+            NearbyWoodWalkActionSnapshot action = step.actions.get(index);
+            if (index > 0) json.append(',');
+            json.append("{\"type\":\"").append(escape(action.type)).append("\"")
+                .append(",\"x\":").append(action.x)
+                .append(",\"y\":").append(action.y)
+                .append(",\"z\":").append(action.z)
+                .append(",\"token\":").append(action.token).append('}');
+        }
+        json.append("]}");
+    }
+
     private static void appendStringIntMap(StringBuilder json, Map<String, Integer> values) {
         json.append('{');
         int index = 0;
@@ -1946,7 +2451,16 @@ public final class RuntimeVerification implements ClientModInitializer {
             && MOVEMENT_PATH_INDEX_FIELD != null && MOVEMENT_VALIDATED_PATH_INDEX_FIELD != null;
     }
 
+    private static boolean nearbyWoodWalkObservationReflectionAvailable() {
+        return navigationMovementReflectionAvailable() && MOVEMENT_INPUT_FIELD != null
+            && BOT_INPUT_FORWARD_FIELD != null;
+    }
+
     private static String verificationMode() {
+        if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE && !IRON_PICKAXE_MODE) {
+            return "invalid_iron_pickaxe_empty_distant_wood_requires_iron_pickaxe";
+        }
+        if (COAL_RAISED_FULL_DROP_MODE && !COAL_RECOVERY_MODE) return "invalid_raised_full_requires_coal_recovery";
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
         if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";
@@ -1957,17 +2471,40 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (STONECUTTING_MODE) return "stonecutting";
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
         if (BULK_WOOD_MODE) return "bulk_wood";
-        if (IRON_PICKAXE_MODE) return "iron_pickaxe";
-        if (COAL_RECOVERY_MODE) return MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation" : "coal_recovery";
+        if (NEARBY_WOOD_MODE) return "nearby_wood";
+        if (IRON_PICKAXE_MODE) return IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
+            ? "iron_pickaxe_empty_distant_wood" : "iron_pickaxe";
+        if (COAL_RECOVERY_MODE) return MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation"
+            : COAL_RAISED_FULL_DROP_MODE ? "coal_recovery_raised_full_drop" : "coal_recovery";
         if (DIAMOND_BOOTSTRAP_MODE) return "diamond_boots";
         return EXPLORATION_MODE ? "exploration" : "default";
     }
 
     private static int selectedFixtureModes() {
         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
-            + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
+            + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
             + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
     }
+
+    private record NearbyWoodWalkActionSnapshot(String type, int x, int y, int z, int token) { }
+
+    private record NearbyWoodWalkStepSnapshot(int pathIndex, int x, int feetY16, int z,
+                                               String movement,
+                                               List<NearbyWoodWalkActionSnapshot> actions) {
+        private NearbyWoodWalkStepSnapshot {
+            actions = List.copyOf(actions);
+        }
+    }
+
+    private record NearbyWoodWalkObservation(int pathGeneration, int previousPathIndex,
+                                              int pathIndex, int reachedPathIndex,
+                                              int validatedPathIndex, int clientTick,
+                                              float forwardIntent,
+                                              int incomingX, int incomingZ,
+                                              int outgoingX, int outgoingZ,
+                                              NearbyWoodWalkStepSnapshot source,
+                                              NearbyWoodWalkStepSnapshot reached,
+                                              NearbyWoodWalkStepSnapshot outgoing) { }
 
     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
         private ServerInventorySnapshot {
@@ -1975,6 +2512,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
         }
     }
+
+    private record CoalDropStartingPosition(double x, double feetY, double z,
+                                            int platformBlockCount, int serverTick) { }
+
+    private record CoalDropEdge(int sourceX, int sourceFeetY16, int sourceZ,
+                                int destinationX, int destinationFeetY16, int destinationZ,
+                                String movement, int pathIndex, int clientTick) { }
+
+    private record CoalDropServerCheckpoint(double x, double feetY, double z, boolean onGround, int serverTick) { }
 
     private record CoalNavigationCheckpoint(int xCell, int feetY16) { }
 

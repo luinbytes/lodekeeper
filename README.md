@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Experimental preview:** [Preview 3](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.3) adds navigation across slabs, stairs, snow, paths and farmland, plus safer one-block jumps. Gathering, crafting, tool upgrades, smelting and eating pass controlled checks. Full mechanic coverage, natural-world survival and server acceptance remain in development.
+> **Experimental preview:** [Preview 4](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.4) adds a live path, target and compact task panel, shared wood discovery for crafting chains, and safer drop execution. Full mechanic coverage, natural-world survival and server acceptance remain in development.
 
 ### Tell it what you need
 
@@ -29,6 +29,8 @@ Lodekeeper uses native stonecutting with server-confirmed inventory accounting a
 It walks across actual collision faces on paths, farmland, slabs, stairs and snow. The exact [1.21.1](docs/evidence/1.21.1-preview3-mixed/README.md) and [26.3 terrain checks](docs/evidence/26.3-preview3-mixed/README.md) include a stair climb and one-block jump at full health, with every protected block preserved. The [1.21.1 dirt-path start](docs/evidence/1.21.1-preview3-coal-path/run.json) also collects reachable coal while preserving all nine starting path blocks.
 
 If a resource is unreachable, bounded recovery tries another target. Status and blockers retain the failed position and reason. Fractional jumps, parkour, fluid movement and broader terrain behavior still need their own gameplay checks.
+
+Watch the planned path and target while it works. The compact panel shows the current task and route progress. Use `!lk config showPath false` or `!lk config showHud false` to hide them, and `!lk config showSearch true` to display search nodes.
 
 For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
@@ -58,10 +60,10 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Download [Development Preview 3](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.3). All 24 exact-version jars were built and inspected. The exact [1.21.1](docs/evidence/1.21.1-preview3-jar/README.md) and [26.3](docs/evidence/26.3-preview3-jar/README.md) jars each passed nine controlled progression checks plus the mixed-terrain course in isolated harnesses. Broader ordinary-world acceptance remains open.
+Download [Development Preview 4](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.4). The release lists the exact-version jars available and their verification status. The current fixes pass controlled [1.21.1 tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md), [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) and [26.3 route visualization](docs/evidence/26.3-visualization-development/README.md) checks using development classes. Published-jar verification is recorded separately. Broader ordinary-world acceptance remains open.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.3.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.4.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
 Each jar targets one exact release. Every stable Java release from 1.20 through the current stable release, 26.3, has a passing development build, including 1.21.1. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.
