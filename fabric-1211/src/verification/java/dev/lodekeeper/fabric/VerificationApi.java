@@ -3,6 +3,7 @@ package dev.lodekeeper.fabric;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.world.CreateWorldScreen;
+import net.minecraft.client.gui.screen.world.WorldCreator;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.item.BlockItem;
@@ -10,7 +11,10 @@ import net.minecraft.item.Item;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.integrated.IntegratedServerLoader;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.level.LevelInfo;
 import net.minecraft.world.gen.GeneratorOptions;
 import net.minecraft.world.gen.WorldPresets;
@@ -41,6 +45,16 @@ final class VerificationApi {
 
     static void openCreateWorldScreen(MinecraftClient client, Screen parent) {
         CreateWorldScreen.create(client, parent);
+    }
+
+    static GameRules gameRules(WorldCreator creator) {
+        return new GameRules();
+    }
+
+    static boolean teleport(ServerPlayerEntity player, ServerWorld world, double x, double y, double z,
+                            float yaw, float pitch) {
+        player.teleport(world, x, y, z, yaw, pitch);
+        return true;
     }
 
     static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo, GeneratorOptions options) {

@@ -6,12 +6,8 @@
     "R R"
   ],
   "key": {
-    "R": {
-      "item": "lodekeeper_verification:ruby"
-    },
-    "S": {
-      "item": "minecraft:stick"
-    }
+    "R": "lodekeeper_verification:ruby",
+    "S": "minecraft:stick"
   },
   "result": {
     "id": "lodekeeper_verification:ruby_gear",

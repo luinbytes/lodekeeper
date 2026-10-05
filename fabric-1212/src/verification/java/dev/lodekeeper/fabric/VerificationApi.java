@@ -8,15 +8,21 @@ import net.minecraft.client.gui.screen.world.CreateWorldScreen;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.loot.LootTable;
+import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.integrated.IntegratedServerLoader;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameRules;
+import net.minecraft.client.gui.screen.world.WorldCreator;
 import net.minecraft.world.gen.GeneratorOptions;
 import net.minecraft.world.gen.WorldPresets;
 import net.minecraft.world.level.LevelInfo;
 
 import java.util.Optional;
+import java.util.Set;
 
 /** Minecraft 1.21.2–1.21.3 verifier registration and world-start API. */
 final class VerificationApi {
@@ -51,6 +57,17 @@ final class VerificationApi {
 
     static void openCreateWorldScreen(MinecraftClient client, Screen parent) {
         CreateWorldScreen.show(client, parent);
+    }
+
+    static GameRules gameRules(WorldCreator creator) {
+        return creator.getGameRules().copy(creator.getGeneratorOptionsHolder()
+            .dataConfiguration().enabledFeatures());
+    }
+
+    static boolean teleport(ServerPlayerEntity player, ServerWorld world, double x, double y, double z,
+                            float yaw, float pitch) {
+        // Empty relative flags keep the fixture spawn absolute; true restores the camera to the verifier player.
+        return player.teleport(world, x, y, z, Set.of(), yaw, pitch, true);
     }
 
     static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo,

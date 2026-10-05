@@ -22,7 +22,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.GameRules;
 import net.minecraft.world.gen.WorldPresets;
 import net.minecraft.world.level.LevelInfo;
 import net.minecraft.world.level.storage.LevelStorage;
@@ -264,7 +263,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (holder == null) throw new IllegalStateException("World generator settings are not ready");
         String saveName = "run-" + runId.substring(Math.max(0, runId.length() - 8));
         LevelInfo levelInfo = new LevelInfo("Lodekeeper verification", GameMode.SURVIVAL, false, Difficulty.PEACEFUL,
-            false, new GameRules(), DataConfiguration.SAFE_MODE);
+            false, VerificationApi.gameRules(creator), DataConfiguration.SAFE_MODE);
         Path worldsDirectory = verificationRoot.resolve("worlds");
         Files.createDirectories(worldsDirectory);
         Path actualWorldsDirectory = worldsDirectory.toRealPath();
@@ -325,7 +324,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 clearInventory(player.getInventory());
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
-                player.teleport(world, 0.5, PLAYER_Y, 0.5, 0.0F, 0.0F);
+                if (!VerificationApi.teleport(player, world, 0.5, PLAYER_Y, 0.5, 0.0F, 0.0F)) {
+                    throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
+                }
                 player.currentScreenHandler.sendContentUpdates();
                 scheduled.complete((long) server.getTicks());
             } catch (Throwable throwable) {
