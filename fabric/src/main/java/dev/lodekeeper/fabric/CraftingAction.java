@@ -40,6 +40,8 @@ final class CraftingAction {
     private MovePurpose movePurpose;
     private int placementIndex, cooldown;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested, remaindersResolved;
+    private boolean outputMoveObserved;
+    private static final class StaleRecipeBeforeOutputClick extends RuntimeException {}
     private record Placement(int gridSlot, int sourceSlot, Item item, Ingredient predicate, ItemStack inputStack, String budgetKey) {
         private Placement {
             inputStack = inputStack.copy();
@@ -88,30 +90,57 @@ final class CraftingAction {
             return false;
         }
         if (quickMove != null) {
-            if (quickMove.tick()) {
-                MovePurpose completedPurpose = movePurpose;
+            try {
+                if (quickMove.tick()) {
+                    MovePurpose completedPurpose = movePurpose;
+                    quickMove = null;
+                    movePurpose = null;
+                    if (completedPurpose == MovePurpose.OUTPUT) {
+                        outputMoveObserved = true;
+                        ItemStack remainingOutput = handler.getSlot(0).getStack();
+                        if (!remainingOutput.isEmpty()) {
+                            if (!GameApi.canCombine(remainingOutput, expectedOutput)
+                                    || remainingOutput.getCount() > expectedOutput.getCount()) {
+                                throw new IllegalStateException("Unexpected item remained in the crafting output slot; leaving the container open");
+                            }
+                            startOutputMove(remainingOutput);
+                            return false;
+                        }
+                        awaitingResult = false;
+                        placements.clear();
+                        placementIndex = 0;
+                        drainGridPending = true;
+                    }
+                }
+            } catch (StaleRecipeBeforeOutputClick stale) {
                 quickMove = null;
                 movePurpose = null;
-                if (completedPurpose == MovePurpose.OUTPUT) {
-                    ItemStack remainingOutput = handler.getSlot(0).getStack();
-                    if (!remainingOutput.isEmpty()) {
-                        if (!GameApi.canCombine(remainingOutput, expectedOutput)
-                                || remainingOutput.getCount() > expectedOutput.getCount()) {
-                            throw new IllegalStateException("Unexpected item remained in the crafting output slot; leaving the container open");
-                        }
-                        quickMove = new VerifiedQuickMove(client, handler, 0, remainingOutput.getItem(), "crafting output");
-                        movePurpose = MovePurpose.OUTPUT;
-                        return false;
-                    }
+                if (outputMoveObserved) {
                     awaitingResult = false;
-                    placements.clear();
-                    placementIndex = 0;
-                    drainGridPending = true;
+                    remainderFuture = null;
+                    remainderInputGrid = null;
+                    remaindersResolved = false;
+                    if (!drainKnownGridContents(true, true)) return false;
+                    return true;
                 }
+                awaitingResult = false;
+                remainderFuture = null;
+                remainderInputGrid = null;
+                remaindersResolved = false;
+                if (!drainKnownGridContents(true)) return false;
+                return true;
             }
             return false;
         }
-        if (awaitingResult && drainRequested && !recipeCurrent.getAsBoolean()) {
+        if (awaitingResult && drainRequested) {
+            if (outputMoveObserved) {
+                awaitingResult = false;
+                remainderFuture = null;
+                remainderInputGrid = null;
+                remaindersResolved = false;
+                if (!drainKnownGridContents(true, true)) return false;
+                return true;
+            }
             awaitingResult = false;
             remainderFuture = null;
             remainderInputGrid = null;
@@ -125,8 +154,7 @@ final class CraftingAction {
             if (!GameApi.canCombine(actual, expectedOutput) || actual.getCount() != expectedOutput.getCount()) {
                 throw new IllegalStateException("Crafting output disagrees with the planned recipe; leaving the container open");
             }
-            quickMove = new VerifiedQuickMove(client, handler, 0, output, "crafting output");
-            movePurpose = MovePurpose.OUTPUT;
+            startOutputMove(actual);
             return false;
         }
 
@@ -137,15 +165,10 @@ final class CraftingAction {
                 return true;
             }
             if (!placements.isEmpty() && placementIndex == placements.size()) {
-                if (!recipeCurrent.getAsBoolean()) {
-                    remainderFuture = null;
-                    remainderInputGrid = null;
-                    if (!drainKnownGridContents(true)) return false;
-                    return true;
-                }
-                if (!resolveExpectedRemainders()) return false;
-                awaitingResult = true;
-                return false;
+                remainderFuture = null;
+                remainderInputGrid = null;
+                if (!drainKnownGridContents(true)) return false;
+                return true;
             }
             if (!drainKnownGridContents(true)) return false;
             return true;
@@ -158,7 +181,10 @@ final class CraftingAction {
             if (targetReached) return true;
         }
 
-        if (placements.isEmpty()) buildPlacements();
+        if (placements.isEmpty()) {
+            outputMoveObserved = false;
+            buildPlacements();
+        }
         if (placementIndex == placements.size()) {
             if (!resolveExpectedRemainders()) return false;
             awaitingResult = true;
@@ -248,6 +274,19 @@ final class CraftingAction {
         addExpected(expectedGridContents, gridSlot, input);
     }
 
+    private void startOutputMove(ItemStack expectedSource) {
+        ItemStack guardedSource = expectedSource.copy();
+        quickMove = new VerifiedQuickMove(client, handler, 0, guardedSource.getItem(), "crafting output", null, () -> {
+            if (drainRequested || !recipeCurrent.getAsBoolean()) throw new StaleRecipeBeforeOutputClick();
+            ItemStack current = handler.getSlot(0).getStack();
+            if (current.isEmpty() || current.getCount() != guardedSource.getCount()
+                    || !GameApi.canCombine(current, guardedSource)) {
+                throw new IllegalStateException("Crafting output changed before transfer; leaving the container open");
+            }
+        });
+        movePurpose = MovePurpose.OUTPUT;
+    }
+
     private static void addExpected(Map<Integer, List<ItemStack>> expected, int gridSlot, ItemStack stack) {
         List<ItemStack> values = expected.computeIfAbsent(gridSlot, ignored -> new ArrayList<>());
         if (values.stream().noneMatch(existing -> GameApi.canCombine(existing, stack) && existing.getCount() == stack.getCount())) {
@@ -306,13 +345,19 @@ final class CraftingAction {
 
     /** Returns true only after every known ingredient or recipe remainder is observed in inventory. */
     private boolean drainKnownGridContents(boolean allowIngredients) {
+        return drainKnownGridContents(allowIngredients, !allowIngredients);
+    }
+
+    private boolean drainKnownGridContents(boolean allowIngredients, boolean allowRemainders) {
         int gridSlots = handler instanceof CraftingScreenHandler ? 9 : 4;
         for (int slot = 1; slot <= gridSlots; slot++) {
             ItemStack stack = handler.getSlot(slot).getStack();
             if (stack.isEmpty()) continue;
-            List<ItemStack> allowed = (allowIngredients ? expectedGridContents : expectedGridRemainders).get(slot);
-            if (allowed == null || allowed.stream().noneMatch(expected -> GameApi.canCombine(stack, expected)
-                    && stack.getCount() == expected.getCount())) {
+            boolean knownIngredient = allowIngredients && expectedGridContents.getOrDefault(slot, List.of()).stream()
+                    .anyMatch(expected -> GameApi.canCombine(stack, expected) && stack.getCount() == expected.getCount());
+            boolean knownRemainder = allowRemainders && expectedGridRemainders.getOrDefault(slot, List.of()).stream()
+                    .anyMatch(expected -> GameApi.canCombine(stack, expected) && stack.getCount() == expected.getCount());
+            if (!knownIngredient && !knownRemainder) {
                 throw new IllegalStateException("Unexpected crafting grid contents; leaving the container open");
             }
             quickMove = new VerifiedQuickMove(client, handler, slot, stack.getItem(), "crafting remainder");

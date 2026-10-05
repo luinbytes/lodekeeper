@@ -46,11 +46,15 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-/** Minecraft 1.21.2–1.21.3 recipe-display family. Native recipes stay on the integrated server thread. */
+/**
+ * Minecraft 1.21.2–1.21.3 recipe-display family. Native recipes and their remainder callbacks stay on the integrated
+ * server thread. Remote crafting is limited to learned displays with consistent ingredient metadata and declared
+ * remainder contracts; server-only custom remainder overrides cannot be inferred from an ordinary display.
+ */
 final class GameApi {
     record FoodInfo(int nutrition, float saturation, boolean safe) {}
 
-    private record SlotFacts(Set<ItemId> items, ItemStack remainder, boolean empty) {
+    private record SlotFacts(Set<ItemId> items, ItemStack remainder, boolean remainderDeclared, boolean empty) {
         private SlotFacts {
             items = Set.copyOf(items);
             remainder = remainder.copy();
@@ -355,6 +359,7 @@ final class GameApi {
                     if (!shown.remainder().isEmpty()) throw new IllegalArgumentException("empty shaped cell declares a remainder");
                     continue;
                 }
+                requireRemoteRemainderContract(shown);
                 inputs.add(new RecipeWork.Input(slot, takeMatching(shown.items(), remaining)));
                 if (!shown.remainder().isEmpty()) remainders.put(slot, shown.remainder());
             }
@@ -375,6 +380,7 @@ final class GameApi {
             for (int slot = 0; slot < shapeless.ingredients().size(); slot++) {
                 SlotFacts shown = slotFacts(shapeless.ingredients().get(slot));
                 if (shown.empty()) throw new IllegalArgumentException("shapeless display contains an empty slot");
+                requireRemoteRemainderContract(shown);
                 inputs.add(new RecipeWork.Input(slot, takeMatching(shown.items(), remaining)));
                 if (!shown.remainder().isEmpty()) remainders.put(slot, shown.remainder());
             }
@@ -420,6 +426,7 @@ final class GameApi {
     private static SlotFacts slotFacts(SlotDisplay display) {
         ItemStack remainder = ItemStack.EMPTY;
         SlotDisplay input = display;
+        boolean remainderDeclared = false;
         if (display instanceof SlotDisplay.WithRemainderSlotDisplay withRemainder) {
             input = withRemainder.input();
             if (input instanceof SlotDisplay.WithRemainderSlotDisplay) {
@@ -427,22 +434,34 @@ final class GameApi {
             }
             remainder = concreteDisplayStack(withRemainder.remainder());
             if (remainder == null) throw new IllegalArgumentException("remainder display is not an exact item stack");
+            remainderDeclared = true;
         }
-        if (input instanceof SlotDisplay.EmptySlotDisplay) return new SlotFacts(Set.of(), remainder, true);
+        if (input instanceof SlotDisplay.EmptySlotDisplay) return new SlotFacts(Set.of(), remainder, remainderDeclared, true);
         if (input instanceof SlotDisplay.ItemSlotDisplay item) {
-            return new SlotFacts(Set.of(GameCatalog.id(item.item().value())), remainder, false);
+            return new SlotFacts(Set.of(GameCatalog.id(item.item().value())), remainder, remainderDeclared, false);
         }
         if (input instanceof SlotDisplay.StackSlotDisplay stack) {
             if (stack.stack().isEmpty()) throw new IllegalArgumentException("empty stack display is not an ingredient");
-            return new SlotFacts(Set.of(GameCatalog.id(stack.stack().getItem())), remainder, false);
+            return new SlotFacts(Set.of(GameCatalog.id(stack.stack().getItem())), remainder, remainderDeclared, false);
         }
         if (input instanceof SlotDisplay.TagSlotDisplay tag) {
             Set<ItemId> allowed = new TreeSet<>();
             Registries.ITEM.iterateEntries(tag.tag()).forEach(entry -> allowed.add(GameCatalog.id(entry.value())));
             if (allowed.isEmpty()) throw new IllegalArgumentException("tag display resolves to no registered items");
-            return new SlotFacts(allowed, remainder, false);
+            return new SlotFacts(allowed, remainder, remainderDeclared, false);
         }
         throw new IllegalArgumentException("unsupported slot display " + input.getClass().getSimpleName());
+    }
+
+    private static void requireRemoteRemainderContract(SlotFacts shown) {
+        if (shown.remainderDeclared()) return;
+        for (ItemId id : shown.items()) {
+            ItemStack itemRemainder = GameCatalog.item(id).getRecipeRemainder();
+            if (!itemRemainder.isEmpty()) {
+                throw new IllegalArgumentException("learned display omits remainder metadata for " + id
+                        + ", whose item has a default crafting remainder");
+            }
+        }
     }
 
     private static ItemStack concreteDisplayStack(SlotDisplay display) {

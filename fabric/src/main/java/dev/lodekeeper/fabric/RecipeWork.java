@@ -33,8 +33,11 @@ record RecipeWork(
     }
 
     /**
-     * Computes one exact recipe-specific remainder stack per cell of the concrete grid, in row-major order.
-     * Known no-remainder cells must be represented by empty stacks; unknown remainder behavior must throw.
+     * Computes one declared remainder stack per cell of the concrete grid, in row-major order. Integrated-server
+     * providers resolve the native recipe exactly. A remote learned-display provider treats an omitted remainder as
+     * the display protocol's declared empty contract; this cannot prove that a server-only custom recipe has no
+     * override. The crafting action checks the post-output grid and stops with the container open if the server
+     * produces any unmodeled contents.
      */
     @FunctionalInterface
     interface RemainderResolver {
