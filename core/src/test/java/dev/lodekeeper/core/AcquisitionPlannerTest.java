@@ -342,6 +342,86 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void nearbyCraftedFuelOutranksGatherFuelWithoutBeatingUsableStock() {
+        ItemId raw = ItemId.parse("test:raw_ore");
+        ItemId output = ItemId.parse("test:ranked_ingot");
+        ItemId coal = ItemId.parse("test:coal");
+        ItemId oakLog = ItemId.parse("test:oak_log");
+        ItemId oakPlanks = ItemId.parse("test:oak_planks");
+        SmeltingSource smelting = new SmeltingSource("smelt:ranked_ingot", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(coal), ItemSelector.item(oakPlanks)), 100, List.of(),
+                Map.of(coal, 100L, oakPlanks, 100L));
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(raw, 0).item(output, 0).item(coal, 0).item(oakLog, 0).item(oakPlanks, 0)
+                .source(new GatherSource("gather:coal", coal, 1, List.of(BlockId.parse("test:coal_ore"))))
+                .source(new GatherSource("gather:oak_log", oakLog, 1, List.of(BlockId.parse("test:oak_log"))))
+                .source(new CraftingSource("craft:oak_planks", oakPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(oakLog))), List.of()))
+                .source(smelting)
+                .build();
+        PlanningPreferences preferences = new PlanningPreferences(Map.of(
+                "gather:coal", 50,
+                "gather:oak_log", 1));
+
+        PlanResult legacy = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 1)), output, 1);
+        PlanResult nearbyFuel = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 1)), output, 1,
+                PlannerLimits.DEFAULT, preferences);
+        PlanResult heldCoal = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 1, coal, 1)), output, 1,
+                PlannerLimits.DEFAULT, preferences);
+        PlanResult partialCoal = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 2, coal, 1)), output, 2,
+                PlannerLimits.DEFAULT, preferences);
+        InventorySnapshot protectedCoalInventory = new InventorySnapshot(Map.of(raw, 1, coal, 1), Set.of(), Map.of(),
+                Map.of(coal, 1));
+        PlanResult protectedCoal = planner().planFast(catalog, protectedCoalInventory, output, 1,
+                PlannerLimits.DEFAULT, preferences);
+
+        assertTrue(legacy.success(), legacy.blockedReasons().toString());
+        assertEquals(coal, selectedFuel(legacy).item());
+        assertTrue(nearbyFuel.success(), nearbyFuel.blockedReasons().toString());
+        assertEquals(oakPlanks, selectedFuel(nearbyFuel).item());
+        assertTrue(nearbyFuel.steps().stream().anyMatch(step -> step.sourceId().equals("gather:oak_log")));
+        assertFalse(nearbyFuel.steps().stream().anyMatch(step -> step.sourceId().equals("gather:coal")));
+        assertTrue(heldCoal.success(), heldCoal.blockedReasons().toString());
+        assertEquals(coal, selectedFuel(heldCoal).item());
+        assertTrue(partialCoal.success(), partialCoal.blockedReasons().toString());
+        assertEquals(coal, selectedFuel(partialCoal).item());
+        assertEquals(2, selectedFuel(partialCoal).count());
+        assertTrue(protectedCoal.success(), protectedCoal.blockedReasons().toString());
+        assertEquals(oakPlanks, selectedFuel(protectedCoal).item());
+        assertEquals(1, protectedCoalInventory.count(coal));
+        assertEquals(1, protectedCoalInventory.protectedCounts().get(coal));
+    }
+
+    @Test
+    void preferredCyclicFuelDoesNotHideCoalFallback() {
+        ItemId raw = ItemId.parse("test:cycle_raw");
+        ItemId output = ItemId.parse("test:cycle_smelted");
+        ItemId coal = ItemId.parse("test:cycle_coal");
+        ItemId cycleFuel = ItemId.parse("test:cycle_fuel");
+        SmeltingSource smelting = new SmeltingSource("smelt:cycle_target", output, 1, Ingredient.of(raw),
+                List.of(ItemSelector.item(cycleFuel), ItemSelector.item(coal)), 100, List.of(),
+                Map.of(cycleFuel, 100L, coal, 100L));
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(raw, 0).item(output, 0).item(coal, 0).item(cycleFuel, 0)
+                .source(new GatherSource("gather:cycle_coal", coal, 1, List.of(BlockId.parse("test:cycle_coal_ore"))))
+                .source(new CraftingSource("craft:cycle_fuel", cycleFuel, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(output))), List.of()))
+                .source(smelting)
+                .build();
+        PlanningPreferences preferences = new PlanningPreferences(Map.of(
+                "craft:cycle_fuel", 0,
+                "gather:cycle_coal", 50));
+
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 1)), output, 1,
+                PlannerLimits.DEFAULT, preferences);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(coal, selectedFuel(result).item());
+        assertTrue(result.steps().stream().anyMatch(step -> step.sourceId().equals("gather:cycle_coal")));
+        assertFalse(result.steps().stream().anyMatch(step -> step.sourceId().equals("craft:cycle_fuel")));
+    }
+
+    @Test
     void explicitFuelCapacityMapDoesNotFallBackToGlobalFuelMetadata() {
         ItemId coal = ItemId.parse("test:coal");
         ItemId otherFuel = ItemId.parse("test:other_fuel");

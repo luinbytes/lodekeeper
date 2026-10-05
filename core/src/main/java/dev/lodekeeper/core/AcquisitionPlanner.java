@@ -643,17 +643,36 @@ public final class AcquisitionPlanner {
                             "Fuel is not usable for this source or station: " + fuel, pathWith(path, fuel));
                 }
             }
+            Map<ItemId, Integer> fuelPreferenceRanks = preferences.isEmpty() || availableFuels.isEmpty()
+                    ? Map.of() : freezeItemPreferenceRanks(List.copyOf(availableFuels), path);
+            if (!preferences.isEmpty() && !availableFuels.isEmpty() && clock.getAsLong() >= deadline) {
+                setLimit(BlockedReason.Code.TIME_LIMIT, source.output(), path);
+                return List.of();
+            }
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : prepared) {
-                Comparator<ItemId> order = Comparator.comparingInt((ItemId fuel) -> {
-                    long needed = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
-                    int held = candidate.state.spendableCount(fuel);
-                    if (held >= needed) return 0;
-                    if (held > 0) return 1;
-                    if (catalog.sourcesFor(fuel).stream().anyMatch(GatherSource.class::isInstance)) return 2;
-                    return catalog.sourcesFor(fuel).isEmpty() ? 4 : 3;
-                }).thenComparingLong(fuel -> ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)))
-                        .thenComparing(Comparator.naturalOrder());
+                Comparator<ItemId> order;
+                if (preferences.isEmpty()) {
+                    // Preserve legacy fuel ordering when no advisory ranks were supplied.
+                    order = Comparator.comparingInt((ItemId fuel) -> {
+                        long needed = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
+                        int held = candidate.state.spendableCount(fuel);
+                        if (held >= needed) return 0;
+                        if (held > 0) return 1;
+                        if (catalog.sourcesFor(fuel).stream().anyMatch(GatherSource.class::isInstance)) return 2;
+                        return catalog.sourcesFor(fuel).isEmpty() ? 4 : 3;
+                    }).thenComparingLong(fuel -> ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)))
+                            .thenComparing(Comparator.naturalOrder());
+                } else {
+                    order = Comparator.comparingInt((ItemId fuel) -> fuelStockPriority(
+                                    candidate.state, fuel, ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel))))
+                            .thenComparingLong(fuel -> fuelPreferenceEffort(candidate.state, fuel,
+                                    ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)), fuelPreferenceRanks))
+                            .thenComparingInt(fuel -> fuelSourcePriority(candidate.state, fuel,
+                                    ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel))))
+                            .thenComparingLong(fuel -> ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)))
+                            .thenComparing(Comparator.naturalOrder());
+                }
                 List<ItemId> fuels = availableFuels.stream().sorted(order)
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 if (availableFuels.size() > fuels.size()) truncated = true;
@@ -674,6 +693,29 @@ public final class AcquisitionPlanner {
                 }
             }
             return trimPrepared(next);
+        }
+
+        private int fuelStockPriority(State state, ItemId fuel, long needed) {
+            int held = state.spendableCount(fuel);
+            if (held >= needed) return 0;
+            return held > 0 ? 1 : 2;
+        }
+
+        private long fuelPreferenceEffort(State state, ItemId fuel, long needed,
+                                          Map<ItemId, Integer> preferenceRanks) {
+            int rank = itemPreferenceRank(fuel, preferenceRanks);
+            if (rank > PlanningPreferences.MAX_RANK) return Long.MAX_VALUE;
+            long missing = Math.max(0L, needed - state.spendableCount(fuel));
+            if (missing == 0 || rank == 0) return 0;
+            if (missing > Long.MAX_VALUE / rank) return Long.MAX_VALUE;
+            return missing * rank;
+        }
+
+        private int fuelSourcePriority(State state, ItemId fuel, long needed) {
+            if (fuelStockPriority(state, fuel, needed) != 2) return 0;
+            List<AcquisitionSource> sources = catalog.sourcesFor(fuel);
+            if (sources.isEmpty()) return 2;
+            return sources.stream().anyMatch(GatherSource.class::isInstance) ? 0 : 1;
         }
 
         private List<Prepared> prepareRequirements(List<Prepared> initial, List<Requirement> requirements, int operations, Set<ItemId> path, int depth) {
