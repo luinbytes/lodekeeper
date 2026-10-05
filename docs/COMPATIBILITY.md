@@ -11,13 +11,13 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
 | **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
-| 1.21.2, 1.21.3 | 21 | Pending; recipe-display API boundary | Pending |
+| 1.21.2, 1.21.3 | 21 | Exact local development builds pass; 1.21.2 verification source set also compiles | Pending |
 | 1.21.4, 1.21.5 | 21 | Pending | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Pending | Pending |
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Pending | Pending |
-| 26.1, 26.1.1, 26.1.2 | 25 | Pending; unobfuscated source boundary | Pending |
-| 26.2 | 25 | Pending | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Six controlled cases pass after route fix; iron smelting has no plan; full suite pending |
+| 26.1, 26.1.1, 26.1.2 | 25 | Earlier 16-profile CI passes all three; current-head matrix pending | Pending |
+| 26.2 | 25 | Exact local and earlier CI development builds pass; current-head matrix pending | Pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases pass; natural-world checks pending |
 
 ## What a check proves
 
@@ -30,7 +30,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 
 ## Known implementation limits
 
-The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Its held-food eating is verified in the 1.20.1 fixture; the 26.3 food controller is ported but gameplay verification is pending. It has a conservative integer-height navigation model; fractional slab/stair stances, vehicles, dimensions and specialty stations are not yet verified. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
+The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Held-food eating is verified in the controlled 1.20.1, 1.21.1 and 26.3 fixtures. It has a conservative integer-height navigation model; fractional slab/stair stances, vehicles, dimensions and specialty stations are not yet verified. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.
 
@@ -40,6 +40,10 @@ First 26.3 gameplay evidence: [server observations and failure](evidence/26.3-fi
 
 The `a795995` route fix then passes stone-pickaxe and furnace construction as well: [six-case observations and smelting blocker](evidence/26.3-furnace-run/run.json), with [artifact digest](evidence/26.3-furnace-run/artifact.json). Iron smelting has no plan, with cooking-fuel provider resolution under investigation; later cases remain unverified.
 
+Controlled 26.3 progression at `f894786`: [nine-case server observations](evidence/26.3-progression/run.json), paired with the [artifact and source digests](evidence/26.3-progression/artifact.json). All nine cases pass in 167,452 ms with health 20 throughout and four real crafting-table openings. Resolving furnace providers from the server's reloadable registries and ranking held fuels within a bounded search fixed the smelting blocker. The fixture uses a prepared resource pad and does not establish ordinary-world completion or a comparative benchmark.
+
 Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37273002879) passed at `46f3496`. [Artifact inspection](evidence/builds/46f3496.json) verifies downloaded SHA-256 digests, exact Minecraft metadata, Java class versions, bundled Java 17 core, and exclusion of verifier fixtures. These checks prove packaging, not gameplay. This run predates the modern automatic-eating addition, which passed its separate local 26.3 build.
 
 Updated exact build evidence: [all ten profiles pass at `c9b1825`](https://github.com/luinbytes/lodekeeper/actions/runs/37279029560). The [downloaded artifact inspection](evidence/builds/c9b1825.json) repeats those checks after normalized recipes, navigation safety changes and modern automatic eating, including the separate 1.20.5–1.20.6 crafting API overlay.
+
+The [24-profile current-source CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37287589333) is running. Earlier [16-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37285757052) passed 14 exact builds; its 1.21.2/1.21.3 verification compilation failed at API seams fixed in subsequent local builds. Neither partial CI nor source overlays establish gameplay compatibility.

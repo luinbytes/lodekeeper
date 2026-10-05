@@ -1,0 +1,20 @@
+{
+  "minecraftVersion": "26.3",
+  "sourceCommit": "f894786ac3be1e313f44b6a49fa3c2c47687dacf",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "cadf86cbd83ccfe5f32d5d3e3aaa11388f3c93840cb01452bbea925d9e7f4da6",
+  "sourceTreeSha256": "f35848b73879e5f96856af36101f89769f9a63c610d707773eed93ca95f9e9f1",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "core/src/main",
+    "nav/src/main",
+    "fabric-modern/src/main",
+    "fabric-modern/src/26.3",
+    "fabric-modern/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "gameRunId": "2026-10-05T09-04-24-022145Z-1323bf45",
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired packaged build; gameplay used matching development classes",
+  "result": "Nine controlled cases pass with health 20 throughout: gathering, inventory and crafting-table crafting, tool progression, furnace smelting, custom ore and 3x3 crafting, automatic eating and resumed gathering. Natural-world progression and broader mechanics remain unverified."
+}
