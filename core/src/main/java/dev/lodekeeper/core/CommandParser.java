@@ -12,7 +12,7 @@ public final class CommandParser {
     public static final int MAX_CONFIG_VALUE_LENGTH = 256;
     public static final int MAX_REQUEST_COUNT = 1_000_000;
 
-    public sealed interface Command permits GetCommand, StopCommand, PauseCommand, ResumeCommand,
+    public sealed interface Command permits HelpCommand, GetCommand, StopCommand, PauseCommand, ResumeCommand,
             StatusCommand, QueueCommand, ClearCommand, PlanCommand, ConfigCommand,
             ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand { }
 
@@ -22,6 +22,7 @@ public final class CommandParser {
             validateCount(count);
         }
     }
+    public record HelpCommand() implements Command { }
     public record StopCommand() implements Command { }
     public record PauseCommand() implements Command { }
     public record ResumeCommand() implements Command { }
@@ -82,7 +83,18 @@ public final class CommandParser {
         public static ParseResult error(String message) { return new ParseResult(null, new ParseError(message, USAGE)); }
     }
 
-    public static final String USAGE = "Commands: get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]]";
+    public static final String USAGE = "Commands: help, get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]]";
+
+    /** Returns the local command body, or null when chat does not match the exact prefix. */
+    public static String clientCommandBody(String message, String prefix) {
+        Objects.requireNonNull(message, "message");
+        Objects.requireNonNull(prefix, "prefix");
+        if (prefix.isBlank()) return null;
+        if (message.startsWith(prefix)) return message.substring(prefix.length());
+        String barePrefix = prefix.stripTrailing();
+        if (barePrefix.length() < prefix.length() && message.stripTrailing().equals(barePrefix)) return "";
+        return null;
+    }
 
     public ParseResult parse(String body) {
         if (body == null) return ParseResult.error("Command is empty.");
@@ -93,11 +105,12 @@ public final class CommandParser {
         } catch (IllegalArgumentException exception) {
             return ParseResult.error(exception.getMessage());
         }
-        if (tokens.isEmpty()) return ParseResult.error("Enter a command.");
+        if (tokens.isEmpty()) return ParseResult.command(new HelpCommand());
         if (tokens.size() > 16) return ParseResult.error("Too many command arguments.");
         String name = tokens.get(0).toLowerCase(Locale.ROOT);
         try {
             return switch (name) {
+                case "help", "?" -> noArguments(tokens, new HelpCommand(), "help takes no arguments.");
                 case "get" -> parseGet(tokens);
                 case "stop", "cancel" -> noArguments(tokens, new StopCommand(), "stop takes no arguments.");
                 case "pause" -> noArguments(tokens, new PauseCommand(), "pause takes no arguments.");

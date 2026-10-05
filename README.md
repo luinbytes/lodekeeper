@@ -13,6 +13,7 @@
 ### Tell it what you need
 
 ```text
+!lk help
 !lk get wood 64
 !lk get diamond_boots
 !lk plan diamond_boots
@@ -32,6 +33,8 @@ For large wood requests, try `!lk config optimizeWoodTools true`. This experimen
 The planned flow works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables and cooking stations, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
 
 Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
+
+`get` starts automatically. Close chat or other screens to let it run; `!lk status` shows discovery, planning, and movement progress. Bare `!lk` and `!lk help` show command guidance in builds after the first preview release.
 
 | Command | Use it to |
 | --- | --- |

@@ -26,8 +26,8 @@ public final class LodekeeperClient implements ClientModInitializer {
                 "key.lodekeeper.stop", InputConstants.KEY_K, KeyMapping.Category.MISC));
 
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
-            if (!message.startsWith(engine.config.prefix)) return true;
-            String body = message.substring(engine.config.prefix.length());
+            String body = CommandParser.clientCommandBody(message, engine.config.prefix);
+            if (body == null) return true;
             client.execute(() -> command(body));
             return false;
         });
@@ -52,7 +52,8 @@ public final class LodekeeperClient implements ClientModInitializer {
         }
         CommandParser.Command command = parsed.command();
         try {
-            if (command instanceof CommandParser.GetCommand get) engine.enqueue(get.item(), get.count());
+            if (command instanceof CommandParser.HelpCommand) showHelp();
+            else if (command instanceof CommandParser.GetCommand get) engine.enqueue(get.item(), get.count());
             else if (command instanceof CommandParser.StopCommand) engine.stop();
             else if (command instanceof CommandParser.PauseCommand) engine.pause("requested");
             else if (command instanceof CommandParser.ResumeCommand) engine.resume();
@@ -70,6 +71,14 @@ public final class LodekeeperClient implements ClientModInitializer {
         } catch (Exception ex) {
             engine.message("Command failed: " + ex.getMessage());
         }
+    }
+
+    private void showHelp() {
+        String prefix = engine.config.prefix;
+        engine.message("Get starts automatically: " + prefix + "get wood 64 or " + prefix + "get iron_pickaxe");
+        engine.message("Counts are total inventory targets; omitted count means 1. Close chat to let automation run.");
+        engine.message("Check progress: " + prefix + "status or " + prefix + "queue. Control: pause, resume, stop.");
+        engine.message(CommandParser.USAGE);
     }
 
     private void configure(CommandParser.ConfigCommand command) throws java.io.IOException {

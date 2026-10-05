@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.HashMap;
 import java.util.List;
@@ -489,6 +490,23 @@ final class AcquisitionPlannerTest {
         assertEquals(64, get.count());
         assertFalse(parser.parse("get diamond_boots 1000001").success());
         assertFalse(parser.parse("pause extra").success());
+    }
+
+    @Test
+    void clientPrefixHelpDoesNotInterceptUnrelatedChat() {
+        CommandParser parser = new CommandParser();
+        assertEquals("", CommandParser.clientCommandBody("!lk", "!lk "));
+        assertEquals("", CommandParser.clientCommandBody("!lk   ", "!lk ").trim());
+        assertEquals("status", CommandParser.clientCommandBody("!lk status", "!lk "));
+        assertNull(CommandParser.clientCommandBody("!lkfoo", "!lk "));
+        assertNull(CommandParser.clientCommandBody("hello !lk", "!lk "));
+        assertNull(CommandParser.clientCommandBody("custom", "custom:"));
+        assertEquals("status", CommandParser.clientCommandBody("custom:status", "custom:"));
+        assertNull(CommandParser.clientCommandBody("!lk", "!lk\t\tstatus"));
+        assertTrue(parser.parse("").command() instanceof CommandParser.HelpCommand);
+        assertTrue(parser.parse("help").command() instanceof CommandParser.HelpCommand);
+        assertTrue(parser.parse("?").command() instanceof CommandParser.HelpCommand);
+        assertFalse(parser.parse("help extra").success());
     }
 
     @Test
