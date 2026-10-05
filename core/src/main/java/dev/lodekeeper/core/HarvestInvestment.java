@@ -117,6 +117,34 @@ public final class HarvestInvestment {
         }
     }
 
+    /**
+     * Charges an auxiliary plan for goal items taken from held stock. Newly gathered stock
+     * offsets consumed inputs; recipe remainders are ignored conservatively. This keeps a
+     * bootstrap profitable across replans without reserving its own intermediate materials.
+     */
+    public static long adjustedBenefitForGoalStock(PlanResult investmentPlan, Set<ItemId> goalItems,
+            long nominalBenefitTicks, long replacementTicksPerItem) {
+        Objects.requireNonNull(investmentPlan, "investmentPlan");
+        Objects.requireNonNull(goalItems, "goalItems");
+        if (!investmentPlan.success() || investmentPlan.steps().size() > MAX_AUXILIARY_STEPS
+                || goalItems.size() > 4096 || nominalBenefitTicks < 0
+                || nominalBenefitTicks > MAX_TICK_ESTIMATE || replacementTicksPerItem < 1
+                || replacementTicksPerItem > MAX_TICK_ESTIMATE) return 0;
+        long netStock = 0;
+        for (PlanStep step : investmentPlan.steps()) {
+            if (step.requirements().size() > 256) return 0;
+            if (step.output() != null && goalItems.contains(step.output())) netStock += step.outputCount();
+            for (SelectedRequirement requirement : step.requirements()) {
+                if (requirement instanceof SelectedItemRequirement item && item.consumed()
+                        && goalItems.contains(item.item())) netStock -= item.count();
+            }
+        }
+        if (netStock >= 0) return nominalBenefitTicks;
+        long deficit = -netStock;
+        if (deficit > nominalBenefitTicks / replacementTicksPerItem) return 0;
+        return nominalBenefitTicks - deficit * replacementTicksPerItem;
+    }
+
     private static long safeOperations(int durability, int wearPerBlock, int minBeforeBreak) {
         if (durability < minBeforeBreak) return 0;
         return (durability - (long) minBeforeBreak) / wearPerBlock + 1;

@@ -1047,6 +1047,28 @@ final class AcquisitionPlannerTest {
         assertEquals(8, decision.estimatedNetSavingTicks());
     }
 
+    @Test
+    void harvestInvestmentPricesHeldGoalStockWithoutReservingBootstrapMaterials() {
+        ItemId axe = ItemId.parse("test:axe");
+        ItemId birch = ItemId.parse("test:birch_log");
+        PlanStep craft = new PlanStep(PlanKind.CRAFT, "craft:bootstrap", PLANKS, 12, 3,
+                List.of(new SelectedItemRequirement(LOG, 3, true, "ingredient", 0),
+                        new SelectedItemRequirement(birch, 1, false, "reserved tool", -1)),
+                List.of(), RecipeType.SHAPELESS, 0, 0, null, null, Map.of());
+        Set<ItemId> logs = Set.of(LOG, birch);
+        PlanResult bootstrap = simpleSuccessfulPlan(axe, 2, List.of(gatherStep(LOG, 3), craft, stationPlacementStep(StationId.parse("minecraft:crafting_table"))));
+        assertEquals(1000, HarvestInvestment.adjustedBenefitForGoalStock(bootstrap, logs, 1000, 80));
+        PlanResult afterGather = simpleSuccessfulPlan(axe, 2, List.of(craft));
+        assertEquals(760, HarvestInvestment.adjustedBenefitForGoalStock(afterGather, logs, 1000, 80));
+        PlanResult mixedLogs = simpleSuccessfulPlan(axe, 2, List.of(gatherStep(birch, 2), craft));
+        assertEquals(920, HarvestInvestment.adjustedBenefitForGoalStock(mixedLogs, logs, 1000, 80));
+        assertEquals(0, HarvestInvestment.adjustedBenefitForGoalStock(afterGather, logs, 200, 80));
+        assertEquals(0, HarvestInvestment.adjustedBenefitForGoalStock(afterGather, logs, 1000, Long.MAX_VALUE));
+        PlanResult incomplete = new PlanResult(axe, 2, List.of(craft),
+                List.of(new BlockedReason(BlockedReason.Code.NO_SOURCE, axe, "missing", List.of(axe))), false, 0, 0);
+        assertEquals(0, HarvestInvestment.adjustedBenefitForGoalStock(incomplete, logs, 1000, 80));
+    }
+
     private static PlanResult simpleSuccessfulPlan(ItemId target, int count, List<PlanStep> steps) {
         return new PlanResult(target, count, steps, List.of(), false, 0, 0);
     }
