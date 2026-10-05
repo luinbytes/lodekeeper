@@ -15,29 +15,28 @@ Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on
 | 1.21.1 | 21 | 1211 | 1.21.1+build.3 | 0.116.17+1.21.1 |
 | 1.21.2 | 21 | 1212 (source implemented; build pending) | 1.21.2+build.1 | 0.106.1+1.21.2 |
 | 1.21.3 | 21 | 1212 (source implemented; build pending) | 1.21.3+build.2 | 0.114.1+1.21.3 |
-| 1.21.4 | 21 | recipe-display pending | 1.21.4+build.8 | 0.119.4+1.21.4 |
-| 1.21.5 | 21 | recipe-display pending | 1.21.5+build.1 | 0.128.2+1.21.5 |
-| 1.21.6 | 21 | recipe-display pending | 1.21.6+build.1 | 0.128.2+1.21.6 |
-| 1.21.7 | 21 | recipe-display pending | 1.21.7+build.8 | 0.129.0+1.21.7 |
-| 1.21.8 | 21 | recipe-display pending | 1.21.8+build.1 | 0.136.1+1.21.8 |
-| 1.21.9 | 21 | recipe-display pending | 1.21.9+build.1 | 0.134.1+1.21.9 |
-| 1.21.10 | 21 | recipe-display pending | 1.21.10+build.3 | 0.138.4+1.21.10 |
-| 1.21.11 | 21 | recipe-display pending | 1.21.11+build.6 | 0.141.6+1.21.11 |
+| 1.21.4 | 21 | 1212 (source implemented; build pending) | 1.21.4+build.8 | 0.119.4+1.21.4 |
+| 1.21.5 | 21 | 1212 (source implemented; build pending) | 1.21.5+build.1 | 0.128.2+1.21.5 |
+| 1.21.6 | 21 | 1212 (source implemented; build pending) | 1.21.6+build.1 | 0.128.2+1.21.6 |
+| 1.21.7 | 21 | 1212 (source implemented; build pending) | 1.21.7+build.8 | 0.129.0+1.21.7 |
+| 1.21.8 | 21 | 1212 (source implemented; build pending) | 1.21.8+build.1 | 0.136.1+1.21.8 |
+| 1.21.9 | 21 | 1212 (source implemented; build pending) | 1.21.9+build.1 | 0.134.1+1.21.9 |
+| 1.21.10 | 21 | 1212 (source implemented; build pending) | 1.21.10+build.3 | 0.138.4+1.21.10 |
+| 1.21.11 | 21 | 1212 (source implemented; build pending) | 1.21.11+build.6 | 0.141.6+1.21.11 |
 | 26.1 | 25 | modern candidate | none | 0.145.1+26.1 |
 | 26.1.1 | 25 | modern candidate | none | 0.145.4+26.1.1 |
 | 26.1.2 | 25 | modern candidate | none | 0.155.3+26.1.2 |
 | 26.2 | 25 | modern candidate | none | 0.161.0+26.2 |
 | 26.3 | 25 | modern | none | 0.161.0+26.3 |
 
-The build selector implements the legacy, 1202, 1211, and modern profile candidates. The modern selector shares one API overlay across 26.1, 26.1.1, and 26.1.2, then uses separate 26.2 and 26.3 overlays for their known API changes. These are source and dependency candidates until each exact artifact compiles. The validated 1.21.1 profile deliberately pins Fabric API `0.110.0+1.21.1`; updating it to the newer coordinate above requires another check. Loader is pinned to `0.19.5`. Loom is pinned per build family (1.6.12, 1.8.13, or 1.17.21), rather than upgraded implicitly with each game target.
+The build selector implements the legacy, 1202, 1211, 1212, and modern profile candidates. The 1212 source family covers 1.21.2–1.21.11 with input overlays for the 1.21.2–1.21.3, 1.21.4, and 1.21.5+ API shapes. The modern selector shares one API overlay across 26.1, 26.1.1, and 26.1.2, then uses separate 26.2 and 26.3 overlays for their known API changes. These are source and dependency candidates until each exact artifact compiles. The validated 1.21.1 profile deliberately pins Fabric API `0.110.0+1.21.1`; updating it to the newer coordinate above requires another check. Loader is pinned to `0.19.5`. Loom is pinned per build family (1.6.12, 1.8.13, or 1.17.21), rather than upgraded implicitly with each game target.
 
 ## Why the families differ
 
 - 1.20.2 changes recipe enumeration to recipe entries and renames output/cooking-time access.
 - 1.20.5 introduces item components and player block-interaction range.
 - 1.21.2 removes full recipe enumeration from the client interface, introduces per-world fuel registries, returns remainder stacks, and moves input booleans into `PlayerInput`. Integrated-server authoritative recipes and remote learned recipe displays need distinct handling.
-- 1.21.4 changes ingredient enumeration from a list to a stream and recipe placement slots to integer lists. Display-based normalization can avoid the placement seam.
-- 1.21.5 changes input ticks and movement vectors; 1.21.6 changes Fabric HUD registration. The 1.21.8 matrix-type change does not affect this mod's current text-only HUD. These are candidate adapter overlays until compiled.
+- 1.21.4 changes ingredient enumeration from a list to a stream, recipe placement slots to integer lists, and input ticks to no-argument calls while retaining movement floats. Display-based normalization avoids the placement seam. 1.21.5 changes input movement to a vector. The 1.21.8 matrix-type change does not affect this mod's current text-only HUD. These are candidate adapter overlays until compiled.
 - 26.1 begins the unobfuscated Mojang-name source family and uses Java 25.
 - 26.2 moves screen access to the GUI.
 - 26.3 renames `InputConstants.Type.KEYSYM` to `KEYBOARD`, adds cooking-fuel components, and moves recipes into dynamic registries.
@@ -52,4 +51,4 @@ Shared station executors should consume normalized output stacks, indexed ingred
 
 Remote crafting supports only learned display forms whose ingredient predicates and output stacks match the synchronized metadata. A `WithRemainder` slot supplies a declared remainder; an unwrapped ingredient with a default item remainder is rejected. An ordinary display cannot reveal a server-only custom recipe remainder override, so the executor treats omitted metadata as a declared empty contract and checks the observed grid after output transfer. If the server produces unmodeled contents, automation stops with the crafting container open for recovery. This remote path is intentionally narrower than integrated-server crafting, which calls the native recipe remainder resolver on the server thread.
 
-Verified primary API references: [1.21.2 server manager](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/recipe/ServerRecipeManager.html), [recipe display entries](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/recipe/RecipeDisplayEntry.html), [client recipe book](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/client/recipebook/ClientRecipeBook.html), [item default remainder](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/item/Item.html), [fuel registry](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/item/FuelRegistry.html), [1.21.4 ingredients](https://maven.fabricmc.net/docs/yarn-1.21.4+build.8/net/minecraft/recipe/Ingredient.html), [1.21.5 input](https://maven.fabricmc.net/docs/yarn-1.21.5+build.1/net/minecraft/client/input/Input.html), [Fabric HUD migration](https://fabricmc.net/2025/06/15/1216.html).
+Verified primary API references: [1.21.2 server manager](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/recipe/ServerRecipeManager.html), [recipe display entries](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/recipe/RecipeDisplayEntry.html), [client recipe book](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/client/recipebook/ClientRecipeBook.html), [item default remainder](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/item/Item.html), [fuel registry](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/item/FuelRegistry.html), [1.21.2 ingredients](https://maven.fabricmc.net/docs/yarn-1.21.2+build.1/net/minecraft/recipe/Ingredient.html), [1.21.4 ingredients](https://maven.fabricmc.net/docs/yarn-1.21.4+build.8/net/minecraft/recipe/Ingredient.html), [1.21.4 input](https://maven.fabricmc.net/docs/yarn-1.21.4+build.8/net/minecraft/client/input/Input.html), [1.21.5 input](https://maven.fabricmc.net/docs/yarn-1.21.5+build.1/net/minecraft/client/input/Input.html), [1.21.5 PlayerInput](https://maven.fabricmc.net/docs/yarn-1.21.5+build.1/net/minecraft/util/PlayerInput.html), [1.21.11 ingredients](https://maven.fabricmc.net/docs/yarn-1.21.11+build.6/net/minecraft/recipe/Ingredient.html), [1.21.11 KeyboardInput](https://maven.fabricmc.net/docs/yarn-1.21.11+build.6/net/minecraft/client/input/KeyboardInput.html), [1.21.11 Vec2f](https://maven.fabricmc.net/docs/yarn-1.21.11+build.6/net/minecraft/util/math/Vec2f.html), [Fabric HUD migration](https://fabricmc.net/2025/06/15/1216.html).

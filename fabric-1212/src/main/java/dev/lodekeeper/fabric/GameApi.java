@@ -27,7 +27,6 @@ import net.minecraft.recipe.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.recipe.display.SlotDisplay;
 import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
@@ -47,7 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * Minecraft 1.21.2–1.21.3 recipe-display family. Native recipes and their remainder callbacks stay on the integrated
+ * Minecraft 1.21.2–1.21.11 recipe-display family. Native recipes and their remainder callbacks stay on the integrated
  * server thread. Remote crafting is limited to learned displays with consistent ingredient metadata and declared
  * remainder contracts; server-only custom remainder overrides cannot be inferred from an ordinary display.
  */
@@ -124,8 +123,9 @@ final class GameApi {
     }
 
     static dev.lodekeeper.core.Ingredient ingredient(Ingredient ingredient) {
-        List<ItemId> choices = ingredient.getMatchingItems().stream().map(RegistryEntry::value)
-                .map(GameCatalog::id).distinct().sorted().toList();
+        List<ItemId> choices = new ArrayList<>();
+        ingredient.getMatchingItems().forEach(entry -> choices.add(GameCatalog.id(entry.value())));
+        choices = choices.stream().distinct().sorted().toList();
         return dev.lodekeeper.core.Ingredient.choices(choices, 1);
     }
 

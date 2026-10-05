@@ -1,7 +1,17 @@
 plugins { id 'fabric-loom' version '1.8.13' }
-def supportedMinecraftVersions = ['1.21.2', '1.21.3']
-if (!supportedMinecraftVersions.contains(rootProject.minecraft_version.toString())) {
-    throw new GradleException("fabric-1212 supports Minecraft ${supportedMinecraftVersions.join(', ')}; select an exact profile")
+def inputApiFamilies = [
+    '1.21.2': '1212', '1.21.3': '1212', '1.21.4': '1214',
+    '1.21.5': '1215', '1.21.6': '1215', '1.21.7': '1215',
+    '1.21.8': '1215', '1.21.9': '1215', '1.21.10': '1215', '1.21.11': '1215'
+]
+def minecraftVersion = rootProject.minecraft_version.toString()
+def expectedInputApiFamily = inputApiFamilies[minecraftVersion]
+if (expectedInputApiFamily == null) {
+    throw new GradleException("fabric-1212 has no source profile for Minecraft ${minecraftVersion}; select an exact profile")
+}
+def selectedInputApiFamily = rootProject.findProperty('input_api_family')?.toString()
+if (selectedInputApiFamily != expectedInputApiFamily) {
+    throw new GradleException("Minecraft ${minecraftVersion} requires -Pinput_api_family=${expectedInputApiFamily}")
 }
 base { archivesName = "lodekeeper-${rootProject.minecraft_version}" }
 java {
@@ -22,6 +32,7 @@ def copySharedSources = tasks.register('copySharedSources', Copy) {
 sourceSets {
     main {
         java.srcDirs = [generatedSharedSources, 'src/main/java']
+        java.srcDir "src/${expectedInputApiFamily}/java"
         resources.srcDirs = ['src/main/resources']
     }
     test.java.srcDir rootProject.file('fabric/src/test/java')
