@@ -7,6 +7,8 @@ public final class PathEdgeValidator {
     private static final double MAX_ARC_CHORD_ERROR = 0.0005;
     private static final double STRAIGHT_ARC = 1.0e-12;
     private static final double MAX_LATERAL_DRIFT = 0.75;
+    private static final double FEET_Y16_TOLERANCE = 0.05;
+    private static final int INVALID_FEET_Y16 = Integer.MIN_VALUE;
 
     private PathEdgeValidator() {}
 
@@ -26,21 +28,37 @@ public final class PathEdgeValidator {
         if (terrain == null || source == null || destination == null
                 || sourceProbe == null || destinationProbe == null) return false;
         if (destination.movement == Path.Movement.PARKOUR && !allowParkour) return false;
+        if (destination.movement != Path.Movement.WALK
+                && (!isIntegralFeetHeight(source) || !isIntegralFeetHeight(destination))) return false;
 
         sourceProbe.breakCount = 0;
         if (validateSourceStance) {
-            if (nearSource(source, fromX, fromFeetY, fromZ)) {
-                terrain.probeStance(source.x, source.y, source.z, sourceProbe);
-            } else {
-                if (requireSourceOrigin) return false;
-                terrain.probeStance((int) Math.floor(fromX), (int) Math.floor(fromFeetY),
-                        (int) Math.floor(fromZ), sourceProbe);
-            }
+            if (requireSourceOrigin && !nearSource(source, fromX, fromFeetY, fromZ)) return false;
+            int actualFeetY16 = quantizedFeetY16(fromFeetY);
+            if (!probeCurrentStance(terrain, fromX, fromFeetY, fromZ,
+                    source.movement, sourceProbe)) return false;
             if (!safeStance(sourceProbe, source.movement, false)) return false;
+            boolean mediumSource = destination.movement == Path.Movement.SWIM && sourceProbe.water
+                    || destination.movement == Path.Movement.CLIMB && sourceProbe.climbable;
+            if (requireSourceOrigin && !mediumSource && actualFeetY16 != source.feetY16) return false;
+            if (requiresFullLaunchSupport(destination.movement) && !sourceProbe.fullSupport) return false;
         }
 
-        terrain.probeStance(destination.x, destination.y, destination.z, destinationProbe);
+        terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
         if (!safeStance(destinationProbe, destination.movement, true)) return false;
+
+        if (destination.movement == Path.Movement.WALK) {
+            if (!validateSourceStance) {
+                return terrain.isMotionClear(fromX, fromFeetY, fromZ,
+                        destination.x + 0.5, destination.feetY(), destination.z + 0.5,
+                        0.0, sourceProbe, destinationProbe);
+            }
+            int fromFeetY16 = quantizedFeetY16(fromFeetY);
+            return fromFeetY16 != INVALID_FEET_Y16
+                    && terrain.isGroundedWalkClear(fromX, fromFeetY16, fromZ,
+                    destination.x + 0.5, destination.feetY16, destination.z + 0.5,
+                    sourceProbe, destinationProbe);
+        }
 
         double arc = switch (destination.movement) {
             case JUMP -> JUMP_ARC;
@@ -48,7 +66,7 @@ public final class PathEdgeValidator {
             default -> 0.0;
         };
         return terrain.isMotionClear(fromX, fromFeetY, fromZ,
-                destination.x + 0.5, destination.y, destination.z + 0.5,
+                destination.x + 0.5, destination.feetY(), destination.z + 0.5,
                 arc, sourceProbe, destinationProbe);
     }
 
@@ -66,32 +84,44 @@ public final class PathEdgeValidator {
         if (terrain == null || source == null || destination == null
                 || sourceProbe == null || destinationProbe == null) return false;
         if (destination.movement == Path.Movement.PARKOUR && !allowParkour) return false;
+        if (destination.movement != Path.Movement.WALK
+                && (!isIntegralFeetHeight(source) || !isIntegralFeetHeight(destination))) return false;
 
         sourceProbe.breakCount = 0;
         if (validateCurrentStance) {
-            if (nearSource(source, currentFeetX, currentFeetY, currentFeetZ)) {
-                terrain.probeStance(source.x, source.y, source.z, sourceProbe);
-            } else {
-                terrain.probeStance((int) Math.floor(currentFeetX), (int) Math.floor(currentFeetY),
-                        (int) Math.floor(currentFeetZ), sourceProbe);
-            }
+            if (!probeCurrentStance(terrain, currentFeetX, currentFeetY, currentFeetZ,
+                    source.movement, sourceProbe)) return false;
             if (!safeStance(sourceProbe, source.movement, false)) return false;
+            if (requiresFullLaunchSupport(destination.movement) && !sourceProbe.fullSupport) return false;
         }
 
-        terrain.probeStance(destination.x, destination.y, destination.z, destinationProbe);
+        terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
         if (!safeStance(destinationProbe, destination.movement, true)) return false;
         if (!terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
                 currentFeetX, currentFeetY, currentFeetZ, 0.0, destinationProbe)) return false;
 
+        if (destination.movement == Path.Movement.WALK) {
+            if (!validateCurrentStance) {
+                return terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
+                        destination.x + 0.5, destination.feetY(), destination.z + 0.5,
+                        0.0, sourceProbe, destinationProbe);
+            }
+            int currentFeetY16 = quantizedFeetY16(currentFeetY);
+            return currentFeetY16 != INVALID_FEET_Y16
+                    && terrain.isGroundedWalkClear(currentFeetX, currentFeetY16, currentFeetZ,
+                    destination.x + 0.5, destination.feetY16, destination.z + 0.5,
+                    sourceProbe, destinationProbe);
+        }
+
         double arc = arcFor(destination.movement);
         if (arc <= 0.0) {
             return terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
-                    destination.x + 0.5, destination.y, destination.z + 0.5,
+                    destination.x + 0.5, destination.feetY(), destination.z + 0.5,
                     0.0, sourceProbe, destinationProbe);
         }
 
         double endX = destination.x + 0.5;
-        double endY = destination.y;
+        double endY = destination.feetY();
         double endZ = destination.z + 0.5;
         double progress = projectedProgress(edgeStartX, edgeStartFeetY, edgeStartZ,
                 endX, endY, endZ, currentFeetX, currentFeetY, currentFeetZ);
@@ -132,7 +162,7 @@ public final class PathEdgeValidator {
                                                double feetX, double feetY, double feetZ) {
         if (source == null) return false;
         return isWithinEdgeCorridor(source, destination,
-                source.x + 0.5, source.y, source.z + 0.5, feetX, feetY, feetZ);
+                source.x + 0.5, source.feetY(), source.z + 0.5, feetX, feetY, feetZ);
     }
 
     /**
@@ -151,7 +181,7 @@ public final class PathEdgeValidator {
         double startY = edgeStartFeetY;
         double startZ = edgeStartZ;
         double endX = destination.x + 0.5;
-        double endY = destination.y;
+        double endY = destination.feetY();
         double endZ = destination.z + 0.5;
         double dx = endX - startX;
         double dy = endY - startY;
@@ -201,8 +231,7 @@ public final class PathEdgeValidator {
                 0.0, emptyProbe)) return false;
         if (!grounded) return true;
 
-        terrain.probeStance((int) Math.floor(feetX), (int) Math.floor(feetY),
-                (int) Math.floor(feetZ), stanceProbe);
+        if (!probeCurrentStance(terrain, feetX, feetY, feetZ, movement, stanceProbe)) return false;
         return safeStance(stanceProbe, movement, true);
     }
 
@@ -211,8 +240,10 @@ public final class PathEdgeValidator {
                                               double feetX, double feetY, double feetZ,
                                               StanceProbe stanceProbe, StanceProbe emptyProbe) {
         if (terrain == null || stance == null || stanceProbe == null || emptyProbe == null
-                || !nearSource(stance, feetX, feetY, feetZ)) return false;
-        terrain.probeStance(stance.x, stance.y, stance.z, stanceProbe);
+                || !nearSource(stance, feetX, feetY, feetZ)
+                || quantizedFeetY16(feetY) != stance.feetY16
+                || !probeCurrentStance(terrain, feetX, feetY, feetZ,
+                stance.movement, stanceProbe)) return false;
         if (!safeStance(stanceProbe, stance.movement, false)) return false;
         return terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ,
                 0.0, emptyProbe);
@@ -223,8 +254,9 @@ public final class PathEdgeValidator {
                                             Path.Step destination, Action action,
                                             StanceProbe destinationProbe) {
         if (terrain == null || source == null || destination == null || action == null
-                || action.type != Action.Type.BREAK_BLOCK || destinationProbe == null) return false;
-        terrain.probeStance(destination.x, destination.y, destination.z, destinationProbe);
+                || action.type != Action.Type.BREAK_BLOCK || destinationProbe == null
+                || !isIntegralFeetHeight(source) || !isIntegralFeetHeight(destination)) return false;
+        terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
         if (!destinationProbe.loaded || destinationProbe.hazard || destinationProbe.bodyClear
                 || destinationProbe.breakCount < 1
                 || destinationProbe.breakCount > StanceProbe.MAX_BREAK_TARGETS) return false;
@@ -247,13 +279,17 @@ public final class PathEdgeValidator {
                 || sourceProbe == null || destinationProbe == null
                 || action.type != Action.Type.PLACE_BLOCK
                 || destination.movement != Path.Movement.BRIDGE
+                || Math.floorMod(source.feetY16, 16) != 0
+                || Math.floorMod(destination.feetY16, 16) != 0
                 || action.x != destination.x || action.y != destination.y - 1
                 || action.z != destination.z) return false;
-        terrain.probeStance(source.x, source.y, source.z, sourceProbe);
-        if (!safeStance(sourceProbe, source.movement, false)) return false;
-        terrain.probeStance(destination.x, destination.y, destination.z, destinationProbe);
+        terrain.probeStance16(source.x, source.feetY16, source.z, sourceProbe);
+        if (!sourceProbe.loaded || sourceProbe.hazard || !sourceProbe.bodyClear
+                || !sourceProbe.fullSupport || sourceProbe.breakCount != 0) return false;
+        terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
         if (!destinationProbe.loaded || destinationProbe.hazard || !destinationProbe.bodyClear
                 || destinationProbe.breakCount != 0 || destinationProbe.fullSupport
+                || destinationProbe.surfaceSupport
                 || destinationProbe.water || destinationProbe.climbable) return false;
         return terrain.canPlaceBridgeFrom(source.x, source.y, source.z,
                 action.x, action.y, action.z, action.token, false);
@@ -272,21 +308,78 @@ public final class PathEdgeValidator {
     private static boolean nearSource(Path.Step source, double x, double y, double z) {
         double dx = x - (source.x + 0.5);
         double dz = z - (source.z + 0.5);
-        return dx * dx + dz * dz <= 0.75 * 0.75 && Math.abs(y - source.y) < 1.0;
+        return dx * dx + dz * dz <= 0.75 * 0.75 && Math.abs(y - source.feetY()) < 1.0;
+    }
+
+    private static boolean isIntegralFeetHeight(Path.Step step) {
+        return Math.floorMod(step.feetY16, 16) == 0;
+    }
+
+    private static boolean requiresFullLaunchSupport(Path.Movement movement) {
+        return movement == Path.Movement.JUMP || movement == Path.Movement.DROP
+                || movement == Path.Movement.PARKOUR || movement == Path.Movement.BRIDGE;
     }
 
     private static boolean safeStance(StanceProbe probe, Path.Movement movement,
                                       boolean destination) {
         if (!probe.loaded || probe.hazard || !probe.bodyClear || probe.breakCount != 0) return false;
         if (movement == Path.Movement.START) {
-            return !destination && (probe.fullSupport || probe.water || probe.climbable);
+            return !destination && (probe.hasGroundSupport() || probe.water || probe.climbable);
         }
         return switch (movement) {
-            case WALK, JUMP, DROP, PARKOUR, BRIDGE -> probe.fullSupport;
+            case WALK -> probe.hasGroundSupport();
+            case JUMP, DROP, PARKOUR, BRIDGE -> probe.fullSupport;
             case SWIM -> probe.fullSupport || probe.water;
             case CLIMB -> probe.fullSupport || probe.climbable;
             case START -> false;
         };
+    }
+
+    private static boolean probeCurrentStance(Terrain terrain, double feetX, double feetY,
+                                              double feetZ, Path.Movement movement,
+                                              StanceProbe out) {
+        int feetY16 = quantizedFeetY16(feetY);
+        if (feetY16 != INVALID_FEET_Y16
+                && terrain.probeCurrentStance(feetX, feetY16, feetZ, out) && out.loaded) return true;
+
+        // Swimming and climbing players can move continuously within a block. Preserve the old
+        // integer cell summary for these media while still checking the real body point separately.
+        // This fallback never turns an unquantized grounded point into a supported WALK stance.
+        if (!Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || (movement != Path.Movement.START
+                && movement != Path.Movement.SWIM && movement != Path.Movement.CLIMB)) {
+            out.clear();
+            return false;
+        }
+        double floorX = Math.floor(feetX);
+        double floorY = Math.floor(feetY);
+        double floorZ = Math.floor(feetZ);
+        if (floorX < Integer.MIN_VALUE || floorX > Integer.MAX_VALUE
+                || floorY < Integer.MIN_VALUE || floorY > Integer.MAX_VALUE
+                || floorZ < Integer.MIN_VALUE || floorZ > Integer.MAX_VALUE) {
+            out.clear();
+            return false;
+        }
+        terrain.probeStance((int) floorX, (int) floorY, (int) floorZ, out);
+        if (!out.loaded) return false;
+        return switch (movement) {
+            case SWIM -> out.water;
+            case CLIMB -> out.climbable;
+            case START -> out.water || out.climbable;
+            default -> false;
+        };
+    }
+
+    private static int quantizedFeetY16(double feetY) {
+        if (!Double.isFinite(feetY)) return INVALID_FEET_Y16;
+        double scaled = feetY * 16.0;
+        if (!Double.isFinite(scaled)) return INVALID_FEET_Y16;
+        double rounded = Math.rint(scaled);
+        if (Math.abs(scaled - rounded) > FEET_Y16_TOLERANCE
+                || rounded < Integer.MIN_VALUE + 1.0 || rounded > Integer.MAX_VALUE) {
+            return INVALID_FEET_Y16;
+        }
+        return (int) rounded;
     }
 
     private static double arcFor(Path.Movement movement) {

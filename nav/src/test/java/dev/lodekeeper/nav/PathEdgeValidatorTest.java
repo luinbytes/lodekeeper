@@ -50,6 +50,63 @@ final class PathEdgeValidatorTest {
     }
 
     @Test
+    void continuousMediumFeetKeepLegacyCellProbeAndActualBodySafety() {
+        VolumeTerrain waterTerrain = new VolumeTerrain();
+        waterTerrain.stance(0, 0, 0).water = true;
+        waterTerrain.stance(1, 0, 0).water = true;
+
+        assertTrue(PathEdgeValidator.isCurrentMotionSafe(waterTerrain, Path.Movement.SWIM,
+                0.5, 0.2, 0.5, true, new StanceProbe(), new StanceProbe()));
+        Path.Step start = step(0, 0, 0, Path.Movement.START);
+        Path.Step swim = step(1, 0, 0, Path.Movement.SWIM);
+        for (double height : new double[] {0.0625, 0.125, 0.2, 0.5}) {
+            assertTrue(edge(waterTerrain, start, swim, 0.5, height, 0.5, true, true),
+                    "continuous media must stay valid both on and between exact sixteenths");
+            assertTrue(PathEdgeValidator.isCurrentMotionSafe(waterTerrain, Path.Movement.SWIM,
+                    0.5, height, 0.5, true, new StanceProbe(), new StanceProbe()));
+        }
+
+        waterTerrain.hazards.add(new Box(0.4, 0.1, 0.4, 0.6, 0.8, 0.6));
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(waterTerrain, Path.Movement.SWIM,
+                0.5, 0.2, 0.5, true, new StanceProbe(), new StanceProbe()),
+                "the actual player box still rejects a nearby hazard at continuous Y");
+        assertFalse(edge(waterTerrain, start, swim, 0.5, 0.2, 0.5, true, true),
+                "the medium-cell fallback must not skip the actual edge sweep");
+
+        VolumeTerrain climbTerrain = new VolumeTerrain();
+        climbTerrain.stance(0, 0, 0).climbable = true;
+        assertTrue(PathEdgeValidator.isCurrentMotionSafe(climbTerrain, Path.Movement.CLIMB,
+                0.5, 0.2, 0.5, true, new StanceProbe(), new StanceProbe()));
+        climbTerrain.obstacles.add(new Box(0.4, 0.1, 0.4, 0.6, 0.8, 0.6));
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(climbTerrain, Path.Movement.CLIMB,
+                0.5, 0.2, 0.5, true, new StanceProbe(), new StanceProbe()),
+                "the actual player box still rejects a body obstruction while climbing");
+    }
+
+    @Test
+    void partialSourceSupportCannotLaunchStrictMovementsAfterTerrainChanges() {
+        for (Path.Movement movement : new Path.Movement[] {
+                Path.Movement.JUMP, Path.Movement.DROP, Path.Movement.PARKOUR, Path.Movement.BRIDGE}) {
+            FakeTerrain terrain = new FakeTerrain();
+            Path.Step source = step(0, 0, 0, Path.Movement.START);
+            int landingY = movement == Path.Movement.JUMP ? 1 : movement == Path.Movement.DROP ? -1 : 0;
+            Path.Step destination = step(1, landingY, 0, movement);
+            terrain.stance(0, 0, 0).fullSupport = true;
+            terrain.stance(1, landingY, 0).fullSupport = true;
+            assertTrue(edge(terrain, source, destination, 0.5, 0, 0.5, true, true));
+
+            StanceProbe changedSource = terrain.stance(0, 0, 0);
+            changedSource.fullSupport = false;
+            changedSource.surfaceSupport = true;
+            assertFalse(edge(terrain, source, destination, 0.5, 0, 0.5, true, true),
+                    "partial support cannot replace the full launch surface for " + movement);
+            assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, destination,
+                    0.5, 0, 0.5, 0.5, 0, 0.5, true, true,
+                    new StanceProbe(), new StanceProbe()));
+        }
+    }
+
+    @Test
     void parkourPermissionAndSweptLoadedStateAreCheckedLive() {
         FakeTerrain terrain = new FakeTerrain();
         Path.Step source = step(0, 0, 0, Path.Movement.START);
@@ -163,6 +220,25 @@ final class PathEdgeValidatorTest {
     }
 
     @Test
+    void groundedLiveValidationKeepsNegativeSixteenthHeightAndRejectsOffGridFeet() {
+        FakeTerrain terrain = new FakeTerrain();
+        Path.Step source = step16(0, -1, 0, Path.Movement.START);
+        Path.Step destination = step16(1, -1, 0, Path.Movement.WALK);
+        terrain.stance16(0, -1, 0).surfaceSupport = true;
+        terrain.stance16(1, -1, 0).surfaceSupport = true;
+
+        assertTrue(edge(terrain, source, destination, 0.51, -1.0 / 16.0, 0.5, true, true));
+        assertEquals(-1, terrain.lastCurrentFeetY16,
+                "live support queries must preserve the exact negative sixteenth height");
+        assertEquals(0.51, terrain.lastCurrentFeetX, 0.0,
+                "the live support adapter receives actual X rather than a centered replacement");
+        assertEquals(1, terrain.groundedSweepChecks);
+
+        assertFalse(edge(terrain, source, destination, 0.51, -0.055, 0.5, true, true),
+                "feet too far from the sixteenth grid must not be floored into a grounded stance");
+    }
+
+    @Test
     void defaultTerrainSweepOverloadAllowsNullSourceProbe() {
         Terrain terrain = new VolumeTerrain();
         assertTrue(terrain.isMotionClear(0.5, 0, 0.5, 1.5, 0, 0.5,
@@ -253,12 +329,12 @@ final class PathEdgeValidatorTest {
                 place, new StanceProbe(), new StanceProbe()));
     }
 
-    private static boolean edge(FakeTerrain terrain, Path.Step source, Path.Step destination,
+    private static boolean edge(Terrain terrain, Path.Step source, Path.Step destination,
                                 double x, double y, double z, boolean checkSource, boolean allowParkour) {
         return edge(terrain, source, destination, x, y, z, checkSource, checkSource, allowParkour);
     }
 
-    private static boolean edge(FakeTerrain terrain, Path.Step source, Path.Step destination,
+    private static boolean edge(Terrain terrain, Path.Step source, Path.Step destination,
                                 double x, double y, double z, boolean checkSource,
                                 boolean requireSource, boolean allowParkour) {
         return PathEdgeValidator.isSafeEdge(terrain, source, destination, x, y, z,
@@ -269,12 +345,19 @@ final class PathEdgeValidatorTest {
         return new Path.Step(x, y, z, movement, new Action[0]);
     }
 
+    private static Path.Step step16(int x, int feetY16, int z, Path.Movement movement) {
+        return Path.Step.atFeetY16(x, feetY16, z, movement, new Action[0]);
+    }
+
     private static final class FakeTerrain implements Terrain {
         private final Map<Long, StanceProbe> stances = new HashMap<>();
+        private final Map<FeetKey, StanceProbe> stances16 = new HashMap<>();
         private boolean sweepClear = true;
         private boolean sweepLoaded = true;
         private boolean bridgePlaceable = true;
         private double lastFromX, lastFromY, lastArc;
+        private double lastCurrentFeetX;
+        private int lastCurrentFeetY16, groundedSweepChecks;
         private long revision;
 
         StanceProbe stance(int x, int y, int z) {
@@ -285,6 +368,43 @@ final class PathEdgeValidatorTest {
                 probe.hazard = false;
                 return probe;
             });
+        }
+
+        StanceProbe stance16(int x, int feetY16, int z) {
+            return stances16.computeIfAbsent(new FeetKey(x, feetY16, z), ignored -> {
+                StanceProbe probe = new StanceProbe();
+                probe.loaded = true;
+                probe.bodyClear = true;
+                probe.hazard = false;
+                return probe;
+            });
+        }
+
+        @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
+            StanceProbe stored = stances16.get(new FeetKey(x, feetY16, z));
+            if (stored != null) { out.copyFrom(stored); return out.loaded; }
+            if (Math.floorMod(feetY16, 16) == 0) {
+                probeStance(x, Math.floorDiv(feetY16, 16), z, out);
+                return out.loaded;
+            }
+            out.clear();
+            return false;
+        }
+
+        @Override public boolean probeCurrentStance(double feetX, int feetY16, double feetZ,
+                                                    StanceProbe out) {
+            lastCurrentFeetX = feetX;
+            lastCurrentFeetY16 = feetY16;
+            return probeStance16((int) Math.floor(feetX), feetY16,
+                    (int) Math.floor(feetZ), out);
+        }
+
+        @Override public boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
+                                                     double toX, int toFeetY16, double toZ,
+                                                     StanceProbe sourceAfterBreak,
+                                                     StanceProbe destinationAfterBreak) {
+            groundedSweepChecks++;
+            return sweepClear && sweepLoaded;
         }
 
         @Override public void probeStance(int x, int y, int z, StanceProbe out) {
@@ -313,6 +433,8 @@ final class PathEdgeValidatorTest {
 
         @Override public long revision() { return revision; }
     }
+
+    private record FeetKey(int x, int feetY16, int z) {}
 
     private static final class VolumeTerrain implements Terrain {
         private static final double HALF_WIDTH = 0.3;

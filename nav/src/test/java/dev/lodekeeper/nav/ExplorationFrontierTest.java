@@ -39,6 +39,20 @@ final class ExplorationFrontierTest {
         assertEquals(ExplorationFrontier.Status.IN_PROGRESS,timed.advance(terrain,224,1));
         assertEquals(before,terrain.probes);
     }
+    @Test void incompleteSurfaceCollectionsRespectTheProbeBudgetAcrossTicks() {
+        Surface terrain = new Surface();
+        terrain.incompleteCollections = true;
+        var frontier = new ExplorationFrontier(0,0,4,64,() -> 0);
+        frontier.beginAt(0,0,0);
+        for (int tick = 0; tick < 32; tick++) {
+            int before = terrain.collections;
+            frontier.advance(terrain,1,Long.MAX_VALUE);
+            assertTrue(terrain.collections - before <= 1,
+                    "empty or incomplete stance sets still consume the per-tick query budget");
+        }
+        assertTrue(terrain.collections > 0);
+        assertEquals(0, terrain.probes, "incomplete candidate sets must not be probed");
+    }
     @Test void boundsFailedAttemptsAndDoesNotRetrySelectedRegions() {
         Surface terrain = new Surface();
         var frontier = new ExplorationFrontier(-17,-17,4,32,() -> 0);
@@ -86,7 +100,15 @@ final class ExplorationFrontierTest {
     }
     private static final class Surface implements Terrain {
         int floor, probes, unsafe;
+        int collections;
         boolean rejectEast;
+        boolean incompleteCollections;
+        @Override public boolean collectGroundedStances(int x,int referenceFeetY16,int z,
+                                                        GroundedStanceBuffer out) {
+            collections++;
+            if (incompleteCollections) { out.clear(); return false; }
+            return Terrain.super.collectGroundedStances(x,referenceFeetY16,z,out);
+        }
         @Override public void probeStance(int x,int y,int z,StanceProbe out) {
             probes++; out.clear(); out.loaded = unsafe != 1;
             out.bodyClear = unsafe != 2; out.fullSupport = y == floor && unsafe != 3;

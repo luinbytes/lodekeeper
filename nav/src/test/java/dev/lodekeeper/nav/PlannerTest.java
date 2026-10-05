@@ -87,6 +87,122 @@ final class PlannerTest {
     }
 
     @Test
+    void fractionalNegativeFeetHeightsRemainDistinctAndHazardsBlockTheirExactStance() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.stance16(0, -1, 0).surfaceSupport = true;
+        terrain.stance16(1, -8, 0).surfaceSupport = true;
+        StanceProbe sameFloorHazard = terrain.stance16(1, -1, 0);
+        sameFloorHazard.surfaceSupport = true;
+        sameFloorHazard.hazard = true;
+        terrain.groundedHeights(1, 0, -8, -1);
+
+        Planner planner = Planner.fromFeetY16(terrain, 0, -1, 0,
+                Goal.exact16(1, -8, 0), new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.FOUND, finish(planner));
+        Path path = planner.getPath();
+        assertEquals(-1, path.step(0).y, "negative heights use floorDiv, not truncation toward zero");
+        assertEquals(-1, path.step(0).feetY16);
+        assertEquals(-8, path.step(1).feetY16);
+        assertEquals(-1, path.step(1).y);
+        assertEquals(-0.5, path.step(1).feetY(), 0.0);
+        assertEquals(1, terrain.exactProbeCounts.get(new FeetKey(1, -8, 0)));
+        assertEquals(1, terrain.exactProbeCounts.get(new FeetKey(1, -1, 0)),
+                "different fractions at one packed floor coordinate must use distinct cache entries");
+        assertEquals(1, terrain.groundedChecks);
+
+        Goal alternatives = Goal.anyOf16(
+                new long[] {Position.pack(1, -1, 0), Position.pack(1, -1, 0)},
+                new byte[] {8, 15});
+        assertTrue(alternatives.matches16(1, -8, 0));
+        assertTrue(alternatives.matches16(1, -1, 0));
+        assertFalse(alternatives.matches16(1, -7, 0));
+
+        FakeTerrain onlyHazard = new FakeTerrain();
+        onlyHazard.stance16(0, -8, 0).surfaceSupport = true;
+        onlyHazard.stance16(1, -8, 0).surfaceSupport = true;
+        onlyHazard.stance16(1, -1, 0).surfaceSupport = true;
+        onlyHazard.stances16.get(new FeetKey(1, -1, 0)).hazard = true;
+        onlyHazard.groundedHeights(1, 0, -8, -1);
+        Planner blocked = Planner.fromFeetY16(onlyHazard, 0, -8, 0,
+                Goal.exact16(1, -1, 0), new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.NO_PATH, finish(blocked));
+    }
+
+    @Test
+    void groundedWalkAddsSevenCostPerFullBlockRiseAndKeepsLegacyMediumStarts() {
+        FakeTerrain stairs = new FakeTerrain();
+        stairs.stance(0, 0, 0).fullSupport = true;
+        stairs.stance(1, 1, 0).fullSupport = true;
+        stairs.groundedHeights(1, 0, 16);
+        Planner uphill = planner(stairs, 0, 0, 0, Goal.exact(1, 1, 0),
+                new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.FOUND, finish(uphill));
+        assertEquals(Path.Movement.WALK, uphill.getPath().step(1).movement);
+        assertEquals(17, uphill.getPath().cost,
+                "a one-block rising walk keeps the minimum vertical cost bound");
+
+        FakeTerrain water = new FakeTerrain();
+        water.stance(0, 0, 0).water = true;
+        water.stance(1, 0, 0).water = true;
+        Planner swim = planner(water, 0, 0, 0, Goal.exact(1, 0, 0),
+                new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.FOUND, finish(swim));
+        assertEquals(Path.Movement.SWIM, swim.getPath().step(1).movement);
+    }
+
+    @Test
+    void mediumCanExitToSupportedBankAndPlannedBridgeCanBeWalkedOff() {
+        FakeTerrain waterBank = new FakeTerrain();
+        waterBank.stance(0, 0, 0).water = true;
+        waterBank.stance(1, 0, 0).fullSupport = true;
+        Planner fromWater = planner(waterBank, 0, 0, 0, Goal.exact(1, 0, 0),
+                new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.FOUND, finish(fromWater));
+        assertEquals(Path.Movement.SWIM, fromWater.getPath().step(1).movement,
+                "a full-block bank remains reachable as a medium transition");
+
+        FakeTerrain climbBank = new FakeTerrain();
+        climbBank.stance(0, 0, 0).climbable = true;
+        climbBank.stance(1, 0, 0).fullSupport = true;
+        Planner fromClimb = planner(climbBank, 0, 0, 0, Goal.exact(1, 0, 0),
+                new Planner.Options().maxDrop(0).allowSwimming(false));
+        assertEquals(NavStatus.FOUND, finish(fromClimb));
+        assertEquals(Path.Movement.CLIMB, fromClimb.getPath().step(1).movement,
+                "a full-block bank remains reachable from a climbable start");
+
+        FakeTerrain bridgeBank = new FakeTerrain();
+        bridgeBank.stance(0, 0, 0).fullSupport = true;
+        bridgeBank.stance(1, 0, 0); // Empty until the planned placement executes.
+        bridgeBank.stance(2, 0, 0).fullSupport = true;
+        bridgeBank.requirePhysicalGroundedSource = true;
+        Planner acrossBridge = planner(bridgeBank, 0, 0, 0, Goal.exact(2, 0, 0),
+                new Planner.Options().maxDrop(0).allowBuilding(true).placements(1, 42));
+        assertEquals(NavStatus.FOUND, finish(acrossBridge));
+        Path path = acrossBridge.getPath();
+        assertEquals(3, path.length());
+        assertEquals(Path.Movement.BRIDGE, path.step(1).movement);
+        assertEquals(Path.Movement.WALK, path.step(2).movement);
+        assertFalse(bridgeBank.stances.get(Position.pack(1, 0, 0)).fullSupport,
+                "planning must leave the unplaced bridge tile physically unsupported in its snapshot");
+    }
+
+    @Test
+    void groundedCandidateAndTransitionCapsReturnPartialLimit() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.stance(0, 0, 0).fullSupport = true;
+        terrain.supportEveryFractionalStance = true;
+        int[] heights = new int[33];
+        for (int i = 0; i < heights.length; i++) heights[i] = i - 16;
+        for (int[] direction : new int[][] {{-1,0},{1,0},{0,-1},{0,1}}) {
+            terrain.groundedHeights(direction[0], direction[1], heights);
+        }
+        Planner planner = Planner.fromFeetY16(terrain, 0, 0, 0,
+                Goal.exact(10, 10, 0), new Planner.Options().maxNodes(128).maxDrop(0));
+        assertEquals(NavStatus.PARTIAL_LIMIT, finish(planner));
+        assertTrue(planner.getDiscoveredNodes() > 1);
+    }
+
+    @Test
     void blocksDiagonalCornerCuttingAndBodyObstructions() {
         FakeTerrain corners = new FakeTerrain();
         corners.stance(0, 0, 0).fullSupport = true;
@@ -323,13 +439,21 @@ final class PlannerTest {
 
     private static final class FakeTerrain implements Terrain {
         final Map<Long, StanceProbe> stances = new HashMap<>();
+        final Map<FeetKey, StanceProbe> stances16 = new HashMap<>();
+        final Map<FeetKey, Integer> exactProbeCounts = new HashMap<>();
+        final Map<Long, int[]> groundedHeights = new HashMap<>();
         boolean infiniteFloor;
         boolean eastDetour;
         boolean motionClear = true;
         boolean rejectParkourArc;
         boolean sawSourceBreakCells;
+        boolean supportEveryFractionalStance;
+        boolean requirePhysicalGroundedSource;
         double maximumArc;
         int motionChecks;
+        int groundedChecks;
+        int rejectedGroundedProofsWithoutSourceSupport;
+        int lastFromFeetY16, lastToFeetY16;
         long revision;
 
         static FakeTerrain infiniteFloor() {
@@ -347,6 +471,51 @@ final class PlannerTest {
                 probe.hazard = false;
                 return probe;
             });
+        }
+
+        StanceProbe stance16(int x, int feetY16, int z) {
+            FeetKey key = new FeetKey(x, feetY16, z);
+            return stances16.computeIfAbsent(key, ignored -> {
+                StanceProbe probe = new StanceProbe();
+                probe.loaded = true;
+                probe.bodyClear = true;
+                probe.hazard = false;
+                return probe;
+            });
+        }
+
+        void groundedHeights(int x, int z, int... values) {
+            groundedHeights.put(Position.pack(x, 0, z), values.clone());
+        }
+
+        @Override public boolean collectGroundedStances(int x, int referenceFeetY16, int z,
+                                                        GroundedStanceBuffer out) {
+            int[] values = groundedHeights.get(Position.pack(x, 0, z));
+            if (values == null) return Terrain.super.collectGroundedStances(x, referenceFeetY16, z, out);
+            out.clear();
+            for (int value : values) out.add(value);
+            return out.isComplete();
+        }
+
+        @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
+            FeetKey key = new FeetKey(x, feetY16, z);
+            exactProbeCounts.merge(key, 1, Integer::sum);
+            StanceProbe stored = stances16.get(key);
+            if (stored != null) { out.copyFrom(stored); return out.loaded; }
+            if (supportEveryFractionalStance) {
+                out.clear();
+                out.loaded = true;
+                out.bodyClear = true;
+                out.hazard = false;
+                out.surfaceSupport = true;
+                return true;
+            }
+            if (Math.floorMod(feetY16, 16) == 0) {
+                probeStance(x, Math.floorDiv(feetY16, 16), z, out);
+                return out.loaded;
+            }
+            out.clear();
+            return false;
         }
 
         @Override public void probeStance(int x, int y, int z, StanceProbe out) {
@@ -387,6 +556,23 @@ final class PlannerTest {
             return motionClear;
         }
 
+        @Override public boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
+                                                     double toX, int toFeetY16, double toZ,
+                                                     StanceProbe sourceAfterBreak,
+                                                     StanceProbe destinationAfterBreak) {
+            groundedChecks++;
+            motionChecks++;
+            lastFromFeetY16 = fromFeetY16;
+            lastToFeetY16 = toFeetY16;
+            if (sourceAfterBreak.breakCount > 0) sawSourceBreakCells = true;
+            if (requirePhysicalGroundedSource
+                    && (sourceAfterBreak == null || !sourceAfterBreak.hasGroundSupport())) {
+                rejectedGroundedProofsWithoutSourceSupport++;
+                return false;
+            }
+            return motionClear;
+        }
+
         @Override public boolean isMotionClear(double fromX, double fromY, double fromZ,
                                                double toX, double toY, double toZ,
                                                double arcHeight, StanceProbe sourceAfterBreak,
@@ -409,4 +595,6 @@ final class PlannerTest {
 
         @Override public long revision() { return revision; }
     }
+
+    private record FeetKey(int x, int feetY16, int z) {}
 }

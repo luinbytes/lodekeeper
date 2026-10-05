@@ -14,6 +14,7 @@ public final class Planner {
     private static final int PARKOUR_THREE_COST = 34;
     private static final int MEDIUM_COST = 17;
     private static final int BRIDGE_COST = 55;
+    private static final int GROUNDED_VALIDATION_LIMIT = 64;
 
     private static final int BREAK_ACTION = 1;
     private static final int PLACE_ACTION = 2;
@@ -63,6 +64,7 @@ public final class Planner {
     private final long terrainRevision;
 
     private final long[] positions;
+    private final byte[] feetFractions;
     private final long[] costs;
     private final long[] heuristics;
     private final int[] parents;
@@ -81,6 +83,7 @@ public final class Planner {
     private final int[] hashSlots;
     private final int[] heap;
     private final ProbeCache probeCache;
+    private final GroundedStanceBuffer groundedStances = new GroundedStanceBuffer();
 
     private final StanceProbe sourceProbe = new StanceProbe();
     private final StanceProbe sourceAfterBreak = new StanceProbe().clear();
@@ -95,9 +98,23 @@ public final class Planner {
     private Path path;
     private NavStatus status = NavStatus.IN_PROGRESS;
     private boolean nodeLimitHit;
+    private int groundedValidations;
 
     public Planner(Terrain terrain, int startX, int startY, int startZ, Goal goal, Options options) {
+        this(terrain, startX, integerFeetY16(startY), startZ, goal, options, true);
+    }
+
+    /** Construct a planner whose starting feet height is expressed in sixteenths of a block. */
+    public static Planner fromFeetY16(Terrain terrain, int startX, int startFeetY16, int startZ,
+                                      Goal goal, Options options) {
+        return new Planner(terrain, startX, startFeetY16, startZ, goal, options, true);
+    }
+
+    private Planner(Terrain terrain, int startX, int startFeetY16, int startZ,
+                    Goal goal, Options options, boolean exactHeight) {
         if (terrain == null || goal == null) throw new NullPointerException("terrain and goal are required");
+        int startY = Math.floorDiv(startFeetY16, 16);
+        Position.pack(startX, startY, startZ);
         if (options == null) options = new Options();
         if (options.maxNodes < 64 || options.maxNodes > 1_000_000)
             throw new IllegalArgumentException("maxNodes must be between 64 and 1000000");
@@ -123,6 +140,7 @@ public final class Planner {
 
         int hashCapacity = tableCapacity(maxNodes * 2);
         positions = new long[maxNodes];
+        feetFractions = new byte[maxNodes];
         costs = new long[maxNodes];
         heuristics = new long[maxNodes];
         parents = new int[maxNodes];
@@ -145,18 +163,22 @@ public final class Planner {
         Arrays.fill(heapPosition, -1);
 
         long start = Position.pack(startX, startY, startZ);
-        probe(startX, startY, startZ, sourceProbe);
-        if (!sourceProbe.loaded || !sourceProbe.bodyClear || sourceProbe.hazard) {
+        probeAtFeetY16(startX, startFeetY16, startZ, sourceProbe);
+        boolean integralStart = Math.floorMod(startFeetY16, 16) == 0;
+        boolean mediumStart = integralStart
+                && ((allowSwimming && sourceProbe.water) || (allowClimbing && sourceProbe.climbable));
+        if (!sourceProbe.loaded || !sourceProbe.bodyClear || sourceProbe.hazard
+                || (!sourceProbe.hasGroundSupport() && !mediumStart)) {
             status = NavStatus.NO_PATH;
             return;
         }
-        int index = addNode(start, startX, startY, startZ, 0, false);
+        int index = addNode(start, Math.floorMod(startFeetY16, 16), startX, startY, startZ, 0, false);
         if (index < 0) {
             status = NavStatus.PARTIAL_LIMIT;
             return;
         }
         costs[index] = 0;
-        heuristics[index] = goal.heuristic(startX, startY, startZ);
+        heuristics[index] = goal.heuristic16(startX, startFeetY16, startZ);
         movements[index] = (byte) Path.Movement.START.ordinal();
         pushHeap(index);
     }
@@ -185,14 +207,16 @@ public final class Planner {
             int x = Position.x(positions[current]);
             int y = Position.y(positions[current]);
             int z = Position.z(positions[current]);
-            if (goal.matches(x, y, z)) {
+            int feetY16 = feetY16(current);
+            if (goal.matches16(x, feetY16, z)) {
                 buildPath(current);
                 status = NavStatus.FOUND;
                 return status;
             }
 
-            probe(x, y, z, sourceProbe);
+            probeAtFeetY16(x, feetY16, z, sourceProbe);
             if (!prepareSourceAfterBreak(current)) continue;
+            groundedValidations = 0;
             expandLocal(current, x, y, z);
             if (nodeLimitHit) {
                 buildPartialPath();
@@ -215,41 +239,48 @@ public final class Planner {
     public int getOpenNodes() { return heapSize; }
 
     private void expandLocal(int current, int x, int y, int z) {
-        boolean hasSupport = sourceProbe.fullSupport || builtSupport[current] != 0;
-
+        int sourceFeetY16 = feetY16(current);
+        boolean integral = Math.floorMod(sourceFeetY16, 16) == 0;
+        boolean hasGroundSupport = sourceProbe.hasGroundSupport() || builtSupport[current] != 0;
+        boolean hasFullSupport = sourceProbe.fullSupport || builtSupport[current] != 0;
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 if (dx == 0 && dz == 0) continue;
                 boolean diagonal = dx != 0 && dz != 0;
-                tryHorizontal(current, x, y, z, dx, dz, diagonal, hasSupport);
+                tryHorizontal(current, x, y, z, dx, dz, diagonal, hasGroundSupport, hasFullSupport, integral);
                 if (nodeLimitHit) return;
             }
         }
 
-        // One-block ledge climbs are cardinal and require a supported landing.
-        for (int[] direction : CARDINALS) {
-            tryTransition(current, x, y, z, x + direction[0], y + 1, z + direction[1],
-                    Path.Movement.JUMP, JUMP_COST, 0.85, true, false, false);
-            if (nodeLimitHit) return;
-        }
+        // Fractional landings are grounded stair contacts. Other movement models remain integral.
+        if (!integral) return;
 
-        // Falls are cardinal to keep their swept path and landing cost predictable.
-        if (maxDrop > 0) {
+        if (hasFullSupport) {
+            // One-block ledge climbs are cardinal and require a fully supported landing.
             for (int[] direction : CARDINALS) {
-                for (int drop = 1; drop <= maxDrop; drop++) {
-                    tryTransition(current, x, y, z, x + direction[0], y - drop, z + direction[1],
-                            Path.Movement.DROP, DROP_COST + drop * 4, 0.0, true, true, false);
-                    if (nodeLimitHit) return;
+                tryTransition(current, x, y, z, x + direction[0], y + 1, z + direction[1],
+                        Path.Movement.JUMP, JUMP_COST, 0.85, true, false, false);
+                if (nodeLimitHit) return;
+            }
+
+            // Falls are cardinal to keep their swept path and landing cost predictable.
+            if (maxDrop > 0) {
+                for (int[] direction : CARDINALS) {
+                    for (int drop = 1; drop <= maxDrop; drop++) {
+                        tryTransition(current, x, y, z, x + direction[0], y - drop, z + direction[1],
+                                Path.Movement.DROP, DROP_COST + drop * 4, 0.0, true, true, false);
+                        if (nodeLimitHit) return;
+                    }
                 }
             }
-        }
 
-        if (allowParkour && hasSupport) {
-            for (int[] direction : CARDINALS) {
-                tryParkour(current, x, y, z, direction[0], direction[1], 2);
-                if (nodeLimitHit) return;
-                tryParkour(current, x, y, z, direction[0], direction[1], 3);
-                if (nodeLimitHit) return;
+            if (allowParkour) {
+                for (int[] direction : CARDINALS) {
+                    tryParkour(current, x, y, z, direction[0], direction[1], 2);
+                    if (nodeLimitHit) return;
+                    tryParkour(current, x, y, z, direction[0], direction[1], 3);
+                    if (nodeLimitHit) return;
+                }
             }
         }
 
@@ -261,35 +292,135 @@ public final class Planner {
     }
 
     private void tryHorizontal(int current, int x, int y, int z, int dx, int dz,
-                               boolean diagonal, boolean sourceHasSupport) {
+                               boolean diagonal, boolean sourceHasGroundSupport,
+                               boolean sourceHasFullSupport, boolean integral) {
         int tx = x + dx;
         int tz = z + dz;
+        int sourceFeetY16 = feetY16(current);
         if (!validPosition(tx, y, tz)) return;
-        if (diagonal && !cornersClear(x, y, z, dx, dz)) return;
-        probe(tx, y, tz, targetProbe);
-        if (!targetProbe.loaded || targetProbe.hazard) return;
 
-        Path.Movement movement;
-        long baseCost;
-        boolean supported = targetProbe.fullSupport;
-        if (supported) {
-            movement = Path.Movement.WALK;
-            baseCost = diagonal ? DIAGONAL_COST : WALK_COST;
-        } else if (allowSwimming && (sourceProbe.water || targetProbe.water)) {
-            movement = Path.Movement.SWIM;
-            baseCost = MEDIUM_COST;
-        } else if (allowClimbing && (sourceProbe.climbable || targetProbe.climbable)) {
-            movement = Path.Movement.CLIMB;
-            baseCost = MEDIUM_COST;
-        } else if (!diagonal && allowBuilding && targetProbe.bodyClear && sourceHasSupport
-                && placementsUsed[current] < maxPlacements) {
-            tryBridge(current, x, y, z, tx, y, tz, targetProbe);
-            return;
-        } else {
+        if (diagonal) {
+            if (sourceHasGroundSupport && cornersClearAtFeet16(x, sourceFeetY16, z, dx, dz)) {
+                probeAtFeetY16(tx, sourceFeetY16, tz, targetProbe);
+                if (targetProbe.loaded && !targetProbe.hazard && targetProbe.hasGroundSupport()) {
+                    tryGroundedWalk(current, x, z, tx, tz, sourceFeetY16, targetProbe, DIAGONAL_COST, true);
+                    return;
+                }
+            }
+            if (!integral || !cornersClear(x, y, z, dx, dz)) return;
+            probe(tx, y, tz, targetProbe);
+            if (!targetProbe.loaded || targetProbe.hazard) return;
+            tryHorizontalMediumOrBridge(current, x, y, z, tx, tz, true,
+                    sourceHasFullSupport, targetProbe);
             return;
         }
-        tryTransitionWithProbe(current, x, y, z, tx, y, tz, movement, baseCost, 0.0,
-                supported, true, false, targetProbe);
+
+        if (sourceHasGroundSupport) {
+            groundedStances.clear();
+            boolean complete = terrain.collectGroundedStances(tx, sourceFeetY16, tz, groundedStances);
+            if (!complete || !groundedStances.isComplete()) {
+                nodeLimitHit = true;
+                return;
+            }
+            for (int i = 0; i < groundedStances.size(); i++) {
+                int candidateFeetY16 = groundedStances.get(i);
+                if (Math.abs((long) candidateFeetY16 - sourceFeetY16) > 16L) continue;
+                if (groundedValidations >= GROUNDED_VALIDATION_LIMIT) {
+                    nodeLimitHit = true;
+                    return;
+                }
+                groundedValidations++;
+                probeAtFeetY16(tx, candidateFeetY16, tz, targetProbe);
+                if (!targetProbe.loaded || targetProbe.hazard || !targetProbe.hasGroundSupport()) continue;
+                long baseCost = WALK_COST + positiveRiseCost(candidateFeetY16 - sourceFeetY16);
+                tryGroundedWalk(current, x, z, tx, tz, candidateFeetY16, targetProbe, baseCost, false);
+                if (nodeLimitHit) return;
+            }
+        }
+
+        if (!integral) return;
+        probe(tx, y, tz, targetProbe);
+        if (!targetProbe.loaded || targetProbe.hazard) return;
+        tryHorizontalMediumOrBridge(current, x, y, z, tx, tz, false,
+                sourceHasFullSupport, targetProbe);
+    }
+
+    private void tryHorizontalMediumOrBridge(int current, int x, int y, int z, int tx, int tz,
+                                              boolean diagonal, boolean sourceHasFullSupport,
+                                              StanceProbe destination) {
+        if (destination.fullSupport && !sourceProbe.water && !sourceProbe.climbable) return;
+        Path.Movement movement;
+        if (allowSwimming && (sourceProbe.water || destination.water)) movement = Path.Movement.SWIM;
+        else if (allowClimbing && (sourceProbe.climbable || destination.climbable)) movement = Path.Movement.CLIMB;
+        else if (!diagonal && allowBuilding && destination.bodyClear && sourceHasFullSupport
+                && placementsUsed[current] < maxPlacements) {
+            tryBridge(current, x, y, z, tx, y, tz, destination);
+            return;
+        } else return;
+        tryTransitionWithProbe(current, x, y, z, tx, y, tz, movement, MEDIUM_COST, 0.0,
+                false, true, false, destination);
+    }
+
+    private void tryGroundedWalk(int current, int fromX, int fromZ, int toX, int toZ,
+                                 int toFeetY16, StanceProbe destination, long baseCost,
+                                 boolean diagonal) {
+        int fromFeetY16 = feetY16(current);
+        int rise16 = toFeetY16 - fromFeetY16;
+        if (diagonal && rise16 != 0) return;
+        if (rise16 > 16 || rise16 < -16 || !destination.hasGroundSupport()) return;
+        if (!destination.bodyClear && (Math.floorMod(fromFeetY16, 16) != 0
+                || Math.floorMod(toFeetY16, 16) != 0)) return;
+        boolean groundedSweepClear;
+        if (builtSupport[current] != 0 && rise16 == 0
+                && Math.floorMod(fromFeetY16, 16) == 0
+                && Math.floorMod(toFeetY16, 16) == 0 && destination.fullSupport) {
+            // The bridge tile is an execution-time support promise. Until placement is observed,
+            // use the legacy collision sweep to leave it for a real bank rather than asking the
+            // adapter to prove support for a block that is not present in the planning snapshot.
+            groundedSweepClear = motionClear(fromX, Math.floorDiv(fromFeetY16, 16), fromZ,
+                    toX, Math.floorDiv(toFeetY16, 16), toZ, 0.0, destination);
+        } else {
+            groundedSweepClear = terrain.isGroundedWalkClear(fromX + 0.5, fromFeetY16, fromZ + 0.5,
+                    toX + 0.5, toFeetY16, toZ + 0.5, sourceAfterBreak, destination);
+        }
+        if (!groundedSweepClear) return;
+
+        int actionType1 = 0;
+        int actionType2 = 0;
+        long actionPos1 = 0L;
+        long actionPos2 = 0L;
+        int actionToken1 = -1;
+        int actionToken2 = -1;
+        long actionCost = baseCost;
+        if (!destination.bodyClear) {
+            int count = destination.breakCount;
+            if (!allowBreaking || count < 1 || count > StanceProbe.MAX_BREAK_TARGETS) return;
+            for (int i = 0; i < count; i++) {
+                BreakTarget target = destination.breakTargets[i];
+                int sourceY = Math.floorDiv(fromFeetY16, 16);
+                if (target.cost < 1 || !terrain.canBreakFrom(fromX, sourceY, fromZ, destination, i)) return;
+                actionCost += target.cost;
+                if (i == 0) {
+                    actionType1 = BREAK_ACTION;
+                    actionPos1 = Position.pack(target.x, target.y, target.z);
+                    actionToken1 = target.stateToken;
+                } else {
+                    actionType2 = BREAK_ACTION;
+                    actionPos2 = Position.pack(target.x, target.y, target.z);
+                    actionToken2 = target.stateToken;
+                }
+            }
+        } else if (destination.breakCount != 0) {
+            return;
+        }
+        relaxAtFeetY16(current, toX, toFeetY16, toZ, actionCost, Path.Movement.WALK,
+                0, false, destination, actionType1, actionPos1, actionToken1,
+                actionType2, actionPos2, actionToken2);
+    }
+
+    private static long positiveRiseCost(int rise16) {
+        if (rise16 <= 0) return 0L;
+        return (7L * rise16 + 15L) / 16L;
     }
 
     private void tryVerticalMedium(int current, int x, int y, int z, int dy) {
@@ -320,8 +451,11 @@ public final class Planner {
 
     private void tryBridge(int current, int x, int y, int z, int tx, int ty, int tz,
                            StanceProbe destination) {
+        if (Math.floorMod(feetY16(current), 16) != 0
+                || !(sourceProbe.fullSupport || builtSupport[current] != 0)) return;
         if (!destination.loaded || !destination.bodyClear || destination.hazard
-                || destination.fullSupport || destination.water || destination.climbable) return;
+                || destination.fullSupport || destination.surfaceSupport
+                || destination.water || destination.climbable) return;
         if (!terrain.canPlaceBridgeFrom(x, y, z, tx, ty - 1, tz,
                 placementItemToken, builtSupport[current] != 0)) return;
         if (!motionClear(x, y, z, tx, ty, tz, 0.0, destination)) return;
@@ -401,6 +535,22 @@ public final class Planner {
         return cornerStanceClear(sideProbe);
     }
 
+    private boolean cornersClearAtFeet16(int x, int feetY16, int z, int dx, int dz) {
+        int ax = x + dx;
+        int bz = z + dz;
+        int y = Math.floorDiv(feetY16, 16);
+        if (!validPosition(ax, y, z) || !validPosition(x, y, bz)) return false;
+        probeAtFeetY16(ax, feetY16, z, sideProbe);
+        if (!groundCornerStanceClear(sideProbe)) return false;
+        probeAtFeetY16(x, feetY16, bz, sideProbe);
+        return groundCornerStanceClear(sideProbe);
+    }
+
+    private static boolean groundCornerStanceClear(StanceProbe stance) {
+        return stance.loaded && stance.bodyClear && stance.hasGroundSupport()
+                && !stance.hazard && stance.breakCount == 0;
+    }
+
     private boolean cornerStanceClear(StanceProbe stance) {
         if (!stance.loaded || !stance.bodyClear || stance.hazard || stance.breakCount != 0) return false;
         return stance.fullSupport
@@ -418,7 +568,11 @@ public final class Planner {
     private boolean prepareSourceAfterBreak(int current) {
         sourceAfterBreak.clear();
         if (!sourceProbe.loaded || sourceProbe.hazard) return false;
-        if (sourceProbe.bodyClear) return true;
+        if (sourceProbe.bodyClear) {
+            if (sourceProbe.breakCount != 0) return false;
+            sourceAfterBreak.copyFrom(sourceProbe);
+            return true;
+        }
 
         int count = actionCounts[current];
         if (count < 1 || count > StanceProbe.MAX_BREAK_TARGETS || count != sourceProbe.breakCount) return false;
@@ -440,6 +594,7 @@ public final class Planner {
         sourceAfterBreak.loaded = true;
         sourceAfterBreak.bodyClear = true;
         sourceAfterBreak.fullSupport = sourceProbe.fullSupport;
+        sourceAfterBreak.surfaceSupport = sourceProbe.surfaceSupport;
         sourceAfterBreak.hazard = sourceProbe.hazard;
         sourceAfterBreak.water = sourceProbe.water;
         sourceAfterBreak.climbable = sourceProbe.climbable;
@@ -456,11 +611,21 @@ public final class Planner {
     private void relax(int current, int x, int y, int z, long edgeCost, Path.Movement movement,
                        int addedPlacements, boolean supportBuilt, StanceProbe destination,
                        int type1, long pos1, int token1, int type2, long pos2, int token2) {
+        relaxAtFeetY16(current, x, y * 16, z, edgeCost, movement, addedPlacements,
+                supportBuilt, destination, type1, pos1, token1, type2, pos2, token2);
+    }
+
+    private void relaxAtFeetY16(int current, int x, int feetY16, int z, long edgeCost,
+                                Path.Movement movement, int addedPlacements, boolean supportBuilt,
+                                StanceProbe destination, int type1, long pos1, int token1,
+                                int type2, long pos2, int token2) {
         int newPlacements = placementsUsed[current] + addedPlacements;
         if (newPlacements > maxPlacements) return;
+        int y = Math.floorDiv(feetY16, 16);
+        int fraction = Math.floorMod(feetY16, 16);
         long packed = Position.pack(x, y, z);
         long candidateCost = costs[current] + edgeCost;
-        int slot = locateSlot(packed, newPlacements, supportBuilt);
+        int slot = locateSlot(packed, fraction, newPlacements, supportBuilt);
         int node = hashSlots[slot] - 1;
         if (node < 0) {
             if (nodeCount >= maxNodes) {
@@ -470,10 +635,11 @@ public final class Planner {
             node = nodeCount++;
             hashSlots[slot] = node + 1;
             positions[node] = packed;
+            feetFractions[node] = (byte) fraction;
             placementsUsed[node] = newPlacements;
             builtSupport[node] = (byte) (supportBuilt ? 1 : 0);
             costs[node] = Long.MAX_VALUE;
-            heuristics[node] = goal.heuristic(x, y, z);
+            heuristics[node] = goal.heuristic16(x, feetY16, z);
             parents[node] = -1;
             heapPosition[node] = -1;
         }
@@ -498,27 +664,31 @@ public final class Planner {
         else siftUp(heapPosition[node]);
     }
 
-    private int addNode(long packed, int x, int y, int z, int placementCount, boolean supportBuilt) {
-        int slot = locateSlot(packed, placementCount, supportBuilt);
+    private int addNode(long packed, int fraction, int x, int y, int z,
+                        int placementCount, boolean supportBuilt) {
+        int slot = locateSlot(packed, fraction, placementCount, supportBuilt);
         if (hashSlots[slot] != 0) return -1;
         int node = nodeCount++;
         hashSlots[slot] = node + 1;
         positions[node] = packed;
+        feetFractions[node] = (byte) fraction;
         placementsUsed[node] = placementCount;
         builtSupport[node] = (byte) (supportBuilt ? 1 : 0);
         costs[node] = Long.MAX_VALUE;
-        heuristics[node] = goal.heuristic(x, y, z);
+        heuristics[node] = goal.heuristic16(x, y * 16 + fraction, z);
         return node;
     }
 
-    private int locateSlot(long packed, int placements, boolean supportBuilt) {
-        long hash = mix64(packed ^ (PLACEMENT_HASH * (placements + 1L))
+    private int locateSlot(long packed, int fraction, int placements, boolean supportBuilt) {
+        long hash = mix64(packed ^ (0x94d049bb133111ebL * fraction)
+                ^ (PLACEMENT_HASH * (placements + 1L))
                 ^ (supportBuilt ? SUPPORT_HASH : 0L));
         int mask = hashSlots.length - 1;
         int slot = (int) hash & mask;
         while (hashSlots[slot] != 0) {
             int existing = hashSlots[slot] - 1;
-            if (positions[existing] == packed && placementsUsed[existing] == placements
+            if (positions[existing] == packed && (feetFractions[existing] & 0xff) == fraction
+                    && placementsUsed[existing] == placements
                     && (builtSupport[existing] != 0) == supportBuilt) return slot;
             slot = (slot + 1) & mask;
         }
@@ -596,7 +766,7 @@ public final class Planner {
         int node = goalNode;
         for (int i = length - 1; i >= 0; i--) {
             int x = Position.x(positions[node]);
-            int y = Position.y(positions[node]);
+            int feetY16 = feetY16(node);
             int z = Position.z(positions[node]);
             Path.Movement movement = Path.Movement.values()[movements[node]];
             Action[] actions;
@@ -611,7 +781,7 @@ public final class Planner {
                         makeAction(actionType2[node], actionPosition2[node], actionToken2[node])
                 };
             }
-            steps[i] = new Path.Step(x, y, z, movement, actions);
+            steps[i] = Path.Step.atFeetY16(x, feetY16, z, movement, actions);
             node = parents[node];
             if (node < 0 && i != 0) throw new IllegalStateException("broken A* parent chain");
         }
@@ -638,12 +808,26 @@ public final class Planner {
     }
 
     private boolean probe(int x, int y, int z, StanceProbe out) {
+        return probeAtFeetY16(x, y * 16, z, out);
+    }
+
+    private boolean probeAtFeetY16(int x, int feetY16, int z, StanceProbe out) {
+        int y = Math.floorDiv(feetY16, 16);
         if (!validPosition(x, y, z)) {
             out.clear();
             return false;
         }
         long key = Position.pack(x, y, z);
-        return probeCache.getOrProbe(key, x, y, z, out, terrain);
+        return probeCache.getOrProbe(key, Math.floorMod(feetY16, 16), x, feetY16, z, out, terrain);
+    }
+
+    private int feetY16(int node) {
+        return Position.y(positions[node]) * 16 + (feetFractions[node] & 0xff);
+    }
+
+    private static int integerFeetY16(int y) {
+        Position.pack(0, y, 0);
+        return y * 16;
     }
 
     private static boolean validPosition(int x, int y, int z) {
@@ -666,6 +850,7 @@ public final class Planner {
     private static final class ProbeCache {
         private final long[] keys;
         private final byte[] occupied;
+        private final byte[] fractions;
         private final byte[] flags;
         private final byte[] breakCounts;
         private final int[] x1, y1, z1, state1, cost1;
@@ -677,6 +862,7 @@ public final class Planner {
             int capacity = tableCapacity(Math.max(16, desiredEntries));
             keys = new long[capacity];
             occupied = new byte[capacity];
+            fractions = new byte[capacity];
             flags = new byte[capacity];
             breakCounts = new byte[capacity];
             x1 = new int[capacity]; y1 = new int[capacity]; z1 = new int[capacity];
@@ -686,27 +872,29 @@ public final class Planner {
             mask = capacity - 1;
         }
 
-        boolean getOrProbe(long key, int x, int y, int z, StanceProbe out, Terrain terrain) {
-            int slot = (int) mix64(key) & mask;
+        boolean getOrProbe(long key, int fraction, int x, int feetY16, int z,
+                           StanceProbe out, Terrain terrain) {
+            int slot = (int) mix64(key ^ (0x94d049bb133111ebL * fraction)) & mask;
             int start = slot;
             while (occupied[slot] != 0) {
-                if (keys[slot] == key) {
+                if (keys[slot] == key && (fractions[slot] & 0xff) == fraction) {
                     restore(slot, out);
                     return out.loaded;
                 }
                 slot = (slot + 1) & mask;
                 if (slot == start) {
                     out.clear();
-                    terrain.probeStance(x, y, z, out);
+                    terrain.probeStance16(x, feetY16, z, out);
                     return out.loaded;
                 }
             }
 
             out.clear();
-            terrain.probeStance(x, y, z, out);
+            terrain.probeStance16(x, feetY16, z, out);
             if (size < keys.length * 7 / 10) {
                 occupied[slot] = 1;
                 keys[slot] = key;
+                fractions[slot] = (byte) fraction;
                 store(slot, out);
                 size++;
             }
@@ -716,7 +904,8 @@ public final class Planner {
         private void store(int slot, StanceProbe probe) {
             flags[slot] = (byte) ((probe.loaded ? 1 : 0) | (probe.bodyClear ? 2 : 0)
                     | (probe.fullSupport ? 4 : 0) | (probe.hazard ? 8 : 0)
-                    | (probe.water ? 16 : 0) | (probe.climbable ? 32 : 0));
+                    | (probe.water ? 16 : 0) | (probe.climbable ? 32 : 0)
+                    | (probe.surfaceSupport ? 64 : 0));
             int count = Math.max(0, Math.min(StanceProbe.MAX_BREAK_TARGETS + 1, probe.breakCount));
             breakCounts[slot] = (byte) count;
             if (count > 0) {
@@ -739,6 +928,7 @@ public final class Planner {
             out.hazard = (value & 8) != 0;
             out.water = (value & 16) != 0;
             out.climbable = (value & 32) != 0;
+            out.surfaceSupport = (value & 64) != 0;
             out.breakCount = breakCounts[slot];
             if (out.breakCount > 0) {
                 BreakTarget target = out.breakTargets[0];

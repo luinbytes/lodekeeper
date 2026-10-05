@@ -15,6 +15,43 @@ public interface Terrain {
     void probeStance(int feetX, int feetY, int feetZ, StanceProbe out);
 
     /**
+     * Add every safe grounded feet height available near {@code referenceFeetY16} at the given
+     * block X/Z. Results are absolute feet heights in sixteenths. Implementations must mark the
+     * buffer incomplete if the physical candidate set exceeds its capacity.
+     */
+    default boolean collectGroundedStances(int x, int referenceFeetY16, int z,
+                                           GroundedStanceBuffer out) {
+        if (out == null) throw new NullPointerException("out");
+        out.clear();
+        if (Math.floorMod(referenceFeetY16, 16) == 0) out.add(referenceFeetY16);
+        return out.isComplete();
+    }
+
+    /** Probe a block-centered stance at an exact feet height in sixteenths. */
+    default boolean probeStance16(int feetX, int feetY16, int feetZ, StanceProbe out) {
+        if (out == null) throw new NullPointerException("out");
+        if (Math.floorMod(feetY16, 16) != 0) {
+            out.clear();
+            return false;
+        }
+        probeStance(feetX, Math.floorDiv(feetY16, 16), feetZ, out);
+        return out.loaded;
+    }
+
+    /** Probe support at the player's real X/Z after a strict sixteenth-block Y quantization. */
+    default boolean probeCurrentStance(double feetX, int feetY16, double feetZ, StanceProbe out) {
+        if (out == null) throw new NullPointerException("out");
+        if (!Double.isFinite(feetX) || !Double.isFinite(feetZ)
+                || Math.floorMod(feetY16, 16) != 0) {
+            out.clear();
+            return false;
+        }
+        probeStance((int) Math.floor(feetX), Math.floorDiv(feetY16, 16),
+                (int) Math.floor(feetZ), out);
+        return out.loaded;
+    }
+
+    /**
      * Check the complete swept player box for a movement. The feet follow a straight interpolation
      * plus {@code sin(pi*t)*arcHeight}; negative or zero height means no jump arc. The check must
      * reject unloaded cells, collisions and hazards. It may ignore only the destination probe's
@@ -37,6 +74,19 @@ public interface Terrain {
         if (sourceAfterBreak != null && sourceAfterBreak.breakCount != 0) return false;
         return isMotionClear(fromX, fromFeetY, fromZ, toX, toFeetY, toZ,
                 arcHeight, destinationAfterBreak);
+    }
+
+    /**
+     * Prove a grounded walk sweep between two exact stance heights. The default preserves legacy
+     * integer, same-height movement and fails closed for fractional or rising/falling steps.
+     */
+    default boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
+                                        double toX, int toFeetY16, double toZ,
+                                        StanceProbe sourceAfterBreak,
+                                        StanceProbe destinationAfterBreak) {
+        if (fromFeetY16 != toFeetY16 || Math.floorMod(fromFeetY16, 16) != 0) return false;
+        return isMotionClear(fromX, fromFeetY16 / 16.0, fromZ,
+                toX, toFeetY16 / 16.0, toZ, 0.0, sourceAfterBreak, destinationAfterBreak);
     }
 
     /** True only when this exact break target is mineable from the current stance and in reach. */

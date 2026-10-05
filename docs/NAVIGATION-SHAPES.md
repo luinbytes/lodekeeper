@@ -1,6 +1,16 @@
-# Collision-shape navigation: next implementation lane
+# Collision-shape navigation
 
-This is a proposed follow-up, not implemented traversal or gameplay evidence. The current dirt-path/farmland recovery only escapes a nearby fractional start to safe full-block ground. Full traversal across paths, slabs, stairs and snow remains open.
+The navigation core now represents grounded feet heights in sixteenths, with 56 passing Java regressions and an independent source review. Native adapter integration and physical traversal verification remain in progress. Released Preview 2 only escapes a nearby fractional start to safe full-block ground; it does not establish full traversal across paths, slabs, stairs or snow.
+
+## Implemented core contracts
+
+Exact feet height participates in node and probe-cache identity, goals, path steps, live edge checks and frontier selection. Negative heights use floor division; the existing packed coordinate range is preserved. Legacy integral adapters retain same-height walking through conservative default methods; fractional geometry requires an adapter proof.
+
+Candidate enumeration holds at most 64 distinct heights, grounded candidate checks are capped at 64 per expanded node, and multi-stance goals hold at most 128 entries. Rectangle-union support proofs use a reusable 128-rectangle buffer and fail closed on overflow or malformed geometry. Frontier collection attempts consume the per-tick budget even when they return no usable stance.
+
+Continuous-height swimming and climbing retain their medium and actual body checks. Jumps, drops, parkour and bridges require integral endpoints and full launch/landing support. A planned bridge can leave its virtual support for a real, same-height bank; execution still requires observed placement and live validation. Grounded movement supports a separate shape-aware walk proof, with a rise cost that preserves the existing minimum cost per full block.
+
+These are core and regression guarantees, not native gameplay acceptance. The adapter and physical checks below remain the next gate.
 
 ## Represent actual grounded positions
 

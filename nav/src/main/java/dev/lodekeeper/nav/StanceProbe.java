@@ -1,7 +1,7 @@
 package dev.lodekeeper.nav;
 
 /**
- * Reusable result of {@link Terrain#probeStance(int, int, int, StanceProbe)}. Fields summarize
+ * Reusable result of a terrain stance probe. Fields summarize
  * the player's centered, full bounding box at one candidate feet position; they are not raw
  * properties of the single block at (x,y,z).
  */
@@ -14,6 +14,8 @@ public final class StanceProbe {
     public boolean bodyClear;
     /** True only when a full-block support surface safely supports the centered player. */
     public boolean fullSupport;
+    /** True when a non-full-block surface physically supports the player's footprint. */
+    public boolean surfaceSupport;
     /** True if any portion of the player box intersects a lethal or policy-blocked hazard. */
     public boolean hazard;
     /** True when water intersects the player box. */
@@ -28,6 +30,7 @@ public final class StanceProbe {
         loaded = false;
         bodyClear = false;
         fullSupport = false;
+        surfaceSupport = false;
         hazard = true;
         water = false;
         climbable = false;
@@ -35,10 +38,14 @@ public final class StanceProbe {
         return this;
     }
 
+    /** True when full-block or adapter-proven partial-surface support exists. */
+    public boolean hasGroundSupport() { return fullSupport || surfaceSupport; }
+
     void copyFrom(StanceProbe other) {
         loaded = other.loaded;
         bodyClear = other.bodyClear;
         fullSupport = other.fullSupport;
+        surfaceSupport = other.surfaceSupport;
         hazard = other.hazard;
         water = other.water;
         climbable = other.climbable;
