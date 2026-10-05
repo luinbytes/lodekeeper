@@ -141,6 +141,9 @@ final class AutomationEngine {
     private int explorationTicks;
     private final Set<BlockPos> rejectedResources = new HashSet<>();
     private BlockPos target;
+    private BlockPos gatherMineTarget;
+    private Block gatherMineBlock;
+    private long lastMovementProgressToken;
     private CraftingAction crafting;
     private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
     private StonecuttingAction stonecutting;
@@ -278,14 +281,27 @@ final class AutomationEngine {
                 requestPlan();
                 return;
             }
+            movement.observeConfirmedProgress();
+            observeGatherRemoval();
+            long movementProgress = movement.progressToken();
+            if (movementProgress != lastMovementProgressToken) {
+                lastMovementProgressToken = movementProgress;
+                actionTicks = 0;
+            }
             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
             if (observed != lastObservedCount) { lastObservedCount = observed; actionTicks = 0; }
             if (smelting != null && smelting.progressToken() != lastSmeltProgress) {
                 lastSmeltProgress = smelting.progressToken();
                 actionTicks = 0;
             }
-            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId()
-                    + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
+            if (++actionTicks > config.actionTimeoutTicks) {
+                if (shouldRejectTimedOutGather()) {
+                    rejectResource();
+                    return;
+                }
+                throw new IllegalStateException("Action timeout: " + step.sourceId()
+                        + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
+            }
             if (step.output() != null && crafting == null && stonecutting == null && smelting == null
                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
                 input.idle();
@@ -1018,11 +1034,11 @@ final class AutomationEngine {
             logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius,rejectedResources);
             logScanGeneration = catalog.generation();
         }
-        long beforeDiscovery = logScan.progressToken();
+        long priorProgress = logScan.progressToken();
         boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,1_000_000);
+        if (logScan.progressToken() != priorProgress) actionTicks = 0;
         status = "discovering nearby logs · " + logScan.progressDescription();
         if (!discoveryComplete && !logScan.hasCandidates()) {
-            if (logScan.progressToken() != beforeDiscovery) actionTicks = 0;
             return null;
         }
         Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
@@ -1185,6 +1201,7 @@ final class AutomationEngine {
         stepCatalogGeneration = catalog.generation();
         stepPreferencesVersion = plannedPreferencesVersion;
         actionTicks = 0;
+        lastMovementProgressToken = movement.progressToken();
         status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline;
@@ -1192,6 +1209,7 @@ final class AutomationEngine {
     }
 
     int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
+    boolean resourceRejected(BlockPos position) { return rejectedResources.contains(position); }
 
     private boolean canExplore(PlanningOutcome outcome) {
         return config.allowExploration && !unavailableSources.isEmpty() && outcome.explorationProven();
@@ -1209,6 +1227,12 @@ final class AutomationEngine {
     private void explore() {
         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
         if (goalCount() >= active.count) { finishGoal(); return; }
+        movement.observeConfirmedProgress();
+        long movementProgress = movement.progressToken();
+        if (movementProgress != lastMovementProgressToken) {
+            lastMovementProgressToken = movementProgress;
+            explorationTicks = 0;
+        }
         if (++explorationTicks > config.actionTimeoutTicks) {
             retryExploration(); return;
         }
@@ -1234,11 +1258,13 @@ final class AutomationEngine {
         if (state == ExplorationFrontier.Status.READY) {
             var point = frontier.waypoint();
             movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
+            lastMovementProgressToken = movement.progressToken();
             explorationMoving = true;
         }
     }
     private void retryExploration() {
         movement.stop(); explorationMoving = false; explorationTicks = 0;
+        lastMovementProgressToken = movement.progressToken();
         BlockPos feet = client.player.blockPosition();
         terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
         status = "trying another safe exploration waypoint";
@@ -1246,8 +1272,38 @@ final class AutomationEngine {
     private void rejectResource() {
         movement.stop(); actions.cancel(); moving = false;
         if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
-        rejectedResources.add(target.immutable()); target = null; scan = null; actionTicks = 0;
+        rejectedResources.add(target.immutable()); target = null; scan = null; clearGatherAttempt(); actionTicks = 0;
         status = "trying another reachable resource";
+    }
+    private boolean shouldRejectTimedOutGather() {
+        if (step == null || step.kind() != PlanKind.GATHER || target == null || movingPickup
+                || !config.allowBreaking || transactionInProgress() || crafting != null || stonecutting != null || smelting != null
+                || openingStation || hasOwnedStationMenuOpen()) return false;
+        if (!hasLoadedChunk(target)) return false;
+        Block current = client.level.getBlockState(target).getBlock();
+        return step.candidateBlocks().stream().map(GameCatalog::block).anyMatch(block -> block == current);
+    }
+    private void observeGatherRemoval() {
+        if (gatherMineTarget == null) return;
+        if (target == null || !gatherMineTarget.equals(target)) { clearGatherAttempt(); return; }
+        if (!hasLoadedChunk(gatherMineTarget)) return;
+        BlockState current = client.level.getBlockState(gatherMineTarget);
+        if (current.isAir()) {
+            movement.recordConfirmedWorldAction();
+            target = null;
+            actions.cancel();
+            clearGatherAttempt();
+        } else if (current.getBlock() != gatherMineBlock) {
+            clearGatherAttempt();
+        }
+    }
+    private void clearGatherAttempt() {
+        gatherMineTarget = null;
+        gatherMineBlock = null;
+    }
+    private boolean hasLoadedChunk(BlockPos position) {
+        return client.level != null && client.level.getChunk(
+                position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
     }
     private void gather() {
         Set<Block> blocks = new HashSet<>();
@@ -1292,11 +1348,11 @@ final class AutomationEngine {
         }
         if (target == null) {
             if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
-            long beforeDiscovery = scan.progressToken();
+            long priorProgress = scan.progressToken();
             boolean discoveryComplete = scan.advance(config.scanBlocksPerTick, 1_000_000);
+            if (scan.progressToken() != priorProgress) actionTicks = 0;
             status = "discovering " + step.output() + " · " + scan.progressDescription();
             if (!discoveryComplete && !scan.hasCandidates()) {
-                if (scan.progressToken() != beforeDiscovery) actionTicks = 0;
                 return;
             }
             target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
@@ -1305,12 +1361,16 @@ final class AutomationEngine {
             scan = null;
             if (target == null) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
         }
-        if (!sourceStillAvailable(target, blocks)) { target = null; actions.cancel(); return; }
+        if (!sourceStillAvailable(target, blocks)) { target = null; actions.cancel(); clearGatherAttempt(); return; }
         SelectedToolRequirement tool = step.requirements().stream()
                 .filter(SelectedToolRequirement.class::isInstance)
                 .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
-        if (!actions.mine(target, tool)) {
+        Block sourceBlock = client.level.getBlockState(target).getBlock();
+        if (actions.mine(target, tool)) {
+            gatherMineTarget = target.immutable();
+            gatherMineBlock = sourceBlock;
+        } else {
             try { movement.startInteraction(target); moving = true; }
             catch (MovementController.NavigationFailure blocked) { rejectResource(); }
         }
@@ -1549,6 +1609,7 @@ final class AutomationEngine {
         finally {
             crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
+            clearGatherAttempt();
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }
         if (warning.isBlank() && closeThisMenu && client.player != null
@@ -1575,6 +1636,7 @@ final class AutomationEngine {
     void resume() {
         paused = false;
         actionTicks = 0;
+        lastMovementProgressToken = movement.progressToken();
         if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
     }

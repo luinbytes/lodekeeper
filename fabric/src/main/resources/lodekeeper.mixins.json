@@ -5,7 +5,9 @@
   "client": [
     "ClientWorldMixin",
     "AutomationUseMixin",
-    "RecipeSyncMixin"
+    "RecipeSyncMixin",
+    "ContainerInputReceiptMixin",
+    "OwnedClickPacketMixin"
   ],
   "injectors": {
     "defaultRequire": 1

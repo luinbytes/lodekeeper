@@ -1,0 +1,871 @@
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+index 1685a2e..5a0c61b 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+@@ -141,6 +141,9 @@ final class AutomationEngine {
+     private int explorationTicks;
+     private final Set<BlockPos> rejectedResources = new HashSet<>();
+     private BlockPos target;
++    private BlockPos gatherMineTarget;
++    private Block gatherMineBlock;
++    private long lastMovementProgressToken;
+     private CraftingAction crafting;
+     private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
+     private StonecuttingAction stonecutting;
+@@ -278,14 +281,27 @@ final class AutomationEngine {
+                 requestPlan();
+                 return;
+             }
++            movement.observeConfirmedProgress();
++            observeGatherRemoval();
++            long movementProgress = movement.progressToken();
++            if (movementProgress != lastMovementProgressToken) {
++                lastMovementProgressToken = movementProgress;
++                actionTicks = 0;
++            }
+             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
+             if (observed != lastObservedCount) { lastObservedCount = observed; actionTicks = 0; }
+             if (smelting != null && smelting.progressToken() != lastSmeltProgress) {
+                 lastSmeltProgress = smelting.progressToken();
+                 actionTicks = 0;
+             }
+-            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId()
+-                    + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
++            if (++actionTicks > config.actionTimeoutTicks) {
++                if (shouldRejectTimedOutGather()) {
++                    rejectResource();
++                    return;
++                }
++                throw new IllegalStateException("Action timeout: " + step.sourceId()
++                        + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
++            }
+             if (step.output() != null && crafting == null && stonecutting == null && smelting == null
+                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
+                 input.idle();
+@@ -1018,11 +1034,11 @@ final class AutomationEngine {
+             logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius,rejectedResources);
+             logScanGeneration = catalog.generation();
+         }
+-        long beforeDiscovery = logScan.progressToken();
++        long priorProgress = logScan.progressToken();
+         boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,1_000_000);
++        if (logScan.progressToken() != priorProgress) actionTicks = 0;
+         status = "discovering nearby logs · " + logScan.progressDescription();
+         if (!discoveryComplete && !logScan.hasCandidates()) {
+-            if (logScan.progressToken() != beforeDiscovery) actionTicks = 0;
+             return null;
+         }
+         Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
+@@ -1185,6 +1201,7 @@ final class AutomationEngine {
+         stepCatalogGeneration = catalog.generation();
+         stepPreferencesVersion = plannedPreferencesVersion;
+         actionTicks = 0;
++        lastMovementProgressToken = movement.progressToken();
+         status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
+         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
+         lastObservedCount = baseline;
+@@ -1192,6 +1209,7 @@ final class AutomationEngine {
+     }
+ 
+     int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
++    boolean resourceRejected(BlockPos position) { return rejectedResources.contains(position); }
+ 
+     private boolean canExplore(PlanningOutcome outcome) {
+         return config.allowExploration && !unavailableSources.isEmpty() && outcome.explorationProven();
+@@ -1209,6 +1227,12 @@ final class AutomationEngine {
+     private void explore() {
+         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
+         if (goalCount() >= active.count) { finishGoal(); return; }
++        movement.observeConfirmedProgress();
++        long movementProgress = movement.progressToken();
++        if (movementProgress != lastMovementProgressToken) {
++            lastMovementProgressToken = movementProgress;
++            explorationTicks = 0;
++        }
+         if (++explorationTicks > config.actionTimeoutTicks) {
+             retryExploration(); return;
+         }
+@@ -1234,11 +1258,13 @@ final class AutomationEngine {
+         if (state == ExplorationFrontier.Status.READY) {
+             var point = frontier.waypoint();
+             movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
++            lastMovementProgressToken = movement.progressToken();
+             explorationMoving = true;
+         }
+     }
+     private void retryExploration() {
+         movement.stop(); explorationMoving = false; explorationTicks = 0;
++        lastMovementProgressToken = movement.progressToken();
+         BlockPos feet = client.player.blockPosition();
+         terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
+         status = "trying another safe exploration waypoint";
+@@ -1246,9 +1272,39 @@ final class AutomationEngine {
+     private void rejectResource() {
+         movement.stop(); actions.cancel(); moving = false;
+         if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
+-        rejectedResources.add(target.immutable()); target = null; scan = null; actionTicks = 0;
++        rejectedResources.add(target.immutable()); target = null; scan = null; clearGatherAttempt(); actionTicks = 0;
+         status = "trying another reachable resource";
+     }
++    private boolean shouldRejectTimedOutGather() {
++        if (step == null || step.kind() != PlanKind.GATHER || target == null || movingPickup
++                || !config.allowBreaking || transactionInProgress() || crafting != null || stonecutting != null || smelting != null
++                || openingStation || hasOwnedStationMenuOpen()) return false;
++        if (!hasLoadedChunk(target)) return false;
++        Block current = client.level.getBlockState(target).getBlock();
++        return step.candidateBlocks().stream().map(GameCatalog::block).anyMatch(block -> block == current);
++    }
++    private void observeGatherRemoval() {
++        if (gatherMineTarget == null) return;
++        if (target == null || !gatherMineTarget.equals(target)) { clearGatherAttempt(); return; }
++        if (!hasLoadedChunk(gatherMineTarget)) return;
++        BlockState current = client.level.getBlockState(gatherMineTarget);
++        if (current.isAir()) {
++            movement.recordConfirmedWorldAction();
++            target = null;
++            actions.cancel();
++            clearGatherAttempt();
++        } else if (current.getBlock() != gatherMineBlock) {
++            clearGatherAttempt();
++        }
++    }
++    private void clearGatherAttempt() {
++        gatherMineTarget = null;
++        gatherMineBlock = null;
++    }
++    private boolean hasLoadedChunk(BlockPos position) {
++        return client.level != null && client.level.getChunk(
++                position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
++    }
+     private void gather() {
+         Set<Block> blocks = new HashSet<>();
+         step.candidateBlocks().forEach(id -> blocks.add(GameCatalog.block(id)));
+@@ -1292,11 +1348,11 @@ final class AutomationEngine {
+         }
+         if (target == null) {
+             if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
+-            long beforeDiscovery = scan.progressToken();
++            long priorProgress = scan.progressToken();
+             boolean discoveryComplete = scan.advance(config.scanBlocksPerTick, 1_000_000);
++            if (scan.progressToken() != priorProgress) actionTicks = 0;
+             status = "discovering " + step.output() + " · " + scan.progressDescription();
+             if (!discoveryComplete && !scan.hasCandidates()) {
+-                if (scan.progressToken() != beforeDiscovery) actionTicks = 0;
+                 return;
+             }
+             target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
+@@ -1305,12 +1361,16 @@ final class AutomationEngine {
+             scan = null;
+             if (target == null) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
+         }
+-        if (!sourceStillAvailable(target, blocks)) { target = null; actions.cancel(); return; }
++        if (!sourceStillAvailable(target, blocks)) { target = null; actions.cancel(); clearGatherAttempt(); return; }
+         SelectedToolRequirement tool = step.requirements().stream()
+                 .filter(SelectedToolRequirement.class::isInstance)
+                 .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
+         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
+-        if (!actions.mine(target, tool)) {
++        Block sourceBlock = client.level.getBlockState(target).getBlock();
++        if (actions.mine(target, tool)) {
++            gatherMineTarget = target.immutable();
++            gatherMineBlock = sourceBlock;
++        } else {
+             try { movement.startInteraction(target); moving = true; }
+             catch (MovementController.NavigationFailure blocked) { rejectResource(); }
+         }
+@@ -1549,6 +1609,7 @@ final class AutomationEngine {
+         finally {
+             crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
+             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
++            clearGatherAttempt();
+             exploring = false; explorationMoving = false; explorationTicks = 0;
+         }
+         if (warning.isBlank() && closeThisMenu && client.player != null
+@@ -1575,6 +1636,7 @@ final class AutomationEngine {
+     void resume() {
+         paused = false;
+         actionTicks = 0;
++        lastMovementProgressToken = movement.progressToken();
+         if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
+         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
+     }
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+index 75d6dae..68b5359 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+@@ -4,6 +4,7 @@ import dev.lodekeeper.nav.*;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.core.registries.BuiltInRegistries;
+@@ -28,6 +29,10 @@ final class MovementController {
+     private int pathIndex, actionIndex, ticksWithoutProgress;
+     private int validatedPathIndex = -1;
+     private long validatedRevision = Long.MIN_VALUE;
++    private long progressToken;
++    private BlockPos pendingBreakPosition, pendingPlacementPosition;
++    private int pendingBreakStateId = -1;
++    private Block pendingPlacementBlock;
+     private double edgeStartX, edgeStartY, edgeStartZ;
+     private double lastDistance = Double.POSITIVE_INFINITY;
+     private int replans;
+@@ -37,13 +42,13 @@ final class MovementController {
+     }
+     void startExploration(BlockPos waypoint) {
+         stop(); explorationRoute = true;
+-        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; search();
++        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; search();
+     }
+     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
+         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
+     }
+     void start(BlockPos target, int radius) {
+-        stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0;
++        stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0; ticksWithoutProgress = 0;
+         search();
+     }
+     void startInteraction(BlockPos target) {
+@@ -62,7 +67,7 @@ final class MovementController {
+             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+         }
+         if (stances.isEmpty()) { start(target, 1); return; }
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
++        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
+     }
+     void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
+         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
+@@ -78,10 +83,11 @@ final class MovementController {
+             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+         }
+         if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
++        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
+     }
+ 
+     private void search() {
++        clearPendingWorldAction();
+         terrain.beginSearch();
+         BlockPos start = client.player.blockPosition();
+         Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
+@@ -91,9 +97,41 @@ final class MovementController {
+             .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
+             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
+         planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
+-        path = null; pathIndex = 1; actionIndex = 0; ticksWithoutProgress = 0; lastDistance = Double.POSITIVE_INFINITY;
++        path = null; pathIndex = 1; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
+         validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
+     }
++    long progressToken() { return progressToken; }
++    void recordConfirmedWorldAction() { recordProgress(); }
++    void observeConfirmedProgress() {
++        if (client.level == null) return;
++        if (pendingBreakPosition != null && hasLoadedChunk(pendingBreakPosition)) {
++            BlockState state = client.level.getBlockState(pendingBreakPosition);
++            if (state.isAir() || Block.getId(state) != pendingBreakStateId
++                    && state.getCollisionShape(client.level, pendingBreakPosition).isEmpty()) {
++                recordProgress();
++                clearPendingWorldAction();
++            }
++        }
++        if (pendingPlacementPosition != null && hasLoadedChunk(pendingPlacementPosition)
++                && client.level.getBlockState(pendingPlacementPosition).is(pendingPlacementBlock)) {
++            recordProgress();
++            clearPendingWorldAction();
++        }
++    }
++    private void recordProgress() {
++        if (progressToken < Long.MAX_VALUE) progressToken++;
++        ticksWithoutProgress = 0;
++    }
++    private boolean hasLoadedChunk(BlockPos position) {
++        return client.level != null && client.level.getChunk(
++                position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
++    }
++    private void clearPendingWorldAction() {
++        pendingBreakPosition = null;
++        pendingBreakStateId = -1;
++        pendingPlacementPosition = null;
++        pendingPlacementBlock = null;
++    }
+     boolean tick() {
+         input.acquire(client); input.idle();
+         if (client.player == null || client.level == null) throw new IllegalStateException("World unavailable");
+@@ -128,17 +166,26 @@ final class MovementController {
+                 retry("Current stance became unsafe before world action"); return false;
+             }
+             if (action.type == Action.Type.BREAK_BLOCK) {
+-                if (state.isAir() || state.getCollisionShape(client.level, position).isEmpty()) { actionIndex++; actions.cancel(); return false; }
++                if (state.isAir() || state.getCollisionShape(client.level, position).isEmpty()) {
++                    observeConfirmedProgress();
++                    if (position.equals(pendingBreakPosition)) clearPendingWorldAction();
++                    actionIndex++; actions.cancel(); return false;
++                }
+                 if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
+                 if (Block.getId(state) != action.token) { retry("Mining obstruction changed"); return false; }
+                 if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
+                     retry("Mining obstruction is no longer safe or reachable"); return false;
+                 }
+                 if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
++                pendingBreakPosition = position.immutable();
++                pendingBreakStateId = action.token;
+             } else {
+                 Item item = Item.byId(action.token);
+                 Block block = Block.byItem(item);
+-                if (state.is(block)) { actionIndex++; return false; }
++                if (state.is(block)) {
++                    observeConfirmedProgress();
++                    actionIndex++; return false;
++                }
+                 if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
+                 if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
+                 if (!state.canBeReplaced()) { retry("Bridge target is no longer replaceable"); return false; }
+@@ -165,8 +212,10 @@ final class MovementController {
+                     if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
+                     return false;
+                 }
++                pendingPlacementPosition = position.immutable();
++                pendingPlacementBlock = block;
+             }
+-            if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new IllegalStateException("World action made no progress");
++            if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
+             return false;
+         }
+         if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
+@@ -209,7 +258,7 @@ final class MovementController {
+         }
+         if (horizontal < .22 && Math.abs(delta.y) < .35 && (client.player.onGround() || probe.water || probe.climbable)) {
+             client.player.setSprinting(false);
+-            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; ticksWithoutProgress = 0; return false;
++            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; recordProgress(); return false;
+         }
+         double distance = delta.lengthSqr();
+         if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
+@@ -249,6 +298,7 @@ final class MovementController {
+     }
+     void stop() {
+         explorationRoute = false;
++        clearPendingWorldAction();
+         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedClickReceipts.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedClickReceipts.java
+new file mode 100644
+index 0000000..550e144
+--- /dev/null
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedClickReceipts.java
+@@ -0,0 +1,38 @@
++package dev.lodekeeper.fabric.modern;
++
++import net.minecraft.world.item.ItemStack;
++import java.util.function.BooleanSupplier;
++
++/** Reconciles only owned stonecutter input changes; ordinary clicks retain native prediction. */
++public final class OwnedClickReceipts {
++    public interface Receipt {
++        long lodekeeper$inputSequence();
++        ItemStack lodekeeper$receivedInput();
++    }
++    private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
++    private static final class Scope {
++        final int containerId;
++        boolean claimed;
++        Scope(int containerId) { this.containerId = containerId; }
++    }
++    private OwnedClickReceipts() {}
++    private static void enter(int containerId) {
++        if (CURRENT.get() != null) throw new IllegalStateException("Nested owned inventory click");
++        CURRENT.set(new Scope(containerId));
++    }
++    static boolean inputTransfer(int containerId, BooleanSupplier operation) {
++        enter(containerId);
++        try { return operation.getAsBoolean(); } finally { CURRENT.remove(); }
++    }
++    static void outputClick(int containerId, Runnable operation) {
++        enter(containerId);
++        try { operation.run(); } finally { CURRENT.remove(); }
++    }
++    /** Called only by the synchronous client packet constructor, once per owned click. */
++    public static boolean claimInputReconciliation(int containerId) {
++        Scope scope = CURRENT.get();
++        if (scope == null || scope.claimed || scope.containerId != containerId) return false;
++        scope.claimed = true;
++        return true;
++    }
++}
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StonecuttingAction.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StonecuttingAction.java
+index 79dc06a..f24a682 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StonecuttingAction.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StonecuttingAction.java
+@@ -62,6 +62,7 @@ final class StonecuttingAction {
+     private QuickMovePurpose quickMovePurpose;
+     private int transferAmount;
+     private int inputDrainSourceCount;
++    private int outputQuickMoveExpectedCount;
+     private int outputClickConsumedOperations;
+     private int remainingOperationsToSubmit;
+     private int submittedInput;
+@@ -153,7 +154,7 @@ final class StonecuttingAction {
+         }
+ 
+         if (transfer != null) {
+-            if (!transfer.tick()) return false;
++            if (!OwnedClickReceipts.inputTransfer(menu.containerId, transfer::tick)) return false;
+             submittedInput += transferAmount;
+             remainingOperationsToSubmit -= transferAmount;
+             activeCohort.remainingPlanned -= transferAmount;
+@@ -343,11 +344,14 @@ final class StonecuttingAction {
+         quickMovePurpose = QuickMovePurpose.OUTPUT;
+         outputQuickMoveClickIssued = false;
+         quickMove = new VerifiedQuickMove(client, menu, RESULT_SLOT, outputItem, "stonecutter output",
+-                this::authorizedResultSourceAdjustment, this::beforeOutputQuickMoveClick);
++                this::authorizedResultSourceAdjustment, this::beforeOutputQuickMoveClick,
++                () -> outputQuickMoveExpectedCount);
+     }
+ 
+     private void beforeOutputQuickMoveClick() {
+         beforeOutputClick();
++        outputQuickMoveExpectedCount = Math.multiplyExact(expectedOutput.getCount(),
++                menu.getSlot(INPUT_SLOT).getItem().getCount());
+         outputQuickMoveClickIssued = true;
+     }
+ 
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/VerifiedQuickMove.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/VerifiedQuickMove.java
+index 30f33d9..82014c0 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/VerifiedQuickMove.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/VerifiedQuickMove.java
+@@ -20,9 +20,12 @@ final class VerifiedQuickMove {
+     /** Cumulative authorized source regeneration or consumption. */
+     private final IntSupplier sourceAdjustment;
+     private final Runnable beforeClick;
++    /** Optional exact batch size: partial client predictions cannot complete this move. */
++    private final IntSupplier expectedMove;
+     private ItemStack expectedStack;
+     private int sourceBefore, inventoryBefore, adjustmentBefore;
+-    private int observations, movedCount;
++    private int observations, movedCount, expectedMoveCount;
++    private long inputReceiptBeforeClick;
+     private boolean clicked, waitingForCapacity;
+     private int capacityWhenBlocked, waitingSourceCount, waitingInventoryCount, waitingAdjustment;
+ 
+@@ -37,6 +40,12 @@ final class VerifiedQuickMove {
+ 
+     VerifiedQuickMove(Minecraft client, AbstractContainerMenu menu, int sourceSlot, Item item, String description,
+                       IntSupplier sourceAdjustment, Runnable beforeClick) {
++        this(client, menu, sourceSlot, item, description, sourceAdjustment, beforeClick, null);
++    }
++
++    VerifiedQuickMove(Minecraft client, AbstractContainerMenu menu, int sourceSlot, Item item,
++                      String description, IntSupplier sourceAdjustment, Runnable beforeClick,
++                      IntSupplier expectedMove) {
+         this.client = client;
+         this.menu = menu;
+         this.sourceSlot = sourceSlot;
+@@ -44,6 +53,7 @@ final class VerifiedQuickMove {
+         this.description = description;
+         this.sourceAdjustment = sourceAdjustment;
+         this.beforeClick = beforeClick;
++        this.expectedMove = expectedMove;
+     }
+ 
+     boolean tick() {
+@@ -54,13 +64,31 @@ final class VerifiedQuickMove {
+ 
+         ItemStack source = menu.getSlot(sourceSlot).getItem();
+         if (!clicked) {
++            if (expectedMove != null) {
++                OwnedClickReceipts.Receipt receipt = inputReceipt();
++                ItemStack currentInput = menu.getSlot(0).getItem();
++                ItemStack received = receipt.lodekeeper$receivedInput();
++                if (currentInput.isEmpty() || received.isEmpty() || !same(received, currentInput)
++                        || received.getCount() != currentInput.getCount()) {
++                    if (++observations >= MAX_OBSERVATION_TICKS) {
++                        throw cannotReturn("the server has not confirmed the owned input; no output was clicked");
++                    }
++                    return false;
++                }
++                inputReceiptBeforeClick = receipt.lodekeeper$inputSequence();
++            }
+             if (beforeClick != null) beforeClick.run();
++            if (expectedMove != null) {
++                expectedMoveCount = expectedMove.getAsInt();
++                if (expectedMoveCount < 1) throw cannotReturn("the exact batch size is invalid; nothing was clicked");
++            }
+             if (source.isEmpty() || !source.is(item)) {
+                 throw new IllegalStateException("Unexpected item in " + description + " slot; leaving the container open");
+             }
+             expectedStack = source.copy();
+             rebaseline(source.getCount(), countMatchingInventory(), adjustment());
+-            click();
++            if (expectedMove == null) click();
++            else OwnedClickReceipts.outputClick(menu.containerId, this::click);
+             clicked = true;
+             return false;
+         }
+@@ -99,11 +127,19 @@ final class VerifiedQuickMove {
+             return false;
+         }
+ 
+-        if (inventoryGain > 0 && observedMove == inventoryGain) {
++        if (inventoryGain > 0 && observedMove == inventoryGain
++                && (expectedMove == null || inventoryGain == expectedMoveCount
++                    && inputReceipt().lodekeeper$inputSequence() > inputReceiptBeforeClick
++                    && inputReceipt().lodekeeper$receivedInput().isEmpty())) {
+             movedCount = inventoryGain;
+             return true;
+         }
+         if (++observations >= MAX_OBSERVATION_TICKS) {
++            if (expectedMove != null) {
++                // The issued server action may still arrive. Resume observes it; never issue a second click.
++                throw cannotReturn("the exact batch has not settled; expected " + expectedMoveCount
++                        + " items, observed " + inventoryGain + "; resume to observe the issued move");
++            }
+             if (observedMove == 0 && inventoryGain == 0) {
+                 waitingForCapacity = true;
+                 capacityWhenBlocked = inventoryCapacity();
+@@ -119,6 +155,13 @@ final class VerifiedQuickMove {
+ 
+     int movedCount() { return movedCount; }
+ 
++    private OwnedClickReceipts.Receipt inputReceipt() {
++        if (!(menu instanceof OwnedClickReceipts.Receipt receipt)) {
++            throw cannotReturn("station synchronization is unavailable; leaving owned contents in place");
++        }
++        return receipt;
++    }
++
+     private void click() {
+         client.gameMode.handleContainerInput(menu.containerId, sourceSlot, 0, ContainerInput.QUICK_MOVE, client.player);
+     }
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/ContainerInputReceiptMixin.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/ContainerInputReceiptMixin.java
+new file mode 100644
+index 0000000..5cf415a
+--- /dev/null
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/ContainerInputReceiptMixin.java
+@@ -0,0 +1,34 @@
++package dev.lodekeeper.fabric.modern.mixin;
++
++import dev.lodekeeper.fabric.modern.OwnedClickReceipts;
++import net.minecraft.world.inventory.AbstractContainerMenu;
++import net.minecraft.world.item.ItemStack;
++import java.util.List;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Unique;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++
++/** Network receipt methods are distinct from local slot-click prediction. */
++@Mixin(AbstractContainerMenu.class)
++abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt {
++    @Unique private long lodekeeper$receiptSequence;
++    @Unique private ItemStack lodekeeper$receivedInput = ItemStack.EMPTY;
++    @Inject(method = "setItem", at = @At("TAIL"))
++    private void lodekeeper$inputSlotReceived(int slot, int revision, ItemStack stack, CallbackInfo callback) {
++        if (slot == 0) {
++            lodekeeper$receivedInput = stack.copy();
++            lodekeeper$receiptSequence++;
++        }
++    }
++    @Inject(method = "initializeContents", at = @At("TAIL"))
++    private void lodekeeper$contentsReceived(int revision, List<ItemStack> stacks, ItemStack cursor, CallbackInfo callback) {
++        if (!stacks.isEmpty()) {
++            lodekeeper$receivedInput = stacks.get(0).copy();
++            lodekeeper$receiptSequence++;
++        }
++    }
++    @Override public long lodekeeper$inputSequence() { return lodekeeper$receiptSequence; }
++    @Override public ItemStack lodekeeper$receivedInput() { return lodekeeper$receivedInput.copy(); }
++}
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/OwnedClickPacketMixin.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/OwnedClickPacketMixin.java
+new file mode 100644
+index 0000000..dcfc1b9
+--- /dev/null
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/mixin/OwnedClickPacketMixin.java
+@@ -0,0 +1,29 @@
++package dev.lodekeeper.fabric.modern.mixin;
++
++import dev.lodekeeper.fabric.modern.OwnedClickReceipts;
++import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import org.spongepowered.asm.mixin.Final;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Mutable;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++
++/** Ask native reconciliation to send input-slot state after an owned stonecutter click. */
++@Mixin(ServerboundContainerClickPacket.class)
++abstract class OwnedClickPacketMixin {
++    @Shadow @Final private int containerId;
++    @Shadow @Final @Mutable private Int2ObjectMap<?> changedSlots;
++    @Inject(method = "<init>", at = @At("RETURN"))
++    private void lodekeeper$reconcileOwnedInput(CallbackInfo callback) {
++        if (changedSlots.containsKey(0) && OwnedClickReceipts.claimInputReconciliation(containerId)) {
++            var copy = new Int2ObjectOpenHashMap<>(changedSlots);
++            copy.remove(0);
++            changedSlots = Int2ObjectMaps.unmodifiable(copy);
++        }
++    }
++}
+diff --git a/fabric-modern/src/main/resources/lodekeeper-modern.mixins.json b/fabric-modern/src/main/resources/lodekeeper-modern.mixins.json
+index 00694dc..c32b4bb 100644
+--- a/fabric-modern/src/main/resources/lodekeeper-modern.mixins.json
++++ b/fabric-modern/src/main/resources/lodekeeper-modern.mixins.json
+@@ -2,6 +2,13 @@
+   "required": true,
+   "minVersion": "0.8",
+   "package": "dev.lodekeeper.fabric.modern.mixin",
+-  "client": ["ClientLevelMixin", "AutomationUseMixin"],
+-  "injectors": {"defaultRequire": 1}
++  "client": [
++    "ClientLevelMixin",
++    "AutomationUseMixin",
++    "ContainerInputReceiptMixin",
++    "OwnedClickPacketMixin"
++  ],
++  "injectors": {
++    "defaultRequire": 1
++  }
+ }
+diff --git a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+index bca523d..bc56d27 100644
+--- a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
++++ b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+@@ -64,6 +64,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
+     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
+     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
++    private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
+     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
+     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
+     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
+@@ -78,12 +79,14 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private boolean resourceInitiallyLoaded;
+     private static final int FLOOR_Y = 63;
+     private static final int PLAYER_Y = FLOOR_Y + 1;
++    private static final BlockPos COAL_RECOVERY_ENCASED_ORE = new BlockPos(6, PLAYER_Y, 2);
++    private static final BlockPos COAL_RECOVERY_ACCESSIBLE_ORE = new BlockPos(16, PLAYER_Y, 2);
+ 
+     private enum State {
+         DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
+         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK,
+         CRAFTING_FURNACE, SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE,
+-        GATHERING_FOOD, COOKING, CAPTURING, COMPLETE, FAILED
++        GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, CAPTURING, COMPLETE, FAILED
+     }
+ 
+     private Minecraft client;
+@@ -170,7 +173,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+             }
+             if (selectedFixtureModes() > 1) {
+                 state = State.FAILED;
+-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
++                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+                 writeEvidence("failed");
+                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                 client.stop();
+@@ -311,6 +314,24 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 return;
+             }
+             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
++                if (COAL_RECOVERY_MODE) {
++                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
++                    boolean startingStockObserved = latestSnapshot != null
++                        && latestSnapshot.serverTick >= fixtureReadyServerTick
++                        && latestSnapshot.health == 20.0F
++                        && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1))
++                        && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
++                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1;
++                    if (startingStockObserved) {
++                        if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
++                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)) {
++                            startCoalRecoveryCommand();
++                        }
++                    } else {
++                        readyTicks = 0;
++                    }
++                    return;
++                }
+                 if (IRON_PICKAXE_MODE) {
+                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                     tickIronPickaxePlannerProbe();
+@@ -416,7 +437,17 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 30 : 18); x++) {
+                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
+                 }
+-                if (!PROCESSING_MODE) {
++                if (COAL_RECOVERY_MODE) {
++                    for (int dx = -1; dx <= 1; dx++) {
++                        for (int dy = -1; dy <= 1; dy++) {
++                            for (int dz = -1; dz <= 1; dz++) {
++                                world.setBlockAndUpdate(COAL_RECOVERY_ENCASED_ORE.offset(dx, dy, dz), Blocks.BEDROCK.defaultBlockState());
++                            }
++                        }
++                    }
++                    world.setBlockAndUpdate(COAL_RECOVERY_ENCASED_ORE, Blocks.COAL_ORE.defaultBlockState());
++                    world.setBlockAndUpdate(COAL_RECOVERY_ACCESSIBLE_ORE, Blocks.COAL_ORE.defaultBlockState());
++                } else if (!PROCESSING_MODE) {
+                     for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
+                         world.setBlockAndUpdate(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
+                     }
+@@ -457,6 +488,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 }
+                 clearInventory(player);
+                 if (PROCESSING_MODE) seedCookingInventory(player);
++                if (COAL_RECOVERY_MODE && !player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))) {
++                    throw new IllegalStateException("could not seed the single coal-recovery verifier stone pickaxe");
++                }
+                 if (IRON_PICKAXE_MODE && !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
+                     throw new IllegalStateException("could not seed the single iron-pickaxe verifier crafting table");
+                 }
+@@ -824,6 +858,31 @@ public final class RuntimeVerification implements ClientModInitializer {
+         state = State.GATHERING_WOOD;
+     }
+ 
++    private void startCoalRecoveryCommand() {
++        activeCase = "coal_recovery_reject_encased_nearer_resource";
++        activeItem = "minecraft:coal";
++        activeCount = 1;
++        activeRequiresEmpty = false;
++        activeStartedEmpty = false;
++        beginCaseClock();
++        sendCommand("!lk get coal");
++        state = State.GATHERING_COAL_RECOVERY;
++    }
++
++    private boolean coalRecoveryTargetRejected() {
++        return LodekeeperClient.engine != null && LodekeeperClient.engine.resourceRejected(COAL_RECOVERY_ENCASED_ORE);
++    }
++
++    private boolean coalRecoveryOutcomeObserved() {
++        return latestSnapshot != null
++            && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:coal", 1))
++            && latestSnapshot.health == 20.0F
++            && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
++            && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0
++            && coalRecoveryTargetRejected()
++            && requireEngine().status().startsWith("idle");
++    }
++
+     private void evaluateCurrentCase() {
+         if (activeCase == null || state == State.CAPTURING || latestSnapshot == null) return;
+         if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
+@@ -832,7 +891,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+             return;
+         }
+         int observed = latestSnapshot.count(activeItem);
+-        boolean targetReached = (BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
++        boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
+             && requireEngine().status().startsWith("idle")
+             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
+             && (state != State.SMELTING_IRON || serverFurnaceOpened)
+@@ -852,6 +911,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 && latestSnapshot.health == 20.0F
+                 && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
+                 && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart))
++            && (!COAL_RECOVERY_MODE || coalRecoveryOutcomeObserved())
+             && (!BULK_WOOD_MODE || (latestSnapshot.count(OAK_LOG_ID) == 64
+                 && (WOOD_TOOLS_MODE
+                     ? serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
+@@ -880,6 +940,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
+                 : IRON_PICKAXE_MODE
+                 ? "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
++                : COAL_RECOVERY_MODE
++                ? "server inventory reached exactly one coal at full health after rejecting the nearer encased ore and mining the accessible ore"
+                 : DIAMOND_BOOTSTRAP_MODE
+                 ? "server inventory reached diamond boots after the integrated server observed crafting table and furnace menus and an iron pickaxe"
+                 : switch (state) {
+@@ -903,6 +965,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 state = State.CAPTURING;
+                 captureStartedAtTick = clientTicks;
+             }
++        } else if (COAL_RECOVERY_MODE && state == State.GATHERING_COAL_RECOVERY && observed >= activeCount
++                && requireEngine().status().startsWith("idle") && !coalRecoveryOutcomeObserved()) {
++            fail("coal output was observed without the required encased-target rejection and accessible-ore fixture proof");
+         } else if (requireEngine().status().startsWith("paused")) {
+             fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
+                 ? "stonecutting drain stop was never injected before automation paused: " + requireEngine().status()
+@@ -1052,6 +1117,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 capture.complete(new ServerSnapshot(server.getTickCount(), world.getGameTime(), inventory.counts(),
+                     inventory.woodenAxeRemainingDurability(),
+                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
++                    COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
++                    COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ACCESSIBLE_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
+                     player.getX(), player.getY(), player.getZ()));
+             } catch (Throwable throwable) {
+@@ -1144,7 +1211,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private void finishRun() {
+         state = State.COMPLETE;
+-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
++        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
+         boolean passed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
+         writeEvidence(passed ? "passed" : "failed");
+         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
+@@ -1210,6 +1277,31 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining);
+                 if (ironPickaxePlannerProbeEvidence != null) root.add("ironPickaxePlannerProbe", ironPickaxePlannerProbeEvidence);
+             }
++            root.addProperty("coalRecoveryFixture", COAL_RECOVERY_MODE);
++            if (COAL_RECOVERY_MODE) {
++                JsonObject initialStock = new JsonObject();
++                initialStock.addProperty("minecraft:stone_pickaxe", 1);
++                root.add("coalRecoveryFixtureProvidedStock", initialStock);
++                root.addProperty("coalRecoveryGoalCommand", "!lk get coal");
++                root.addProperty("coalRecoveryExpectedOutput", 1);
++                root.addProperty("coalRecoveryEncasedOrePosition", "6," + PLAYER_Y + ",2");
++                root.addProperty("coalRecoveryAccessibleOrePosition", "16," + PLAYER_Y + ",2");
++                root.addProperty("coalRecoveryEncasedOreInitialBlockCount", 1);
++                root.addProperty("coalRecoveryEncasedOreRemainingBlockCount",
++                    latestSnapshot == null ? -1 : latestSnapshot.coalRecoveryEncasedOreRemaining);
++                root.addProperty("coalRecoveryBlockedTargetRejected", coalRecoveryTargetRejected());
++                root.addProperty("coalRecoveryAccessibleOreInitialBlockCount", 1);
++                root.addProperty("coalRecoveryAccessibleOreRemainingBlockCount",
++                    latestSnapshot == null ? -1 : latestSnapshot.coalRecoveryAccessibleOreRemaining);
++                root.addProperty("coalRecoveryAccessibleOreMined",
++                    latestSnapshot != null && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0);
++                root.addProperty("coalRecoveryCompletionHealth", latestSnapshot == null ? -1.0F : latestSnapshot.health);
++                JsonObject completionInventory = new JsonObject();
++                if (latestSnapshot != null) latestSnapshot.inventory.entrySet().stream().sorted(Map.Entry.comparingByKey())
++                    .forEach(entry -> completionInventory.addProperty(entry.getKey(), entry.getValue()));
++                root.add("coalRecoveryCompletionInventory", completionInventory);
++                root.addProperty("coalRecoveryOutcomeVerified", coalRecoveryOutcomeObserved());
++            }
+             if (PROCESSING_MODE) {
+                 root.addProperty("serverSmokerOpened", serverSmokerOpened);
+                 root.addProperty("serverSmokerOpenings", serverSmokerOpenings);
+@@ -1337,6 +1429,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+         if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) return "invalid_stonecutting_drain";
+         if (STONECUTTING_DRAIN_MODE) return "stonecutting_drain";
+         if (IRON_PICKAXE_MODE) return "iron_pickaxe";
++        if (COAL_RECOVERY_MODE) return "coal_recovery";
+         if (STONECUTTING_MODE) return "stonecutting";
+         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
+         if (BULK_WOOD_MODE) return "bulk_wood";
+@@ -1346,7 +1439,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private static int selectedFixtureModes() {
+         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+-            + (IRON_PICKAXE_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
++            + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
++            + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
+     }
+ 
+     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
+@@ -1358,6 +1452,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
+                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
++                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining,
+                                   float health, int foodLevel,
+                                   String difficulty, double x, double y, double z) {
+         private ServerSnapshot {

@@ -62,6 +62,7 @@ final class StonecuttingAction {
     private QuickMovePurpose quickMovePurpose;
     private int transferAmount;
     private int inputDrainSourceCount;
+    private int outputQuickMoveExpectedCount;
     private int outputClickConsumedOperations;
     private int remainingOperationsToSubmit;
     private int submittedInput;
@@ -153,7 +154,7 @@ final class StonecuttingAction {
         }
 
         if (transfer != null) {
-            if (!transfer.tick()) return false;
+            if (!OwnedClickReceipts.inputTransfer(menu.containerId, transfer::tick)) return false;
             submittedInput += transferAmount;
             remainingOperationsToSubmit -= transferAmount;
             activeCohort.remainingPlanned -= transferAmount;
@@ -343,11 +344,14 @@ final class StonecuttingAction {
         quickMovePurpose = QuickMovePurpose.OUTPUT;
         outputQuickMoveClickIssued = false;
         quickMove = new VerifiedQuickMove(client, menu, RESULT_SLOT, outputItem, "stonecutter output",
-                this::authorizedResultSourceAdjustment, this::beforeOutputQuickMoveClick);
+                this::authorizedResultSourceAdjustment, this::beforeOutputQuickMoveClick,
+                () -> outputQuickMoveExpectedCount);
     }
 
     private void beforeOutputQuickMoveClick() {
         beforeOutputClick();
+        outputQuickMoveExpectedCount = Math.multiplyExact(expectedOutput.getCount(),
+                menu.getSlot(INPUT_SLOT).getItem().getCount());
         outputQuickMoveClickIssued = true;
     }
 

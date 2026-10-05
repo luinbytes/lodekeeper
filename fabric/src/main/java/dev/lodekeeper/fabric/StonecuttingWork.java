@@ -9,9 +9,11 @@ import java.util.Objects;
 record StonecuttingWork(String sourceId, Ingredient input, ItemStack outputPerOperation, Object selectionKey) {
     StonecuttingWork {
         if (sourceId == null || !sourceId.startsWith("stonecutting:")
-                || input == null || input.isEmpty() || selectionKey == null) {
+                || input == null || selectionKey == null) {
             throw new IllegalArgumentException("stonecutting work is missing its source, input, or selection key");
         }
+        // The version bridge rejects ingredients without any synchronized alternatives.
+        GameApi.ingredient(input);
         Objects.requireNonNull(outputPerOperation, "outputPerOperation");
         if (outputPerOperation.isEmpty() || outputPerOperation.getCount() > 99) {
             throw new IllegalArgumentException("stonecutting output must be nonempty with count at most 99");

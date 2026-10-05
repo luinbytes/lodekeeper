@@ -64,6 +64,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
+    private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
@@ -78,12 +79,14 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean resourceInitiallyLoaded;
     private static final int FLOOR_Y = 63;
     private static final int PLAYER_Y = FLOOR_Y + 1;
+    private static final BlockPos COAL_RECOVERY_ENCASED_ORE = new BlockPos(6, PLAYER_Y, 2);
+    private static final BlockPos COAL_RECOVERY_ACCESSIBLE_ORE = new BlockPos(16, PLAYER_Y, 2);
 
     private enum State {
         DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK,
         CRAFTING_FURNACE, SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE,
-        GATHERING_FOOD, COOKING, CAPTURING, COMPLETE, FAILED
+        GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, CAPTURING, COMPLETE, FAILED
     }
 
     private Minecraft client;
@@ -170,7 +173,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (selectedFixtureModes() > 1) {
                 state = State.FAILED;
-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.stop();
@@ -311,6 +314,24 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (COAL_RECOVERY_MODE) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    boolean startingStockObserved = latestSnapshot != null
+                        && latestSnapshot.serverTick >= fixtureReadyServerTick
+                        && latestSnapshot.health == 20.0F
+                        && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1))
+                        && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+                        && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1;
+                    if (startingStockObserved) {
+                        if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
+                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)) {
+                            startCoalRecoveryCommand();
+                        }
+                    } else {
+                        readyTicks = 0;
+                    }
+                    return;
+                }
                 if (IRON_PICKAXE_MODE) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     tickIronPickaxePlannerProbe();
@@ -416,7 +437,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 30 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
                 }
-                if (!PROCESSING_MODE) {
+                if (COAL_RECOVERY_MODE) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dy = -1; dy <= 1; dy++) {
+                            for (int dz = -1; dz <= 1; dz++) {
+                                world.setBlockAndUpdate(COAL_RECOVERY_ENCASED_ORE.offset(dx, dy, dz), Blocks.BEDROCK.defaultBlockState());
+                            }
+                        }
+                    }
+                    world.setBlockAndUpdate(COAL_RECOVERY_ENCASED_ORE, Blocks.COAL_ORE.defaultBlockState());
+                    world.setBlockAndUpdate(COAL_RECOVERY_ACCESSIBLE_ORE, Blocks.COAL_ORE.defaultBlockState());
+                } else if (!PROCESSING_MODE) {
                     for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
                         world.setBlockAndUpdate(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
                     }
@@ -457,6 +488,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 clearInventory(player);
                 if (PROCESSING_MODE) seedCookingInventory(player);
+                if (COAL_RECOVERY_MODE && !player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))) {
+                    throw new IllegalStateException("could not seed the single coal-recovery verifier stone pickaxe");
+                }
                 if (IRON_PICKAXE_MODE && !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
                     throw new IllegalStateException("could not seed the single iron-pickaxe verifier crafting table");
                 }
@@ -824,6 +858,31 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.GATHERING_WOOD;
     }
 
+    private void startCoalRecoveryCommand() {
+        activeCase = "coal_recovery_reject_encased_nearer_resource";
+        activeItem = "minecraft:coal";
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        beginCaseClock();
+        sendCommand("!lk get coal");
+        state = State.GATHERING_COAL_RECOVERY;
+    }
+
+    private boolean coalRecoveryTargetRejected() {
+        return LodekeeperClient.engine != null && LodekeeperClient.engine.resourceRejected(COAL_RECOVERY_ENCASED_ORE);
+    }
+
+    private boolean coalRecoveryOutcomeObserved() {
+        return latestSnapshot != null
+            && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:coal", 1))
+            && latestSnapshot.health == 20.0F
+            && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+            && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0
+            && coalRecoveryTargetRejected()
+            && requireEngine().status().startsWith("idle");
+    }
+
     private void evaluateCurrentCase() {
         if (activeCase == null || state == State.CAPTURING || latestSnapshot == null) return;
         if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
@@ -832,7 +891,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             return;
         }
         int observed = latestSnapshot.count(activeItem);
-        boolean targetReached = (BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
+        boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
@@ -852,6 +911,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.health == 20.0F
                 && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
                 && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart))
+            && (!COAL_RECOVERY_MODE || coalRecoveryOutcomeObserved())
             && (!BULK_WOOD_MODE || (latestSnapshot.count(OAK_LOG_ID) == 64
                 && (WOOD_TOOLS_MODE
                     ? serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
@@ -880,6 +940,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
                 : IRON_PICKAXE_MODE
                 ? "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
+                : COAL_RECOVERY_MODE
+                ? "server inventory reached exactly one coal at full health after rejecting the nearer encased ore and mining the accessible ore"
                 : DIAMOND_BOOTSTRAP_MODE
                 ? "server inventory reached diamond boots after the integrated server observed crafting table and furnace menus and an iron pickaxe"
                 : switch (state) {
@@ -903,6 +965,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 state = State.CAPTURING;
                 captureStartedAtTick = clientTicks;
             }
+        } else if (COAL_RECOVERY_MODE && state == State.GATHERING_COAL_RECOVERY && observed >= activeCount
+                && requireEngine().status().startsWith("idle") && !coalRecoveryOutcomeObserved()) {
+            fail("coal output was observed without the required encased-target rejection and accessible-ore fixture proof");
         } else if (requireEngine().status().startsWith("paused")) {
             fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
                 ? "stonecutting drain stop was never injected before automation paused: " + requireEngine().status()
@@ -1052,6 +1117,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 capture.complete(new ServerSnapshot(server.getTickCount(), world.getGameTime(), inventory.counts(),
                     inventory.woodenAxeRemainingDurability(),
                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
+                    COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+                    COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ACCESSIBLE_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ()));
             } catch (Throwable throwable) {
@@ -1144,7 +1211,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void finishRun() {
         state = State.COMPLETE;
-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
+        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean passed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(passed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
@@ -1209,6 +1276,31 @@ public final class RuntimeVerification implements ClientModInitializer {
                 root.addProperty("ironPickaxeDeepslateFixtureMinedBlockCount", latestSnapshot == null ? -1
                     : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining);
                 if (ironPickaxePlannerProbeEvidence != null) root.add("ironPickaxePlannerProbe", ironPickaxePlannerProbeEvidence);
+            }
+            root.addProperty("coalRecoveryFixture", COAL_RECOVERY_MODE);
+            if (COAL_RECOVERY_MODE) {
+                JsonObject initialStock = new JsonObject();
+                initialStock.addProperty("minecraft:stone_pickaxe", 1);
+                root.add("coalRecoveryFixtureProvidedStock", initialStock);
+                root.addProperty("coalRecoveryGoalCommand", "!lk get coal");
+                root.addProperty("coalRecoveryExpectedOutput", 1);
+                root.addProperty("coalRecoveryEncasedOrePosition", "6," + PLAYER_Y + ",2");
+                root.addProperty("coalRecoveryAccessibleOrePosition", "16," + PLAYER_Y + ",2");
+                root.addProperty("coalRecoveryEncasedOreInitialBlockCount", 1);
+                root.addProperty("coalRecoveryEncasedOreRemainingBlockCount",
+                    latestSnapshot == null ? -1 : latestSnapshot.coalRecoveryEncasedOreRemaining);
+                root.addProperty("coalRecoveryBlockedTargetRejected", coalRecoveryTargetRejected());
+                root.addProperty("coalRecoveryAccessibleOreInitialBlockCount", 1);
+                root.addProperty("coalRecoveryAccessibleOreRemainingBlockCount",
+                    latestSnapshot == null ? -1 : latestSnapshot.coalRecoveryAccessibleOreRemaining);
+                root.addProperty("coalRecoveryAccessibleOreMined",
+                    latestSnapshot != null && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0);
+                root.addProperty("coalRecoveryCompletionHealth", latestSnapshot == null ? -1.0F : latestSnapshot.health);
+                JsonObject completionInventory = new JsonObject();
+                if (latestSnapshot != null) latestSnapshot.inventory.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> completionInventory.addProperty(entry.getKey(), entry.getValue()));
+                root.add("coalRecoveryCompletionInventory", completionInventory);
+                root.addProperty("coalRecoveryOutcomeVerified", coalRecoveryOutcomeObserved());
             }
             if (PROCESSING_MODE) {
                 root.addProperty("serverSmokerOpened", serverSmokerOpened);
@@ -1337,6 +1429,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) return "invalid_stonecutting_drain";
         if (STONECUTTING_DRAIN_MODE) return "stonecutting_drain";
         if (IRON_PICKAXE_MODE) return "iron_pickaxe";
+        if (COAL_RECOVERY_MODE) return "coal_recovery";
         if (STONECUTTING_MODE) return "stonecutting";
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
         if (BULK_WOOD_MODE) return "bulk_wood";
@@ -1346,7 +1439,8 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private static int selectedFixtureModes() {
         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
-            + (IRON_PICKAXE_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
+            + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
+            + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
     }
 
     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
@@ -1358,6 +1452,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
+                                  int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {

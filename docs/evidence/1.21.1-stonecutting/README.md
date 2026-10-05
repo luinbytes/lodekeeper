@@ -2,4 +2,4 @@
 
 A prepared bulk-cutting check: 128 stone plus one stonecutter produced exactly 144 stone slabs, leaving 56 stone. The integrated server observed the native stonecutter menu and full health.
 
-[Run result](run.json), [paired production build and source identity](artifact.json), [exact source patch](source.patch), [screenshot](screenshot.png). Gameplay used isolated Fabric development classes built from the source commit and archived patch. The paired production jar excludes verifier code; this run does not establish an ordinary-launcher installation check.
+[Run result](run.json), [paired production build and source identity](artifact.json), [exact source patch](source.patch), [screenshot](screenshots/lodekeeper-2026-10-05T17-06-51-662349Z-534dd023-native_stonecutter_144_slabs.png). Gameplay used isolated Fabric development classes built from the source commit and archived patch. The paired production jar excludes verifier code; this run does not establish an ordinary-launcher installation check.

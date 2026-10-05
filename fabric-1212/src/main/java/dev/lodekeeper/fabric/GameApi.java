@@ -134,7 +134,7 @@ final class GameApi {
             try {
                 var entry = entries.get(index);
                 Ingredient input = entry.input();
-                if (input == null || input.isEmpty()) continue;
+                if (input == null) continue;
                 ItemStack output = stonecuttingDisplayOutput(entry.recipe().optionDisplay(), client.world);
                 if (output.isEmpty()) continue;
                 works.add(new StonecuttingWork("stonecutting:sync:" + index, input, output, entry));

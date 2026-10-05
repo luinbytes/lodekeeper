@@ -2,6 +2,13 @@
   "required": true,
   "minVersion": "0.8",
   "package": "dev.lodekeeper.fabric.modern.mixin",
-  "client": ["ClientLevelMixin", "AutomationUseMixin"],
-  "injectors": {"defaultRequire": 1}
+  "client": [
+    "ClientLevelMixin",
+    "AutomationUseMixin",
+    "ContainerInputReceiptMixin",
+    "OwnedClickPacketMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

@@ -20,9 +20,12 @@ final class VerifiedQuickMove {
     /** Cumulative authorized source regeneration or consumption. */
     private final IntSupplier sourceAdjustment;
     private final Runnable beforeClick;
+    /** Optional exact batch size: partial client predictions cannot complete this move. */
+    private final IntSupplier expectedMove;
     private ItemStack expectedStack;
     private int sourceBefore, inventoryBefore, adjustmentBefore;
-    private int observations, movedCount;
+    private int observations, movedCount, expectedMoveCount;
+    private long inputReceiptBeforeClick;
     private boolean clicked, waitingForCapacity;
     private int capacityWhenBlocked, waitingSourceCount, waitingInventoryCount, waitingAdjustment;
 
@@ -37,6 +40,12 @@ final class VerifiedQuickMove {
 
     VerifiedQuickMove(Minecraft client, AbstractContainerMenu menu, int sourceSlot, Item item, String description,
                       IntSupplier sourceAdjustment, Runnable beforeClick) {
+        this(client, menu, sourceSlot, item, description, sourceAdjustment, beforeClick, null);
+    }
+
+    VerifiedQuickMove(Minecraft client, AbstractContainerMenu menu, int sourceSlot, Item item,
+                      String description, IntSupplier sourceAdjustment, Runnable beforeClick,
+                      IntSupplier expectedMove) {
         this.client = client;
         this.menu = menu;
         this.sourceSlot = sourceSlot;
@@ -44,6 +53,7 @@ final class VerifiedQuickMove {
         this.description = description;
         this.sourceAdjustment = sourceAdjustment;
         this.beforeClick = beforeClick;
+        this.expectedMove = expectedMove;
     }
 
     boolean tick() {
@@ -54,13 +64,31 @@ final class VerifiedQuickMove {
 
         ItemStack source = menu.getSlot(sourceSlot).getItem();
         if (!clicked) {
+            if (expectedMove != null) {
+                OwnedClickReceipts.Receipt receipt = inputReceipt();
+                ItemStack currentInput = menu.getSlot(0).getItem();
+                ItemStack received = receipt.lodekeeper$receivedInput();
+                if (currentInput.isEmpty() || received.isEmpty() || !same(received, currentInput)
+                        || received.getCount() != currentInput.getCount()) {
+                    if (++observations >= MAX_OBSERVATION_TICKS) {
+                        throw cannotReturn("the server has not confirmed the owned input; no output was clicked");
+                    }
+                    return false;
+                }
+                inputReceiptBeforeClick = receipt.lodekeeper$inputSequence();
+            }
             if (beforeClick != null) beforeClick.run();
+            if (expectedMove != null) {
+                expectedMoveCount = expectedMove.getAsInt();
+                if (expectedMoveCount < 1) throw cannotReturn("the exact batch size is invalid; nothing was clicked");
+            }
             if (source.isEmpty() || !source.is(item)) {
                 throw new IllegalStateException("Unexpected item in " + description + " slot; leaving the container open");
             }
             expectedStack = source.copy();
             rebaseline(source.getCount(), countMatchingInventory(), adjustment());
-            click();
+            if (expectedMove == null) click();
+            else OwnedClickReceipts.outputClick(menu.containerId, this::click);
             clicked = true;
             return false;
         }
@@ -99,11 +127,19 @@ final class VerifiedQuickMove {
             return false;
         }
 
-        if (inventoryGain > 0 && observedMove == inventoryGain) {
+        if (inventoryGain > 0 && observedMove == inventoryGain
+                && (expectedMove == null || inventoryGain == expectedMoveCount
+                    && inputReceipt().lodekeeper$inputSequence() > inputReceiptBeforeClick
+                    && inputReceipt().lodekeeper$receivedInput().isEmpty())) {
             movedCount = inventoryGain;
             return true;
         }
         if (++observations >= MAX_OBSERVATION_TICKS) {
+            if (expectedMove != null) {
+                // The issued server action may still arrive. Resume observes it; never issue a second click.
+                throw cannotReturn("the exact batch has not settled; expected " + expectedMoveCount
+                        + " items, observed " + inventoryGain + "; resume to observe the issued move");
+            }
             if (observedMove == 0 && inventoryGain == 0) {
                 waitingForCapacity = true;
                 capacityWhenBlocked = inventoryCapacity();
@@ -118,6 +154,13 @@ final class VerifiedQuickMove {
     }
 
     int movedCount() { return movedCount; }
+
+    private OwnedClickReceipts.Receipt inputReceipt() {
+        if (!(menu instanceof OwnedClickReceipts.Receipt receipt)) {
+            throw cannotReturn("station synchronization is unavailable; leaving owned contents in place");
+        }
+        return receipt;
+    }
 
     private void click() {
         client.gameMode.handleContainerInput(menu.containerId, sourceSlot, 0, ContainerInput.QUICK_MOVE, client.player);

@@ -4,6 +4,7 @@ import dev.lodekeeper.nav.*;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Item;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,6 +29,10 @@ final class MovementController {
     private int pathIndex, actionIndex, ticksWithoutProgress;
     private int validatedPathIndex = -1;
     private long validatedRevision = Long.MIN_VALUE;
+    private long progressToken;
+    private BlockPos pendingBreakPosition, pendingPlacementPosition;
+    private int pendingBreakStateId = -1;
+    private Block pendingPlacementBlock;
     private double edgeStartX, edgeStartY, edgeStartZ;
     private double lastDistance = Double.POSITIVE_INFINITY;
     private int replans;
@@ -37,13 +42,13 @@ final class MovementController {
     }
     void startExploration(BlockPos waypoint) {
         stop(); explorationRoute = true;
-        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; search();
+        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; search();
     }
     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
     }
     void start(BlockPos target, int radius) {
-        stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0;
+        stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0; ticksWithoutProgress = 0;
         search();
     }
     void startInteraction(BlockPos target) {
@@ -62,7 +67,7 @@ final class MovementController {
             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
         if (stances.isEmpty()) { start(target, 1); return; }
-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
     }
     void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
         java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
@@ -78,10 +83,11 @@ final class MovementController {
             stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
         if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; search();
     }
 
     private void search() {
+        clearPendingWorldAction();
         terrain.beginSearch();
         BlockPos start = client.player.blockPosition();
         Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
@@ -91,8 +97,40 @@ final class MovementController {
             .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
         planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
-        path = null; pathIndex = 1; actionIndex = 0; ticksWithoutProgress = 0; lastDistance = Double.POSITIVE_INFINITY;
+        path = null; pathIndex = 1; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
         validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
+    }
+    long progressToken() { return progressToken; }
+    void recordConfirmedWorldAction() { recordProgress(); }
+    void observeConfirmedProgress() {
+        if (client.level == null) return;
+        if (pendingBreakPosition != null && hasLoadedChunk(pendingBreakPosition)) {
+            BlockState state = client.level.getBlockState(pendingBreakPosition);
+            if (state.isAir() || Block.getId(state) != pendingBreakStateId
+                    && state.getCollisionShape(client.level, pendingBreakPosition).isEmpty()) {
+                recordProgress();
+                clearPendingWorldAction();
+            }
+        }
+        if (pendingPlacementPosition != null && hasLoadedChunk(pendingPlacementPosition)
+                && client.level.getBlockState(pendingPlacementPosition).is(pendingPlacementBlock)) {
+            recordProgress();
+            clearPendingWorldAction();
+        }
+    }
+    private void recordProgress() {
+        if (progressToken < Long.MAX_VALUE) progressToken++;
+        ticksWithoutProgress = 0;
+    }
+    private boolean hasLoadedChunk(BlockPos position) {
+        return client.level != null && client.level.getChunk(
+                position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
+    }
+    private void clearPendingWorldAction() {
+        pendingBreakPosition = null;
+        pendingBreakStateId = -1;
+        pendingPlacementPosition = null;
+        pendingPlacementBlock = null;
     }
     boolean tick() {
         input.acquire(client); input.idle();
@@ -128,17 +166,26 @@ final class MovementController {
                 retry("Current stance became unsafe before world action"); return false;
             }
             if (action.type == Action.Type.BREAK_BLOCK) {
-                if (state.isAir() || state.getCollisionShape(client.level, position).isEmpty()) { actionIndex++; actions.cancel(); return false; }
+                if (state.isAir() || state.getCollisionShape(client.level, position).isEmpty()) {
+                    observeConfirmedProgress();
+                    if (position.equals(pendingBreakPosition)) clearPendingWorldAction();
+                    actionIndex++; actions.cancel(); return false;
+                }
                 if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
                 if (Block.getId(state) != action.token) { retry("Mining obstruction changed"); return false; }
                 if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
                     retry("Mining obstruction is no longer safe or reachable"); return false;
                 }
                 if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
+                pendingBreakPosition = position.immutable();
+                pendingBreakStateId = action.token;
             } else {
                 Item item = Item.byId(action.token);
                 Block block = Block.byItem(item);
-                if (state.is(block)) { actionIndex++; return false; }
+                if (state.is(block)) {
+                    observeConfirmedProgress();
+                    actionIndex++; return false;
+                }
                 if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
                 if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
                 if (!state.canBeReplaced()) { retry("Bridge target is no longer replaceable"); return false; }
@@ -165,8 +212,10 @@ final class MovementController {
                     if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
                     return false;
                 }
+                pendingPlacementPosition = position.immutable();
+                pendingPlacementBlock = block;
             }
-            if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new IllegalStateException("World action made no progress");
+            if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
             return false;
         }
         if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
@@ -209,7 +258,7 @@ final class MovementController {
         }
         if (horizontal < .22 && Math.abs(delta.y) < .35 && (client.player.onGround() || probe.water || probe.climbable)) {
             client.player.setSprinting(false);
-            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; ticksWithoutProgress = 0; return false;
+            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; recordProgress(); return false;
         }
         double distance = delta.lengthSqr();
         if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
@@ -249,6 +298,7 @@ final class MovementController {
     }
     void stop() {
         explorationRoute = false;
+        clearPendingWorldAction();
         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);

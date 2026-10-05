@@ -1,0 +1,20 @@
+{
+  "minecraftVersion": "26.3",
+  "sourceCommit": "055999d1e65c7b1f7ca74c6c68004cdf10108f90",
+  "workingTreePatch": "source.patch",
+  "workingTreePatchSha256": "4bb612104b0440615f4d261f38553ed8bbc29fa9817cf2593017bedb28480d18",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "026b9b1059d54d03f098825264e8433342e2a38a5b84a5f5f89f4408fbf66527",
+  "sourceTreeSha256": "19a3db1b4176cbe35b7ba59d3a0e49c726c385182c9c6bcdafe0c99d81acaf21",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "core/src/main",
+    "nav/src/main",
+    "fabric-modern/src/main",
+    "fabric-modern/src/26.3",
+    "fabric-modern/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired production build; gameplay used development classes built from sourceCommit plus exact archived workingTreePatch"
+}

@@ -44,6 +44,7 @@ final class StonecuttingAction {
     private int transferAmount;
     private int submittedInput, returnedInput, collectedOutput;
     private int quickMoveInputAmount;
+    private int outputQuickMoveExpectedCount;
     private int lastObservedConsumed;
     private int outputSelectionIndex = -1;
     private int selectionTargetIndex = -1;
@@ -83,10 +84,9 @@ final class StonecuttingAction {
         }
         plannedOutput = (int) outputCount;
 
-        ItemStack[] matchingInputs = inputPredicate.getMatchingStacks();
-        if (matchingInputs.length == 0) throw new IllegalArgumentException("Stonecutting input has no known item alternatives");
-        for (ItemStack candidate : matchingInputs) {
-            if (!candidate.isEmpty() && candidate.isOf(outputItem)) {
+        for (var selector : GameApi.ingredient(inputPredicate).alternatives()) {
+            if (selector instanceof dev.lodekeeper.core.ItemSelector.Exact exact
+                    && exact.item().equals(GameCatalog.id(outputItem))) {
                 throw new IllegalArgumentException("Stonecutting input and output must be different items");
             }
         }
@@ -169,7 +169,7 @@ final class StonecuttingAction {
     }
 
     private boolean advanceInputTransfer() {
-        if (!transfer.tick()) return false;
+        if (!OwnedClickReceipts.inputTransfer(handler.syncId, transfer::tick)) return false;
         ItemStack placed = handler.getSlot(0).getStack();
         if (placed.isEmpty() || placed.getCount() != transferAmount
                 || !GameApi.canCombine(placed, transferInput) || !inputPredicate.test(placed)) {
@@ -332,7 +332,8 @@ final class StonecuttingAction {
         validateOwnedInput();
         outputSelectionIndex = recipeIndex;
         quickMove = new VerifiedQuickMove(client, handler, 1, outputItem, "stonecutter output",
-                this::authorizedOutputAdjustment, this::validateOutputBeforeClick);
+                this::authorizedOutputAdjustment, this::validateOutputBeforeClick,
+                () -> outputQuickMoveExpectedCount);
         movePurpose = MovePurpose.OUTPUT;
     }
 
@@ -350,6 +351,7 @@ final class StonecuttingAction {
         if (currentInput < 1 || exactOutputCapacity() < requiredCapacity) {
             throw new IllegalStateException("Stonecutter output needs room for every owned input before transfer; clear inventory space and resume");
         }
+        outputQuickMoveExpectedCount = Math.multiplyExact(outputPerOperation, currentInput);
         outputSelectionIndex = recipeIndex;
     }
 
