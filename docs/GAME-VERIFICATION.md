@@ -6,13 +6,19 @@ The verifier is a separate development-only Fabric mod. It is inert unless launc
 
 ## What it exercises
 
-The verifier creates a peaceful superflat world with a fixed seed under the development run directory's `verification/worlds` folder. It never opens or modifies the normal `saves` folder. On a small raised stone pad it places eight oak logs, clears the player's inventory, and teleports the player to the starting point on the server thread. It then submits ordinary prefixed chat commands through Fabric's client chat hook:
+The verifier creates a peaceful superflat world with a fixed seed under the development run directory's `verification/worlds` folder. It never opens or modifies the normal `saves` folder. On a small raised bedrock pad it places eight oak logs, twelve stone blocks, coal ore, iron ore and four registered ruby ore blocks, clears the player's inventory, and teleports the player to the starting point on the server thread. It then submits ordinary prefixed chat commands through Fabric's client chat hook:
 
 1. `!lk get wood 8` — find, path to and mine the fixture logs from an empty inventory.
 2. `!lk get crafting_table 1` — craft a table from the gathered inventory.
 3. `!lk get stick 8` — craft sticks from the remaining inventory.
+4. `!lk get wooden_pickaxe` — place and open the crafted table, then use its 3×3 grid.
+5. `!lk get stone_pickaxe` — mine stone with a suitable held tool and craft the upgrade.
+6. `!lk get furnace` — gather the remaining stone and craft a furnace.
+7. `!lk get iron_ingot` — mine iron with the upgraded pickaxe, place and open the furnace, fuel it, and recover the smelted output.
+8. `!lk get lodekeeper_verification:ruby_gear` — use the explicit custom-source contract to find and mine four registered ruby ores with a stone pickaxe, then craft the custom output with the synchronized 3×3 recipe at the crafting table. The fixture never grants ruby or ruby gear to the player.
+9. `!lk get wood <current oak logs + 1>` — after setup changes the integrated server to normal difficulty, sets hunger to 7 and adds one bread plus one extra oak log, verify the player eats the bread, server hunger rises, and the oak-log target is reached.
 
-The result file records pass/fail, engine state, elapsed ticks, the inventory counts read on the integrated server thread, the player's server-side position and health, and each captured screenshot path. Screenshots are saved under the evidence folder's `screenshots/` subdirectory when Minecraft's screenshot recorder can capture them. These are real survival interactions in a controlled fixture world; they do not establish success in a natural world, on a multiplayer server, or for every Minecraft version.
+The result file records pass/fail, engine state, elapsed ticks, inventory counts read on the integrated server thread, the player's server-side position and health, per-case crafting-table observations, server difficulty, food levels, bread counts and screenshot paths. Screenshots are saved under the evidence folder's `screenshots/` subdirectory when Minecraft's screenshot recorder can capture them. These are real survival interactions in a controlled fixture world; they do not establish success in a natural world, on a multiplayer server, or for every Minecraft version.
 
 ## Run it
 
@@ -25,18 +31,41 @@ JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
 
 This task must run with the separate `lodekeeper-verification` development mod on the client classpath and the `lodekeeper.verify` JVM property enabled. Start it from the title screen, with no other Minecraft client running. The harness creates a new uniquely named test world and ends its isolated client when complete. It stops with a failure record if the complete run exceeds five minutes.
 
+For the 1.21.1 adapter, use its own isolated run directory and verification task:
+
+```sh
+./gradlew --no-daemon --max-workers=1 -Padapter=1211 -Pminecraft_version=1.21.1 \
+  -Pyarn_mappings=1.21.1+build.3 -Ploader_version=0.19.5 \
+  -Pfabric_version=0.110.0+1.21.1 :fabric-1211:runVerificationClient
+```
+
+When verification is enabled, the harness creates `lodekeeper-sources.json` inside that module's `run/config` directory if it is absent. It accepts an existing file only when its JSON matches the verifier's custom-ore contract; a different file is left untouched and causes the verifier to stop before creating a world.
+
 If the environment does not have the JDK at the path above, set `JAVA_HOME` to a Java 17 installation. Do not launch the normal `runClient` task with the verification mod installed unless the JVM property is absent; the verifier is intended for its dedicated run configuration.
 
 ## Evidence and limits
 
-The default Loom run directory is `fabric/run`. A run writes:
+Each version profile writes its own jar beneath that adapter's `build/libs` directory; the output filename is `lodekeeper-<minecraft-version>-0.1.0-dev.jar`:
 
-- `fabric/run/verification/evidence/run-<id>.json`
-- screenshots under `fabric/run/verification/evidence/screenshots/`
-- its isolated world under `fabric/run/verification/worlds/run-<id>/`
+| Minecraft profile | Adapter | Jar |
+| --- | --- | --- |
+| 1.20.1 | `fabric` | `fabric/build/libs/lodekeeper-1.20.1-0.1.0-dev.jar` |
+| 1.20.2–1.20.4 | `fabric-1202` | `fabric-1202/build/libs/lodekeeper-<selected-version>-0.1.0-dev.jar` |
+| 1.21.1 | `fabric-1211` | `fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-dev.jar` |
+| 26.3 | `fabric-modern` | `fabric-modern/build/libs/lodekeeper-26.3-0.1.0-dev.jar` |
 
-Keep the world and evidence when diagnosing a failure. After the client has stopped, the entire `fabric/run/verification` directory is disposable. The initial verifier covers basic acquisition and inventory crafting only. Furnace smelting, mining-tool progression, diamond equipment, parkour, building, custom registry content and natural-world exploration need separate scenarios before they can be claimed as in-game verified. This suite targets the currently compiled 1.20.1 artifact; each additional Minecraft version needs its own compile and runtime result.
+The development verifier itself is never included in those production jars. Each adapter writes verification output to its own run directory: `fabric/run` for 1.20.1 and `fabric-1211/run` for 1.21.1. A run writes:
+
+- `<module>/run/verification/evidence/run-<id>.json`
+- screenshots under `<module>/run/verification/evidence/screenshots/`
+- its isolated world under `<module>/run/verification/worlds/run-<id>/`
+
+Keep the world and evidence when diagnosing a failure. After the client has stopped, the module's entire `run/verification` directory is disposable. The nine-case source suite includes acquisition, crafting-table use, tool progression, smelting, custom registry content and food use. The added custom-content and food cases still need a successful version-specific compile and runtime run before those behaviors are claimed as verified. Diamond equipment, parkour, bridging and natural-world exploration remain separate scenarios. Table and furnace menu observations come from the server, independently of client screenshots.
 
 ## Recorded 1.20.1 check
 
-The [2026-10-05 controlled run](evidence/1.20.1-basic/run.json) passed all three cases with full server-side health. Eight logs took 979 game ticks; the table took 101 ticks and eight sticks took 120 ticks. These timings include discovery, normal bare-hand mining, movement, inventory clicks and confirmation. They are fixture timings, not a comparison with other mods. The screenshots in that evidence directory belong to that exact run.
+The [2026-10-05 controlled run](evidence/1.20.1-basic/run.json) passed the original three cases with full server-side health. Eight logs took 979 game ticks; the table took 101 ticks and eight sticks took 120 ticks. These timings include discovery, normal bare-hand mining, movement, inventory clicks and confirmation. They are fixture timings, not a comparison with other mods. This historical result predates the expanded nine-case source; its screenshots belong to that exact run.
+
+## Recorded expanded legacy run
+
+The [1.20.1 nine-case run](evidence/1.20.1-progression/run.json) passed on 2026-10-05 in 162,653 ms. The integrated server observed each target in inventory, four crafting-table openings, a furnace opening, and bread consumption with hunger increasing from 7 to 12. All nine observations report full health. Screenshots accompany the JSON. The run uses the deterministic resource pad and does not establish natural-world exploration or complete mechanic coverage.

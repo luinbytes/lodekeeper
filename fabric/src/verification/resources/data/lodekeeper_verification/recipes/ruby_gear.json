@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "R R",
+    " S ",
+    "R R"
+  ],
+  "key": {
+    "R": {
+      "item": "lodekeeper_verification:ruby"
+    },
+    "S": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "item": "lodekeeper_verification:ruby_gear",
+    "count": 1
+  }
+}

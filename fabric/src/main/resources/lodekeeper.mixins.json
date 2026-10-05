@@ -3,7 +3,8 @@
   "package": "dev.lodekeeper.fabric.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "ClientWorldMixin"
+    "ClientWorldMixin",
+    "AutomationUseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

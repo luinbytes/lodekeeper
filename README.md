@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Development preview:** there is no playable release yet. Basic log gathering and inventory crafting have passed a controlled 1.20.1 game check; broader progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
+> **Development preview:** there is no playable release yet. Nine controlled 1.20.1 checks passed gathering, inventory/table crafting, tool and furnace progression, iron smelting, custom-content crafting, and eating while gathering; natural-world progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
 
 ### Tell it what you need
 
@@ -38,13 +38,14 @@ Installable artifacts and exact instructions will appear here after verification
 <details>
 <summary><strong>Development, architecture and verification</strong></summary>
 
-Source lives in `core` (acquisition and commands), `nav` (custom navigation), and `fabric` (Minecraft integration). The shared core targets Java 17. Builds run with one worker and no persistent daemon.
+Source lives in `core` (acquisition and commands), `nav` (custom navigation), and `fabric` (Minecraft integration). The shared core targets Java 17. Builds run with one worker and no persistent daemon. Exact build profiles are selected with `./scripts/build-version.sh 1.20.1`, `1.21.1`, or `26.3`; set `JAVA_HOME` to a JDK 17, 21, or 25 respectively. These development artifacts still require gameplay verification.
 
 - [Stack and delivery plan](docs/STACK.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Version and gameplay evidence](docs/COMPATIBILITY.md)
 - [Isolated gameplay verifier](docs/GAME-VERIFICATION.md)
 - [Custom block drop contracts](docs/CUSTOM-CONTENT.md)
+- [Full mechanic coverage ledger](docs/COVERAGE.md)
 - [Repository instructions](AGENTS.md)
 
 Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks; this project makes no superiority claim before those measurements exist.

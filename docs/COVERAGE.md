@@ -10,9 +10,9 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | Jumping, drops, swimming, climbing, parkour | Navigation model and hazard regressions; physical behavior pending | Separate obstacle courses, submerged exits and safe fall limits |
 | Breaking obstacles and building paths | Navigation model; physical behavior pending | Reversible bridge and tunnel with material limits |
 | Inventory 2×2 and crafting-table 3×3 crafting | Controlled 1.20.1 logs, sticks and tool progression | Mixed alternatives, remainders, repeated crafts and cancellation |
-| Furnace construction and ownership | Controlled 1.20.1 furnace construction | Smelt iron, stop a bulk smelt, full inventory, outsider edits |
-| Automatic eating | Legacy implementation; gameplay pending | Hunger restored while an acquisition goal resumes |
-| Modded registry items and ordinary recipes | Catalog and explicit drop contracts implemented; gameplay pending | Custom ore to custom 3×3 recipe without target-item grants |
+| Furnace construction and ownership | Controlled 1.20.1 furnace construction and iron smelting | Stop a bulk smelt, full inventory, outsider edits |
+| Automatic eating | Controlled 1.20.1 bread consumption, hunger recovery and resumed gathering | Natural-world food policy and other adapter families |
+| Modded registry items and ordinary recipes | Controlled 1.20.1 custom ore to custom 3×3 recipe, without target-item grants | Additional modded recipes, remainders and adapter families |
 | Project inventory loadouts and maintained stock | Implemented; quantity and hysteresis regressions | Foreground preemption, removal and protected stock during real crafting |
 | Full recipe knowledge | Legacy synchronized catalogs; modern local-server/learned-display prototype | Local reload and remote recipe-book updates; explicit locked-recipe blocker |
 | Exploration and persistent resource knowledge | Bounded loaded-chunk discovery only | Find a resource outside the initial loaded radius without unsafe travel |

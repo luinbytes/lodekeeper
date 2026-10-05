@@ -1,5 +1,16 @@
 pluginManagement {
     repositories { maven { url = 'https://maven.fabricmc.net/' }; gradlePluginPortal() }
+    plugins {
+        id 'fabric-loom' version '1.6.12'
+        id 'net.fabricmc.fabric-loom' version '1.17.21'
+    }
 }
 rootProject.name = 'lodekeeper'
-include 'core', 'nav', 'fabric'
+include 'core', 'nav'
+switch (providers.gradleProperty('adapter').getOrElse('legacy')) {
+    case 'modern': include 'fabric-modern'; break
+    case '1211': include 'fabric-1211'; break
+    case '1202': include 'fabric-1202'; break
+    case 'legacy': include 'fabric'; break
+    default: throw new GradleException('Unknown adapter profile; use scripts/build-version.sh')
+}

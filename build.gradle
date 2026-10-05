@@ -1,4 +1,3 @@
-plugins { id 'fabric-loom' version '1.6.12' apply false }
 allprojects {
     group = 'dev.lodekeeper'
     version = rootProject.mod_version
@@ -10,7 +9,10 @@ subprojects {
     tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 17 }
 }
 subprojects {
-    dependencies { testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2' }
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+    }
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
         maxHeapSize = '256m'

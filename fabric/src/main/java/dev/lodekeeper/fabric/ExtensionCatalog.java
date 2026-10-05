@@ -4,7 +4,6 @@ import com.google.gson.*;
 import dev.lodekeeper.core.*;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -32,11 +31,11 @@ final class ExtensionCatalog {
                     String sourceId = "extension:" + source.get("id").getAsString();
                     if (sourceIds.contains(sourceId)) throw new IllegalArgumentException("Duplicate source id " + sourceId);
                     ItemId output = ItemId.parse(source.get("item").getAsString());
-                    if (!Registries.ITEM.containsId(new Identifier(output.toString()))) throw new IllegalArgumentException("Unknown item " + output);
+                    if (!Registries.ITEM.containsId(GameApi.identifier(output.toString()))) throw new IllegalArgumentException("Unknown item " + output);
                     List<BlockId> blocks = new ArrayList<>();
                     for (JsonElement block : source.getAsJsonArray("blocks")) {
                         BlockId id = BlockId.parse(block.getAsString());
-                        if (!Registries.BLOCK.containsId(new Identifier(id.toString()))) throw new IllegalArgumentException("Unknown block " + id);
+                        if (!Registries.BLOCK.containsId(GameApi.identifier(id.toString()))) throw new IllegalArgumentException("Unknown block " + id);
                         blocks.add(id);
                     }
                     List<Requirement> requirements = new ArrayList<>();
@@ -44,7 +43,7 @@ final class ExtensionCatalog {
                         List<ItemId> tools = new ArrayList<>();
                         for (JsonElement tool : source.getAsJsonArray("tools")) {
                             ItemId id = ItemId.parse(tool.getAsString());
-                            if (!Registries.ITEM.containsId(new Identifier(id.toString()))) throw new IllegalArgumentException("Unknown tool " + id);
+                            if (!Registries.ITEM.containsId(GameApi.identifier(id.toString()))) throw new IllegalArgumentException("Unknown tool " + id);
                             tools.add(id);
                         }
                         requirements.add(new ToolRequirement(Ingredient.choices(tools, 1), 8, "custom harvest"));

@@ -12,7 +12,6 @@ import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.recipe.ShapelessRecipe;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.util.Identifier;
 import java.util.*;
 
 /** Discovers recipe transforms from synchronized data rather than a hardcoded item task list. */
@@ -33,10 +32,11 @@ final class GameCatalog {
         }
         if (client.world == null) return;
         var manager = client.world.getRecipeManager();
-        for (var recipe : manager.values().stream().sorted(Comparator.comparing(r -> r.getId().toString())).toList()) {
-            ItemStack output = recipe.getOutput(client.world.getRegistryManager());
+        for (GameApi.RecipeRef entry : GameApi.recipes(manager).stream().sorted(Comparator.comparing(GameApi.RecipeRef::id)).toList()) {
+            var recipe = entry.recipe();
+            ItemStack output = GameApi.result(recipe, client.world.getRegistryManager());
             if (output.isEmpty()) continue;
-            String key = recipe.getId().toString();
+            String key = entry.id();
             try {
                 List<Requirement> requirements = new ArrayList<>();
                 if (recipe instanceof ShapedRecipe shaped) {
@@ -50,7 +50,7 @@ final class GameCatalog {
                 } else if (recipe instanceof AbstractCookingRecipe cooking && recipe.getType() == net.minecraft.recipe.RecipeType.SMELTING) {
                     requirements.add(station(Blocks.FURNACE));
                     // The core computes fuel units from burn duration and total cook ticks.
-                    sources.add(new SmeltingSource(key, id(output.getItem()), output.getCount(), ingredient(recipe.getIngredients().get(0)), List.of(ItemSelector.item(id(Items.COAL)), ItemSelector.tag(TagId.parse("minecraft:planks"))), cooking.getCookTime(), requirements));
+                    sources.add(new SmeltingSource(key, id(output.getItem()), output.getCount(), ingredient(recipe.getIngredients().get(0)), List.of(ItemSelector.item(id(Items.COAL)), ItemSelector.tag(TagId.parse("minecraft:planks"))), GameApi.cookingTime(cooking), requirements));
                 } else {
                     unsupported.add(key + " (" + Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()) + ")");
                     continue;
@@ -105,7 +105,7 @@ final class GameCatalog {
         if (cachedSnapshot != null) return cachedSnapshot;
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         Map<Item, Integer> fuels = net.minecraft.block.entity.AbstractFurnaceBlockEntity.createFuelTimeMap();
-        for (Item item : Registries.ITEM) builder.item(id(item), item.getMaxDamage(), fuels.getOrDefault(item, 0));
+        for (Item item : Registries.ITEM) builder.item(id(item), item.getDefaultStack().getMaxDamage(), fuels.getOrDefault(item, 0));
         tags.forEach(builder::tag);
         sources.forEach(builder::source);
         cachedSnapshot = builder.build();
@@ -113,5 +113,5 @@ final class GameCatalog {
     }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
-    static Item item(ItemId id) { return Registries.ITEM.get(new Identifier(id.toString())); }
+    static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }
 }

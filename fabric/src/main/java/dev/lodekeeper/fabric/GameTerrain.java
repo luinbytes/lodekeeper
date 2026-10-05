@@ -21,9 +21,13 @@ final class GameTerrain implements Terrain {
     private final double[] trajectoryPoint = new double[3];
     GameTerrain(MinecraftClient client, LodekeeperConfig config) { this.client = client; this.config = config; }
     void changed() { revision++; }
+    void beginSearch() { WorldRevision.beginSearch(); }
+    void changedChunk(int chunkX, int chunkZ) { WorldRevision.changedChunk(chunkX, chunkZ); }
     @Override public long revision() { return revision + WorldRevision.value(); }
     private boolean loaded(int x, int y, int z) {
-        return client.world != null && y >= client.world.getBottomY() && y < client.world.getTopY() && client.world.getChunkManager().getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
+        if (client.world == null || y < client.world.getBottomY() || y >= client.world.getTopY()) return false;
+        WorldRevision.watch(x >> 4, z >> 4);
+        return client.world.getChunkManager().getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
     }
     private boolean hazardous(BlockState state) {
         return state.getFluidState().isIn(FluidTags.LAVA) || state.isOf(Blocks.FIRE) || state.isOf(Blocks.SOUL_FIRE) || state.isOf(Blocks.CACTUS) || state.isOf(Blocks.MAGMA_BLOCK) || state.isOf(Blocks.CAMPFIRE) || state.isOf(Blocks.SOUL_CAMPFIRE) || state.isOf(Blocks.POWDER_SNOW) || state.isOf(Blocks.SWEET_BERRY_BUSH) || state.isOf(Blocks.WITHER_ROSE);

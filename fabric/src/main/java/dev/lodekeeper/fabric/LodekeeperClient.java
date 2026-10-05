@@ -27,11 +27,11 @@ public final class LodekeeperClient implements ClientModInitializer {
             return false;
         });
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
-            while (stop.wasPressed()) { engine.stop(); engine.message("Stopped"); }
+            while (stop.wasPressed()) engine.stop();
             engine.tick();
         });
-        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changed());
-        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.terrain.changed());
+        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x, chunk.getPos().z));
+        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x, chunk.getPos().z));
         HudRenderCallback.EVENT.register((context, tickDelta) -> {
             if (client.player == null || client.options.hudHidden || engine.status().startsWith("idle")) return;
             String status = "Lodekeeper · " + engine.status();
@@ -44,7 +44,7 @@ public final class LodekeeperClient implements ClientModInitializer {
         var command = parsed.command();
         try {
             if (command instanceof CommandParser.GetCommand get) engine.enqueue(get.item(), get.count());
-            else if (command instanceof CommandParser.StopCommand) { engine.stop(); engine.message("Stopped"); }
+            else if (command instanceof CommandParser.StopCommand) engine.stop();
             else if (command instanceof CommandParser.PauseCommand) engine.pause("requested");
             else if (command instanceof CommandParser.ResumeCommand) engine.resume();
             else if (command instanceof CommandParser.StatusCommand) engine.message(engine.status());
@@ -52,15 +52,20 @@ public final class LodekeeperClient implements ClientModInitializer {
             else if (command instanceof CommandParser.ClearCommand) engine.clearQueue();
             else if (command instanceof CommandParser.PlanCommand plan) engine.preview(plan.item(), plan.count());
             else if (command instanceof CommandParser.ConfigCommand config) configure(config);
+            else if (command instanceof CommandParser.ProjectCommand project) engine.enqueueProject(project.name());
+            else if (command instanceof CommandParser.ProjectsCommand) engine.listProjects();
+            else if (command instanceof CommandParser.MaintainCommand maintain) engine.maintainItem(maintain.item(), maintain.count());
+            else if (command instanceof CommandParser.UnmaintainCommand unmaintain) engine.unmaintain(unmaintain.item());
+            else if (command instanceof CommandParser.MaintainedCommand) engine.showMaintained();
         } catch (Exception ex) { engine.message("Command failed: " + ex.getMessage()); }
     }
     private void configure(CommandParser.ConfigCommand command) throws java.io.IOException {
         LodekeeperConfig config = engine.config;
         if (command.key() == null) {
-            engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius + ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding + ", allowParkour=" + config.allowParkour); return;
+            engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius + ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding + ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat); return;
         }
         String key = command.key(), value = command.value();
-        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen"); return; }
+        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat"); return; }
         switch (key) {
             case "prefix" -> {
                 if (value.isBlank() || value.length() > 16 || value.startsWith("/")) throw new IllegalArgumentException("Prefix must be 1–16 characters and may not start with /");
@@ -72,6 +77,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "allowBuilding" -> config.allowBuilding = bool(value);
             case "allowParkour" -> config.allowParkour = bool(value);
             case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
+            case "autoEat" -> config.autoEat = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save(); engine.message("Saved " + key);

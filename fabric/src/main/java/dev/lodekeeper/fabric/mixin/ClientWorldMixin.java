@@ -13,6 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class ClientWorldMixin {
     @Inject(method = "setBlockState", at = @At("RETURN"))
     private void lodekeeper$blockChanged(BlockPos position, BlockState state, int flags, int depth, CallbackInfoReturnable<Boolean> result) {
-        if (result.getReturnValue()) WorldRevision.changed();
+        if (Boolean.TRUE.equals(result.getReturnValue())) WorldRevision.changed(position.getX(), position.getZ());
     }
 }

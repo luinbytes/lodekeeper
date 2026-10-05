@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.PriorityQueue;
 
 /** Palette-pruned, incremental discovery. Reads loaded chunks only and never loads a chunk. */
 final class BlockSearch {
@@ -21,12 +22,14 @@ final class BlockSearch {
     private final List<ChunkPos> chunks = new ArrayList<>();
     private WorldChunk chunk;
     private int chunkIndex, sectionIndex, cellIndex;
+    private final PriorityQueue<BlockPos> candidates;
     private BlockPos best;
     private double bestDistance = Double.POSITIVE_INFINITY;
     private boolean done;
     BlockSearch(MinecraftClient client, Set<Block> blocks, int radius) {
         this.client = client; this.blocks = Set.copyOf(blocks); this.radius = radius;
         origin = client.player.getBlockPos();
+        candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos pos) -> pos.getSquaredDistance(origin)).reversed());
         int chunkRadius = (radius + 15) / 16;
         ChunkPos center = new ChunkPos(origin);
         for (int x = -chunkRadius; x <= chunkRadius; x++) for (int z = -chunkRadius; z <= chunkRadius; z++) chunks.add(new ChunkPos(center.x + x, center.z + z));
@@ -55,7 +58,11 @@ final class BlockSearch {
                 BlockPos pos = new BlockPos(chunk.getPos().getStartX() + x, client.world.getBottomY() + sectionIndex * 16 + y, chunk.getPos().getStartZ() + z);
                 double horizontal = Math.pow(pos.getX() - origin.getX(), 2) + Math.pow(pos.getZ() - origin.getZ(), 2);
                 double distance = pos.getSquaredDistance(origin);
-                if (horizontal <= radius * radius && distance < bestDistance) { bestDistance = distance; best = pos; }
+                if (horizontal <= radius * radius) {
+                    if (candidates.size() < 512) candidates.add(pos);
+                    else if (distance < candidates.peek().getSquaredDistance(origin)) { candidates.remove(); candidates.add(pos); }
+                    if (distance < bestDistance) { bestDistance = distance; best = pos; }
+                }
             }
             probes++;
             if (++cellIndex == 4096) { cellIndex = 0; sectionIndex++; }
@@ -63,4 +70,5 @@ final class BlockSearch {
         return done;
     }
     BlockPos result() { return best; }
+    List<BlockPos> results() { return candidates.stream().sorted(Comparator.comparingDouble(pos -> pos.getSquaredDistance(origin))).toList(); }
 }

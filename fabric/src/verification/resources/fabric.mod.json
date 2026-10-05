@@ -5,6 +5,7 @@
   "name": "Lodekeeper Runtime Verification",
   "environment": "client",
   "entrypoints": {
+    "main": ["dev.lodekeeper.fabric.VerificationContentInitializer"],
     "client": ["dev.lodekeeper.fabric.RuntimeVerification"]
   },
   "depends": {

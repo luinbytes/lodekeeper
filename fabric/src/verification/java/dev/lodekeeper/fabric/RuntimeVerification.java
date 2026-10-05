@@ -2,6 +2,8 @@ package dev.lodekeeper.fabric;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.world.CreateWorldScreen;
@@ -10,6 +12,7 @@ import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.integrated.IntegratedServer;
@@ -46,7 +49,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final int PLAYER_Y = FIXTURE_FLOOR_Y + 1;
 
     private enum State { DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
-        GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CAPTURING, COMPLETE, FAILED }
+        GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK, CRAFTING_FURNACE,
+        SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
+        CAPTURING, COMPLETE, FAILED }
 
     private MinecraftClient client;
     private State state = State.DISABLED;
@@ -72,7 +77,14 @@ public final class RuntimeVerification implements ClientModInitializer {
     private int activeCount;
     private boolean activeRequiresEmpty;
     private boolean activeStartedEmpty;
+    private int activeFoodLevelAtStart;
+    private int activeBreadCountAtStart;
+    private int activeTableOpeningsAtStart;
+    private int foodBreadCountBeforeSetup;
     private String failure = "";
+    private volatile boolean serverTableOpened, serverFurnaceOpened;
+    private volatile int serverTableOpenings;
+    private net.minecraft.screen.ScreenHandler lastServerScreenHandler;
 
     @Override
     public void onInitializeClient() {
@@ -100,7 +112,31 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            try {
+                VerificationContentInitializer.ensureSourceContract(client.runDirectory.toPath());
+            } catch (IOException exception) {
+                failure = "refusing verifier source contract: " + exception.getMessage();
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+            ServerTickEvents.END_SERVER_TICK.register(server -> {
+                if (playerId == null) return;
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                if (player == null) return;
+                net.minecraft.screen.ScreenHandler handler = player.currentScreenHandler;
+                if (handler != lastServerScreenHandler) {
+                    if (handler instanceof net.minecraft.screen.CraftingScreenHandler) {
+                        serverTableOpened = true;
+                        serverTableOpenings++;
+                    }
+                    if (handler instanceof net.minecraft.screen.FurnaceScreenHandler) serverFurnaceOpened = true;
+                    lastServerScreenHandler = handler;
+                }
+            });
             System.out.println("[Lodekeeper verification] Enabled. World and evidence paths are under " + verificationRoot);
         } catch (Exception exception) {
             state = State.FAILED;
@@ -146,6 +182,29 @@ public final class RuntimeVerification implements ClientModInitializer {
                     state = State.WAITING_FOR_EMPTY_SNAPSHOT;
                     readyTicks = 0;
                     requestObservation();
+                }
+                return;
+            }
+            if (state == State.SETTING_UP_FOOD) {
+                if (setupFuture != null && setupFuture.isDone()) {
+                    fixtureReadyServerTick = setupFuture.join();
+                    setupFuture = null;
+                    engineTerrainChanged();
+                    state = State.WAITING_FOR_FOOD_FIXTURE;
+                    readyTicks = 0;
+                    requestObservation();
+                }
+                return;
+            }
+            if (state == State.WAITING_FOR_FOOD_FIXTURE) {
+                if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
+                    && latestSnapshot.foodLevel == 7
+                    && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
+                    && latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= foodBreadCountBeforeSetup + 1) {
+                    if (++readyTicks >= 20) startFoodGatherCommand();
+                } else {
+                    readyTicks = 0;
                 }
                 return;
             }
@@ -202,12 +261,23 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         client.setScreen(null);
         IntegratedServerLoader loader = new IntegratedServerLoader(client, LevelStorage.create(actualWorldsDirectory));
-        loader.createAndStart(saveName, levelInfo, holder.generatorOptions(), registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).createDimensionsRegistryHolder());
+        VerificationApi.startFlatWorld(loader, saveName, levelInfo, holder.generatorOptions());
     }
 
     private void configureAutomation() {
         AutomationEngine engine = requireEngine();
         engine.stop();
+        engine.config.searchRadius = 48;
+        engine.config.scanBlocksPerTick = 512;
+        engine.config.pathNodesPerTick = 128;
+        engine.config.pathNodeLimit = 16_000;
+        engine.config.pathMillisPerTick = 2;
+        engine.config.actionTimeoutTicks = 1_200;
+        engine.config.pauseBelowHealth = 6.0F;
+        engine.config.allowBreaking = true;
+        engine.config.allowBuilding = true;
+        engine.config.allowParkour = false;
+        engine.config.autoEat = true;
     }
 
     private void beginFixtureSetup() {
@@ -221,10 +291,18 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerWorld world = server.getOverworld();
                 // A bounded, level pad makes the fixture deterministic while retaining normal survival physics.
                 for (int x = -12; x <= 18; x++) {
-                    for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.STONE.getDefaultState(), 3);
+                    for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
                 }
                 for (int index = 0; index < 8; index++) {
                     world.setBlockState(new BlockPos(6 + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
+                }
+                for (int x = 6; x <= 17; x++) world.setBlockState(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.getDefaultState(), 3);
+                world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+                Block rubyOre = Registries.BLOCK.get(GameApi.identifier(VerificationContentInitializer.RUBY_ORE_ID));
+                if (rubyOre == Blocks.AIR) throw new IllegalStateException("verifier ruby ore was not registered");
+                for (int index = 0; index < 4; index++) {
+                    world.setBlockState(new BlockPos(8 + index, PLAYER_Y, 4), rubyOre.getDefaultState(), 3);
                 }
                 clearInventory(player.getInventory());
                 player.setHealth(player.getMaxHealth());
@@ -255,16 +333,42 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void evaluateCurrentCase() {
-        if (state != State.GATHERING_WOOD && state != State.CRAFTING_TABLE && state != State.CRAFTING_STICKS) return;
+        if (activeCase == null || state == State.CAPTURING) return;
         if (latestSnapshot == null) return;
         int observed = latestSnapshot.count(activeItem);
-        if (observed >= activeCount && requireEngine().status().startsWith("idle")) {
+        boolean targetReached = observed >= activeCount && requireEngine().status().startsWith("idle")
+            && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
+            && (state != State.SMELTING_IRON || serverFurnaceOpened)
+            && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
+        if (targetReached && state == State.GATHERING_FOOD
+            && (latestSnapshot.foodLevel <= activeFoodLevelAtStart
+                || latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= activeBreadCountAtStart)) {
+            fail("food-use case reached its log target without server-confirmed bread consumption and hunger recovery");
+        } else if (targetReached) {
             String screenshot = capture(activeCase);
-            addResult(true, observed, "server inventory reached target and engine returned idle", screenshot);
+            String detail = switch (state) {
+                case CUSTOM_CONTENT -> "server inventory reached the custom recipe output after opening the server crafting table";
+                case GATHERING_FOOD -> "server inventory reached the log target; one bread was consumed and hunger rose from "
+                    + activeFoodLevelAtStart + " to " + latestSnapshot.foodLevel;
+                default -> "server inventory reached target and engine returned idle";
+            };
+            addResult(true, observed, detail, screenshot);
             if (state == State.GATHERING_WOOD) {
                 startCraftingTableCommand();
             } else if (state == State.CRAFTING_TABLE) {
                 startCraftingSticksCommand();
+            } else if (state == State.CRAFTING_STICKS) {
+                startAdditionalCase(State.CRAFTING_WOOD_PICK, "craft_wooden_pickaxe", "minecraft:wooden_pickaxe");
+            } else if (state == State.CRAFTING_WOOD_PICK) {
+                startAdditionalCase(State.CRAFTING_STONE_PICK, "craft_stone_pickaxe", "minecraft:stone_pickaxe");
+            } else if (state == State.CRAFTING_STONE_PICK) {
+                startAdditionalCase(State.CRAFTING_FURNACE, "craft_furnace", "minecraft:furnace");
+            } else if (state == State.CRAFTING_FURNACE) {
+                startAdditionalCase(State.SMELTING_IRON, "smelt_iron_ingot", "minecraft:iron_ingot");
+            } else if (state == State.SMELTING_IRON) {
+                startCustomContentCase();
+            } else if (state == State.CUSTOM_CONTENT) {
+                beginFoodFixtureSetup();
             } else {
                 state = State.CAPTURING;
                 captureStartedAtTick = clientTicks;
@@ -299,9 +403,74 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.CRAFTING_STICKS;
     }
 
+    private void startAdditionalCase(State next, String name, String item) {
+        activeCase = name; activeItem = item; activeCount = 1;
+        activeRequiresEmpty = false; activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        beginCaseClock(); sendCommand("!lk get " + item + " 1"); state = next;
+    }
+
+    private void startCustomContentCase() {
+        activeCase = "custom_ruby_gear";
+        activeItem = VerificationContentInitializer.RUBY_GEAR_ID;
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        beginCaseClock();
+        sendCommand("!lk get " + activeItem);
+        state = State.CUSTOM_CONTENT;
+    }
+
+    private void beginFoodFixtureSetup() {
+        activeCase = "auto_eat_during_gather";
+        activeItem = "minecraft:oak_log";
+        activeCount = latestSnapshot.count(activeItem) + 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        foodBreadCountBeforeSetup = latestSnapshot.count(VerificationContentInitializer.BREAD_ID);
+        beginCaseClock();
+
+        state = State.SETTING_UP_FOOD;
+        IntegratedServer server = requireServer();
+        setupFuture = new CompletableFuture<>();
+        CompletableFuture<Long> scheduled = setupFuture;
+        server.execute(() -> {
+            try {
+                ServerPlayerEntity player = requireServerPlayer(server);
+                ServerWorld world = server.getOverworld();
+                server.setDifficulty(Difficulty.NORMAL, true);
+                player.getHungerManager().setFoodLevel(7);
+                player.getHungerManager().setSaturationLevel(0.0F);
+                if (!player.getInventory().insertStack(new ItemStack(Items.BREAD))) {
+                    throw new IllegalStateException("could not add the single verifier bread to the inventory");
+                }
+                BlockPos extraLog = new BlockPos(6, PLAYER_Y, 0);
+                if (!world.getBlockState(extraLog).isReplaceable()) {
+                    throw new IllegalStateException("the extra oak-log fixture position is occupied");
+                }
+                world.setBlockState(extraLog, Blocks.OAK_LOG.getDefaultState(), 3);
+                player.currentScreenHandler.sendContentUpdates();
+                scheduled.complete((long) server.getTicks());
+            } catch (Throwable throwable) {
+                scheduled.completeExceptionally(throwable);
+            }
+        });
+    }
+
+    private void startFoodGatherCommand() {
+        activeFoodLevelAtStart = latestSnapshot.foodLevel;
+        activeBreadCountAtStart = latestSnapshot.count(VerificationContentInitializer.BREAD_ID);
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        beginCaseClock();
+        sendCommand("!lk get wood " + activeCount);
+        state = State.GATHERING_FOOD;
+    }
+
     private void beginCaseClock() {
         caseStartedAtTick = clientTicks;
         caseStartedAtWorldTime = client.world == null ? 0 : client.world.getTime();
+        activeFoodLevelAtStart = latestSnapshot == null ? 0 : latestSnapshot.foodLevel;
+        activeBreadCountAtStart = latestSnapshot == null ? 0 : latestSnapshot.count(VerificationContentInitializer.BREAD_ID);
+        activeTableOpeningsAtStart = serverTableOpenings;
     }
 
     private void sendCommand(String command) {
@@ -319,8 +488,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             try {
                 ServerPlayerEntity player = requireServerPlayer(server);
                 Map<String, Integer> inventory = inventoryCounts(player.getInventory());
-                ServerSnapshot snapshot = new ServerSnapshot(server.getTicks(), server.getOverworld().getTime(), inventory,
-                    player.getHealth(), player.getX(), player.getY(), player.getZ());
+                ServerWorld world = server.getOverworld();
+                ServerSnapshot snapshot = new ServerSnapshot(server.getTicks(), world.getTime(), inventory,
+                    player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
+                    player.getX(), player.getY(), player.getZ());
                 capture.complete(snapshot);
             } catch (Throwable throwable) {
                 capture.completeExceptionally(throwable);
@@ -377,6 +548,10 @@ public final class RuntimeVerification implements ClientModInitializer {
         results.add(new CaseResult(activeCase, activeItem, activeCount, observed, activeStartedEmpty,
             passed && (!activeRequiresEmpty || activeStartedEmpty), clientTicks - caseStartedAtTick, gameTicks,
             requireEngine().status(), detail, screenshot, latestSnapshot == null ? 0 : latestSnapshot.health,
+            latestSnapshot == null ? "unknown" : latestSnapshot.difficulty,
+            latestSnapshot != null && serverTableOpenings > activeTableOpeningsAtStart,
+            activeFoodLevelAtStart, latestSnapshot == null ? 0 : latestSnapshot.foodLevel,
+            activeBreadCountAtStart, latestSnapshot == null ? 0 : latestSnapshot.count(VerificationContentInitializer.BREAD_ID),
             latestSnapshot == null ? 0 : latestSnapshot.x, latestSnapshot == null ? 0 : latestSnapshot.y,
             latestSnapshot == null ? 0 : latestSnapshot.z));
     }
@@ -438,11 +613,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         StringBuilder json = new StringBuilder(1024);
         json.append("{\n  \"runId\":\"").append(escape(runId)).append("\",\n")
             .append("  \"status\":\"").append(escape(status)).append("\",\n")
+            .append("  \"minecraftVersion\":\"").append(escape(VerificationApi.minecraftVersion())).append("\",\n")
             .append("  \"worldKind\":\"isolated_superflat_fixture\",\n")
             .append("  \"evidenceAuthority\":\"integrated_server_inventory\",\n")
             .append("  \"elapsedMillis\":").append((System.nanoTime() - startedAtNanos) / 1_000_000L).append(",\n")
             .append("  \"clientTicks\":").append(clientTicks).append(",\n")
             .append("  \"failure\":\"").append(escape(failure)).append("\",\n")
+            .append("  \"serverTableOpened\":").append(serverTableOpened).append(",\n")
+            .append("  \"serverFurnaceOpened\":").append(serverFurnaceOpened).append(",\n")
+            .append("  \"serverTableOpenings\":").append(serverTableOpenings).append(",\n")
             .append("  \"cases\":[\n");
         for (int index = 0; index < results.size(); index++) {
             CaseResult result = results.get(index);
@@ -452,6 +631,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(",\"passed\":").append(result.passed).append(",\"clientTicks\":").append(result.clientTicks)
                 .append(",\"worldTicks\":").append(result.worldTicks).append(",\"engineStatus\":\"").append(escape(result.engineStatus))
                 .append("\",\"detail\":\"").append(escape(result.detail)).append("\",\"serverHealth\":").append(result.health)
+                .append(",\"serverDifficulty\":\"").append(escape(result.difficulty)).append("\",\"serverCraftingTableOpenedDuringCase\":").append(result.tableOpenedDuringCase)
+                .append(",\"serverFoodLevelAtStart\":").append(result.foodLevelAtStart).append(",\"serverFoodLevelObserved\":").append(result.foodLevelObserved)
+                .append(",\"serverBreadAtStart\":").append(result.breadAtStart).append(",\"serverBreadObserved\":").append(result.breadObserved)
                 .append(",\"serverPosition\":[").append(result.x).append(',').append(result.y).append(',').append(result.z).append(']')
                 .append(",\"screenshot\":").append(result.screenshot == null ? "null" : "\"" + escape(result.screenshot) + "\"").append('}')
                 .append(index + 1 == results.size() ? "\n" : ",\n");
@@ -465,12 +647,14 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
-                                  float health, double x, double y, double z) {
+                                  float health, int foodLevel, String difficulty, double x, double y, double z) {
         int count(String id) { return inventory.getOrDefault(id, 0); }
         boolean inventoryEmpty() { return inventory.isEmpty(); }
     }
 
     private record CaseResult(String name, String item, int expected, int observed, boolean inventoryEmptyAtStart,
                               boolean passed, int clientTicks, long worldTicks, String engineStatus,
-                              String detail, String screenshot, float health, double x, double y, double z) {}
+                              String detail, String screenshot, float health, String difficulty, boolean tableOpenedDuringCase,
+                              int foodLevelAtStart, int foodLevelObserved, int breadAtStart, int breadObserved,
+                              double x, double y, double z) {}
 }

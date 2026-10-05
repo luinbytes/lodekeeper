@@ -1,0 +1,45 @@
+plugins { id 'net.fabricmc.fabric-loom' }
+
+base { archivesName = "lodekeeper-${rootProject.minecraft_version}" }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
+    implementation project(':core')
+    implementation project(':nav')
+}
+
+tasks.named('jar') {
+    from project(':core').sourceSets.main.output
+    from project(':nav').sourceSets.main.output
+    from(rootProject.file('LICENSE'))
+    dependsOn ':core:classes', ':nav:classes'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version, minecraft: rootProject.minecraft_version
+    }
+}
+
+loom {
+    runs {
+        client {
+            vmArg '-Xmx1536m'
+            vmArg '-XX:ActiveProcessorCount=2'
+        }
+    }
+}
