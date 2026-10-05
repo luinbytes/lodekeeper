@@ -40,12 +40,16 @@ public final class Goal {
 
     long heuristic(int px, int py, int pz) {
         long dx = Math.abs((long) px - x);
-        long dy = Math.abs((long) py - y);
         long dz = Math.abs((long) pz - z);
-        long distance = Math.max(dx, Math.max(dy, dz));
-        if (kind == Kind.NEAR) distance = Math.max(0L, distance - radius);
-        // One parkour edge can advance at most three blocks and costs at least ten.
-        // This lower bound remains admissible for diagonal and vertical movement too.
-        return ((distance + 2L) / 3L) * 10L;
+        long diagonal = Math.min(dx, dz);
+        // Every horizontal edge costs at least the octile metric (10 cardinal, 14 diagonal).
+        // Subtracting 14 per arrival-radius block is conservative in every direction.
+        long horizontal = Math.max(0L, 14L * diagonal + 10L * (Math.max(dx, dz) - diagonal) - 14L * radius);
+        // Rising one block costs at least 17; a three-block fall costs at least 22.
+        // Combining with max avoids charging twice for a ledge move that advances both axes.
+        long rise = Math.max(0L, (long) y - py - radius);
+        long fall = Math.max(0L, (long) py - y - radius);
+        long vertical = rise > 0 ? 17L * rise : 22L * fall / 3L;
+        return Math.max(horizontal, vertical);
     }
 }

@@ -201,6 +201,41 @@ final class PlannerTest {
         assertEquals(0, actions.length);
     }
 
+    @Test
+    void heuristicIsConsistentForEveryPrimitiveMovementAndArrivalRegion() {
+        var edges = new java.util.ArrayList<int[]>();
+        for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+            if (dx == 0 && dz == 0) continue;
+            edges.add(new int[] {dx, 0, dz, dx != 0 && dz != 0 ? 14 : 10});
+            if (dx != 0 && dz != 0) continue;
+            edges.add(new int[] {dx, 1, dz, 18});
+            for (int drop = 1; drop <= 3; drop++) edges.add(new int[] {dx, -drop, dz, 10 + drop * 4});
+            edges.add(new int[] {dx * 2, 0, dz * 2, 25});
+            edges.add(new int[] {dx * 3, 0, dz * 3, 34});
+        }
+        edges.add(new int[] {0, 1, 0, 17});
+        edges.add(new int[] {0, -1, 0, 17});
+        for (Goal goal : java.util.List.of(Goal.exact(0, 0, 0), Goal.near(0, 0, 0, 2))) {
+            for (int x = -6; x <= 6; x++) for (int y = -6; y <= 6; y++) for (int z = -6; z <= 6; z++) {
+                long h = goal.heuristic(x, y, z);
+                assertTrue(h >= 0);
+                if (goal.matches(x, y, z)) assertEquals(0, h);
+                for (int[] edge : edges) {
+                    assertTrue(h <= edge[3] + goal.heuristic(x + edge[0], y + edge[1], z + edge[2]),
+                        "Heuristic must not overestimate any movement edge");
+                }
+            }
+        }
+    }
+
+    @Test
+    void straightLoadedRoutesDoNotExpandThousandsOfUnrelatedStances() {
+        Planner planner = planner(FakeTerrain.infiniteFloor(), 0, 0, 0, Goal.exact(80, 0, 0), new Planner.Options());
+        assertEquals(NavStatus.FOUND, finish(planner));
+        assertEquals(800, planner.getPath().cost);
+        assertTrue(planner.getExpandedNodes() <= 100, "An open 80-block route should stay close to its 81 stances");
+    }
+
     private static Planner planner(FakeTerrain terrain, int x, int y, int z, Goal goal, Planner.Options options) {
         return new Planner(terrain, x, y, z, goal, options);
     }

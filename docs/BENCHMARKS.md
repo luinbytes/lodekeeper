@@ -6,6 +6,12 @@ There are no published superiority measurements yet. Every result must name its 
 
 Core and navigation expose elapsed time, expanded/discovered nodes and route cost. Measure latency distributions after JVM warmup, allocation, and cap outcomes. Benchmarks should include broad ingredient alternatives, circular recipes, missing sources, mixed inventory, dense obstacles, hazards, breaking and bridge budgets. A small synthetic case is not a claim about in-game FPS or successful survival progression.
 
+### Distance-estimate regression, 2026-10-05
+
+An unobstructed, loaded, infinite-floor Java fixture from `(0, 0, 0)` to `(80, 0, 0)` with the default navigation options expanded **9,018 nodes before the heuristic change and 81 after**, returning the same route cost of 800. Both measurements used Java 17 on the Intel Mac mini, two active processors and a 128 MiB heap. This measures search work, not elapsed-time speed or Minecraft FPS, and compares two Lodekeeper revisions only.
+
+The tighter estimate combines horizontal octile distance with asymmetric vertical movement bounds. Its regression checks consistency against every primitive movement cost for exact and radius goals, plus the open-route expansion count. It does not weaken collision, hazard, breaking or placement checks.
+
 ## Gameplay cases
 
 | Case | Required evidence |
