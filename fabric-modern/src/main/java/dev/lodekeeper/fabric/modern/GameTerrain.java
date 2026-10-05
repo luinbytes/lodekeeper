@@ -16,6 +16,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
+import java.util.Arrays;
+
 /** Native voxel-shape adapter for exact grounded player stances and bounded sweeps. */
 final class GameTerrain implements Terrain {
     static final int INVALID_FEET_Y16 = Integer.MIN_VALUE;
@@ -32,6 +34,10 @@ final class GameTerrain implements Terrain {
     private static final double MAX_STANDING_HEIGHT = 3.0;
     private static final double HEIGHT_EPSILON = 1.0e-6;
     private static final double GEOMETRY_EPSILON = 1.0e-7;
+    private static final int VOXEL_READ_CACHE_LIMIT = 8_192;
+    private static final int VOXEL_READ_CACHE_SIZE = 16_384;
+    private static final int CHUNK_READ_CACHE_LIMIT = 256;
+    private static final int CHUNK_READ_CACHE_SIZE = 512;
 
     private static final int MODE_NONE = 0;
     private static final int MODE_BODY = 1;
@@ -72,6 +78,28 @@ final class GameTerrain implements Terrain {
     private int supportDepth16;
     private double walkFromX, walkFromZ, walkDeltaX, walkDeltaZ;
 
+    // Query-only cache: every proof still visits the exact native boxes. Entries survive only
+    // within one client tick and one world/context revision, and saturation falls back live.
+    private final int[] voxelCacheGeneration = new int[VOXEL_READ_CACHE_SIZE];
+    private final int[] voxelCacheX = new int[VOXEL_READ_CACHE_SIZE];
+    private final int[] voxelCacheY = new int[VOXEL_READ_CACHE_SIZE];
+    private final int[] voxelCacheZ = new int[VOXEL_READ_CACHE_SIZE];
+    private final BlockState[] voxelCacheState = new BlockState[VOXEL_READ_CACHE_SIZE];
+    private final VoxelShape[] voxelCacheShape = new VoxelShape[VOXEL_READ_CACHE_SIZE];
+    private final byte[] voxelCacheShapeReady = new byte[VOXEL_READ_CACHE_SIZE];
+    private final int[] chunkCacheGeneration = new int[CHUNK_READ_CACHE_SIZE];
+    private final int[] chunkCacheX = new int[CHUNK_READ_CACHE_SIZE];
+    private final int[] chunkCacheZ = new int[CHUNK_READ_CACHE_SIZE];
+    private final byte[] chunkCacheLoaded = new byte[CHUNK_READ_CACHE_SIZE];
+    private int readCacheGeneration = 1;
+    private int voxelCacheEntries, chunkCacheEntries;
+    private boolean readCacheEpochValid;
+    private Object readCacheWorld;
+    private long readCacheRevision, readCacheContext;
+
+    // Package-visible for bounded native benchmarks; reset between measured searches if needed.
+    long voxelQueries, readMisses, shapeMisses, chunkQueries, chunkMisses;
+
     GameTerrain(Minecraft client, LodekeeperConfig config) {
         this.client = client;
         this.config = config;
@@ -81,6 +109,7 @@ final class GameTerrain implements Terrain {
     void changed() { revision++; }
     void beginSearch() { WorldRevision.beginSearch(); refreshStandingDimensions(); }
     void refreshStandingDimensions() {
+        invalidateReadCache();
         if (client.player == null) return;
         AABB box = client.player.getDimensions(Pose.STANDING).makeBoundingBox(0.0, 0.0, 0.0);
         double width = box.maxX - box.minX;
@@ -136,9 +165,107 @@ final class GameTerrain implements Terrain {
     @Override public long revision() { return revision + WorldRevision.value(); }
 
     private boolean loaded(int x, int y, int z) {
+        chunkQueries++;
         if (client.level == null || (y < client.level.getMinY() || y >= client.level.getMaxY())) return false;
         WorldRevision.watch(x >> 4, z >> 4);
-        return client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
+        int chunkX = x >> 4, chunkZ = z >> 4;
+        int slot = findChunkCacheSlot(chunkX, chunkZ);
+        if (slot >= 0 && chunkCacheGeneration[slot] == readCacheGeneration) {
+            return chunkCacheLoaded[slot] != 0;
+        }
+        chunkMisses++;
+        boolean available = client.level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
+        if (slot >= 0 && chunkCacheEntries < CHUNK_READ_CACHE_LIMIT) {
+            chunkCacheGeneration[slot] = readCacheGeneration;
+            chunkCacheX[slot] = chunkX;
+            chunkCacheZ[slot] = chunkZ;
+            chunkCacheLoaded[slot] = (byte) (available ? 1 : 0);
+            chunkCacheEntries++;
+        }
+        return available;
+    }
+
+    private BlockState blockState(int x, int y, int z) {
+        voxelQueries++;
+        int slot = findVoxelCacheSlot(x, y, z);
+        if (slot >= 0 && voxelCacheGeneration[slot] == readCacheGeneration) {
+            position.set(x, y, z);
+            return voxelCacheState[slot];
+        }
+        readMisses++;
+        BlockState state = client.level.getBlockState(position.set(x, y, z));
+        if (slot >= 0 && voxelCacheEntries < VOXEL_READ_CACHE_LIMIT) {
+            voxelCacheGeneration[slot] = readCacheGeneration;
+            voxelCacheX[slot] = x;
+            voxelCacheY[slot] = y;
+            voxelCacheZ[slot] = z;
+            voxelCacheState[slot] = state;
+            voxelCacheShape[slot] = null;
+            voxelCacheShapeReady[slot] = 0;
+            voxelCacheEntries++;
+        }
+        return state;
+    }
+
+    private int findVoxelCacheSlot(int x, int y, int z) {
+        int slot = voxelHash(x, y, z) & (VOXEL_READ_CACHE_SIZE - 1);
+        int start = slot;
+        while (voxelCacheGeneration[slot] == readCacheGeneration) {
+            if (voxelCacheX[slot] == x && voxelCacheY[slot] == y && voxelCacheZ[slot] == z) return slot;
+            slot = (slot + 1) & (VOXEL_READ_CACHE_SIZE - 1);
+            if (slot == start) return -1;
+        }
+        return slot;
+    }
+
+    private int findChunkCacheSlot(int x, int z) {
+        int slot = voxelHash(x, 0, z) & (CHUNK_READ_CACHE_SIZE - 1);
+        int start = slot;
+        while (chunkCacheGeneration[slot] == readCacheGeneration) {
+            if (chunkCacheX[slot] == x && chunkCacheZ[slot] == z) return slot;
+            slot = (slot + 1) & (CHUNK_READ_CACHE_SIZE - 1);
+            if (slot == start) return -1;
+        }
+        return slot;
+    }
+
+    private static int voxelHash(int x, int y, int z) {
+        int hash = x * 0x9e3779b9;
+        hash = Integer.rotateLeft(hash ^ y * 0x85ebca6b, 13);
+        hash = Integer.rotateLeft(hash ^ z * 0xc2b2ae35, 15);
+        hash ^= hash >>> 16;
+        return hash;
+    }
+
+    private void invalidateReadCache() {
+        if (readCacheGeneration == Integer.MAX_VALUE) {
+            Arrays.fill(voxelCacheGeneration, 0);
+            Arrays.fill(chunkCacheGeneration, 0);
+            readCacheGeneration = 1;
+        } else {
+            readCacheGeneration++;
+        }
+        voxelCacheEntries = 0;
+        chunkCacheEntries = 0;
+        readCacheEpochValid = false;
+    }
+
+    private void syncReadCacheEpoch() {
+        long context = client.player == null ? 0L : playerContextSignature();
+        if (client.player != null && (!hasObservedPlayerContext || context != observedPlayerContext)) {
+            refreshStandingDimensions();
+            context = observedPlayerContext;
+        }
+        Object world = client.level;
+        long currentRevision = revision();
+        if (!readCacheEpochValid || readCacheWorld != world
+                || readCacheRevision != currentRevision || readCacheContext != context) {
+            invalidateReadCache();
+            readCacheWorld = world;
+            readCacheRevision = currentRevision;
+            readCacheContext = context;
+            readCacheEpochValid = true;
+        }
     }
 
     private boolean hazardous(BlockState state) {
@@ -150,16 +277,19 @@ final class GameTerrain implements Terrain {
     }
 
     @Override public void probeStance(int x, int y, int z, StanceProbe out) {
+        syncReadCacheEpoch();
         if (y < -2_048 || y > 2_047) { out.clear(); return; }
         probeAt(x + 0.5, Math.multiplyExact(y, 16), z + 0.5, true, out);
     }
 
     @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
+        syncReadCacheEpoch();
         probeAt(x + 0.5, feetY16, z + 0.5, true, out);
         return out.loaded;
     }
 
     @Override public boolean probeCurrentStance(double feetX, int feetY16, double feetZ, StanceProbe out) {
+        syncReadCacheEpoch();
         if (!Double.isFinite(feetX) || !Double.isFinite(feetZ)) { out.clear(); return false; }
         probeAt(feetX, feetY16, feetZ, false, out);
         return out.loaded;
@@ -187,7 +317,7 @@ final class GameTerrain implements Terrain {
         shapeMode = MODE_BODY;
         for (int bx = minX; bx <= maxX; bx++) for (int by = minY; by <= maxY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
             if (!loaded(bx, by, bz)) { out.clear(); shapeMode = MODE_NONE; return; }
-            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+            BlockState state = blockState(bx, by, bz);
             if (unsupportedContextShape(state)) { out.clear(); shapeMode = MODE_NONE; return; }
             boolean cellTouchesBody = bx >= tightMinX && bx <= tightMaxX
                     && by >= tightMinY && by <= tightMaxY && bz >= tightMinZ && bz <= tightMaxZ;
@@ -219,7 +349,7 @@ final class GameTerrain implements Terrain {
             int floorY = Math.floorDiv(feetY16, 16) - 1;
             int floorX = (int) Math.floor(feetX), floorZ = (int) Math.floor(feetZ);
             if (!loaded(floorX, floorY, floorZ)) { out.clear(); return; }
-            BlockState floor = client.level.getBlockState(position.set(floorX, floorY, floorZ));
+            BlockState floor = blockState(floorX, floorY, floorZ);
             out.fullSupport = !out.hazard && exactCoverage.coversAll() && allCoverage.coversAll()
                     && Block.isShapeFullBlock(collisionShape(floor));
         }
@@ -229,6 +359,7 @@ final class GameTerrain implements Terrain {
 
     @Override public boolean collectGroundedStances(int x, int referenceFeetY16, int z,
                                                     GroundedStanceBuffer out) {
+        syncReadCacheEpoch();
         out.clear();
         return collectSupportHeights(x + 0.5, z + 0.5, referenceFeetY16, 16, out);
     }
@@ -256,7 +387,7 @@ final class GameTerrain implements Terrain {
         shapeMode = MODE_SUPPORT_CANDIDATES;
         for (int bx = minX; bx <= maxX; bx++) for (int by = minBlockY; by <= maxBlockY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
             if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return false; }
-            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+            BlockState state = blockState(bx, by, bz);
             if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return false; }
             shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
             collisionShape(state).forAllBoxes(shapeConsumer);
@@ -288,7 +419,7 @@ final class GameTerrain implements Terrain {
                 out.loaded = false;
                 return false;
             }
-            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+            BlockState state = blockState(bx, by, bz);
             if (unsupportedContextShape(state)) {
                 shapeMode = MODE_NONE;
                 out.loaded = false;
@@ -355,15 +486,29 @@ final class GameTerrain implements Terrain {
             BlockPos targetPos = new BlockPos(target.x, target.y, target.z);
             for (var direction : net.minecraft.core.Direction.values()) {
                 BlockPos adjacent = targetPos.relative(direction);
-                if (!loaded(adjacent.getX(), adjacent.getY(), adjacent.getZ())
-                        || client.level.getFluidState(adjacent).is(FluidTags.LAVA)) out.hazard = true;
+                int x = adjacent.getX(), y = adjacent.getY(), z = adjacent.getZ();
+                if (!loaded(x, y, z) || blockState(x, y, z).getFluidState().is(FluidTags.LAVA)) {
+                    out.hazard = true;
+                }
             }
         }
     }
 
     private VoxelShape collisionShape(BlockState state) {
         if (shapeContext == null && client.player != null) shapeContext = CollisionContext.of(client.player);
-        return state.getCollisionShape(client.level, position, shapeContext);
+        int slot = findVoxelCacheSlot(position.getX(), position.getY(), position.getZ());
+        if (slot >= 0 && voxelCacheGeneration[slot] == readCacheGeneration
+                && voxelCacheState[slot] == state && voxelCacheShapeReady[slot] != 0) {
+            return voxelCacheShape[slot];
+        }
+        shapeMisses++;
+        VoxelShape shape = state.getCollisionShape(client.level, position, shapeContext);
+        if (slot >= 0 && voxelCacheGeneration[slot] == readCacheGeneration
+                && voxelCacheState[slot] == state) {
+            voxelCacheShape[slot] = shape;
+            voxelCacheShapeReady[slot] = 1;
+        }
+        return shape;
     }
 
     private static boolean unsupportedContextShape(BlockState state) {
@@ -390,6 +535,7 @@ final class GameTerrain implements Terrain {
 
     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz,
                                            double arc, StanceProbe source, StanceProbe destination) {
+        syncReadCacheEpoch();
         if (!Double.isFinite(fx) || !Double.isFinite(fy) || !Double.isFinite(fz)
                 || !Double.isFinite(tx) || !Double.isFinite(ty) || !Double.isFinite(tz)
                 || !Double.isFinite(arc)) return false;
@@ -411,6 +557,7 @@ final class GameTerrain implements Terrain {
     @Override public boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
                                                  double toX, int toFeetY16, double toZ,
                                                  StanceProbe source, StanceProbe destination) {
+        syncReadCacheEpoch();
         if (!Double.isFinite(fromX) || !Double.isFinite(fromZ) || !Double.isFinite(toX) || !Double.isFinite(toZ)
                 || Math.abs(fromX) > 33_554_430.0 || Math.abs(fromZ) > 33_554_430.0
                 || Math.abs(toX) > 33_554_430.0 || Math.abs(toZ) > 33_554_430.0) return false;
@@ -497,7 +644,7 @@ final class GameTerrain implements Terrain {
         int maxZ = blockMax(Math.max(fromZ, toZ) + standingWidth * 0.5);
         for (int bx = minX; bx <= maxX; bx++) for (int bz = minZ; bz <= maxZ; bz++) {
             if (!loaded(bx, floorY, bz)) return false;
-            BlockState state = client.level.getBlockState(position.set(bx, floorY, bz));
+            BlockState state = blockState(bx, floorY, bz);
             if (hazardous(state) || !Block.isShapeFullBlock(collisionShape(state))) return false;
         }
         return true;
@@ -529,7 +676,7 @@ final class GameTerrain implements Terrain {
         for (int bx = cellMinX; bx <= cellMaxX; bx++) for (int by = cellMinY; by <= cellMaxY; by++) for (int bz = cellMinZ; bz <= cellMaxZ; bz++) {
             if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return -1; }
             shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
-            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+            BlockState state = blockState(bx, by, bz);
             if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return -1; }
             collisionShape(state).forAllBoxes(shapeConsumer);
             if (shapeIncomplete) { shapeMode = MODE_NONE; return -1; }
@@ -581,14 +728,12 @@ final class GameTerrain implements Terrain {
         int samples = Math.max(1, (int) Math.ceil(distance / 0.2));
         if (samples > MAX_WALK_PROOFS) return false;
         double oldX = fromX, oldY = fromY, oldZ = fromZ;
-        if (!clearBodyAt(fromX, fromY, fromZ, source, destination)) return false;
         for (int i = 1; i <= samples; i++) {
             double t = (double) i / samples;
             double x = fromX + (toX - fromX) * t;
             double y = fromY + (toY - fromY) * t;
             double z = fromZ + (toZ - fromZ) * t;
-            if (!clearBodyAt(x, y, z, source, destination)
-                    || !clearSweptChord(oldX, oldY, oldZ, x, y, z, source, destination)) return false;
+            if (!clearSweptChord(oldX, oldY, oldZ, x, y, z, source, destination)) return false;
             oldX = x; oldY = y; oldZ = z;
         }
         return true;
@@ -617,7 +762,7 @@ final class GameTerrain implements Terrain {
         shapeBoxCount = 0; shapeIncomplete = false; shapeMode = MODE_BODY;
         for (int bx = minX; bx <= maxX; bx++) for (int by = minY; by <= maxY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
             if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return false; }
-            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+            BlockState state = blockState(bx, by, bz);
             if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return false; }
             if (bx >= tightMinX && bx <= tightMaxX && by >= tightMinY && by <= tightMaxY
                     && bz >= tightMinZ && bz <= tightMaxZ && hazardous(state)) {
@@ -645,6 +790,7 @@ final class GameTerrain implements Terrain {
     }
 
     @Override public boolean canBreakFrom(int x, int y, int z, StanceProbe destination, int index) {
+        syncReadCacheEpoch();
         if (index < 0 || index >= destination.breakCount || index >= StanceProbe.MAX_BREAK_TARGETS) return false;
         var target = destination.breakTargets[index];
         double feetY = y;
@@ -657,12 +803,13 @@ final class GameTerrain implements Terrain {
 
     @Override public boolean canPlaceBridgeFrom(int x, int y, int z, int bx, int by, int bz,
                                                  int token, boolean plannedSupport) {
+        syncReadCacheEpoch();
         if (!config.allowBuilding || !loaded(bx, by, bz)
-                || !client.level.getBlockState(position.set(bx, by, bz)).canBeReplaced()) return false;
+                || !blockState(bx, by, bz).canBeReplaced()) return false;
         if (Math.abs(bx - x) + Math.abs(bz - z) != 1 || by != y - 1) return false;
         if (plannedSupport) return true;
         if (!loaded(x, y - 1, z)) return false;
-        BlockState support = client.level.getBlockState(position.set(x, y - 1, z));
+        BlockState support = blockState(x, y - 1, z);
         return !unsupportedContextShape(support) && !hazardous(support)
                 && Block.isShapeFullBlock(collisionShape(support));
     }
