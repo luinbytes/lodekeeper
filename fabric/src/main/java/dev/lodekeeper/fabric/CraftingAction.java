@@ -40,7 +40,7 @@ final class CraftingAction {
     private MovePurpose movePurpose;
     private int placementIndex, cooldown;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested, remaindersResolved;
-    private boolean outputMoveObserved;
+    private boolean outputMoveObserved, interruptedOutputDrain;
     private static final class StaleRecipeBeforeOutputClick extends RuntimeException {}
     private record Placement(int gridSlot, int sourceSlot, Item item, Ingredient predicate, ItemStack inputStack, String budgetKey) {
         private Placement {
@@ -115,6 +115,8 @@ final class CraftingAction {
             } catch (StaleRecipeBeforeOutputClick stale) {
                 quickMove = null;
                 movePurpose = null;
+                drainRequested = true;
+                interruptedOutputDrain |= outputMoveObserved;
                 if (outputMoveObserved) {
                     awaitingResult = false;
                     remainderFuture = null;
@@ -133,6 +135,7 @@ final class CraftingAction {
             return false;
         }
         if (awaitingResult && drainRequested) {
+            interruptedOutputDrain |= outputMoveObserved;
             if (outputMoveObserved) {
                 awaitingResult = false;
                 remainderFuture = null;
@@ -183,6 +186,7 @@ final class CraftingAction {
 
         if (placements.isEmpty()) {
             outputMoveObserved = false;
+            interruptedOutputDrain = false;
             buildPlacements();
         }
         if (placementIndex == placements.size()) {
@@ -345,7 +349,7 @@ final class CraftingAction {
 
     /** Returns true only after every known ingredient or recipe remainder is observed in inventory. */
     private boolean drainKnownGridContents(boolean allowIngredients) {
-        return drainKnownGridContents(allowIngredients, !allowIngredients);
+        return drainKnownGridContents(allowIngredients, !allowIngredients || interruptedOutputDrain);
     }
 
     private boolean drainKnownGridContents(boolean allowIngredients, boolean allowRemainders) {
@@ -367,6 +371,7 @@ final class CraftingAction {
         expectedGridContents.clear();
         expectedGridRemainders.clear();
         remaindersResolved = false;
+        interruptedOutputDrain = false;
         return true;
     }
 
