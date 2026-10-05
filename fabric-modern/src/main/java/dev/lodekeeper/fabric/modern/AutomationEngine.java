@@ -73,6 +73,7 @@ final class AutomationEngine {
     final LodekeeperConfig config;
     private final PlayerActions actions;
     private final BotInput input;
+    private final FoodController food;
     final GameTerrain terrain;
     private final MovementController movement;
     private final ExecutorService plannerWorker = Executors.newSingleThreadExecutor(r -> {
@@ -106,6 +107,8 @@ final class AutomationEngine {
     private int planningRetries, stationPlacementFailures, actionTicks, baseline, verifyTicks, lastObservedCount, catalogRefreshTicks;
     private boolean stationDiscoveryDone;
     private int inventorySampleTicks;
+    private int foodCooldown;
+    private boolean foodReplanPending;
     private boolean inventoryFingerprintInitialized;
     private long lastInventoryFingerprint;
     private Map<ItemId, Integer> observedInventory = Map.of();
@@ -117,6 +120,7 @@ final class AutomationEngine {
         this.config = config;
         actions = new PlayerActions(client);
         input = new BotInput();
+        food = new FoodController(client, actions);
         terrain = new GameTerrain(client, config);
         movement = new MovementController(client, config, actions, input, terrain);
     }
@@ -133,7 +137,8 @@ final class AutomationEngine {
             inventoryFingerprintInitialized = false;
             observedInventory = Map.of();
         }
-        if (client.player == null || client.level == null) { input.release(); return; }
+        if (client.player == null || client.level == null) { food.stop(); input.release(); return; }
+        if (foodCooldown > 0) foodCooldown--;
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
             inventorySampleTicks = 0;
             observeInventory();
@@ -142,19 +147,46 @@ final class AutomationEngine {
         try {
             if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
             if (active == null && !paused) startNextRequest();
-            if (active == null || paused) { input.release(); return; }
+            if (active == null || paused) { food.stop(); input.release(); return; }
             if (!client.player.isAlive()) {
                 if (stopAfterStep) stopNow(true); else pause("player is no longer alive");
                 return;
             }
             if (!stopAfterStep && client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
             if (!stopAfterStep && config.pauseOnScreen && client.gui.screen() != null && crafting == null && smelting == null && !openingStation) {
+                food.stop();
                 input.release();
                 return;
             }
             if (foregroundYieldPending && !transactionInProgress() && !openingStation && !canYieldMaintenanceNow()) {
                 input.release();
                 status = "foreground queued; waiting for inventory screen and cursor to be safe";
+                return;
+            }
+            if (food.active()) {
+                input.release();
+                status = "eating before continuing " + active.name();
+                if (!config.autoEat || client.gui.screen() != null) {
+                    food.stop();
+                    requestPlan();
+                } else if (food.tick()) {
+                    requestPlan();
+                }
+                return;
+            }
+            if (foodReplanPending) { requestPlan(); return; }
+            if (config.autoEat && foodCooldown == 0 && !stopAfterStep && !transactionInProgress()
+                    && !openingStation && !hasOwnedStationMenuOpen() && food.ready()) {
+                if (pendingPlan != null) pendingPlan.cancel(false);
+                pendingPlan = null;
+                resetAction();
+                foodCooldown = 100;
+                if (food.begin()) {
+                    foodReplanPending = true;
+                    status = "eating before continuing " + active.name();
+                } else {
+                    requestPlan();
+                }
                 return;
             }
             if (pendingPlan == null && step == null && catalog != null && catalog.ready()) requestPlan();
@@ -519,6 +551,7 @@ final class AutomationEngine {
     }
 
     private void requestPlan() {
+        foodReplanPending = false;
         ensureCatalog();
         if (!catalog.ready()) { status = "loading recipes"; return; }
         status = "planning";
@@ -931,6 +964,8 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedMenu) {
+        food.stop();
+        foodReplanPending = false;
         AbstractContainerMenu stationMenu = ownedStationMenu;
         boolean closeThisMenu = closeOwnedMenu && hasOwnedStationMenuOpen();
         String warning;
@@ -950,6 +985,7 @@ final class AutomationEngine {
     }
 
     void pause(String reason) {
+        food.stop();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
         paused = true;
         String warning;

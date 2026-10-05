@@ -78,12 +78,12 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (command.key() == null) {
             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
-                    ", allowParkour=" + config.allowParkour);
+                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat);
             return;
         }
         String key = command.key(), value = command.value();
         if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen");
+            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat");
             return;
         }
         switch (key) {
@@ -98,6 +98,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "allowBuilding" -> config.allowBuilding = bool(value);
             case "allowParkour" -> config.allowParkour = bool(value);
             case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
+            case "autoEat" -> config.autoEat = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save();

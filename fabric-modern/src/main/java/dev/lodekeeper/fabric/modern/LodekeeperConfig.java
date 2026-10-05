@@ -24,6 +24,7 @@ public final class LodekeeperConfig {
     public boolean allowParkour = false;
     public boolean allowContainers = false;
     public boolean pauseOnScreen = true;
+    public boolean autoEat = true;
 
     public static LodekeeperConfig load() {
         LodekeeperConfig config = new LodekeeperConfig();

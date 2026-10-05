@@ -17,7 +17,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Pending | Pending |
 | 26.1, 26.1.1, 26.1.2 | 25 | Pending; unobfuscated source boundary | Pending |
 | 26.2 | 25 | Pending | Pending |
-| 26.3 | 25 | Expanded development adapter compiles and packages; shared Java regressions pass | Pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Pending |
 
 ## What a check proves
 
@@ -30,6 +30,6 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 
 ## Known implementation limits
 
-The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Its held-food eating is verified in the 1.20.1 fixture; food automation is still pending in the modern adapter. It has a conservative integer-height navigation model; fractional slab/stair stances, vehicles, dimensions and specialty stations are not yet verified. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
+The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Its held-food eating is verified in the 1.20.1 fixture; the 26.3 food controller is ported but gameplay verification is pending. It has a conservative integer-height navigation model; fractional slab/stair stances, vehicles, dimensions and specialty stations are not yet verified. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.

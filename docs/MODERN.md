@@ -12,6 +12,8 @@ Use client chat commands with the configured prefix (default `!lk `), for exampl
 
 The adapter only acts through the connected player's normal survival interaction and container protocols. It reads loaded chunks only; unexplored or unloaded terrain is treated as blocked. Route searches, world scans, and planning work use bounded budgets. No Baritone or AltoClef code is used.
 
+Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. The 26.3 implementation is source-complete but still needs isolated gameplay verification.
+
 Modded item names are resolved from registered items, including namespaced IDs and available aliases. Recipe automation uses the integrated world's live recipes in single-player, or only the recipe displays the remote server has revealed to the client. Custom loot tables cannot be inferred from block and item registries. To teach a verified one-item block drop, create `config/lodekeeper-sources.json`:
 
 ```json
