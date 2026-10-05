@@ -17,20 +17,24 @@ import java.util.*;
 /** Discovers recipe transforms from synchronized data rather than a hardcoded item task list. */
 final class GameCatalog {
     final List<AcquisitionSource> sources = new ArrayList<>();
-    final Map<String, net.minecraft.recipe.Recipe<?>> recipes = new HashMap<>();
+    final Map<String, RecipeWork> recipes = new HashMap<>();
     final Map<TagId, List<ItemId>> tags = new HashMap<>();
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
     private final MinecraftClient client;
     private CatalogSnapshot cachedSnapshot;
+    private long generation;
+    private boolean ready;
     GameCatalog(MinecraftClient client) { this.client = client; }
     void load() {
+        generation++;
+        ready = false;
         cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
         for (Item item : Registries.ITEM) {
             items.add(id(item));
             Registries.ITEM.getEntry(item).streamTags().forEach(tag -> tags.computeIfAbsent(TagId.parse(tag.id().toString()), ignored -> new ArrayList<>()).add(id(item)));
         }
-        if (client.world == null) return;
+        if (client.world == null) { ready = true; return; }
         var manager = client.world.getRecipeManager();
         for (GameApi.RecipeRef entry : GameApi.recipes(manager).stream().sorted(Comparator.comparing(GameApi.RecipeRef::id)).toList()) {
             var recipe = entry.recipe();
@@ -39,32 +43,54 @@ final class GameCatalog {
             String key = entry.id();
             try {
                 List<Requirement> requirements = new ArrayList<>();
+                RecipeWork work;
+                AcquisitionSource source;
                 if (recipe instanceof ShapedRecipe shaped) {
                     if (!recipe.fits(2, 2)) requirements.add(station(Blocks.CRAFTING_TABLE));
                     List<RecipeSlot> slots = slots(recipe.getIngredients(), true);
                     if (slots.isEmpty()) continue;
-                    sources.add(new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPED, shaped.getWidth(), shaped.getHeight(), slots, requirements));
+                    source = new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPED, shaped.getWidth(), shaped.getHeight(), slots, requirements);
+                    work = new RecipeWork(RecipeWork.Kind.SHAPED_CRAFTING, output, shaped.getWidth(), shaped.getHeight(),
+                            workInputs(recipe.getIngredients(), true), 0, GameApi.remainderResolver(recipe));
                 } else if (recipe instanceof ShapelessRecipe) {
                     if (recipe.getIngredients().size() > 4) requirements.add(station(Blocks.CRAFTING_TABLE));
-                    sources.add(new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPELESS, 0, 0, slots(recipe.getIngredients(), false), requirements));
+                    source = new CraftingSource(key, id(output.getItem()), output.getCount(), RecipeType.SHAPELESS, 0, 0, slots(recipe.getIngredients(), false), requirements);
+                    work = new RecipeWork(RecipeWork.Kind.SHAPELESS_CRAFTING, output, 0, 0,
+                            workInputs(recipe.getIngredients(), false), 0, GameApi.remainderResolver(recipe));
                 } else if (recipe instanceof AbstractCookingRecipe cooking && recipe.getType() == net.minecraft.recipe.RecipeType.SMELTING) {
                     requirements.add(station(Blocks.FURNACE));
                     // The core computes fuel units from burn duration and total cook ticks.
-                    sources.add(new SmeltingSource(key, id(output.getItem()), output.getCount(), ingredient(recipe.getIngredients().get(0)), List.of(ItemSelector.item(id(Items.COAL)), ItemSelector.tag(TagId.parse("minecraft:planks"))), GameApi.cookingTime(cooking), requirements));
+                    int cookTicks = GameApi.cookingTime(cooking);
+                    var input = recipe.getIngredients().get(0);
+                    source = new SmeltingSource(key, id(output.getItem()), output.getCount(), ingredient(input), List.of(ItemSelector.item(id(Items.COAL)), ItemSelector.tag(TagId.parse("minecraft:planks"))), cookTicks, requirements);
+                    work = new RecipeWork(RecipeWork.Kind.SMELTING, output, 0, 0,
+                            List.of(new RecipeWork.Input(-1, input)), cookTicks, null);
                 } else {
                     unsupported.add(key + " (" + Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()) + ")");
                     continue;
                 }
-                recipes.put(key, recipe);
+                sources.add(source);
+                recipes.put(key, work);
             } catch (IllegalArgumentException ex) { unsupported.add(key + ": " + ex.getMessage()); }
         }
         gatherSources();
         ExtensionCatalog.append(this);
+        ready = true;
     }
     private List<RecipeSlot> slots(List<net.minecraft.recipe.Ingredient> ingredients, boolean shaped) {
         List<RecipeSlot> slots = new ArrayList<>();
         for (int i = 0; i < ingredients.size(); i++) if (!ingredients.get(i).isEmpty()) slots.add(new RecipeSlot(shaped ? i : -1, ingredient(ingredients.get(i))));
         return slots;
+    }
+    private List<RecipeWork.Input> workInputs(List<net.minecraft.recipe.Ingredient> ingredients, boolean shaped) {
+        List<RecipeWork.Input> inputs = new ArrayList<>();
+        int shapelessSlot = 0;
+        for (int index = 0; index < ingredients.size(); index++) {
+            var ingredient = ingredients.get(index);
+            if (ingredient.isEmpty()) continue;
+            inputs.add(new RecipeWork.Input(shaped ? index : shapelessSlot++, ingredient));
+        }
+        return inputs;
     }
     private Ingredient ingredient(net.minecraft.recipe.Ingredient ingredient) {
         List<ItemId> choices = Arrays.stream(ingredient.getMatchingStacks()).filter(s -> !s.isEmpty()).map(s -> id(s.getItem())).distinct().sorted().toList();
@@ -111,6 +137,8 @@ final class GameCatalog {
         cachedSnapshot = builder.build();
         return cachedSnapshot;
     }
+    long generation() { return generation; }
+    boolean ready() { return ready; }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }

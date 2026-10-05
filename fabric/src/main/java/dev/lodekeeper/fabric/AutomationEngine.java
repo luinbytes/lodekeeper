@@ -60,6 +60,8 @@ final class AutomationEngine {
     private GameCatalog catalog;
     private Request active;
     private CompletableFuture<PlanResult> pendingPlan;
+    private long pendingPlanGeneration;
+    private long stepCatalogGeneration;
     private PlanStep step;
     private BlockSearch scan;
     private BlockPos target;
@@ -113,6 +115,10 @@ final class AutomationEngine {
                 return;
             }
             if (foodReplanPending) { requestPlan(); return; }
+            if (active != null && pendingPlan == null && step == null) {
+                if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
+                requestPlan();
+            }
             if (config.autoEat && foodCooldown == 0 && !stopAfterStep && !transactionInProgress()
                     && !openingStation && !hasOwnedStationHandlerOpen() && food.ready()) {
                 if (pendingPlan != null) pendingPlan.cancel(false);
@@ -125,13 +131,33 @@ final class AutomationEngine {
             }
             if (pendingPlan != null) {
                 if (!pendingPlan.isDone()) return;
-                PlanResult result = pendingPlan.join(); pendingPlan = null;
+                PlanResult result = pendingPlan.join();
+                long resultGeneration = pendingPlanGeneration;
+                pendingPlan = null;
+                if (!catalog.ready() || resultGeneration != catalog.generation()) {
+                    if (catalog.ready()) requestPlan();
+                    else status = "waiting for recipe catalog";
+                    return;
+                }
                 if (!result.success() && planningRetries++ < 1 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
                 if (result.steps().isEmpty()) { finishGoal(); return; }
-                begin(result.steps().get(0));
+                begin(result.steps().get(0), resultGeneration);
             }
             if (step == null) return;
+            if (stepCatalogGeneration != catalog.generation() || !catalog.ready()) {
+                if (crafting != null || smelting != null) {
+                    // The action owns an immutable RecipeWork snapshot. Let it finish the
+                    // in-flight transfer and safely drain before replanning against new data.
+                    requestActiveTransactionDrain();
+                } else {
+                    if (openingStation && !stationReady()) return;
+                    resetAction();
+                    if (catalog.ready()) requestPlan();
+                    else status = "waiting for recipe catalog";
+                    return;
+                }
+            }
             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
             if (observed != lastObservedCount) { lastObservedCount = observed; actionTicks = 0; }
             if (smelting != null && smelting.progressToken() != lastSmeltProgress) { lastSmeltProgress = smelting.progressToken(); actionTicks = 0; }
@@ -438,6 +464,7 @@ final class AutomationEngine {
     private void requestPlan() {
         foodReplanPending = false;
         ensureCatalog(); status = "planning";
+        if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
         observeInventory();
         if (goalCount() >= active.count) { finishGoal(); return; }
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
@@ -455,6 +482,7 @@ final class AutomationEngine {
             requested = active.count - goalCount() + inventory.count(item);
         }
         final ItemId targetItem = item; final int targetCount = requested;
+        pendingPlanGeneration = catalog.generation();
         pendingPlan = CompletableFuture.supplyAsync(() -> planner.plan(snapshot, inventory, targetItem, targetCount), plannerWorker);
     }
     private ItemId chooseLogs() {
@@ -469,9 +497,14 @@ final class AutomationEngine {
         for (ItemStack stack : client.player.getInventory().main) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
         return count;
     }
-    private void begin(PlanStep next) {
+    private void begin(PlanStep next, long plannedGeneration) {
+        if (!catalog.ready() || catalog.generation() != plannedGeneration) {
+            if (catalog.ready()) requestPlan();
+            else status = "waiting for recipe catalog";
+            return;
+        }
         resetAction(); rejectedStationSites.clear(); stationPlacementFailures = 0; stationDiscoveryDone = false;
-        step = next; actionTicks = 0; status = next.kind() + " " + next.sourceId();
+        step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0; status = next.kind() + " " + next.sourceId();
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline; lastSmeltProgress = 0;
     }
@@ -623,7 +656,7 @@ final class AutomationEngine {
         if (crafting == null) {
             if (!stationReady()) return;
             var recipe = catalog.recipes.get(step.sourceId());
-            if (recipe == null) throw new IllegalStateException("Recipe disappeared");
+            if (recipe == null || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Recipe disappeared or changed before crafting could start");
             crafting = new CraftingAction(client, actions, recipe, step);
         }
         if (shouldDrainActiveTransaction()) crafting.requestDrain();
@@ -633,8 +666,9 @@ final class AutomationEngine {
         if (smelting == null) {
             if (!stationReady()) return;
             var recipe = catalog.recipes.get(step.sourceId());
-            if (!(recipe instanceof net.minecraft.recipe.AbstractCookingRecipe cooking)) throw new IllegalStateException("Cooking recipe disappeared");
-            smelting = new SmeltingAction(client, actions, cooking, step);
+            if (recipe == null || recipe.kind() != RecipeWork.Kind.SMELTING
+                    || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Smelting recipe disappeared or changed before smelting could start");
+            smelting = new SmeltingAction(client, actions, recipe, step);
         }
         if (shouldDrainActiveTransaction()) smelting.requestDrain();
         if (smelting.tick()) completeStep();

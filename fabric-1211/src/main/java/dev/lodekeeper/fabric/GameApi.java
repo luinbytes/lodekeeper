@@ -7,6 +7,7 @@ import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeManager;
+import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.util.Identifier;
 import java.util.List;
@@ -31,6 +32,15 @@ final class GameApi {
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }
 
     static int cookingTime(AbstractCookingRecipe recipe) { return recipe.getCookingTime(); }
+
+    static RecipeWork.RemainderResolver remainderResolver(Recipe<?> recipe) {
+        return (handler, gridWidth, inputGrid) -> {
+            List<ItemStack> copied = inputGrid.stream().map(ItemStack::copy).toList();
+            CraftingRecipeInput input = CraftingRecipeInput.create(gridWidth, gridWidth, copied);
+            @SuppressWarnings("rawtypes") Recipe raw = recipe;
+            return new java.util.ArrayList<>(raw.getRemainder(input));
+        };
+    }
 
     static List<RecipeRef> recipes(RecipeManager manager) {
         return manager.values().stream().map((RecipeEntry<?> entry) -> new RecipeRef(entry.id().toString(), entry.value())).toList();

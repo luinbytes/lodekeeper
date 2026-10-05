@@ -5,7 +5,6 @@ import dev.lodekeeper.core.SelectedItemRequirement;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.screen.FurnaceScreenHandler;
 
 /** Uses one initially empty furnace, feeds planned materials, and returns only confirmed owned stacks. */
@@ -26,11 +25,12 @@ final class SmeltingAction {
     private int transferAmount, transferDestination, quickMoveSlot = -1, cooldown;
     private boolean initialized, drainRequested;
 
-    SmeltingAction(MinecraftClient client, PlayerActions actions, AbstractCookingRecipe recipe, PlanStep step) {
+    SmeltingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step) {
         this.client = client;
         this.actions = actions;
+        if (recipe.kind() != RecipeWork.Kind.SMELTING) throw new IllegalArgumentException("Smelting action received non-smelting recipe work");
         output = GameCatalog.item(step.output());
-        expectedOutput = GameApi.result(recipe, client.world.getRegistryManager()).copy();
+        expectedOutput = recipe.outputPerOperation();
         target = actions.count(output) + step.outputCount();
         plannedOutput = step.outputCount();
         var input = selected(step, "smelting input");
