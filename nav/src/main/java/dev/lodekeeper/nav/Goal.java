@@ -188,17 +188,27 @@ public final class Goal {
         return exactHeuristic(px, py, pz, x, y, z, radius);
     }
 
-    /** Conservative horizontal-only lower bound for graphs that may contain fractional stairs. */
+    /** Admissible horizontal/vertical lower bound, including fractional stair heights. */
     public long heuristic16(int px, int pyFeet16, int pz) {
         if (kind == Kind.ANY) {
             long best = Long.MAX_VALUE;
             for (int i = 0; i < anyX.length; i++) {
-                best = Math.min(best, horizontalHeuristic(px, pz, anyX[i], anyZ[i], 0));
+                long horizontal = horizontalHeuristic(px, pz, anyX[i], anyZ[i], 0);
+                long vertical = verticalHeuristic16(pyFeet16, (long) anyY[i] * 16L + fractions[i], 0);
+                best = Math.min(best, Math.max(horizontal, vertical));
             }
             return best;
         }
         long arrivalBlocks = (radius16 + 15L) / 16L;
-        return horizontalHeuristic(px, pz, x, z, arrivalBlocks);
+        return Math.max(horizontalHeuristic(px, pz, x, z, arrivalBlocks),
+                verticalHeuristic16(pyFeet16, feetY16, radius16));
+    }
+
+    private static long verticalHeuristic16(long from, long to, long radius16) {
+        long rise = Math.max(0L, to - from - radius16);
+        if (rise > 0) return 17L * rise / 16L;
+        long fall = Math.max(0L, from - to - radius16);
+        return 22L * fall / 48L;
     }
 
     private boolean contains(long packed, int fraction) {

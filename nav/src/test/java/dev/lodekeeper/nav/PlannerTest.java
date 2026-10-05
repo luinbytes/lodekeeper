@@ -9,6 +9,97 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class PlannerTest {
     @Test
+    void timedSearchReturnsOnlyAValidatedForwardPrefixAndHonorsInvalidation() {
+        FakeTerrain terrain = new FakeTerrain();
+        for (int x = 0; x <= 20; x++) terrain.stance(x, 0, 0).fullSupport = true;
+        Planner search = planner(terrain, 0, 0, 0, Goal.exact(20, 0, 0), new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.IN_PROGRESS, search.advance(3, Long.MAX_VALUE));
+        assertEquals(NavStatus.PARTIAL_LIMIT, search.finishPartial(2));
+        assertNotNull(search.getPath());
+        assertEquals(4, search.getPath().length());
+        for (int i = 0; i < 4; i++) {
+            Path.Step step = search.getPath().step(i);
+            assertEquals(i, step.x);
+            assertEquals(0, step.z);
+            assertEquals(0, step.feetY16);
+            assertEquals(0, step.actionCount());
+            if (i > 0) assertEquals(Path.Movement.WALK, step.movement);
+        }
+        Planner tooEarly = planner(terrain, 0, 0, 0, Goal.exact(20, 0, 0), new Planner.Options());
+        tooEarly.advance(1, Long.MAX_VALUE);
+        assertEquals(NavStatus.IN_PROGRESS, tooEarly.finishPartial(2));
+        assertNull(tooEarly.getPath(), "a one-cell shuffle cannot masquerade as material progress");
+        Planner stale = planner(terrain, 0, 0, 0, Goal.exact(20, 0, 0), new Planner.Options());
+        stale.advance(3, Long.MAX_VALUE);
+        terrain.revision++;
+        assertEquals(NavStatus.STALE, stale.finishPartial(2));
+        assertNull(stale.getPath());
+    }
+
+    @Test
+    void partialCutoffPreservesSearchThroughAnInitialDetour() {
+        FakeTerrain terrain = new FakeTerrain();
+        for (int z = 0; z <= 8; z++) {
+            terrain.stance(0, 0, z).fullSupport = true;
+            terrain.stance(4, 0, z).fullSupport = true;
+        }
+        for (int x = 0; x <= 4; x++) terrain.stance(x, 0, 8).fullSupport = true;
+        Planner search = planner(terrain, 0, 0, 0, Goal.exact(4, 0, 0),
+                new Planner.Options().maxDrop(0));
+        assertEquals(NavStatus.IN_PROGRESS, search.advance(3, Long.MAX_VALUE));
+        long expanded = search.getExpandedNodes();
+        assertEquals(NavStatus.IN_PROGRESS, search.finishPartial(2));
+        assertNull(search.getPath());
+        assertEquals(expanded, search.getExpandedNodes());
+        assertEquals(NavStatus.FOUND, finish(search));
+        Path.Step end = search.getPath().step(search.getPath().length() - 1);
+        assertEquals(4, end.x);
+        assertEquals(0, end.z);
+    }
+
+    @Test
+    void visualizationIsBoundedImmutableAndDoesNotExpandTheSearch() {
+        FakeTerrain terrain = new FakeTerrain();
+        for (int x = 0; x <= 350; x++) terrain.stance16(x, -1, 0).surfaceSupport = true;
+        for (int x = 0; x <= 350; x++) terrain.groundedHeights(x, 0, -1);
+        Planner search = Planner.fromFeetY16(terrain, 0, -1, 0, Goal.exact16(350, -1, 0),
+                new Planner.Options().maxNodes(1024).maxDrop(0));
+        search.advance(300, Long.MAX_VALUE);
+        long expanded = search.getExpandedNodes();
+        NavigationSnapshot view = search.snapshot(1, 500, 2, 0, true);
+        assertTrue(view.nodeCount() <= 256);
+        assertTrue(view.nodeCount() > 0);
+        assertEquals(-1 / 16.0, view.nodeY(0));
+        long original = view.nodePositions()[0];
+        view.nodePositions()[0] = 1234;
+        assertEquals(original, view.nodePositions()[0]);
+        view.nodeFractions()[0] = 0;
+        assertEquals(-1 / 16.0, view.nodeY(0));
+        boolean wasClosed = view.nodeIsClosed(0);
+        view.nodeClosed()[0] = !wasClosed;
+        assertEquals(wasClosed, view.nodeIsClosed(0));
+        assertEquals(expanded, search.getExpandedNodes());
+        search.cancel();
+        assertEquals(0, search.snapshot(1, 500, 2, 0, true).nodeCount());
+        assertEquals(-1 / 16.0, view.nodeY(0), "published observations survive subsequent planner changes");
+    }
+
+    @Test
+    void exactHeightHeuristicIncludesVerticalWorkWithoutOverpricingStairsOrDrops() {
+        assertEquals(17, Goal.exact16(0, 16, 0).heuristic16(0, 0, 0));
+        assertEquals(22, Goal.exact16(0, -48, 0).heuristic16(0, 0, 0));
+        assertEquals(8, Goal.exact16(0, 8, 0).heuristic16(0, 0, 0));
+        assertEquals(0, Goal.near16(0, 8, 0, 8).heuristic16(0, 0, 0));
+        for (int rise = 1; rise <= 16; rise++) {
+            long stepCost = 10 + (7L * rise + 15) / 16;
+            assertTrue(Goal.exact16(0, rise, 0).heuristic16(0, 0, 0) <= stepCost);
+        }
+        Goal options = Goal.anyOf16(new long[]{Position.pack(0, -1, 0), Position.pack(0, 2, 0)},
+                new byte[]{15, 0});
+        assertEquals(0, options.heuristic16(0, -1, 0));
+    }
+
+    @Test
     void anyOfFindsAReachableStanceWhenTheFirstCandidateIsDisconnected() {
         FakeTerrain terrain = new FakeTerrain();
         terrain.stance(0, 0, 0).fullSupport = true;

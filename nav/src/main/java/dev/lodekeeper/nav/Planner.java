@@ -232,11 +232,51 @@ public final class Planner {
         if (status == NavStatus.IN_PROGRESS) status = NavStatus.CANCELLED;
     }
 
+    /** Yield a validated forward prefix, or preserve the search when a detour needs more work. */
+    public NavStatus finishPartial(int minimumProgressBlocks) {
+        if (minimumProgressBlocks < 1 || minimumProgressBlocks > 64)
+            throw new IllegalArgumentException("Progress threshold must be between 1 and 64 blocks");
+        if (status != NavStatus.IN_PROGRESS) return status;
+        if (terrain.revision() != terrainRevision) return status = NavStatus.STALE;
+        int best = -1;
+        long minimumSquared16 = (long) minimumProgressBlocks * minimumProgressBlocks * 256L;
+        for (int i = 1; i < nodeCount; i++) {
+            if (parents[i] < 0 || heuristics[i] >= heuristics[0]) continue;
+            long dx16 = ((long) Position.x(positions[i]) - Position.x(positions[0])) * 16L;
+            long dy16 = (long) feetY16(i) - feetY16(0);
+            long dz16 = ((long) Position.z(positions[i]) - Position.z(positions[0])) * 16L;
+            if (dx16 * dx16 + dy16 * dy16 + dz16 * dz16 < minimumSquared16) continue;
+            if (best < 0 || heuristics[i] < heuristics[best]
+                    || heuristics[i] == heuristics[best] && costs[i] < costs[best]) best = i;
+        }
+        if (best < 0) return status;
+        buildPath(best);
+        return status = NavStatus.PARTIAL_LIMIT;
+    }
+
     public NavStatus getStatus() { return status; }
     public Path getPath() { return path; }
     public long getExpandedNodes() { return expandedNodes; }
     public int getDiscoveredNodes() { return nodeCount; }
     public int getOpenNodes() { return heapSize; }
+
+    /** Sample at most 256 graph entries with O(limit) work, without exposing mutable search arrays. */
+    public NavigationSnapshot snapshot(int nextStep, long searchNanos, int searchTicks, int retries,
+                                       boolean includeNodes) {
+        int count = includeNodes && status != NavStatus.CANCELLED && status != NavStatus.STALE
+                ? Math.min(256, nodeCount) : 0;
+        long[] points = new long[count];
+        byte[] fractions = new byte[count];
+        boolean[] expanded = new boolean[count];
+        for (int i = 0; i < count; i++) {
+            int index = (int) ((long) i * nodeCount / count);
+            points[i] = positions[index];
+            fractions[i] = feetFractions[index];
+            expanded[i] = closed[index] != 0;
+        }
+        return new NavigationSnapshot(path, nextStep, expandedNodes, nodeCount, heapSize,
+                searchNanos, searchTicks, retries, status == NavStatus.IN_PROGRESS, points, fractions, expanded);
+    }
 
     private void expandLocal(int current, int x, int y, int z) {
         int sourceFeetY16 = feetY16(current);
