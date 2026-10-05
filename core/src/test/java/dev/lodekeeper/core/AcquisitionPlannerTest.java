@@ -979,6 +979,66 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void bootstrapOrderingAvoidsStationRecipeThatConsumesTheCurrentOutput() {
+        ItemId rawIron = ItemId.parse("minecraft:raw_iron");
+        ItemId iron = ItemId.parse("minecraft:iron_ingot");
+        ItemId coal = ItemId.parse("minecraft:coal");
+        ItemId cobble = ItemId.parse("minecraft:cobblestone");
+        ItemId smoothStone = ItemId.parse("minecraft:smooth_stone");
+        ItemId table = ItemId.parse("minecraft:crafting_table");
+        ItemId furnace = ItemId.parse("minecraft:furnace");
+        ItemId blastFurnace = ItemId.parse("minecraft:blast_furnace");
+        ItemId pickaxe = ItemId.parse("minecraft:iron_pickaxe");
+        StationId tableStation = StationId.parse("minecraft:crafting_table");
+        StationId furnaceStation = StationId.parse("minecraft:furnace");
+        StationId blastStation = StationId.parse("minecraft:blast_furnace");
+        StationRequirement tableRequirement = new StationRequirement(tableStation, table, "craft");
+        StationRequirement furnaceRequirement = new StationRequirement(furnaceStation, furnace, "smelt");
+        StationRequirement blastRequirement = new StationRequirement(blastStation, blastFurnace, "smelt");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(rawIron, 0).item(iron, 0).item(coal, 0, 1600).item(cobble, 0).item(smoothStone, 0)
+                .item(table, 0).item(furnace, 0).item(blastFurnace, 0).item(pickaxe, 250).item(STICKS, 0)
+                .source(new GatherSource("gather:raw_iron", rawIron, 1, List.of(BlockId.parse("minecraft:iron_ore"))))
+                .source(new CraftingSource("craft:furnace", furnace, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(8, cobble))), List.of(tableRequirement)))
+                .source(new CraftingSource("craft:blast_furnace", blastFurnace, 1, RecipeType.SHAPED, 3, 3,
+                        List.of(new RecipeSlot(0, Ingredient.of(iron)), new RecipeSlot(1, Ingredient.of(iron)),
+                                new RecipeSlot(2, Ingredient.of(iron)), new RecipeSlot(3, Ingredient.of(iron)),
+                                new RecipeSlot(4, Ingredient.of(furnace)), new RecipeSlot(5, Ingredient.of(iron)),
+                                new RecipeSlot(6, Ingredient.of(smoothStone)), new RecipeSlot(7, Ingredient.of(smoothStone)),
+                                new RecipeSlot(8, Ingredient.of(smoothStone))), List.of(tableRequirement)))
+                .source(new SmeltingSource("smelt:blast_iron", iron, 1, Ingredient.of(rawIron),
+                        List.of(ItemSelector.item(coal)), 100, List.of(blastRequirement)))
+                .source(new SmeltingSource("smelt:furnace_iron", iron, 1, Ingredient.of(rawIron),
+                        List.of(ItemSelector.item(coal)), 200, List.of(furnaceRequirement)))
+                .source(new CraftingSource("craft:iron_pickaxe", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(3, iron)), new RecipeSlot(-1, Ingredient.of(2, STICKS))),
+                        List.of(tableRequirement)))
+                .build();
+        Map<ItemId, Integer> stocked = Map.of(rawIron, 3, coal, 1, cobble, 8, smoothStone, 3, STICKS, 2);
+
+        PlanResult furnaceBootstrap = planner().planFast(catalog,
+                new InventorySnapshot(stocked, Set.of(tableStation), Map.of()), pickaxe, 1);
+
+        assertTrue(furnaceBootstrap.success(), furnaceBootstrap.blockedReasons().toString());
+        assertTrue(furnaceBootstrap.steps().stream().anyMatch(step -> step.sourceId().equals("smelt:furnace_iron")));
+        assertFalse(furnaceBootstrap.steps().stream().anyMatch(step -> step.sourceId().equals("smelt:blast_iron")));
+        assertTrue(furnaceBootstrap.expandedNodes() < 1_024);
+
+        var heldBlastStock = new HashMap<>(stocked);
+        heldBlastStock.put(blastFurnace, 1);
+        PlanResult heldBlast = planner().planFast(catalog,
+                new InventorySnapshot(heldBlastStock, Set.of(tableStation), Map.of()), pickaxe, 1);
+        assertTrue(heldBlast.success(), heldBlast.blockedReasons().toString());
+        assertTrue(heldBlast.steps().stream().anyMatch(step -> step.sourceId().equals("smelt:blast_iron")));
+
+        PlanResult placedBlast = planner().planFast(catalog,
+                new InventorySnapshot(stocked, Set.of(tableStation, blastStation), Map.of()), pickaxe, 1);
+        assertTrue(placedBlast.success(), placedBlast.blockedReasons().toString());
+        assertTrue(placedBlast.steps().stream().anyMatch(step -> step.sourceId().equals("smelt:blast_iron")));
+    }
+
+    @Test
     void fastPlanRestartsFromOriginalInventoryAfterGreedyResourceConflict() {
         ItemId a = ItemId.parse("test:a"), b = ItemId.parse("test:b");
         ItemId intermediate = ItemId.parse("test:intermediate"), target = ItemId.parse("test:target");
@@ -1002,6 +1062,240 @@ final class AcquisitionPlannerTest {
         assertFalse(capped.success());
         assertEquals(insufficientCombinedBudget, capped.expandedNodes());
         assertEquals(BlockedReason.Code.NODE_LIMIT, capped.blockedReasons().get(0).code());
+    }
+
+    @Test
+    void sourcePreferencesBreakIngredientTiesButEmptyPreferencesPreserveLegacyChoice() {
+        ItemId deepslate = ItemId.parse("minecraft:cobbled_deepslate");
+        ItemId cobblestone = ItemId.parse("minecraft:cobblestone");
+        ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
+        CatalogSnapshot catalog = stonePickPreferenceCatalog();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(STICKS, 2));
+
+        PlanResult legacy = planner().planFast(catalog, inventory, pickaxe, 1);
+        PlanResult explicitNone = planner().planFast(catalog, inventory, pickaxe, 1,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+        assertTrue(legacy.success(), legacy.blockedReasons().toString());
+        assertEquals(deepslate, selectedRecipeItem(legacy, Set.of(deepslate, cobblestone)));
+        assertEquals(legacy.steps().stream().map(PlanStep::sourceId).toList(),
+                explicitNone.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(selectedRecipeItem(legacy, Set.of(deepslate, cobblestone)),
+                selectedRecipeItem(explicitNone, Set.of(deepslate, cobblestone)));
+
+        PlanResult preferred = planner().planFast(catalog, inventory, pickaxe, 1,
+                PlannerLimits.DEFAULT, new PlanningPreferences(Map.of(
+                        "gather:cobbled_deepslate", 20,
+                        "gather:cobblestone", 1)));
+        assertTrue(preferred.success(), preferred.blockedReasons().toString());
+        assertEquals(cobblestone, selectedRecipeItem(preferred, Set.of(deepslate, cobblestone)));
+    }
+
+    @Test
+    void craftedIngredientPreferencePropagatesFromObservedGatherInputs() {
+        ItemId goal = ItemId.parse("test:preference_goal");
+        ItemId oakLog = ItemId.parse("test:oak_log");
+        ItemId acaciaLog = ItemId.parse("test:acacia_log");
+        ItemId oakPlanks = ItemId.parse("test:oak_planks");
+        ItemId acaciaPlanks = ItemId.parse("test:acacia_planks");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(goal, 0).item(oakLog, 0).item(acaciaLog, 0).item(oakPlanks, 0).item(acaciaPlanks, 0)
+                .source(new GatherSource("gather:oak_log", oakLog, 1, List.of(BlockId.parse("test:oak_log"))))
+                .source(new GatherSource("gather:acacia_log", acaciaLog, 1, List.of(BlockId.parse("test:acacia_log"))))
+                .source(new CraftingSource("craft:oak_planks", oakPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(oakLog))), List.of()))
+                .source(new CraftingSource("craft:acacia_planks", acaciaPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(acaciaLog))), List.of()))
+                .source(new CraftingSource("craft:goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.choices(List.of(acaciaPlanks, oakPlanks), 1))), List.of()))
+                .build();
+
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                PlannerLimits.DEFAULT, new PlanningPreferences(Map.of(
+                        "gather:oak_log", 1,
+                        "gather:acacia_log", 20)));
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(oakPlanks, selectedRecipeItem(result, Set.of(oakPlanks, acaciaPlanks)));
+        assertTrue(result.steps().stream().anyMatch(step -> step.sourceId().equals("gather:oak_log")));
+        assertFalse(result.steps().stream().anyMatch(step -> step.sourceId().equals("gather:acacia_log")));
+    }
+
+    @Test
+    void observedRecipeInputsStillRankCraftedAlternativesAfterDirectSeedLimit() {
+        ItemId goal = ItemId.parse("test:bounded_preference_goal");
+        ItemId oakLog = ItemId.parse("test:bounded_oak_log");
+        ItemId acaciaLog = ItemId.parse("test:bounded_acacia_log");
+        ItemId oakPlanks = ItemId.parse("test:bounded_oak_planks");
+        ItemId acaciaPlanks = ItemId.parse("test:bounded_acacia_planks");
+        var builder = CatalogSnapshot.builder()
+                .item(goal, 0).item(oakLog, 0).item(acaciaLog, 0).item(oakPlanks, 0).item(acaciaPlanks, 0)
+                .source(new GatherSource("gather:bounded_oak_log", oakLog, 1, List.of(BlockId.parse("test:bounded_oak_log"))))
+                .source(new GatherSource("gather:bounded_acacia_log", acaciaLog, 1, List.of(BlockId.parse("test:bounded_acacia_log"))))
+                .source(new CraftingSource("craft:bounded_oak_planks", oakPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(oakLog))), List.of()))
+                .source(new CraftingSource("craft:bounded_acacia_planks", acaciaPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(acaciaLog))), List.of()))
+                .source(new CraftingSource("craft:bounded_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.choices(List.of(acaciaPlanks, oakPlanks), 1))), List.of()));
+        var ranks = new HashMap<String, Integer>();
+        ranks.put("gather:bounded_oak_log", 1);
+        ranks.put("gather:bounded_acacia_log", 1_000);
+        for (int index = 0; index < 512; index++) {
+            String suffix = index < 10 ? "00" + index : index < 100 ? "0" + index : Integer.toString(index);
+            ItemId filler = ItemId.parse("test:bounded_filler_" + suffix);
+            builder.item(filler, 0).source(new GatherSource("gather:bounded_filler_" + suffix, filler, 1,
+                    List.of(BlockId.parse("test:bounded_filler_" + suffix))));
+            ranks.put("gather:bounded_filler_" + suffix, index + 2);
+        }
+
+        CatalogSnapshot catalog = builder.build();
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                PlannerLimits.DEFAULT, new PlanningPreferences(ranks));
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(oakPlanks, selectedRecipeItem(result, Set.of(oakPlanks, acaciaPlanks)));
+        assertTrue(result.steps().stream().anyMatch(step -> step.sourceId().equals("gather:bounded_oak_log")));
+        assertFalse(result.steps().stream().anyMatch(step -> step.sourceId().equals("gather:bounded_acacia_log")));
+    }
+
+    @Test
+    void hintedCyclicSourceDoesNotPruneFeasibleFallback() {
+        ItemId goal = ItemId.parse("test:cycle_goal");
+        ItemId cycleInput = ItemId.parse("test:cycle_input");
+        ItemId raw = ItemId.parse("test:cycle_raw");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(goal, 0).item(cycleInput, 0).item(raw, 0)
+                .source(new CraftingSource("craft:a_preferred_cycle", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(cycleInput))), List.of()))
+                .source(new CraftingSource("craft:b_cycle_back", cycleInput, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(goal))), List.of()))
+                .source(new GatherSource("gather:cycle_raw", raw, 1, List.of(BlockId.parse("test:cycle_raw"))))
+                .source(new CraftingSource("craft:z_feasible", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(raw))), List.of()))
+                .build();
+
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                PlannerLimits.DEFAULT, new PlanningPreferences(Map.of(
+                        "craft:a_preferred_cycle", 0,
+                        "craft:z_feasible", 5)));
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertTrue(result.steps().stream().anyMatch(step -> step.sourceId().equals("craft:z_feasible")));
+        assertFalse(result.steps().stream().anyMatch(step -> step.sourceId().equals("craft:a_preferred_cycle")));
+    }
+
+    @Test
+    void sourcePreferencesCannotSpendProtectedHeldIngredientStock() {
+        ItemId cobble = ItemId.parse("minecraft:cobblestone");
+        ItemId deepslate = ItemId.parse("minecraft:cobbled_deepslate");
+        ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
+        CatalogSnapshot catalog = stonePickPreferenceCatalog();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(cobble, 3, deepslate, 3, STICKS, 2),
+                Set.of(), Map.of(), Map.of(cobble, 3));
+
+        PlanResult result = planner().planFast(catalog, inventory, pickaxe, 1,
+                PlannerLimits.DEFAULT, new PlanningPreferences(Map.of(
+                        "gather:cobblestone", 0,
+                        "gather:cobbled_deepslate", 100)));
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(deepslate, selectedRecipeItem(result, Set.of(deepslate, cobble)));
+        assertEquals(3, inventory.count(cobble));
+        assertEquals(3, inventory.protectedCounts().get(cobble));
+    }
+
+    @Test
+    void planningPreferencesSnapshotRanksAndRejectInvalidBounds() {
+        Map<String, Integer> mutableRanks = new HashMap<>();
+        mutableRanks.put("gather:near", 7);
+        PlanningPreferences preferences = new PlanningPreferences(mutableRanks);
+        mutableRanks.put("gather:near", 8);
+        assertEquals(7, preferences.sourceRanks().get("gather:near"));
+        assertThrows(UnsupportedOperationException.class, () -> preferences.sourceRanks().put("gather:far", 9));
+        assertThrows(IllegalArgumentException.class, () -> new PlanningPreferences(Map.of("gather:negative", -1)));
+        assertThrows(IllegalArgumentException.class, () -> new PlanningPreferences(
+                Map.of("gather:too_high", PlanningPreferences.MAX_RANK + 1)));
+    }
+
+    @Test
+    void preferenceSnapshotStopsAtThePlannerDeadlineBeforeSourceOrdering() {
+        ItemId goal = ItemId.parse("test:preference_deadline_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(goal, 0)
+                .source(new GatherSource("gather:preference_deadline_goal", goal, 1,
+                        List.of(BlockId.parse("test:preference_deadline_goal"))))
+                .build();
+        long deadline = 1_000_000L;
+        var reads = new java.util.concurrent.atomic.AtomicInteger();
+        AcquisitionPlanner timedPlanner = new AcquisitionPlanner(() ->
+                reads.getAndIncrement() < 5 ? 0L : deadline);
+
+        PlanResult result = timedPlanner.planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                new PlannerLimits(48, 300, 1, 12, 4_096, 1_000_000),
+                new PlanningPreferences(Map.of("gather:preference_deadline_goal", 1)));
+
+        assertFalse(result.success());
+        assertTrue(result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT));
+        assertEquals(2, result.expandedNodes());
+    }
+
+    @Test
+    void preferenceRankingRemainsDeterministicWhenSnapshotCapsAreReached() {
+        ItemId goal = ItemId.parse("test:many_choice_goal");
+        var builder = CatalogSnapshot.builder().item(goal, 0);
+        var choices = new java.util.ArrayList<ItemId>();
+        var ranks = new HashMap<String, Integer>();
+        for (int index = 0; index < 600; index++) {
+            String suffix = index < 10 ? "00" + index : index < 100 ? "0" + index : Integer.toString(index);
+            ItemId option = ItemId.parse("test:option_" + suffix);
+            choices.add(option);
+            builder.item(option, 0).source(new GatherSource("gather:option_" + suffix, option, 1,
+                    List.of(BlockId.parse("test:option_" + suffix))));
+            ranks.put("gather:option_" + suffix, 600 - index);
+        }
+        builder.source(new CraftingSource("craft:many_choice_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.choices(choices, 1))), List.of()));
+        CatalogSnapshot catalog = builder.build();
+        PlanningPreferences preferences = new PlanningPreferences(ranks);
+
+        PlanResult first = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                PlannerLimits.DEFAULT, preferences);
+        PlanResult second = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1,
+                PlannerLimits.DEFAULT, preferences);
+
+        assertTrue(first.success(), first.blockedReasons().toString());
+        assertTrue(second.success(), second.blockedReasons().toString());
+        assertTrue(first.steps().stream().anyMatch(step -> step.sourceId().equals("gather:option_599")));
+        assertEquals(first.steps().stream().map(PlanStep::sourceId).toList(),
+                second.steps().stream().map(PlanStep::sourceId).toList());
+    }
+
+    private static CatalogSnapshot stonePickPreferenceCatalog() {
+        ItemId deepslate = ItemId.parse("minecraft:cobbled_deepslate");
+        ItemId cobblestone = ItemId.parse("minecraft:cobblestone");
+        ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
+        Ingredient stone = Ingredient.choices(List.of(deepslate, cobblestone), 1);
+        return CatalogSnapshot.builder()
+                .item(deepslate, 0).item(cobblestone, 0).item(STICKS, 0).item(pickaxe, 131)
+                .source(new GatherSource("gather:cobbled_deepslate", deepslate, 1,
+                        List.of(BlockId.parse("minecraft:cobbled_deepslate"))))
+                .source(new GatherSource("gather:cobblestone", cobblestone, 1,
+                        List.of(BlockId.parse("minecraft:cobblestone"))))
+                .source(new CraftingSource("craft:stone_pickaxe", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, stone), new RecipeSlot(-1, stone), new RecipeSlot(-1, stone),
+                                new RecipeSlot(-1, Ingredient.of(2, STICKS))), List.of()))
+                .build();
+    }
+
+    private static ItemId selectedRecipeItem(PlanResult result, Set<ItemId> candidates) {
+        return result.steps().stream().filter(step -> step.kind() == PlanKind.CRAFT)
+                .flatMap(step -> step.requirements().stream())
+                .filter(SelectedItemRequirement.class::isInstance)
+                .map(SelectedItemRequirement.class::cast)
+                .filter(requirement -> requirement.purpose().equals("recipe ingredient"))
+                .map(SelectedItemRequirement::item)
+                .filter(candidates::contains)
+                .findFirst().orElseThrow();
     }
 
     @Test

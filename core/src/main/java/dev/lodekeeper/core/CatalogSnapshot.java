@@ -19,16 +19,24 @@ public final class CatalogSnapshot {
     private final Map<String, List<ItemId>> aliases;
     private final Map<TagId, List<ItemId>> tags;
     private final Map<ItemId, List<AcquisitionSource>> sources;
+    private final Map<String, AcquisitionSource> sourcesById;
+    private final Set<ItemId> recipeSourceOutputs;
     private final Set<ItemId> knownItems;
 
     private CatalogSnapshot(Builder builder) {
         this.itemDefinitions = Map.copyOf(builder.items);
         this.aliases = immutableLists(builder.aliases);
         this.tags = immutableLists(builder.tags);
+        this.sourcesById = Map.copyOf(builder.sources);
         var byOutput = new TreeMap<ItemId, List<AcquisitionSource>>();
+        var recipeOutputs = new TreeSet<ItemId>();
         builder.sources.values().forEach(source -> byOutput.computeIfAbsent(source.output(), ignored -> new ArrayList<>()).add(source));
+        builder.sources.values().stream()
+                .filter(source -> source instanceof CraftingSource || source instanceof SmeltingSource)
+                .forEach(source -> recipeOutputs.add(source.output()));
         byOutput.replaceAll((item, values) -> values.stream().sorted(Comparator.comparing(AcquisitionSource::sourceId)).toList());
         this.sources = Map.copyOf(byOutput);
+        this.recipeSourceOutputs = Set.copyOf(recipeOutputs);
         var allItems = new TreeSet<ItemId>(builder.items.keySet());
         builder.sources.values().forEach(source -> allItems.add(source.output()));
         builder.tags.values().forEach(allItems::addAll);
@@ -48,6 +56,14 @@ public final class CatalogSnapshot {
 
     public List<AcquisitionSource> sourcesFor(ItemId item) {
         return sources.getOrDefault(Objects.requireNonNull(item, "item"), List.of());
+    }
+
+    AcquisitionSource sourceById(String sourceId) {
+        return sourcesById.get(Objects.requireNonNull(sourceId, "sourceId"));
+    }
+
+    boolean hasRecipeSource(ItemId item) {
+        return recipeSourceOutputs.contains(Objects.requireNonNull(item, "item"));
     }
 
     public List<ItemId> itemsIn(TagId tag) {

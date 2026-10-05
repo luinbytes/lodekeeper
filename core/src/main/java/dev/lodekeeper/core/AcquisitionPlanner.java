@@ -28,7 +28,7 @@ public final class AcquisitionPlanner {
     }
 
     public PlanResult plan(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count, PlannerLimits limits) {
-        return planInternal(catalog, inventory, target, count, limits, false);
+        return planInternal(catalog, inventory, target, count, limits, PlanningPreferences.NONE, false);
     }
 
     /** Finds a complete feasible seed before spending the remaining shared budget on beam search. */
@@ -37,15 +37,22 @@ public final class AcquisitionPlanner {
     }
 
     public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count, PlannerLimits limits) {
-        return planInternal(catalog, inventory, target, count, limits, true);
+        return planFast(catalog, inventory, target, count, limits, PlanningPreferences.NONE);
+    }
+
+    /** Finds a complete plan while using optional source ranks to order otherwise comparable choices. */
+    public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count,
+                               PlannerLimits limits, PlanningPreferences preferences) {
+        return planInternal(catalog, inventory, target, count, limits, preferences, true);
     }
 
     private PlanResult planInternal(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count,
-                                    PlannerLimits limits, boolean seedFirst) {
+                                    PlannerLimits limits, PlanningPreferences preferences, boolean seedFirst) {
         Objects.requireNonNull(catalog, "catalog");
         Objects.requireNonNull(inventory, "inventory");
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(limits, "limits");
+        Objects.requireNonNull(preferences, "preferences");
         long started = clock.getAsLong();
         if (count < 1 || count > limits.maximumRequestedCount()) {
             return failure(target, count, BlockedReason.Code.INVALID_COUNT, "Requested count must be between 1 and " + limits.maximumRequestedCount(), 0, elapsed(started));
@@ -59,7 +66,7 @@ public final class AcquisitionPlanner {
             PlannerLimits seedLimits = new PlannerLimits(limits.maximumDepth(),
                     Math.min(1_024, limits.maximumExpandedNodes()), Math.max(1, limits.maximumElapsedMillis() * 3 / 4),
                     limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
-            Search seed = new Search(catalog, seedLimits, started, clock, true);
+            Search seed = new Search(catalog, seedLimits, started, clock, true, preferences);
             List<State> feasible = seed.satisfy(target, count, false, new State(inventory, catalog), Set.of(), 0, "requested target", -1);
             seedNodes = seed.expanded;
             if (!feasible.isEmpty()) {
@@ -73,7 +80,7 @@ public final class AcquisitionPlanner {
         PlannerLimits remaining = seedNodes == 0 ? limits : new PlannerLimits(limits.maximumDepth(),
                 limits.maximumExpandedNodes() - seedNodes, limits.maximumElapsedMillis(),
                 limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
-        Search search = new Search(catalog, remaining, started, clock, false);
+        Search search = new Search(catalog, remaining, started, clock, false, preferences);
         State initial = new State(inventory, catalog);
         List<State> plans = search.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
         if (plans.isEmpty()) {
@@ -95,23 +102,197 @@ public final class AcquisitionPlanner {
     private long elapsed(long started) { return Math.max(0, clock.getAsLong() - started); }
 
     private static final class Search {
+        private static final int MAX_DERIVATION_DEPTH = 8;
+        private static final int MAX_DERIVATION_VISITS = 512;
+        private static final int MAX_SEED_PREFERENCE_ENTRIES = 512;
+        private static final int MAX_FROZEN_PREFERENCE_ENTRIES = 512;
+        private static final int MAX_STATION_PLACEMENT_ITEMS = 64;
+        private static final int UNKNOWN_PREFERENCE = PlanningPreferences.MAX_RANK + 1;
         private final CatalogSnapshot catalog;
         private final PlannerLimits limits;
         private final long deadline;
         private final LongSupplier clock;
         private final boolean firstFeasible;
+        private final PlanningPreferences preferences;
+        private final Map<ItemId, Integer> directItemRanks;
+        private final PreferenceScorer preferenceScorer;
         private final LinkedHashSet<BlockedReason> failures = new LinkedHashSet<>();
         private int expanded;
+        private int seededPreferenceEntries;
+        private int frozenPreferenceEntries;
         private boolean truncated;
         private BlockedReason.Code limitCode;
         private BlockedReason limitReason;
 
-        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock, boolean firstFeasible) {
+        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock,
+                       boolean firstFeasible, PlanningPreferences preferences) {
             this.catalog = catalog;
             this.limits = limits;
             this.deadline = started + limits.maximumElapsedMillis() * 1_000_000L;
             this.clock = clock;
             this.firstFeasible = firstFeasible;
+            this.preferences = preferences;
+            this.directItemRanks = seedDirectItemRanks();
+            this.preferenceScorer = new PreferenceScorer();
+        }
+
+        private boolean takeSeedPreferenceEntry() {
+            if (seededPreferenceEntries >= MAX_SEED_PREFERENCE_ENTRIES || clock.getAsLong() >= deadline) return false;
+            seededPreferenceEntries++;
+            return true;
+        }
+
+        private boolean takeFrozenPreferenceEntry() {
+            if (frozenPreferenceEntries >= MAX_FROZEN_PREFERENCE_ENTRIES || clock.getAsLong() >= deadline) return false;
+            frozenPreferenceEntries++;
+            return true;
+        }
+
+        private Map<ItemId, Integer> seedDirectItemRanks() {
+            if (preferences.isEmpty()) return Map.of();
+            var ranks = new HashMap<ItemId, Integer>();
+            for (String sourceId : preferences.rankedSourceIds()) {
+                if (!takeSeedPreferenceEntry()) break;
+                AcquisitionSource source = catalog.sourceById(sourceId);
+                Integer rank = preferences.rankOf(sourceId);
+                if (source != null && rank != null) ranks.merge(source.output(), rank, Math::min);
+            }
+            return Map.copyOf(ranks);
+        }
+
+        private int itemPreferenceRank(ItemId item, Map<ItemId, Integer> derivedRanks) {
+            Integer direct = directItemRanks.get(item);
+            Integer derived = derivedRanks.get(item);
+            if (direct == null) return derived == null ? UNKNOWN_PREFERENCE : derived;
+            return derived == null ? direct : Math.min(direct, derived);
+        }
+
+        private int sourcePreferenceRank(AcquisitionSource source, Map<String, Integer> derivedRanks) {
+            Integer direct = preferences.rankOf(source.sourceId());
+            Integer derived = derivedRanks.get(source.sourceId());
+            if (direct == null) return derived == null ? UNKNOWN_PREFERENCE : derived;
+            return derived == null ? direct : Math.min(direct, derived);
+        }
+
+        private Map<ItemId, Integer> freezeItemPreferenceRanks(List<ItemId> items, Set<ItemId> path) {
+            if (preferences.isEmpty()) return Map.of();
+            var ranks = new HashMap<ItemId, Integer>();
+            Set<ItemId> derivationPath = new HashSet<>(path);
+            // `items` is already in natural order; freeze results before any sorting comparator runs.
+            for (ItemId item : items) {
+                if (!takeFrozenPreferenceEntry()) break;
+                Integer rank = catalog.hasRecipeSource(item)
+                        ? preferenceScorer.itemRank(item, derivationPath, 0)
+                        : directItemRanks.get(item);
+                if (rank != null) ranks.put(item, rank);
+            }
+            return Map.copyOf(ranks);
+        }
+
+        private Map<String, Integer> freezeSourcePreferenceRanks(List<AcquisitionSource> sources) {
+            if (preferences.isEmpty()) return Map.of();
+            var ranks = new HashMap<String, Integer>();
+            Set<ItemId> path = new HashSet<>();
+            // Catalog source lists are source-ID sorted, making budget-limited derivation reproducible.
+            for (AcquisitionSource source : sources) {
+                if (!takeFrozenPreferenceEntry()) break;
+                path.clear();
+                path.add(source.output());
+                Integer rank = preferenceScorer.sourceRank(source, path, 0);
+                if (rank != null) ranks.put(source.sourceId(), rank);
+            }
+            return Map.copyOf(ranks);
+        }
+
+        /** Derives only finite, bounded hints from simple recipe inputs; it never proves reachability. */
+        private final class PreferenceScorer {
+            private final Map<ItemId, Integer> knownItemRanks = new HashMap<>();
+            private final Map<String, Integer> knownSourceRanks = new HashMap<>();
+            private int visits;
+
+            private Integer sourceRank(AcquisitionSource source, Set<ItemId> path, int depth) {
+                Integer declared = preferences.rankOf(source.sourceId());
+                if (preferences.isEmpty()) return null;
+                Integer cached = knownSourceRanks.get(source.sourceId());
+                if (cached != null) return minimum(declared, cached);
+
+                List<Ingredient> inputs;
+                if (source instanceof CraftingSource crafting) {
+                    inputs = crafting.slots().stream().map(RecipeSlot::ingredient).toList();
+                } else if (source instanceof SmeltingSource smelting) {
+                    inputs = List.of(smelting.input());
+                } else {
+                    return declared;
+                }
+                if (declared != null && declared == 0) return 0;
+                if (depth > MAX_DERIVATION_DEPTH || !visitDerivation()) return declared;
+
+                long ceiling = (long) PlanningPreferences.MAX_RANK * source.outputCount();
+                long cost = 0;
+                for (Ingredient input : inputs) {
+                    Integer inputRank = ingredientRank(input, path, depth + 1);
+                    if (inputRank == null) return declared;
+                    long inputCost = (long) input.count() * inputRank;
+                    if (inputCost >= ceiling - cost) {
+                        cost = ceiling;
+                        break;
+                    }
+                    cost += inputCost;
+                }
+                int result = (int) Math.min(PlanningPreferences.MAX_RANK,
+                        ceilDivLong(cost, source.outputCount()));
+                knownSourceRanks.put(source.sourceId(), result);
+                return minimum(declared, result);
+            }
+
+            private Integer itemRank(ItemId item, Set<ItemId> path, int depth) {
+                if (path.contains(item) || depth > MAX_DERIVATION_DEPTH) return null;
+                Integer cached = knownItemRanks.get(item);
+                if (cached != null) return cached;
+                Integer best = directItemRanks.get(item);
+                if (!catalog.hasRecipeSource(item)) return best;
+                if (best != null && best == 0) return best;
+                if (!visitDerivation()) return best;
+
+                path.add(item);
+                try {
+                    for (AcquisitionSource source : catalog.sourcesFor(item)) {
+                        if (!visitDerivation()) break;
+                        Integer rank = sourceRank(source, path, depth);
+                        best = minimum(best, rank);
+                    }
+                } finally {
+                    path.remove(item);
+                }
+                // Unknown results can depend on the active cycle path, so they are never cached.
+                if (best != null) knownItemRanks.put(item, best);
+                return best;
+            }
+
+            private Integer ingredientRank(Ingredient ingredient, Set<ItemId> path, int depth) {
+                Integer best = null;
+                for (ItemSelector selector : ingredient.alternatives()) {
+                    if (!visitDerivation()) break;
+                    for (ItemId item : catalog.expand(selector)) {
+                        if (!visitDerivation()) return best;
+                        Integer rank = itemRank(item, path, depth);
+                        best = minimum(best, rank);
+                    }
+                }
+                return best;
+            }
+
+            private boolean visitDerivation() {
+                if (visits >= MAX_DERIVATION_VISITS || clock.getAsLong() >= deadline) return false;
+                visits++;
+                return true;
+            }
+
+            private Integer minimum(Integer first, Integer second) {
+                if (first == null) return second;
+                if (second == null) return first;
+                return Math.min(first, second);
+            }
         }
 
         private List<State> satisfy(ItemId item, int count, boolean consume, State state, Set<ItemId> path, int depth, String purpose, int recipeSlot) {
@@ -151,15 +332,87 @@ public final class AcquisitionPlanner {
             return trim(results);
         }
 
-        private int stationBootstrapRank(AcquisitionSource source, State state) {
+        private int stationBootstrapRank(AcquisitionSource source, State state, ItemId producedItem,
+                                         Map<ItemId, Integer> missingStationRanks) {
             int rank = 0;
             for (Requirement requirement : source.requirements()) {
                 if (!(requirement instanceof StationRequirement station) || state.stations.contains(station.station())) continue;
                 int usable = state.inventory.getOrDefault(station.placementItem(), 0)
                         - state.protectedHeld.getOrDefault(station.placementItem(), 0);
-                rank = Math.max(rank, usable > 0 ? 1 : 2);
+                int stationRank;
+                if (usable > 0) {
+                    stationRank = 1;
+                } else {
+                    Integer cached = missingStationRanks.get(station.placementItem());
+                    if (cached != null) {
+                        stationRank = cached;
+                    } else if (missingStationRanks.size() >= MAX_STATION_PLACEMENT_ITEMS) {
+                        stationRank = 2;
+                    } else {
+                        stationRank = everyPlacementSourceNeeds(station.placementItem(), producedItem, state) ? 3 : 2;
+                        missingStationRanks.put(station.placementItem(), stationRank);
+                    }
+                }
+                rank = Math.max(rank, stationRank);
             }
             return rank;
+        }
+
+        private Map<String, Integer> freezeStationBootstrapRanks(List<AcquisitionSource> sources,
+                                                                  State state, ItemId producedItem,
+                                                                  Set<ItemId> path) {
+            var ranks = new HashMap<String, Integer>();
+            var missingStationRanks = new HashMap<ItemId, Integer>();
+            for (AcquisitionSource source : sources) {
+                if (clock.getAsLong() >= deadline) {
+                    setLimit(BlockedReason.Code.TIME_LIMIT, producedItem, path);
+                    return null;
+                }
+                int rank = stationBootstrapRank(source, state, producedItem, missingStationRanks);
+                if (rank > 0) ranks.put(source.sourceId(), rank);
+            }
+            if (clock.getAsLong() >= deadline) {
+                setLimit(BlockedReason.Code.TIME_LIMIT, producedItem, path);
+                return null;
+            }
+            return Map.copyOf(ranks);
+        }
+
+        private boolean everyPlacementSourceNeeds(ItemId placementItem, ItemId producedItem, State state) {
+            List<AcquisitionSource> sources = catalog.sourcesFor(placementItem);
+            if (sources.isEmpty() || sources.size() > 64) return false;
+            int available = state.spendableCount(producedItem);
+            for (AcquisitionSource source : sources) {
+                if (clock.getAsLong() >= deadline) return false;
+                if (directInputCount(source, producedItem) <= available) return false;
+            }
+            return true;
+        }
+
+        private long directInputCount(AcquisitionSource source, ItemId item) {
+            long required = 0;
+            if (source instanceof CraftingSource crafting) {
+                for (RecipeSlot slot : crafting.slots()) {
+                    if (onlyExactItem(slot.ingredient(), item)) required += slot.ingredient().count();
+                }
+            } else if (source instanceof SmeltingSource smelting) {
+                if (onlyExactItem(smelting.input(), item)) required += smelting.input().count();
+            } else {
+                return 0;
+            }
+            for (Requirement requirement : source.requirements()) {
+                if (requirement instanceof ItemRequirement itemRequirement
+                        && onlyExactItem(itemRequirement.ingredient(), item)) {
+                    required += itemRequirement.ingredient().count();
+                }
+            }
+            return required;
+        }
+
+        private boolean onlyExactItem(Ingredient ingredient, ItemId item) {
+            return ingredient.alternatives().size() == 1
+                    && ingredient.alternatives().get(0) instanceof ItemSelector.Exact exact
+                    && exact.item().equals(item);
         }
 
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth) {
@@ -169,11 +422,21 @@ public final class AcquisitionPlanner {
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth, boolean heldGatherOnly) {
             if (!visit(item, path, depth)) return List.of();
             List<AcquisitionSource> sources = catalog.sourcesFor(item);
-            if (firstFeasible) {
-                sources = sources.stream().sorted(Comparator
+            Map<String, Integer> sourcePreferenceRanks = freezeSourcePreferenceRanks(sources);
+            boolean orderSources = firstFeasible || !preferences.isEmpty();
+            Map<String, Integer> stationBootstrapRanks = orderSources
+                    ? freezeStationBootstrapRanks(sources, state, item, path) : Map.of();
+            if (stationBootstrapRanks == null) return List.of();
+            if (orderSources) {
+                Comparator<AcquisitionSource> sourceOrder = Comparator
                         .comparingInt((AcquisitionSource source) -> source instanceof GatherSource ? 0
                                 : source instanceof SmeltingSource ? 1 : source instanceof CraftingSource ? 2 : 3)
-                        .thenComparingInt(source -> stationBootstrapRank(source, state))
+                        .thenComparingInt(source -> stationBootstrapRanks.getOrDefault(source.sourceId(), 0));
+                if (!preferences.isEmpty()) {
+                    sourceOrder = sourceOrder.thenComparingInt(source ->
+                            sourcePreferenceRank(source, sourcePreferenceRanks));
+                }
+                sources = sources.stream().sorted(sourceOrder
                         .thenComparingLong(source -> source instanceof SmeltingSource cooking ? cooking.cookTicks() : 0L)
                         .thenComparing(AcquisitionSource::sourceId)).toList();
             }
@@ -227,6 +490,9 @@ public final class AcquisitionPlanner {
                     int outputCount = (int) outputLong;
                     State completed = candidate.state.copy();
                     completed.add(source.output(), outputCount, catalog.maximumDurability(source.output()));
+                    if (!preferences.isEmpty()) {
+                        completed.preferenceTrail.add(sourcePreferenceRank(source, sourcePreferenceRanks));
+                    }
                     PlanStep step = makeStep(source, operations, outputCount, candidate.selected);
                     completed.steps.add(step);
                     completed.operations += operations;
@@ -274,6 +540,11 @@ public final class AcquisitionPlanner {
                                                      Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             List<ItemId> alternatives = expanded(ingredient, path);
+            Map<ItemId, Integer> alternativePreferenceRanks = freezeItemPreferenceRanks(alternatives, path);
+            if (!preferences.isEmpty() && !alternatives.isEmpty() && clock.getAsLong() >= deadline) {
+                setLimit(BlockedReason.Code.TIME_LIMIT, alternatives.get(0), path);
+                return List.of();
+            }
             int requiredUses = total / ingredient.count();
             for (Prepared candidate : initial) {
                 // Allocate full ingredient-count chunks from held tag alternatives before sourcing more.
@@ -281,7 +552,9 @@ public final class AcquisitionPlanner {
                 int remainingUses = requiredUses;
                 var allocations = new LinkedHashMap<ItemId, Integer>();
                 List<ItemId> stocked = alternatives.stream().filter(item -> candidate.state.spendableCount(item) >= ingredientCount)
-                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.spendableCount(item)).reversed().thenComparing(Comparator.naturalOrder()))
+                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.spendableCount(item)).reversed()
+                                .thenComparingInt(item -> itemPreferenceRank(item, alternativePreferenceRanks))
+                                .thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 if (alternatives.size() > limits.maximumCandidatesPerBranch()) truncated = true;
                 for (ItemId item : stocked) {
@@ -312,7 +585,7 @@ public final class AcquisitionPlanner {
                         continue;
                     }
                     int remainingCount = remainingUses * ingredientCount;
-                    for (ItemId fallback : rankedAlternatives(ingredient, value.state, remainingUses * ingredientCount, true, path)) {
+                    for (ItemId fallback : rankedAlternatives(ingredient, value.state, remainingUses * ingredientCount, true, path, true)) {
                         if (!visit(fallback, path, depth + 1)) break;
                         for (State ready : satisfy(fallback, remainingCount, true, value.state, path, depth + 1, purpose, -1)) {
                             var combined = new LinkedHashMap<>(allocations);
@@ -423,7 +696,7 @@ public final class AcquisitionPlanner {
                                                 String purpose, int recipeSlot, Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : initial) {
-                for (ItemId item : rankedAlternatives(ingredient, candidate.state, amount, consume, path)) {
+                for (ItemId item : rankedAlternatives(ingredient, candidate.state, amount, consume, path, true)) {
                     if (!visit(item, path, depth + 1)) break;
                     for (State ready : satisfy(item, amount, consume, candidate.state, path, depth + 1, purpose, recipeSlot)) {
                         var selected = new ArrayList<>(candidate.selected);
@@ -447,7 +720,7 @@ public final class AcquisitionPlanner {
                                 .thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 List<ItemId> choices = held.isEmpty()
-                        ? rankedAlternatives(requirement.tools(), candidate.state, 1, false, path)
+                        ? rankedAlternatives(requirement.tools(), candidate.state, 1, false, path, false)
                         : held;
                 if (firstFeasible && held.isEmpty()) {
                     // Adapters/providers declare cheap bootstrap tools before advanced tiers.
@@ -591,14 +864,24 @@ public final class AcquisitionPlanner {
             return List.copyOf(items);
         }
 
-        private List<ItemId> rankedAlternatives(Ingredient ingredient, State state, int amount, boolean consume, Set<ItemId> path) {
+        private List<ItemId> rankedAlternatives(Ingredient ingredient, State state, int amount, boolean consume,
+                                                Set<ItemId> path, boolean usePreferences) {
             List<ItemId> all = expanded(ingredient, path);
+            Map<ItemId, Integer> itemPreferenceRanks = usePreferences
+                    ? freezeItemPreferenceRanks(all, path) : Map.of();
+            if (usePreferences && !preferences.isEmpty() && !all.isEmpty() && clock.getAsLong() >= deadline) {
+                setLimit(BlockedReason.Code.TIME_LIMIT, all.get(0), path);
+                return List.of();
+            }
             Comparator<ItemId> order = Comparator
                     .comparingInt((ItemId item) -> availableCount(state, item, consume) >= amount ? 0
                             : availableCount(state, item, consume) > 0 && !catalog.sourcesFor(item).isEmpty() ? 1
                             : !catalog.sourcesFor(item).isEmpty() ? 2 : 3)
-                    .thenComparing(Comparator.comparingInt((ItemId item) -> availableCount(state, item, consume)).reversed())
-                    .thenComparing(Comparator.naturalOrder());
+                    .thenComparing(Comparator.comparingInt((ItemId item) -> availableCount(state, item, consume)).reversed());
+            if (usePreferences && !preferences.isEmpty()) {
+                order = order.thenComparingInt(item -> itemPreferenceRank(item, itemPreferenceRanks));
+            }
+            order = order.thenComparing(Comparator.naturalOrder());
             List<ItemId> ranked = all.stream().sorted(order).limit(limits.maximumCandidatesPerBranch()).toList();
             if (all.size() > ranked.size()) truncated = true;
             return ranked;
@@ -705,13 +988,34 @@ public final class AcquisitionPlanner {
         private List<State> trim(List<State> states) {
             if (states.size() <= 1) return states;
             if (states.size() > limits.maximumCandidatesPerBranch()) truncated = true;
-            return states.stream().sorted(STATE_ORDER).limit(limits.maximumCandidatesPerBranch()).toList();
+            return states.stream().sorted(stateOrder()).limit(limits.maximumCandidatesPerBranch()).toList();
         }
 
         private List<Prepared> trimPrepared(List<Prepared> states) {
             if (states.size() <= 1) return states;
             if (states.size() > limits.maximumCandidatesPerBranch()) truncated = true;
-            return states.stream().sorted(Comparator.comparing(Prepared::state, STATE_ORDER)).limit(limits.maximumCandidatesPerBranch()).toList();
+            return states.stream().sorted(Comparator.comparing(Prepared::state, stateOrder()))
+                    .limit(limits.maximumCandidatesPerBranch()).toList();
+        }
+
+        private Comparator<State> stateOrder() {
+            if (preferences.isEmpty()) return STATE_ORDER;
+            return Comparator.comparingLong((State state) -> state.gatherOperations)
+                    .thenComparingLong(state -> state.operations)
+                    .thenComparingInt(state -> state.steps.size())
+                    .thenComparing(Search::comparePreferenceTrail)
+                    .thenComparing(State::tieKey);
+        }
+
+        private static int comparePreferenceTrail(State left, State right) {
+            int shared = Math.min(left.preferenceTrail.size(), right.preferenceTrail.size());
+            // Source choices nearer the requested output are appended last and take priority.
+            for (int offset = 1; offset <= shared; offset++) {
+                int comparison = Integer.compare(left.preferenceTrail.get(left.preferenceTrail.size() - offset),
+                        right.preferenceTrail.get(right.preferenceTrail.size() - offset));
+                if (comparison != 0) return comparison;
+            }
+            return Integer.compare(left.preferenceTrail.size(), right.preferenceTrail.size());
         }
     }
 
@@ -750,6 +1054,7 @@ public final class AcquisitionPlanner {
         private final Set<StationId> stations;
         private final Map<ItemId, ToolLots> durabilityLots;
         private final List<PlanStep> steps;
+        private final List<Integer> preferenceTrail;
         private long operations;
         private long gatherOperations;
 
@@ -760,6 +1065,7 @@ public final class AcquisitionPlanner {
             durabilityLots = new HashMap<>();
             snapshot.durabilityLots().forEach((item, lots) -> durabilityLots.put(item, ToolLots.from(lots)));
             steps = new ArrayList<>();
+            preferenceTrail = new ArrayList<>();
         }
 
         private State(State source) {
@@ -769,6 +1075,7 @@ public final class AcquisitionPlanner {
             durabilityLots = new HashMap<>();
             source.durabilityLots.forEach((item, lots) -> durabilityLots.put(item, lots.copy()));
             steps = new ArrayList<>(source.steps);
+            preferenceTrail = new ArrayList<>(source.preferenceTrail);
             operations = source.operations;
             gatherOperations = source.gatherOperations;
         }
