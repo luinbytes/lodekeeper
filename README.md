@@ -31,7 +31,7 @@ You will be able to inspect a plan, queue goals, pause or stop. Unknown recipes 
 
 ### Installation and compatibility
 
-Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37304192574). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
+Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37309240666). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
 2. Download the matching `lodekeeper-<version>-development` artifact, unzip it, and place its jar plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
