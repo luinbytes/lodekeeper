@@ -49,7 +49,7 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Experimental jars are available in [Development Preview 1](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.1), with all 24 exact-version builds inspected. Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
+Experimental jars are available in [Development Preview 1](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.1), with all 24 exact-version builds inspected. Single-command diamond-boots checks currently cover **1.21.1** and **26.3**. The [published 26.3 jar](docs/evidence/26.3-preview-jar/README.md) also passed nine controlled gameplay checks in an isolated development harness.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
 2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-dev.jar` from the release assets and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
