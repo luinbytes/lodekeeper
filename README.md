@@ -21,13 +21,15 @@
 !lk stop
 ```
 
+Matching recipes can use a smoker or blast furnace. Controlled 72-item batches passed on [1.21.1](docs/evidence/1.21.1-smoker/run.json) and [26.3](docs/evidence/26.3-blast-furnace/run.json); see the [current cooking limits](docs/PROCESSING-STATIONS.md).
+
 For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
 `wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.
 
 ### From an empty inventory to a finished goal
 
-The planned flow works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables or furnaces, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
+The planned flow works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables and cooking stations, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
 
 Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
 
@@ -47,7 +49,7 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37318852109). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
+Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37328119353). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
 2. Download the matching `lodekeeper-<version>-development` artifact, unzip it, and place its jar plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.

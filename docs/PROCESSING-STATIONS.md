@@ -1,6 +1,6 @@
 # Cooking stations
 
-Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. The controlled [26.3 blast-furnace batch](evidence/26.3-blast-furnace/run.json) passed; smoker execution and other exact-version runtime checks remain pending. Compilation and source review do not establish gameplay support. Campfires still need a separate executor.
+Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. Controlled [1.21.1 smoker](evidence/1.21.1-smoker/run.json) and [26.3 blast-furnace](evidence/26.3-blast-furnace/run.json) batches passed; other exact-version runtime checks remain pending. Compilation and source review do not establish gameplay support. Campfires still need a separate executor.
 
 ## Station choice and ownership
 
@@ -40,3 +40,5 @@ Focused Java checks cover planning quantities and fuel arithmetic. Exact profile
 Interruption recovery, outsider edits, full-inventory recovery, natural-world acquisition and remote-server behavior remain separate acceptance scenarios. Supporting the shared menu superclass alone is insufficient evidence of a working station.
 
 The [26.3 blast-furnace run](evidence/26.3-blast-furnace/run.json) passed the 72-output batch with exactly 56 raw iron left and nine coal consumed, in 361,958 ms from the command. Its [source and artifact record](evidence/26.3-blast-furnace/artifact.json) identifies the frozen development client.
+
+The [1.21.1 smoker run](evidence/1.21.1-smoker/run.json) passed the same batch contract with exactly 56 raw porkchops left and nine coal consumed, in 361,457 ms from the command. The [24-version artifact inspection](evidence/builds/53c48a6.json) records exact builds and packaging separately from those game scenarios.

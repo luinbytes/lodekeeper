@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-05T14-59-10-463196Z-eec72184",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"cooking_smoker",
+  "elapsedMillis":378581,
+  "clientTicks":7462,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "serverSmokerOpened":true,
+  "serverSmokerOpenings":1,
+  "serverBlastFurnaceOpened":false,
+  "serverBlastFurnaceOpenings":0,
+  "cookingStationProperty":"smoker",
+  "cookingFixtureProvidedStock":{"minecraft:coal":9,"minecraft:porkchop":128,"minecraft:smoker":1},
+  "cases":[
+    {"name":"native_smoker_72","item":"minecraft:cooked_porkchop","expected":72,"serverObserved":72,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":7229,"worldTicks":7229,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached 72 minecraft:cooked_porkchop with 56 raw inputs and no coal in inventory after opening the native smoker menu","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-05T14-59-10-463196Z-eec72184-native_smoker_72.png","elapsedMillisFromCommand":361457,"completionClientTick":7442,"completionWorldTick":7321,"completionHealth":20.0,"fullServerInventory":{"minecraft:cooked_porkchop":72,"minecraft:porkchop":56},"requiresEmptyAtStart":false,"cookingStation":"smoker","nativeCookingRecipeType":"smoking","initialResources":{"minecraft:coal":9,"minecraft:porkchop":128,"minecraft:smoker":1},"serverCorrectStationMenuOpenedDuringCase":true,"initialRawInputCount":128,"finalRawInputCount":56,"initialCoalCount":9,"finalCoalCount":0,"initialStationItemCount":1,"finalStationItemCount":0}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "cookingStationFixture":true,
+  "cookingRecipeType":"smoking",
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}
