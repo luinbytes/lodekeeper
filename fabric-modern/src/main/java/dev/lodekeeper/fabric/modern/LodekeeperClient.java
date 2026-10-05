@@ -18,10 +18,13 @@ import com.mojang.blaze3d.platform.InputConstants;
 public final class LodekeeperClient implements ClientModInitializer {
     static AutomationEngine engine;
     private final CommandParser parser = new CommandParser();
+    private String[] panelLines = new String[0];
+    private int panelTicks;
 
     @Override public void onInitializeClient() {
         Minecraft client = Minecraft.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());
+        WorldVisualization.register(client, engine);
         KeyMapping stop = KeyMappingHelper.registerKeyMapping(GameApi.keyMapping(
                 "key.lodekeeper.stop", InputConstants.KEY_K, KeyMapping.Category.MISC));
 
@@ -34,14 +37,40 @@ public final class LodekeeperClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             while (stop.consumeClick()) engine.stop();
             engine.tick();
+            updatePanel();
         });
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x(), chunk.getPos().z()));
         ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x(), chunk.getPos().z()));
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath("lodekeeper", "status"), (graphics, delta) -> {
-                    if (client.player == null || engine.status().startsWith("idle")) return;
-                    graphics.text(client.font, "Lodekeeper · " + engine.status(), 8, 8, 0xabf49b);
+                    if (client.player == null || WorldVisualizationHudApi.isHidden(client) || !engine.config.showHud
+                            || !engine.visualizationActive() || panelLines.length == 0) return;
+                    int width = Math.max(1, Math.min(304, graphics.guiWidth() - 16));
+                    graphics.fill(8, 8, 8 + width, 16 + panelLines.length * 12, 0xc918242b);
+                    graphics.fill(8, 8, 10, 16 + panelLines.length * 12,
+                            engine.visualizationPaused() ? 0xffffc45e : 0xff55dce8);
+                    for (int i = 0; i < panelLines.length; i++) {
+                        String line = client.font.plainSubstrByWidth(panelLines[i], Math.max(1, width - 16));
+                        graphics.text(client.font, line, 16, 13 + i * 12,
+                                i == 0 ? 0xffabf49b : i == 3 ? 0xffa8c2df : 0xffedf4f6);
+                    }
                 });
+    }
+
+    private void updatePanel() {
+        if (!engine.config.showHud || !engine.visualizationActive()) {
+            panelLines = new String[0]; panelTicks = 0; return;
+        }
+        if (panelTicks++ % 4 != 0 && panelLines.length != 0) return;
+        var route = engine.visualizationNavigation(false);
+        String metrics = route.searching()
+                ? "Searching · " + route.expanded() + " checked · " + route.open() + " open"
+                : route.path() == null ? "K to stop · " + engine.config.prefix.trim() + " status for details"
+                : "Route " + route.nextStep() + "/" + Math.max(1, route.path().length() - 1)
+                    + " · " + route.searchNanos() / 1_000_000L + " ms search";
+        if (route.retries() > 0) metrics += " · retry " + route.retries();
+        panelLines = new String[]{"LODEKEEPER · " + (engine.visualizationPaused() ? "PAUSED" : "WORKING"),
+                engine.visualizationGoal(), engine.visualizationDetail(), metrics};
     }
 
     private void command(String body) {
@@ -87,12 +116,13 @@ public final class LodekeeperClient implements ClientModInitializer {
             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
                     ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", optimizeWoodTools=" + config.optimizeWoodTools + ", allowExploration=" + config.allowExploration
-                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance);
+                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance
+                    + ", showPath=" + config.showPath + ", showSearch=" + config.showSearch + ", showHud=" + config.showHud);
             return;
         }
         String key = command.key(), value = command.value();
         if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance");
+            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance, showPath, showSearch, showHud");
             return;
         }
         switch (key) {
@@ -112,6 +142,9 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
             case "autoEat" -> config.autoEat = bool(value);
             case "optimizeWoodTools" -> config.optimizeWoodTools = bool(value);
+            case "showPath" -> config.showPath = bool(value);
+            case "showSearch" -> config.showSearch = bool(value);
+            case "showHud" -> config.showHud = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save();

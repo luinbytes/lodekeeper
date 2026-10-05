@@ -10,6 +10,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.ChunkStatus;
 
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ final class NearbyResources {
     private static final int MAX_INDEXED_BLOCKS = 8192;
     private static final int MAX_SOURCES_PER_BLOCK = 32;
     private static final int MAX_OBSERVED_SOURCES = 256;
+    private static final int MAX_DISCOVERED_SOURCE_OBSERVATIONS = 64;
     private static final int[] OFFSETS = java.util.stream.IntStream.range(0, WIDTH * WIDTH * WIDTH).boxed()
             .sorted(Comparator.comparingInt(NearbyResources::distance).thenComparingInt(Integer::intValue))
             .mapToInt(Integer::intValue).toArray();
@@ -30,6 +32,7 @@ final class NearbyResources {
     private final MinecraftClient client;
     private final Map<Block, Set<String>> sourcesByBlock = new HashMap<>();
     private final Map<String, BlockPos> observations = new HashMap<>();
+    private final Map<String, DiscoveredObservation> discoveredObservations = new LinkedHashMap<>();
     private final Map<String, Integer> fallbackEffort = new HashMap<>();
     private BlockPos origin;
     private long generation = -1;
@@ -38,6 +41,8 @@ final class NearbyResources {
     private GatherSource indexingGather;
     private boolean indexComplete;
     private final Map<Block, Float> hardnessCache = new HashMap<>();
+
+    private record DiscoveredObservation(BlockPos position, Block block) {}
 
     NearbyResources(MinecraftClient client) { this.client = client; }
 
@@ -52,6 +57,7 @@ final class NearbyResources {
         sourcesByBlock.clear();
         fallbackEffort.clear();
         observations.clear();
+        discoveredObservations.clear();
         version++;
     }
 
@@ -155,12 +161,54 @@ final class NearbyResources {
             }
             ranks.put(entry.getKey(), 1 + (int) position.getSquaredDistance(origin));
         }
+        BlockPos playerPosition = client.player == null ? origin : client.player.getBlockPos();
+        var discovered = discoveredObservations.entrySet().iterator();
+        while (discovered.hasNext()) {
+            var entry = discovered.next();
+            DiscoveredObservation observation = entry.getValue();
+            BlockPos position = observation.position();
+            if (!chunkPresent(position) || client.world.getBlockState(position).getBlock() != observation.block()) {
+                discovered.remove();
+                invalidated = true;
+                continue;
+            }
+            long distance = (long) Math.min(Integer.MAX_VALUE - 1L, position.getSquaredDistance(playerPosition));
+            ranks.merge(entry.getKey(), 1 + (int) distance, Math::min);
+        }
         if (invalidated) {
             // A mined nearest block must not hide farther live candidates in the same window.
             cursor = 0;
             version++;
         }
         return new PlanningPreferences(ranks);
+    }
+
+    void observeDiscoveredSource(String sourceId, BlockPos position, Block block) {
+        if (client.world == null || client.player == null || sourceId == null || position == null || block == null
+                || !chunkPresent(position) || client.world.getBlockState(position).getBlock() != block) return;
+        BlockPos immutable = position.toImmutable();
+        DiscoveredObservation previous = discoveredObservations.get(sourceId);
+        if (previous != null && chunkPresent(previous.position())
+                && client.world.getBlockState(previous.position()).getBlock() == previous.block()
+                && previous.position().getSquaredDistance(client.player.getBlockPos())
+                <= immutable.getSquaredDistance(client.player.getBlockPos())) return;
+        if (previous == null && discoveredObservations.size() >= MAX_DISCOVERED_SOURCE_OBSERVATIONS) {
+            String farthestSource = null;
+            long farthestDistance = -1;
+            BlockPos playerPosition = client.player.getBlockPos();
+            for (var entry : discoveredObservations.entrySet()) {
+                long distance = (long) entry.getValue().position().getSquaredDistance(playerPosition);
+                if (distance > farthestDistance) {
+                    farthestDistance = distance;
+                    farthestSource = entry.getKey();
+                }
+            }
+            long newDistance = (long) immutable.getSquaredDistance(playerPosition);
+            if (farthestSource == null || newDistance >= farthestDistance) return;
+            discoveredObservations.remove(farthestSource);
+        }
+        discoveredObservations.put(sourceId, new DiscoveredObservation(immutable, block));
+        version++;
     }
 
     private boolean chunkPresent(BlockPos position) {

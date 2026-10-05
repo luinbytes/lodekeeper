@@ -132,6 +132,15 @@ final class AutomationEngine {
     private long pendingPlanGeneration;
     private BlockSearch scan;
     private BlockSearch logScan;
+    private BlockSearch ingredientWoodScan;
+    private Request ingredientWoodRequest;
+    private long ingredientWoodGeneration = -1;
+    private BlockPos ingredientWoodOrigin;
+    private int ingredientWoodRejectedCount;
+    private final Map<Block, List<GatherSource>> ingredientWoodSources = new LinkedHashMap<>();
+    private final Set<String> ingredientWoodSourceIds = new HashSet<>();
+    private final Set<BlockPos> ingredientWoodExamined = new HashSet<>();
+    private final Map<String, BlockPos> ingredientWoodPublished = new HashMap<>();
     private long logScanGeneration;
     private final Map<Block,GatherSource> logSources = new HashMap<>();
     private final Deque<ItemId> logCandidates = new ArrayDeque<>();
@@ -1009,6 +1018,129 @@ final class AutomationEngine {
         return empty;
     }
 
+    private boolean prepareIngredientWood() {
+        if (active == null || active.anyLogs || step == null || step.output() == null
+                || active.item.equals(step.output())
+                || !catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) return false;
+        List<BlockPos> known = discoveredSources.get(step.sourceId());
+        if (known != null && known.stream().anyMatch(pos -> !rejectedResources.contains(pos)
+                && hasLoadedChunk(pos) && step.candidateBlocks().stream().anyMatch(id ->
+                    BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString())) == client.level.getBlockState(pos).getBlock()))) return false;
+        boolean missingPublishedHint = ingredientWoodPublished.remove(step.sourceId()) != null;
+        if (missingPublishedHint) ingredientWoodExamined.clear();
+        BlockPos feet = client.player.blockPosition();
+        if (ingredientWoodRequest != active || ingredientWoodGeneration != catalog.generation()
+                || ingredientWoodOrigin == null || feet.distSqr(ingredientWoodOrigin) > 256
+                || ingredientWoodRejectedCount != rejectedResources.size()) {
+            ingredientWoodRequest = active;
+            ingredientWoodGeneration = catalog.generation();
+            ingredientWoodOrigin = feet.immutable();
+            ingredientWoodRejectedCount = rejectedResources.size();
+            ingredientWoodScan = null;
+            ingredientWoodSources.clear(); ingredientWoodSourceIds.clear();
+            ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
+            Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()));
+            int captured = 0;
+            for (AcquisitionSource source : catalog.sources) {
+                if (!(source instanceof GatherSource gather) || !logs.contains(source.output())
+                        || unavailableSources.contains(source.sourceId())) continue;
+                if (++captured > 512) break;
+                for (BlockId id : gather.blocks()) {
+                    Block block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString()));
+                    if (block == Blocks.AIR) continue;
+                    if (!ingredientWoodSources.containsKey(block) && ingredientWoodSources.size() >= 512) continue;
+                    List<GatherSource> sources = ingredientWoodSources.computeIfAbsent(block, ignored -> new ArrayList<>());
+                    if (sources.size() < 32) {
+                        sources.add(gather);
+                        ingredientWoodSourceIds.add(gather.sourceId());
+                    }
+                }
+            }
+            if (!ingredientWoodSources.isEmpty()) ingredientWoodScan = new BlockSearch(client,
+                    ingredientWoodSources.keySet(), config.searchRadius, rejectedResources, true);
+        }
+        if (ingredientWoodScan == null || !ingredientWoodSourceIds.contains(step.sourceId())) return false;
+        if (ingredientWoodScan.complete() && missingPublishedHint) {
+            ingredientWoodScan = new BlockSearch(client, ingredientWoodSources.keySet(), config.searchRadius, rejectedResources, true);
+            ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
+        }
+        long before = ingredientWoodScan.progressToken();
+        boolean complete = ingredientWoodScan.advance(config.scanBlocksPerTick, 1_000_000L);
+        if (before != ingredientWoodScan.progressToken()) actionTicks = 0;
+        status = "finding nearby recipe wood · " + ingredientWoodScan.progressDescription();
+        boolean foundNewSource = false;
+        Set<BlockPos> positions = new LinkedHashSet<>(ingredientWoodScan.results());
+        positions.addAll(ingredientWoodScan.representativeResults());
+        ingredientWoodExamined.retainAll(positions);
+        int candidatesLeft = 8;
+        for (BlockPos pos : positions) {
+            if (candidatesLeft == 0) break;
+            if (!ingredientWoodExamined.add(pos)) continue;
+            candidatesLeft--;
+            if (!hasLoadedChunk(pos)) continue;
+            Block block = rejectedResources.contains(pos) ? null : client.level.getBlockState(pos).getBlock();
+            List<GatherSource> sources = block == null ? null : ingredientWoodSources.get(block);
+            Set<String> liveSourceIds = new HashSet<>();
+            if (sources != null) for (GatherSource source : sources) liveSourceIds.add(source.sourceId());
+            var published = ingredientWoodPublished.entrySet().iterator();
+            while (published.hasNext()) {
+                var entry = published.next();
+                if (!pos.equals(entry.getValue()) || liveSourceIds.contains(entry.getKey())) continue;
+                published.remove();
+                List<BlockPos> cached = discoveredSources.get(entry.getKey());
+                if (cached != null) {
+                    cached.remove(pos);
+                    if (cached.isEmpty()) discoveredSources.remove(entry.getKey());
+                }
+            }
+            if (sources == null) continue;
+            Map<BlockPos, Block> checkedHints = new HashMap<>();
+            for (GatherSource source : sources) {
+                BlockPos previous = ingredientWoodPublished.get(source.sourceId());
+                if (previous != null) {
+                    if (previous.equals(pos)) continue;
+                    Block previousBlock = null;
+                    if (hasLoadedChunk(previous) && !rejectedResources.contains(previous)) {
+                        previousBlock = checkedHints.computeIfAbsent(previous,
+                                position -> client.level.getBlockState(position).getBlock());
+                    }
+                    List<GatherSource> previousSources = ingredientWoodSources.get(previousBlock);
+                    if (previousSources != null && previousSources.stream()
+                            .anyMatch(candidate -> candidate.sourceId().equals(source.sourceId()))) continue;
+                    ingredientWoodPublished.remove(source.sourceId());
+                    List<BlockPos> cached = discoveredSources.get(source.sourceId());
+                    if (cached != null) {
+                        cached.remove(previous);
+                        if (cached.isEmpty()) discoveredSources.remove(source.sourceId());
+                    }
+                }
+                if (!discoveredSources.containsKey(source.sourceId()) && discoveredSources.size() >= 64)
+                    discoveredSources.remove(discoveredSources.keySet().iterator().next());
+                List<BlockPos> cached = discoveredSources.computeIfAbsent(source.sourceId(), ignored -> new ArrayList<>());
+                if (cached.size() < 512 && !cached.contains(pos)) cached.add(pos.immutable());
+                nearbyResources.observeDiscoveredSource(source.sourceId(), pos, block);
+                ingredientWoodPublished.put(source.sourceId(), pos.immutable());
+                foundNewSource = true;
+            }
+            if (foundNewSource) break;
+        }
+        if (complete) {
+            Set<GatherSource> sources = new HashSet<>();
+            ingredientWoodSources.values().forEach(sources::addAll);
+            for (GatherSource source : sources) {
+                boolean fullyCovered = source.blocks().stream().allMatch(id ->
+                        ingredientWoodSources.containsKey(BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString()))));
+                boolean present = source.blocks().stream().anyMatch(id ->
+                        ingredientWoodScan.found(BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString()))));
+                if (fullyCovered && !present) unavailableSources.add(source.sourceId());
+            }
+        }
+        if (foundNewSource || unavailableSources.contains(step.sourceId())) {
+            resetAction(); requestPlan(); return true;
+        }
+        return !complete;
+    }
+
     private ItemId chooseLogs() {
         if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
         if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
@@ -1341,12 +1473,7 @@ final class AutomationEngine {
         if (!config.allowBreaking) {
             throw new IllegalStateException("Gathering requires breaking blocks, but allowBreaking=false; enable it with config allowBreaking true");
         }
-        if (target == null && scan == null && !discoveredSources.containsKey(step.sourceId())
-                && catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) {
-            chooseLogs();
-            if (logScan != null) return;
-            if (unavailableSources.contains(step.sourceId())) { resetAction(); requestPlan(); return; }
-        }
+        if (target == null && scan == null && prepareIngredientWood()) return;
         if (target == null) {
             List<BlockPos> known = discoveredSources.get(step.sourceId());
             if (known != null) {
@@ -1669,6 +1796,9 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        ingredientWoodScan = null; ingredientWoodRequest = null; ingredientWoodOrigin = null;
+        ingredientWoodSources.clear(); ingredientWoodSourceIds.clear();
+        ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
         if (pendingPlan != null) pendingPlan.cancel(false);
         pendingPlan = null;
         maintained.unmaintainAll();
@@ -1692,6 +1822,19 @@ final class AutomationEngine {
         foregroundYieldPending = false;
         message("Foreground queue cleared; maintained targets remain active");
     }
+    boolean visualizationActive() {
+        return client.player != null && client.level != null && client.level == world && active != null;
+    }
+    boolean visualizationPaused() { return paused || config.pauseOnScreen && GameApi.screen(client) != null
+                && crafting == null && stonecutting == null && smelting == null && !openingStation; }
+    String visualizationGoal() { return active == null ? "Idle" : active.name + " · " + goalCount() + "/" + active.count; }
+    String visualizationDetail() { return visualizationPaused() && !paused ? "Waiting for the screen to close" : status; }
+    BlockPos visualizationTarget() { return visualizationActive() && !visualizationPaused() ? target : null; }
+    dev.lodekeeper.nav.NavigationSnapshot visualizationNavigation(boolean includeNodes) {
+        return visualizationActive() && !visualizationPaused() && (moving || explorationMoving)
+                ? movement.visualization(includeNodes) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
+    }
+
     String status() {
         String waiting = foregroundYieldPending && active != null && active.maintained()
                 ? " · foreground waiting for a safe station boundary" : "";

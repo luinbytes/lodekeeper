@@ -42,6 +42,10 @@ final class MovementController {
     private double edgeStartX, edgeStartY, edgeStartZ;
     private double lastDistance = Double.POSITIVE_INFINITY;
     private int replans, settlingTicks;
+    private long searchNanos;
+    private int searchTicks;
+    private int nextPartialCheckTick;
+    private boolean budgetedSegment;
     private int jumpEdgeIndex = -1;
     private boolean jumpWasAirborne;
     private boolean explorationRoute;
@@ -234,6 +238,7 @@ final class MovementController {
     }
 
     private void search() {
+        searchNanos = 0; searchTicks = 0; nextPartialCheckTick = 0; budgetedSegment = false;
         clearPendingWorldAction();
         terrain.beginSearch();
         BlockPos start = client.player.getBlockPos();
@@ -294,7 +299,16 @@ final class MovementController {
             return false;
         }
         if (path == null) {
+            long searchStarted = System.nanoTime();
             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
+            searchNanos += Math.max(0L, System.nanoTime() - searchStarted);
+            searchTicks++;
+            if (status == NavStatus.IN_PROGRESS && searchTicks >= nextPartialCheckTick
+                    && (searchTicks >= 20 || searchNanos >= 50_000_000L)) {
+                nextPartialCheckTick = searchTicks + 10;
+                status = planner.finishPartial(2);
+                budgetedSegment = status == NavStatus.PARTIAL_LIMIT;
+            }
             if (status == NavStatus.IN_PROGRESS) return false;
             if (status == NavStatus.STALE) { retry("Terrain changed during search"); return false; }
             if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
@@ -303,11 +317,14 @@ final class MovementController {
             validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
             if (path == null || path.length() < 2) {
                 if (goalMatchesPlayer()) return finishArrival();
-                throw new NavigationFailure("No useful route in loaded terrain");
+                throw new NavigationFailure(budgetedSegment
+                        ? "Route search budget reached without a safe forward segment after " + planner.getExpandedNodes() + " expansions"
+                        : "No useful route in loaded terrain");
             }
         }
         if (pathIndex == path.length()) {
             if (goalMatchesPlayer()) { input.idle(); return finishArrival(); }
+            if (budgetedSegment) { prepareRoute(); return false; }
             retry("Route segment ended before goal"); return false;
         }
         Path.Step next = path.step(pathIndex);
@@ -507,12 +524,29 @@ final class MovementController {
     private void retry(String reason) {
         if (replans == 0 || replans == 8) System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
             "Navigation retry " + (replans + 1) + ": " + reason + " at "
-                + (client.player == null ? "unknown position" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ()));
+                + (client.player == null ? "unknown position" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ())
+                + retryStanceDetail());
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
         if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
         prepareRoute();
     }
+    private String retryStanceDetail() {
+        if (client.player == null) return "";
+        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
+        if (feetY16 == GameTerrain.INVALID_FEET_Y16) return " unquantized feet";
+        terrain.probeCurrentStance(client.player.getX(), feetY16, client.player.getZ(), sourceProbe);
+        String detail = " onGround=" + client.player.isOnGround()
+                + " live=" + sourceProbe.loaded + "/" + sourceProbe.bodyClear + "/" + sourceProbe.hazard
+                + "/" + sourceProbe.breakCount + "/" + sourceProbe.fullSupport + "/" + sourceProbe.surfaceSupport;
+        if (path != null && pathIndex > 0 && pathIndex < path.length()) {
+            Path.Step source = path.step(pathIndex - 1), next = path.step(pathIndex);
+            detail += " edge=" + source.x + "," + source.feetY() + "," + source.z
+                    + "->" + next.x + "," + next.feetY() + "," + next.z + ":" + next.movement;
+        }
+        return detail;
+    }
+
     void stop() {
         explorationRoute = false; settlingTicks = 0; jumpEdgeIndex = -1; jumpWasAirborne = false;
         surfaceRecovery.stop();
@@ -520,6 +554,11 @@ final class MovementController {
         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
+    }
+
+    NavigationSnapshot visualization(boolean includeNodes) {
+        return planner == null ? NavigationSnapshot.EMPTY
+                : planner.snapshot(pathIndex, searchNanos, searchTicks, replans, includeNodes);
     }
 
     String status() { return surfaceRecovery.active() ? "recovering from fractional surface"

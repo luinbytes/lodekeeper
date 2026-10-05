@@ -1,6 +1,14 @@
 plugins { id 'fabric-loom' }
 base { archivesName = "lodekeeper-${rootProject.minecraft_version}" }
-sourceSets.main.java.srcDir 'src/legacy/java'
+def generatedSharedSources = layout.buildDirectory.dir('generated/shared-main-java')
+def copySharedSources = tasks.register('copySharedSources', Sync) {
+    from(rootProject.file('fabric/src/main/java')) {
+        exclude 'dev/lodekeeper/fabric/WorldVisualizationRenderApi.java'
+    }
+    into generatedSharedSources
+}
+sourceSets.main.java.srcDirs = [generatedSharedSources, 'src/legacy/java', 'src/legacy-render/java']
+tasks.named('compileJava').configure { dependsOn copySharedSources }
 dependencies {
     minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
     mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"

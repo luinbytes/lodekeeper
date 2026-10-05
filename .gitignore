@@ -2,6 +2,8 @@
 **/build/
 **/run/
 **/run-verification/
+**/run-visual-*/
+**/verification-launch/
 .tools/
 .DS_Store
 *.log

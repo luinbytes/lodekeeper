@@ -29,6 +29,9 @@ public final class LodekeeperConfig {
     public boolean pauseOnScreen = true;
     public boolean autoEat = true;
     public boolean optimizeWoodTools = false;
+    public boolean showPath = true;
+    public boolean showSearch = false;
+    public boolean showHud = true;
 
     public static LodekeeperConfig load() {
         LodekeeperConfig config = new LodekeeperConfig();

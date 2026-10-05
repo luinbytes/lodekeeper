@@ -18,9 +18,12 @@ import org.lwjgl.glfw.GLFW;
 public final class LodekeeperClient implements ClientModInitializer {
     static AutomationEngine engine;
     private final CommandParser parser = new CommandParser();
+    private String[] panelLines = new String[0];
+    private int panelTicks;
     @Override public void onInitializeClient() {
         MinecraftClient client = MinecraftClient.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());
+        WorldVisualization.register(client, engine);
         KeyBinding stop = KeyBindingHelper.registerKeyBinding(ClientAccess.stopKey());
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             String body = CommandParser.clientCommandBody(message, engine.config.prefix);
@@ -31,13 +34,22 @@ public final class LodekeeperClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             while (stop.wasPressed()) engine.stop();
             engine.tick();
+            updatePanel();
         });
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x, chunk.getPos().z));
         ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x, chunk.getPos().z));
         HudRenderCallback.EVENT.register((context, tickDelta) -> {
-            if (client.player == null || client.options.hudHidden || engine.status().startsWith("idle")) return;
-            String status = "Lodekeeper · " + engine.status();
-            context.drawTextWithShadow(client.textRenderer, status, 8, 8, 0xabf49b);
+            if (client.player == null || client.options.hudHidden || !engine.config.showHud
+                    || !engine.visualizationActive() || panelLines.length == 0) return;
+            int width = Math.max(1, Math.min(304, client.getWindow().getScaledWidth() - 16));
+            context.fill(8, 8, 8 + width, 16 + panelLines.length * 12, 0xc918242b);
+            context.fill(8, 8, 10, 16 + panelLines.length * 12,
+                    engine.visualizationPaused() ? 0xffffc45e : 0xff55dce8);
+            for (int i = 0; i < panelLines.length; i++) {
+                String line = client.textRenderer.trimToWidth(panelLines[i], Math.max(1, width - 16));
+                context.drawTextWithShadow(client.textRenderer, line, 16, 13 + i * 12,
+                        i == 0 ? 0xffabf49b : i == 3 ? 0xffa8c2df : 0xffedf4f6);
+            }
         });
     }
     public static void recipesSynchronized(ClientWorld packetWorld, RecipeManager manager) {
@@ -46,6 +58,22 @@ public final class LodekeeperClient implements ClientModInitializer {
     public static void recipeDisplaysChanged(ClientWorld packetWorld) {
         if (engine != null) engine.recipeDisplaysChanged(packetWorld);
     }
+    private void updatePanel() {
+        if (!engine.config.showHud || !engine.visualizationActive()) {
+            panelLines = new String[0]; panelTicks = 0; return;
+        }
+        if (panelTicks++ % 4 != 0 && panelLines.length != 0) return;
+        var route = engine.visualizationNavigation(false);
+        String metrics = route.searching()
+                ? "Searching · " + route.expanded() + " checked · " + route.open() + " open"
+                : route.path() == null ? "K to stop · " + engine.config.prefix.trim() + " status for details"
+                : "Route " + route.nextStep() + "/" + Math.max(1, route.path().length() - 1)
+                    + " · " + route.searchNanos() / 1_000_000L + " ms search";
+        if (route.retries() > 0) metrics += " · retry " + route.retries();
+        panelLines = new String[]{"LODEKEEPER · " + (engine.visualizationPaused() ? "PAUSED" : "WORKING"),
+                engine.visualizationGoal(), engine.visualizationDetail(), metrics};
+    }
+
     private void command(String body) {
         var parsed = parser.parse(body);
         if (!parsed.success()) { engine.message(parsed.error().message() + " " + parsed.error().usage()); return; }
@@ -80,10 +108,11 @@ public final class LodekeeperClient implements ClientModInitializer {
         LodekeeperConfig config = engine.config;
         if (command.key() == null) {
             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius + ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding + ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", optimizeWoodTools=" + config.optimizeWoodTools + ", allowExploration=" + config.allowExploration
-                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance); return;
+                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance
+                    + ", showPath=" + config.showPath + ", showSearch=" + config.showSearch + ", showHud=" + config.showHud); return;
         }
         String key = command.key(), value = command.value();
-        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance"); return; }
+        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance, showPath, showSearch, showHud"); return; }
         switch (key) {
             case "prefix" -> {
                 if (value.isBlank() || value.length() > 16 || value.startsWith("/")) throw new IllegalArgumentException("Prefix must be 1–16 characters and may not start with /");
@@ -100,6 +129,9 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
             case "autoEat" -> config.autoEat = bool(value);
             case "optimizeWoodTools" -> config.optimizeWoodTools = bool(value);
+            case "showPath" -> config.showPath = bool(value);
+            case "showSearch" -> config.showSearch = bool(value);
+            case "showHud" -> config.showHud = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save(); engine.message("Saved " + key);

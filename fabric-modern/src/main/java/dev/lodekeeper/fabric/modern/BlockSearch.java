@@ -10,11 +10,13 @@ import net.minecraft.world.level.block.Block;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
 /** Incremental palette-pruned search over already loaded chunks. It never requests a chunk load. */
 final class BlockSearch {
+    private static final int MAX_REPRESENTATIVE_BLOCKS = 512;
     private final Minecraft client;
     private final Set<Block> blocks;
     private final Set<BlockPos> excluded;
@@ -26,6 +28,8 @@ final class BlockSearch {
     private int chunkIndex, sectionIndex, sectionCursor, cellIndex;
     private int[] sectionOrder;
     private final PriorityQueue<BlockPos> candidates;
+    private final boolean retainRepresentatives;
+    private final Map<Block, BlockPos> representatives;
     private BlockPos best;
     private double bestDistance = Double.POSITIVE_INFINITY;
     private boolean done;
@@ -35,10 +39,17 @@ final class BlockSearch {
     }
 
     BlockSearch(Minecraft client, Set<Block> blocks, int radius, Set<BlockPos> excluded) {
+        this(client, blocks, radius, excluded, false);
+    }
+
+    BlockSearch(Minecraft client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
+                boolean retainRepresentatives) {
         this.client = client;
         this.blocks = Set.copyOf(blocks);
         this.excluded = Set.copyOf(excluded);
         this.radius = radius;
+        this.retainRepresentatives = retainRepresentatives;
+        this.representatives = retainRepresentatives ? new java.util.HashMap<>() : Map.of();
         origin = client.player.blockPosition();
         candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos position) -> position.distSqr(origin)).reversed());
         int chunkRadius = (radius + 15) / 16;
@@ -84,11 +95,20 @@ final class BlockSearch {
                         + Math.pow(position.getZ() - origin.getZ(), 2);
                 double distance = position.distSqr(origin);
                 if (horizontal <= radius * radius) {
-                    matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
+                    Block matched = section.getBlockState(x, y, z).getBlock();
+                    matchedBlocks.add(matched);
                     if (excluded.contains(position)) {
                         probes++;
                         if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
                         continue;
+                    }
+                    if (retainRepresentatives) {
+                        BlockPos representative = representatives.get(matched);
+                        if (representative != null) {
+                            if (distance < representative.distSqr(origin)) representatives.put(matched, position);
+                        } else if (representatives.size() < MAX_REPRESENTATIVE_BLOCKS) {
+                            representatives.put(matched, position);
+                        }
                     }
                     if (candidates.size() < 512) candidates.add(position);
                     else if (distance < candidates.peek().distSqr(origin)) {
@@ -121,6 +141,10 @@ final class BlockSearch {
     boolean complete() { return done; }
     boolean found(Block block) { return matchedBlocks.contains(block); }
     BlockPos result() { return best; }
+    List<BlockPos> representativeResults() {
+        return retainRepresentatives ? representatives.values().stream()
+                .sorted(Comparator.comparingDouble(position -> position.distSqr(origin))).toList() : List.of();
+    }
     List<BlockPos> results() {
         return candidates.stream().sorted(Comparator.comparingDouble(position -> position.distSqr(origin))).toList();
     }

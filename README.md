@@ -82,6 +82,8 @@ Source lives in `core` (acquisition and commands), `nav` (custom navigation), an
 - [Processing stations and their limits](docs/PROCESSING-STATIONS.md)
 - [Local resource planning and discovery](docs/LOCAL-PLANNING.md)
 - [Collision-shape navigation and limits](docs/NAVIGATION-SHAPES.md)
+- [Navigation performance investigations](docs/NAVIGATION-PERFORMANCE.md)
+- [Movement research and next experiments](docs/MOVEMENT-DESIGN.md)
 - [Bootstrap planning and safe approaches](docs/BOOTSTRAP-PLANNER.md)
 - [Repository instructions](AGENTS.md)
 
