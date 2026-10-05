@@ -49,6 +49,24 @@ jobs:
           - minecraft: '1.21.1'
             java: '21'
             module: fabric-1211
+          - minecraft: '1.21.2'
+            java: '21'
+            module: fabric-1212
+          - minecraft: '1.21.3'
+            java: '21'
+            module: fabric-1212
+          - minecraft: '26.1'
+            java: '25'
+            module: fabric-modern
+          - minecraft: '26.1.1'
+            java: '25'
+            module: fabric-modern
+          - minecraft: '26.1.2'
+            java: '25'
+            module: fabric-modern
+          - minecraft: '26.2'
+            java: '25'
+            module: fabric-modern
           - minecraft: '26.3'
             java: '25'
             module: fabric-modern
