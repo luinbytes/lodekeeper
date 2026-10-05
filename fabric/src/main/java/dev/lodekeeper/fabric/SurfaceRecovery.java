@@ -104,6 +104,8 @@ final class SurfaceRecovery {
 
     /** Cancels movement but deliberately preserves the world-scoped 80-tick retry budget. */
     void stop() {
+        // Release a disconnected world while preserving the budget for same-world retries.
+        if (budgetWorld != client.world) resetBudget();
         active = false;
         destinationSupport = null;
         input.idle();
