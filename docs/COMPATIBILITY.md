@@ -69,3 +69,7 @@ Native cooking stations at `53c48a6`: independent review and exact local 1.21.1/
 ### Published preview jar, 26.3
 
 [Development Preview 1's exact 26.3 jar](evidence/26.3-preview-jar/README.md) passed all nine controlled acquisition/crafting/smelting/custom-content/eating cases in an isolated development harness. Production development outputs were excluded; class-loading records confirm production classes came from the published jar. This adds artifact gameplay evidence to the existing development-class checks. Normal launcher acceptance and corresponding artifact gameplay across the remaining versions are still pending.
+
+### Published preview jar, 1.21.1
+
+[Development Preview 1's exact 1.21.1 jar](evidence/1.21.1-preview-jar/README.md) also passed all nine controlled cases. Fabric Loader remapped the published intermediary jar into the isolated development namespace; production source outputs were excluded, loaded class origins point to the processed artifact, and bundled core/navigation classes match the published jar byte for byte. Normal user-launcher and broader version/server acceptance remain open.

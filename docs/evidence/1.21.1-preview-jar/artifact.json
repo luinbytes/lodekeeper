@@ -1,0 +1,440 @@
+{
+  "verificationRuntimeMode": "published_production_jar_remapped_in_isolated_development_harness",
+  "releaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.1",
+  "artifactBuildCommit": "53c48a644dcaa02984a220abebf7304f0b37b0d0",
+  "artifactFilename": "lodekeeper-1.21.1-0.1.0-dev.jar",
+  "artifactSha256": "4b5efa0e3f3e6af75844bb2127b2a178c42fbd18609b6ae1b2235001c8e81fcd",
+  "minecraftVersion": "1.21.1",
+  "productionDevelopmentOutputsExcluded": true,
+  "runtimeJar": "/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar",
+  "runtimeJarSha256": "c29577982012d1077d6f34e9f1faa8c314d3c7c962e0477f324ab74a0e4eba8b",
+  "runtimeTransformation": "Fabric Loader development namespace remapping from the published intermediary jar",
+  "unchangedCoreNavigationClassesVerified": 97,
+  "javaClassOrigins": [
+    {
+      "class": "dev.lodekeeper.fabric.GameApi",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.LodekeeperClient",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CommandParser",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CommandParser$Command",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.MovementController$NavigationFailure",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Terrain",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemId",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.StationId",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.TagId",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.LodekeeperConfig",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ProjectCatalog",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ProjectCatalog$Builder",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ProjectSpec$Purpose",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ProjectSpec",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.MaintainedDemandModel",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionPlanner$State",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.PlayerActions",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.BotInput",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.GameTerrain",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.MovementController",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.StanceProbe",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.BreakTarget",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.FoodController",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.ClientAccess",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.WorldRevision",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.RegionRevisionTracker",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CommandParser$GetCommand",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CommandParser$ParseResult",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.GameCatalog",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeCatalogSnapshot",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.GameApi$RecipeRef",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeWork$Input",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeWork",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeWork$Kind",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeWork$RemainderResolver",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.GameCatalog$1",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.Requirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.StationRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.RequirementText",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.RecipeSlot",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.Ingredient",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemSelector",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemSelector$Exact",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionSource",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CraftingSource",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.RecipeType",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SourceValidation",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SmeltingSource",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ToolRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.GatherSource",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.BlockId",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.ExtensionCatalog",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.AutomationEngine$Request",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.BlockSearch",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CatalogSnapshot",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.CatalogSnapshot$Builder",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemDefinition",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.MaintainedDemandModel$Target",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.InventorySnapshot",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.AutomationEngine$HarvestOffer",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.AutomationEngine$PlanningOutcome",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.PlannerLimits",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionPlanner$Search",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionPlanner$Prepared",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.AcquisitionPlanner$ToolLots",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.PlanStep",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.PlanKind",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.PlanResult",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ExplorationRecovery",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.AutomationEngine$1",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.BlockedReason$Code",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SelectedRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SelectedToolRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Position",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Goal",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Goal$Kind",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Planner$Options",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.NavStatus",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Planner$ProbeCache",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Path$Movement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.MovementTrajectory",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Path$Step",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Action",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.Path",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.PathEdgeValidator",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.nav.PathEdgeValidator$1",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemResolution",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SelectedItemRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.SelectedStationRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.BlockedReason",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.CraftingAction",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.CraftingAction$StaleRecipeBeforeOutputClick",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.RecipeGridLayout",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.CraftingAction$Placement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.CraftingAction$AvailableInput",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.SlotTransfer",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.VerifiedQuickMove",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.CraftingAction$MovePurpose",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.core.ItemRequirement",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.SmeltingAction",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    },
+    {
+      "class": "dev.lodekeeper.fabric.GameApi$FoodInfo",
+      "source": "file:/private/tmp/lodekeeper-installed-preview-1211/run/.fabric/processedMods/lodekeeper-0.1.0-dev-64b5720b4b825f21.jar"
+    }
+  ],
+  "developmentHarness": true,
+  "verifierSourceCommit": "53c48a644dcaa02984a220abebf7304f0b37b0d0",
+  "ownedClientExitCode": 0,
+  "remainingAcceptance": [
+    "ordinary user launcher/profile",
+    "other published exact-version jars",
+    "natural-world survival progression",
+    "remote servers"
+  ]
+}
