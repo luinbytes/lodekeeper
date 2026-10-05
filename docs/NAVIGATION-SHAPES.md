@@ -1,6 +1,6 @@
 # Collision-shape navigation
 
-The navigation core and both native adapter families now represent grounded feet heights in sixteenths. Grounded walking uses actual player dimensions and native collision faces for paths, farmland, slabs, stairs and snow. A mixed-terrain physical course is the verification gate for this implementation; the current [1.21.1](evidence/1.21.1-shaped-navigation/README.md) and [26.3 development-source checks](evidence/26.3-shaped-navigation/README.md) pass. Exact release artifacts and ordinary-world acceptance remain separate gates. Released Preview 2 contains only nearby fractional-start recovery; it does not contain this new traversal implementation.
+The navigation core and both native adapter families now represent grounded feet heights in sixteenths. Grounded walking uses actual player dimensions and native collision faces for paths, farmland, slabs, stairs and snow. The exact Preview 3 candidate jars pass the mixed-terrain course on [1.21.1](evidence/1.21.1-preview3-mixed/README.md) and [26.3](evidence/26.3-preview3-mixed/README.md). All 15 grounded checkpoints, recorded WALK/JUMP edges, 692 protected states, exact coal inventory and minimum health 20 are required. All 24 exact versions compile; ordinary-world, remote-server and broader-version gameplay acceptance remain separate gates. Preview 2 contains only nearby fractional-start recovery.
 
 ## Implemented core contracts
 

@@ -1,0 +1,59 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.3.jar",
+  "artifactSha256": "0d0e896b2d7eb39247cb54cc909863e19a54d473048d2b04868e08d755c80099",
+  "sourceCommit": "38d558fedd89d3043ade0d438ebdde649d60b84e",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37374914801",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.GameTerrain",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.MovementController",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.PathEdgeValidator",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.MotionEventBuffer",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-preview3-ci-1211-default/run/.fabric/processedMods/lodekeeper-0.1.0-preview.3-64b5720b4b825f21.jar",
+  "runtimeJarSha256": "d85f5d2da473b5e558eb9a4baf636d9ee782051cab0dbe82ca210c8fc527d1d3",
+  "unchangedCoreNavigationClassesVerified": 103,
+  "runtimeTransformation": "Fabric Loader intermediary-to-development remapping",
+  "verificationMode": "default",
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}

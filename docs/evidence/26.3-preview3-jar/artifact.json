@@ -1,0 +1,59 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.3.jar",
+  "artifactSha256": "2049ca0d5816953873712c7b789adf8d95b5b81c0c64d1af7df4f4baf94af870",
+  "sourceCommit": "38d558fedd89d3043ade0d438ebdde649d60b84e",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37374914801",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "javaClassOrigins": [
+    {
+      "className": "dev.lodekeeper.fabric.modern.AutomationEngine",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.modern.SurfaceRecovery",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.modern.GameTerrain",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.fabric.modern.MovementController",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.core.AcquisitionPlanner",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.PathEdgeValidator",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.MotionEventBuffer",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    },
+    {
+      "className": "dev.lodekeeper.nav.Planner",
+      "source": "file:/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar"
+    }
+  ],
+  "runtimeJar": "/private/tmp/lodekeeper-ci-38d558f/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.3.jar",
+  "runtimeJarSha256": "2049ca0d5816953873712c7b789adf8d95b5b81c0c64d1af7df4f4baf94af870",
+  "unchangedCoreNavigationClassesVerified": 103,
+  "runtimeTransformation": "none",
+  "verificationMode": "default",
+  "remainingAcceptance": [
+    "ordinary launcher/profile",
+    "natural-world survival",
+    "remote servers",
+    "other exact-version artifact gameplay"
+  ]
+}
