@@ -1,6 +1,7 @@
 package dev.lodekeeper.fabric;
 
 import dev.lodekeeper.core.*;
+import dev.lodekeeper.nav.ExplorationFrontier;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -64,6 +65,15 @@ final class AutomationEngine {
     private long stepCatalogGeneration;
     private PlanStep step;
     private BlockSearch scan;
+    private BlockSearch logScan;
+    private long logScanGeneration;
+    private final Map<Block,GatherSource> logSources = new HashMap<>();
+    private final Deque<ItemId> logCandidates = new ArrayDeque<>();
+    private ItemId droppedLogCandidate;
+    private ExplorationFrontier frontier;
+    private boolean exploring, explorationMoving;
+    private int explorationTicks;
+    private final Set<BlockPos> rejectedResources = new HashSet<>();
     private BlockPos target;
     private CraftingAction crafting;
     private SmeltingAction smelting;
@@ -125,7 +135,7 @@ final class AutomationEngine {
                 return;
             }
             if (foodReplanPending) { requestPlan(); return; }
-            if (active != null && pendingPlan == null && step == null) {
+            if (active != null && !exploring && pendingPlan == null && step == null) {
                 if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
                 requestPlan();
             }
@@ -139,6 +149,7 @@ final class AutomationEngine {
                 else requestPlan();
                 return;
             }
+            if (exploring) { explore(); return; }
             if (pendingPlan != null) {
                 if (!pendingPlan.isDone()) return;
                 PlanResult result = pendingPlan.join();
@@ -150,6 +161,8 @@ final class AutomationEngine {
                     return;
                 }
                 if (!result.success() && planningRetries++ < 1 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
+                if (!result.success() && tryNextLogPlan(result)) return;
+                if (!result.success() && canExplore(result)) { beginExploration(); return; }
                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
                 if (result.steps().isEmpty()) { finishGoal(); return; }
                 begin(result.steps().get(0), resultGeneration);
@@ -180,7 +193,15 @@ final class AutomationEngine {
                 return;
             }
             verifyTicks = 0;
-            if (moving) { status = movement.status(); if (movement.tick()) { moving = false; movement.stop(); } return; }
+            if (moving) {
+                status = movement.status();
+                try { if (movement.tick()) { moving = false; movement.stop(); } }
+                catch (MovementController.NavigationFailure blocked) {
+                    if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
+                    rejectResource();
+                }
+                return;
+            }
             switch (step.kind()) {
                 case GATHER -> gather();
                 case PLACE_STATION -> placeStation();
@@ -355,6 +376,7 @@ final class AutomationEngine {
                 return;
             }
             unavailableSources.clear();
+            frontier = null; rejectedResources.clear(); logCandidates.clear();
             planningRetries = 0;
             requestPlan();
         }
@@ -493,6 +515,11 @@ final class AutomationEngine {
         if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
         observeInventory();
         if (goalCount() >= active.count) { finishGoal(); return; }
+        ItemId item = active.item;
+        if (active.anyLogs) {
+            item = chooseLogs();
+            if (item == null) { if (logScan == null) beginExploration(); return; }
+        }
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         CatalogSnapshot full = catalog.snapshot();
         if (!unavailableSources.isEmpty()) {
@@ -501,22 +528,74 @@ final class AutomationEngine {
         }
         CatalogSnapshot snapshot = unavailableSources.isEmpty() ? full : builder.build();
         InventorySnapshot inventory = inventorySnapshot(active.item);
-        ItemId item = active.item;
-        int requested = active.count;
-        if (active.anyLogs) {
-            item = chooseLogs();
-            requested = active.count - goalCount() + inventory.count(item);
-        }
+        int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item) : active.count;
         final ItemId targetItem = item; final int targetCount = requested;
         pendingPlanGeneration = catalog.generation();
         pendingPlan = CompletableFuture.supplyAsync(() -> planner.plan(snapshot, inventory, targetItem, targetCount), plannerWorker);
     }
     private ItemId chooseLogs() {
-        List<ItemId> logs = catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of());
-        return logs.stream().filter(id -> catalog.sources.stream().anyMatch(s -> s.output().equals(id) && s instanceof GatherSource && !unavailableSources.contains(s.sourceId())))
-            .sorted(Comparator.comparingInt((ItemId id) -> id.path().equals("oak_log") ? 0 : id.path().endsWith("_log") ? 1 : 2).thenComparing(ItemId::toString))
-            .findFirst().orElseThrow(() -> new IllegalStateException("No discoverable log source remains in the search area"));
+        if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
+        if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
+        if (logScan == null) {
+            logSources.clear();
+            Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"),List.of()));
+            for (AcquisitionSource source : catalog.sources) {
+                if (!(source instanceof GatherSource gather) || !logs.contains(source.output())
+                        || unavailableSources.contains(source.sourceId())) continue;
+                for (BlockId id : gather.blocks()) {
+                    Block block = Registries.BLOCK.get(GameApi.identifier(id.toString()));
+                    if (block != Blocks.AIR) logSources.putIfAbsent(block,gather);
+                }
+            }
+            if (logSources.isEmpty()) return null;
+            var eligibleLogs = logSources.values().stream().map(source -> GameCatalog.item(source.output()))
+                .collect(java.util.stream.Collectors.toSet());
+            ItemEntity dropped = client.world.getEntitiesByClass(ItemEntity.class,
+                client.player.getBoundingBox().expand(12), entity -> entity.isAlive()
+                    && (entity.isOnGround() || entity.isTouchingWater()) && entity.getStack().isIn(ItemTags.LOGS)
+                    && eligibleLogs.contains(entity.getStack().getItem()))
+                .stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
+            droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getStack().getItem());
+            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius);
+            logScanGeneration = catalog.generation();
+        }
+        status = "discovering nearby logs";
+        if (!logScan.advance(config.scanBlocksPerTick,1_000_000)) return null;
+        Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
+        Set<ItemId> outputs = new LinkedHashSet<>();
+        if (droppedLogCandidate != null) outputs.add(droppedLogCandidate);
+        for (BlockPos position : logScan.results()) {
+            if (rejectedResources.contains(position)) continue;
+            GatherSource source = logSources.get(client.world.getBlockState(position).getBlock());
+            if (source == null) continue;
+            if (outputs.size() < 64) outputs.add(source.output());
+            grouped.computeIfAbsent(source.sourceId(),ignored -> new ArrayList<>()).add(position);
+        }
+        for (var entry : grouped.entrySet()) {
+            if (discoveredSources.size() >= 64 && !discoveredSources.containsKey(entry.getKey())) {
+                discoveredSources.remove(discoveredSources.keySet().iterator().next());
+            }
+            discoveredSources.put(entry.getKey(),entry.getValue());
+        }
+        logCandidates.addAll(outputs);
+        droppedLogCandidate = null;
+        if (logCandidates.isEmpty()) logSources.values().forEach(source -> unavailableSources.add(source.sourceId()));
+        logScan = null; logSources.clear();
+        return logCandidates.peekFirst();
     }
+
+    private boolean tryNextLogPlan(PlanResult result) {
+        if (!active.anyLogs || logCandidates.size() < 2 || result.blockedReasons().isEmpty()
+                || !result.blockedReasons().stream().allMatch(reason -> switch (reason.code()) {
+                    case NO_SOURCE, CYCLE, EMPTY_TAG, UNREACHABLE_REQUIREMENT, UNSUPPORTED_SOURCE -> true;
+                    default -> false;
+                })) return false;
+        logCandidates.removeFirst();
+        planningRetries = 0;
+        requestPlan();
+        return true;
+    }
+
     private int goalCount() {
         if (!active.anyLogs) return actions.count(GameCatalog.item(active.item));
         int count = 0;
@@ -534,6 +613,71 @@ final class AutomationEngine {
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline; lastSmeltProgress = 0;
     }
+    int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
+
+    private boolean canExplore(PlanResult result) {
+        if (!config.allowExploration || unavailableSources.isEmpty()) return false;
+        List<BlockedReason> missing = result.blockedReasons().stream()
+            .filter(reason -> reason.code() == BlockedReason.Code.NO_SOURCE).toList();
+        return !missing.isEmpty() && result.blockedReasons().stream().allMatch(reason ->
+                reason.code() == BlockedReason.Code.NO_SOURCE || reason.code() == BlockedReason.Code.CYCLE)
+            && missing.stream().allMatch(reason -> catalog.sources.stream().anyMatch(source ->
+                source instanceof GatherSource && source.output().equals(reason.item())
+                    && unavailableSources.contains(source.sourceId())));
+    }
+    private void beginExploration() {
+        if (!config.allowExploration) throw new IllegalStateException("Resource not found nearby; exploration is disabled");
+        if (unavailableSources.isEmpty()) throw new IllegalStateException("No known gathering source is available for this goal");
+        resetAction();
+        BlockPos feet = client.player.getBlockPos();
+        if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),
+            config.explorationAttempts, config.explorationDistance);
+        terrain.beginSearch(); frontier.beginAt(feet.getX(), feet.getY(), feet.getZ());
+        exploring = true; status = "finding a safe exploration route";
+    }
+    private void explore() {
+        if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
+        if (goalCount() >= active.count) { finishGoal(); return; }
+        if (++explorationTicks > config.actionTimeoutTicks) {
+            retryExploration(); return;
+        }
+        if (explorationMoving) {
+            status = "exploring " + frontier.attempts() + "/" + config.explorationAttempts + " · " + movement.status();
+            try {
+                if (movement.tick()) {
+                    var waypoint = frontier.waypoint();
+                    BlockPos feet = client.player.getBlockPos();
+                    if (feet.getX() != waypoint.x() || feet.getY() != waypoint.y() || feet.getZ() != waypoint.z()) {
+                        throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
+                    }
+                    movement.stop(); unavailableSources.clear(); resetAction(); planningRetries = 0; requestPlan();
+                }
+            } catch (MovementController.NavigationFailure blocked) { retryExploration(); }
+            return;
+        }
+        var state = frontier.advance(terrain,32,1_000_000);
+        if (state == ExplorationFrontier.Status.EXHAUSTED) {
+            throw new IllegalStateException("No safe unexplored waypoint remains within the exploration bounds after "
+                + frontier.attempts() + " attempts; move to another area or adjust exploration limits");
+        }
+        if (state == ExplorationFrontier.Status.READY) {
+            var point = frontier.waypoint();
+            movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
+            explorationMoving = true;
+        }
+    }
+    private void retryExploration() {
+        movement.stop(); explorationMoving = false; explorationTicks = 0;
+        BlockPos feet = client.player.getBlockPos();
+        terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
+        status = "trying another safe exploration waypoint";
+    }
+    private void rejectResource() {
+        movement.stop(); actions.cancel(); moving = false;
+        if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
+        rejectedResources.add(target.toImmutable()); target = null; scan = null; actionTicks = 0;
+        status = "trying another reachable resource";
+    }
     private void gather() {
         Set<Block> blocks = new HashSet<>();
         step.candidateBlocks().forEach(id -> blocks.add(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
@@ -549,7 +693,7 @@ final class AutomationEngine {
             List<BlockPos> known = discoveredSources.get(step.sourceId());
             if (known != null) {
                 known.removeIf(pos -> !blocks.contains(client.world.getBlockState(pos).getBlock()));
-                target = known.stream().filter(pos -> Math.pow(pos.getX() - client.player.getX(), 2) + Math.pow(pos.getZ() - client.player.getZ(), 2) <= config.searchRadius * config.searchRadius)
+                target = known.stream().filter(pos -> !rejectedResources.contains(pos)).filter(pos -> Math.pow(pos.getX() - client.player.getX(), 2) + Math.pow(pos.getZ() - client.player.getZ(), 2) <= config.searchRadius * config.searchRadius)
                     .min(Comparator.comparingDouble(pos -> pos.getSquaredDistance(ClientAccess.position(client.player)))).orElse(null);
             }
         }
@@ -557,7 +701,7 @@ final class AutomationEngine {
             if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius);
             status = "discovering " + step.output();
             if (!scan.advance(config.scanBlocksPerTick, 1_000_000)) return;
-            target = scan.result();
+            target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
             if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
             discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
             scan = null;
@@ -566,7 +710,10 @@ final class AutomationEngine {
         if (!blocks.contains(client.world.getBlockState(target).getBlock())) { target = null; actions.cancel(); return; }
         SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance).map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
-        if (!actions.mine(target, tool)) { movement.startInteraction(target); moving = true; }
+        if (!actions.mine(target, tool)) {
+            try { movement.startInteraction(target); moving = true; }
+            catch (MovementController.NavigationFailure blocked) { rejectResource(); }
+        }
     }
     private void placeStation() {
         Block block = Registries.BLOCK.get(GameApi.identifier(step.station().toString()));
@@ -852,7 +999,8 @@ final class AutomationEngine {
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
             crafting = null; smelting = null; openingStation = false; moving = false;
-            step = null; scan = null; target = null; verifyTicks = 0;
+            step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
+            exploring = false; explorationMoving = false; explorationTicks = 0;
         }
         if (warning.isBlank() && closeThisHandler && client.player != null
                 && client.player.currentScreenHandler == stationHandler) client.player.closeHandledScreen();
@@ -873,7 +1021,7 @@ final class AutomationEngine {
     }
     void resume() {
         paused = false; actionTicks = 0;
-        if (active != null && pendingPlan == null && step == null) requestPlan();
+        if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
     }
     void stop() {

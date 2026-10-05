@@ -147,6 +147,7 @@ final class GameCatalog {
     }
 
     boolean ready() { return ready; }
+    long generation() { return loadGeneration; }
 
     /** Adds newly synchronized recipe-book displays without rescanning already known entries. */
     void refreshLearnedRecipes() {

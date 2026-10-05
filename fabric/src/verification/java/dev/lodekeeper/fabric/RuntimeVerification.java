@@ -42,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
+    private boolean resourceInitiallyLoaded;
     private static final int MAX_RUN_TICKS = 6_000; // five minutes at 20 client ticks per second
     private static final int OBSERVE_EVERY_TICKS = 20;
     private static final int FIXTURE_FLOOR_Y = 63;
@@ -228,7 +230,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
                 if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick && latestSnapshot.inventoryEmpty()) {
                     readyTicks++;
-                    if (readyTicks >= 20 && client.player.getY() > 63 && client.world.getBlockState(new BlockPos(6, PLAYER_Y, 0)).isOf(Blocks.OAK_LOG)) startGatherCommand();
+                    boolean fixtureVisible = EXPLORATION_MODE
+                        ? client.world.getBlockState(new BlockPos(0,FIXTURE_FLOOR_Y,0)).isOf(Blocks.BEDROCK)
+                        : client.world.getBlockState(new BlockPos(6,PLAYER_Y,0)).isOf(Blocks.OAK_LOG);
+                    if (readyTicks >= 20 && client.player.getY() > 63 && fixtureVisible) startGatherCommand();
                 }
                 return;
             }
@@ -307,11 +312,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerPlayerEntity player = requireServerPlayer(server);
                 ServerWorld world = server.getOverworld();
                 // A bounded, level pad makes the fixture deterministic while retaining normal survival physics.
-                for (int x = -12; x <= 18; x++) {
+                for (int x = -12; x <= (EXPLORATION_MODE ? 96 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
                 }
                 for (int index = 0; index < 8; index++) {
-                    world.setBlockState(new BlockPos(6 + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
+                    world.setBlockState(new BlockPos((EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
                 }
                 for (int x = 6; x <= 17; x++) world.setBlockState(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.getDefaultState(), 3);
                 world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
@@ -341,7 +346,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startGatherCommand() {
-        activeCase = "gather_wood_8";
+        activeCase = EXPLORATION_MODE ? "explore_to_unloaded_wood_8" : "gather_wood_8";
+        if (EXPLORATION_MODE) {
+            resourceInitiallyLoaded = client.world.getChunkManager().getChunk(5,0,
+                net.minecraft.world.chunk.ChunkStatus.FULL,false) != null;
+            if (resourceInitiallyLoaded) { fail("far resource chunk was already loaded at goal start"); return; }
+            if (!requireEngine().config.allowExploration) { fail("exploration policy was disabled in verifier config"); return; }
+        }
         activeItem = "minecraft:oak_log";
         activeCount = 8;
         activeRequiresEmpty = true;
@@ -359,6 +370,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
             && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
+        if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
+                && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
+            fail("far resource goal completed without observed bounded exploration travel"); return;
+        }
         if (targetReached && state == State.GATHERING_FOOD
             && (latestSnapshot.foodLevel <= activeFoodLevelAtStart
                 || latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= activeBreadCountAtStart)) {
@@ -372,7 +387,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 default -> "server inventory reached target and engine returned idle";
             };
             addResult(true, observed, detail, screenshot);
-            if (state == State.GATHERING_WOOD) {
+            if (state == State.GATHERING_WOOD && EXPLORATION_MODE) {
+                state = State.CAPTURING; captureStartedAtTick = clientTicks;
+            } else if (state == State.GATHERING_WOOD) {
                 startCraftingTableCommand();
             } else if (state == State.CRAFTING_TABLE) {
                 startCraftingSticksCommand();
@@ -661,7 +678,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(",\"screenshot\":").append(result.screenshot == null ? "null" : "\"" + escape(result.screenshot) + "\"").append('}')
                 .append(index + 1 == results.size() ? "\n" : ",\n");
         }
-        return json.append("  ]\n}\n").toString();
+        json.append("  ],\n  \"explorationFixture\":").append(EXPLORATION_MODE)
+            .append(",\n  \"resourceInitiallyLoaded\":").append(resourceInitiallyLoaded)
+            .append(",\n  \"explorationAttempts\":").append(requireEngine().explorationAttemptsMade());
+        return json.append("\n}\n").toString();
     }
 
     private static String escape(String value) {

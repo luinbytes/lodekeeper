@@ -52,3 +52,17 @@ Navigation intentionally uses full-block support and conservative body clearance
 ## Performance and state
 
 The frontier, node records, indexed binary heap, position hash table, and bounded stance cache use primitive arrays. Path objects are allocated only after success. Defaults cap a search at 16,384 nodes; callers can lower the cap for tighter machines. `advance` accepts an expansion ceiling and nanosecond budget, and no background worker touches live world data. A search caches only its stance probes; the adapter revision contract prevents those values from being reused after a relevant world change.
+
+## Bounded resource exploration
+
+When a known gathering source is absent from loaded terrain, the client can walk to a new surface waypoint and search again. `ExplorationFrontier` evaluates at most 224 candidates with per-tick probe/time budgets, proposes only loaded, hazard-free, fully supported stances, and remembers attempted eight-block regions. Every started attempt consumes the configured limit, including searches interrupted before choosing a waypoint. The client independently requires arrival at the exact waypoint before clearing discovery exclusions and replanning.
+
+Exploration routes allow a one-block drop and disable breaking, building, parkour, swimming and climbing. Walking lets Minecraft load subsequent chunks normally; the selector never forces chunk loads. Default limits are 32 attempts and 512 blocks from the goal's starting position, bounded to 128 attempts and 2,048 blocks. These limits constrain surface search; they do not promise a route across arbitrary terrain or a persistent world map.
+
+```text
+!lk config allowExploration true
+!lk config explorationAttempts 32
+!lk config explorationDistance 512
+```
+
+For `wood`, a single palette-pruned union search finds eligible registered log sources, caches their positions and preserves nearest-output ordering. A nearby dropped log receives priority within the same bounded candidate queue. If its acquisition requirements cannot be planned, another discovered output is tried before stopping. Catalog and inventory snapshots are constructed after discovery finishes, avoiding a full modded-catalog copy on every discovery tick.

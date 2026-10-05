@@ -13,6 +13,9 @@ public final class LodekeeperConfig {
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("lodekeeper.json");
     public String prefix = "!lk ";
     public int searchRadius = 48;
+    public boolean allowExploration = true;
+    public int explorationAttempts = 32;
+    public int explorationDistance = 512;
     public int scanBlocksPerTick = 512;
     public int pathNodesPerTick = 128;
     public int pathNodeLimit = 16000;
@@ -43,6 +46,8 @@ public final class LodekeeperConfig {
     public void sanitize() {
         if (prefix == null || prefix.isBlank() || prefix.length() > 16 || prefix.startsWith("/")) prefix = "!lk ";
         searchRadius = clamp(searchRadius, 8, 96);
+        explorationAttempts = clamp(explorationAttempts, 1, 128);
+        explorationDistance = clamp(explorationDistance, 16, 2048);
         scanBlocksPerTick = clamp(scanBlocksPerTick, 32, 2048);
         pathNodesPerTick = clamp(pathNodesPerTick, 16, 512);
         pathNodeLimit = clamp(pathNodeLimit, 512, 64000);

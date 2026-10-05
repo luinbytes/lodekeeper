@@ -15,7 +15,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | Modded registry items and ordinary recipes | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 custom ore to custom 3×3 recipe, without target-item grants | Additional modded recipes, remainders and adapter families |
 | Project inventory loadouts and maintained stock | Implemented; quantity and hysteresis regressions | Foreground preemption, removal and protected stock during real crafting |
 | Full recipe knowledge | Legacy synchronized catalogs; modern local-server/learned-display prototype | Local reload and remote recipe-book updates; explicit locked-recipe blocker |
-| Exploration and persistent resource knowledge | Bounded loaded-chunk discovery only | Find a resource outside the initial loaded radius without unsafe travel |
+| Exploration and persistent resource knowledge | Controlled [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3 distant wood](evidence/26.3-exploration/run.json): initially unloaded resource, empty inventory, two bounded waypoints, eight server-observed logs | Natural forests, varied terrain, other adapter families and persistent world memory |
 | Inventory policy and storage | Owned station cleanup in development | Reserved slots, permitted containers, deposit/retrieve and full-inventory recovery |
 | Smokers, blast furnaces and campfires | Pending | Select faster suitable station and account for fuel/input/output |
 | Stonecutting and smithing | Pending | Alternate stone recipes; templates, trims and netherite upgrades |

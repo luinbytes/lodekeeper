@@ -1,0 +1,603 @@
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+index afff142..0e5dd0d 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+@@ -1,6 +1,8 @@
+ package dev.lodekeeper.fabric.modern;
+ 
+ import dev.lodekeeper.core.AcquisitionPlanner;
++import dev.lodekeeper.core.AcquisitionSource;
++import dev.lodekeeper.nav.ExplorationFrontier;
+ import dev.lodekeeper.core.BlockId;
+ import dev.lodekeeper.core.BlockedReason;
+ import dev.lodekeeper.core.CatalogSnapshot;
+@@ -97,6 +99,15 @@ final class AutomationEngine {
+     private CompletableFuture<PlanResult> pendingPlan;
+     private PlanStep step;
+     private BlockSearch scan;
++    private BlockSearch logScan;
++    private long logScanGeneration;
++    private final Map<Block,GatherSource> logSources = new HashMap<>();
++    private final Deque<ItemId> logCandidates = new ArrayDeque<>();
++    private ItemId droppedLogCandidate;
++    private ExplorationFrontier frontier;
++    private boolean exploring, explorationMoving;
++    private int explorationTicks;
++    private final Set<BlockPos> rejectedResources = new HashSet<>();
+     private BlockPos target;
+     private CraftingAction crafting;
+     private SmeltingAction smelting;
+@@ -189,6 +200,7 @@ final class AutomationEngine {
+                 }
+                 return;
+             }
++            if (exploring) { explore(); return; }
+             if (pendingPlan == null && step == null && catalog != null && catalog.ready()) requestPlan();
+             if (pendingPlan != null) {
+                 if (!pendingPlan.isDone()) return;
+@@ -199,6 +211,8 @@ final class AutomationEngine {
+                     return;
+                 }
+                 if (!result.success()) {
++                    if (tryNextLogPlan(result)) return;
++                    if (canExplore(result)) { beginExploration(); return; }
+                     failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList());
+                     return;
+                 }
+@@ -220,7 +234,15 @@ final class AutomationEngine {
+                 return;
+             }
+             verifyTicks = 0;
+-            if (moving) { status = movement.status(); if (movement.tick()) { moving = false; movement.stop(); } return; }
++            if (moving) {
++                status = movement.status();
++                try { if (movement.tick()) { moving = false; movement.stop(); } }
++                catch (MovementController.NavigationFailure blocked) {
++                    if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
++                    rejectResource();
++                }
++                return;
++            }
+             switch (step.kind()) {
+                 case GATHER -> gather();
+                 case PLACE_STATION -> placeStation();
+@@ -397,6 +419,7 @@ final class AutomationEngine {
+                 return;
+             }
+             unavailableSources.clear();
++            frontier = null; rejectedResources.clear(); logCandidates.clear();
+             planningRetries = 0;
+             requestPlan();
+         }
+@@ -561,6 +584,11 @@ final class AutomationEngine {
+         status = "planning";
+         observeInventory();
+         if (goalCount() >= active.count) { finishGoal(); return; }
++        ItemId item = active.item;
++        if (active.anyLogs) {
++            item = chooseLogs();
++            if (item == null) { if (logScan == null) beginExploration(); return; }
++        }
+         CatalogSnapshot full = catalog.snapshot();
+         CatalogSnapshot snapshot = full;
+         if (!unavailableSources.isEmpty()) {
+@@ -571,12 +599,7 @@ final class AutomationEngine {
+             snapshot = builder.build();
+         }
+         InventorySnapshot inventory = inventorySnapshot(active.item);
+-        ItemId item = active.item;
+-        int requested = active.count;
+-        if (active.anyLogs) {
+-            item = chooseLogs();
+-            requested = active.count - goalCount() + inventory.count(item);
+-        }
++        int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item) : active.count;
+         ItemId targetItem = item;
+         int targetCount = requested;
+         CatalogSnapshot planningSnapshot = snapshot;
+@@ -584,12 +607,66 @@ final class AutomationEngine {
+     }
+ 
+     private ItemId chooseLogs() {
+-        return catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).stream()
+-                .filter(item -> catalog.sources.stream().anyMatch(source -> source.output().equals(item)
+-                        && source instanceof GatherSource && !unavailableSources.contains(source.sourceId())))
+-                .sorted(Comparator.comparingInt((ItemId item) -> item.path().equals("oak_log") ? 0 : item.path().endsWith("_log") ? 1 : 2)
+-                        .thenComparing(ItemId::toString))
+-                .findFirst().orElseThrow(() -> new IllegalStateException("No discoverable log source remains in the search area"));
++        if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
++        if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
++        if (logScan == null) {
++            logSources.clear();
++            Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"),List.of()));
++            for (AcquisitionSource source : catalog.sources) {
++                if (!(source instanceof GatherSource gather) || !logs.contains(source.output())
++                        || unavailableSources.contains(source.sourceId())) continue;
++                for (BlockId id : gather.blocks()) {
++                    Block block = GameCatalog.block(id);
++                    if (block != Blocks.AIR) logSources.putIfAbsent(block,gather);
++                }
++            }
++            if (logSources.isEmpty()) return null;
++            var eligibleLogs = logSources.values().stream().map(source -> GameCatalog.item(source.output()))
++                .collect(java.util.stream.Collectors.toSet());
++            ItemEntity dropped = client.level.getEntities(EntityTypeTest.forClass(ItemEntity.class),
++                client.player.getBoundingBox().inflate(12), entity -> entity.isAlive()
++                    && (entity.onGround() || entity.isInWater()) && entity.getItem().is(ItemTags.LOGS)
++                    && eligibleLogs.contains(entity.getItem().getItem()))
++                .stream().min(Comparator.comparingDouble(client.player::distanceToSqr)).orElse(null);
++            droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getItem().getItem());
++            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius);
++            logScanGeneration = catalog.generation();
++        }
++        status = "discovering nearby logs";
++        if (!logScan.advance(config.scanBlocksPerTick,1_000_000)) return null;
++        Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
++        Set<ItemId> outputs = new LinkedHashSet<>();
++        if (droppedLogCandidate != null) outputs.add(droppedLogCandidate);
++        for (BlockPos position : logScan.results()) {
++            if (rejectedResources.contains(position)) continue;
++            GatherSource source = logSources.get(client.level.getBlockState(position).getBlock());
++            if (source == null) continue;
++            if (outputs.size() < 64) outputs.add(source.output());
++            grouped.computeIfAbsent(source.sourceId(),ignored -> new ArrayList<>()).add(position);
++        }
++        for (var entry : grouped.entrySet()) {
++            if (discoveredSources.size() >= 64 && !discoveredSources.containsKey(entry.getKey())) {
++                discoveredSources.remove(discoveredSources.keySet().iterator().next());
++            }
++            discoveredSources.put(entry.getKey(),entry.getValue());
++        }
++        logCandidates.addAll(outputs);
++        droppedLogCandidate = null;
++        if (logCandidates.isEmpty()) logSources.values().forEach(source -> unavailableSources.add(source.sourceId()));
++        logScan = null; logSources.clear();
++        return logCandidates.peekFirst();
++    }
++
++    private boolean tryNextLogPlan(PlanResult result) {
++        if (!active.anyLogs || logCandidates.size() < 2 || result.blockedReasons().isEmpty()
++                || !result.blockedReasons().stream().allMatch(reason -> switch (reason.code()) {
++                    case NO_SOURCE, CYCLE, EMPTY_TAG, UNREACHABLE_REQUIREMENT, UNSUPPORTED_SOURCE -> true;
++                    default -> false;
++                })) return false;
++        logCandidates.removeFirst();
++        planningRetries = 0;
++        requestPlan();
++        return true;
+     }
+ 
+     private int goalCount() {
+@@ -716,6 +793,71 @@ final class AutomationEngine {
+         lastSmeltProgress = 0;
+     }
+ 
++    int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
++
++    private boolean canExplore(PlanResult result) {
++        if (!config.allowExploration || unavailableSources.isEmpty()) return false;
++        List<BlockedReason> missing = result.blockedReasons().stream()
++            .filter(reason -> reason.code() == BlockedReason.Code.NO_SOURCE).toList();
++        return !missing.isEmpty() && result.blockedReasons().stream().allMatch(reason ->
++                reason.code() == BlockedReason.Code.NO_SOURCE || reason.code() == BlockedReason.Code.CYCLE)
++            && missing.stream().allMatch(reason -> catalog.sources.stream().anyMatch(source ->
++                source instanceof GatherSource && source.output().equals(reason.item())
++                    && unavailableSources.contains(source.sourceId())));
++    }
++    private void beginExploration() {
++        if (!config.allowExploration) throw new IllegalStateException("Resource not found nearby; exploration is disabled");
++        if (unavailableSources.isEmpty()) throw new IllegalStateException("No known gathering source is available for this goal");
++        resetAction();
++        BlockPos feet = client.player.blockPosition();
++        if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),
++            config.explorationAttempts, config.explorationDistance);
++        terrain.beginSearch(); frontier.beginAt(feet.getX(), feet.getY(), feet.getZ());
++        exploring = true; status = "finding a safe exploration route";
++    }
++    private void explore() {
++        if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
++        if (goalCount() >= active.count) { finishGoal(); return; }
++        if (++explorationTicks > config.actionTimeoutTicks) {
++            retryExploration(); return;
++        }
++        if (explorationMoving) {
++            status = "exploring " + frontier.attempts() + "/" + config.explorationAttempts + " · " + movement.status();
++            try {
++                if (movement.tick()) {
++                    var waypoint = frontier.waypoint();
++                    BlockPos feet = client.player.blockPosition();
++                    if (feet.getX() != waypoint.x() || feet.getY() != waypoint.y() || feet.getZ() != waypoint.z()) {
++                        throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
++                    }
++                    movement.stop(); unavailableSources.clear(); resetAction(); planningRetries = 0; requestPlan();
++                }
++            } catch (MovementController.NavigationFailure blocked) { retryExploration(); }
++            return;
++        }
++        var state = frontier.advance(terrain,32,1_000_000);
++        if (state == ExplorationFrontier.Status.EXHAUSTED) {
++            throw new IllegalStateException("No safe unexplored waypoint remains within the exploration bounds after "
++                + frontier.attempts() + " attempts; move to another area or adjust exploration limits");
++        }
++        if (state == ExplorationFrontier.Status.READY) {
++            var point = frontier.waypoint();
++            movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
++            explorationMoving = true;
++        }
++    }
++    private void retryExploration() {
++        movement.stop(); explorationMoving = false; explorationTicks = 0;
++        BlockPos feet = client.player.blockPosition();
++        terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
++        status = "trying another safe exploration waypoint";
++    }
++    private void rejectResource() {
++        movement.stop(); actions.cancel(); moving = false;
++        if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
++        rejectedResources.add(target.immutable()); target = null; scan = null; actionTicks = 0;
++        status = "trying another reachable resource";
++    }
+     private void gather() {
+         Set<Block> blocks = new HashSet<>();
+         step.candidateBlocks().forEach(id -> blocks.add(GameCatalog.block(id)));
+@@ -743,6 +885,7 @@ final class AutomationEngine {
+             if (known != null) {
+                 known.removeIf(position -> !sourceStillAvailable(position, blocks));
+                 target = known.stream()
++                        .filter(position -> !rejectedResources.contains(position))
+                         .filter(position -> Math.pow(position.getX() - client.player.getX(), 2)
+                                 + Math.pow(position.getZ() - client.player.getZ(), 2) <= config.searchRadius * config.searchRadius)
+                         .min(Comparator.comparingDouble(position -> client.player.distanceToSqr(
+@@ -754,7 +897,7 @@ final class AutomationEngine {
+             if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius);
+             status = "discovering " + step.output();
+             if (!scan.advance(config.scanBlocksPerTick, 1_000_000)) return;
+-            target = scan.result();
++            target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
+             if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
+             discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
+             scan = null;
+@@ -765,7 +908,10 @@ final class AutomationEngine {
+                 .filter(SelectedToolRequirement.class::isInstance)
+                 .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
+         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
+-        if (!actions.mine(target, tool)) { movement.startInteraction(target); moving = true; }
++        if (!actions.mine(target, tool)) {
++            try { movement.startInteraction(target); moving = true; }
++            catch (MovementController.NavigationFailure blocked) { rejectResource(); }
++        }
+     }
+ 
+     private boolean sourceStillAvailable(BlockPos position, Set<Block> blocks) {
+@@ -979,7 +1125,8 @@ final class AutomationEngine {
+         catch (RuntimeException exception) { message("Movement cancellation: " + exception.getMessage()); }
+         finally {
+             crafting = null; smelting = null; openingStation = false; moving = false;
+-            step = null; scan = null; target = null; verifyTicks = 0;
++            step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
++            exploring = false; explorationMoving = false; explorationTicks = 0;
+         }
+         if (warning.isBlank() && closeThisMenu && client.player != null
+                 && client.player.containerMenu == stationMenu) client.player.closeContainer();
+@@ -1005,7 +1152,7 @@ final class AutomationEngine {
+     void resume() {
+         paused = false;
+         actionTicks = 0;
+-        if (active != null && pendingPlan == null && step == null) requestPlan();
++        if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
+         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
+     }
+ 
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java
+index eb927b4..8875b49 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java
+@@ -147,6 +147,7 @@ final class GameCatalog {
+     }
+ 
+     boolean ready() { return ready; }
++    long generation() { return loadGeneration; }
+ 
+     /** Adds newly synchronized recipe-book displays without rescanning already known entries. */
+     void refreshLearnedRecipes() {
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java
+index 6cb3479..0f26660 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java
+@@ -77,12 +77,13 @@ public final class LodekeeperClient implements ClientModInitializer {
+         if (command.key() == null) {
+             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
+                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
+-                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat);
++                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", allowExploration=" + config.allowExploration
++                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance);
+             return;
+         }
+         String key = command.key(), value = command.value();
+         if (value == null) {
+-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat");
++            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, allowExploration, explorationAttempts, explorationDistance");
+             return;
+         }
+         switch (key) {
+@@ -92,6 +93,9 @@ public final class LodekeeperClient implements ClientModInitializer {
+                 config.prefix = value;
+             }
+             case "searchRadius" -> config.searchRadius = Integer.parseInt(value);
++            case "allowExploration" -> config.allowExploration = bool(value);
++            case "explorationAttempts" -> config.explorationAttempts = Integer.parseInt(value);
++            case "explorationDistance" -> config.explorationDistance = Integer.parseInt(value);
+             case "pauseBelowHealth" -> config.pauseBelowHealth = Float.parseFloat(value);
+             case "allowBreaking" -> config.allowBreaking = bool(value);
+             case "allowBuilding" -> config.allowBuilding = bool(value);
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperConfig.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperConfig.java
+index 0fc2772..ae015c0 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperConfig.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperConfig.java
+@@ -13,6 +13,9 @@ public final class LodekeeperConfig {
+     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("lodekeeper.json");
+     public String prefix = "!lk ";
+     public int searchRadius = 48;
++    public boolean allowExploration = true;
++    public int explorationAttempts = 32;
++    public int explorationDistance = 512;
+     public int scanBlocksPerTick = 512;
+     public int pathNodesPerTick = 128;
+     public int pathNodeLimit = 16000;
+@@ -43,6 +46,8 @@ public final class LodekeeperConfig {
+     public void sanitize() {
+         if (prefix == null || prefix.isBlank() || prefix.length() > 16 || prefix.startsWith("/")) prefix = "!lk ";
+         searchRadius = clamp(searchRadius, 8, 96);
++        explorationAttempts = clamp(explorationAttempts, 1, 128);
++        explorationDistance = clamp(explorationDistance, 16, 2048);
+         scanBlocksPerTick = clamp(scanBlocksPerTick, 32, 2048);
+         pathNodesPerTick = clamp(pathNodesPerTick, 16, 512);
+         pathNodeLimit = clamp(pathNodeLimit, 512, 64000);
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+index d5f6fe2..779bd72 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+@@ -31,6 +31,14 @@ final class MovementController {
+     private double edgeStartX, edgeStartY, edgeStartZ;
+     private double lastDistance = Double.POSITIVE_INFINITY;
+     private int replans;
++    private boolean explorationRoute;
++    static final class NavigationFailure extends IllegalStateException {
++        NavigationFailure(String reason) { super(reason); }
++    }
++    void startExploration(BlockPos waypoint) {
++        stop(); explorationRoute = true;
++        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; search();
++    }
+     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
+         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
+     }
+@@ -64,9 +72,9 @@ final class MovementController {
+         BlockPos start = client.player.blockPosition();
+         Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
+         int spare = Math.max(0, actions.count(scaffold.asItem()) - 16); // Preserve a conservative supply reserve.
+-        Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(3)
+-            .allowBreaking(config.allowBreaking).allowBuilding(config.allowBuilding && spare > 0)
+-            .allowParkour(config.allowParkour).allowSwimming(true).allowClimbing(true)
++        Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(explorationRoute ? 1 : 3)
++            .allowBreaking(!explorationRoute && config.allowBreaking).allowBuilding(!explorationRoute && config.allowBuilding && spare > 0)
++            .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
+             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
+         planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
+         path = null; pathIndex = 1; actionIndex = 0; ticksWithoutProgress = 0; lastDistance = Double.POSITIVE_INFINITY;
+@@ -79,7 +87,7 @@ final class MovementController {
+             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
+             if (status == NavStatus.IN_PROGRESS) return false;
+             if (status == NavStatus.STALE) { retry("Terrain changed during search"); return false; }
+-            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new IllegalStateException("Navigation: " + status
++            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status
+                     + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
+             path = planner.getPath();
+             validatedPathIndex = -1;
+@@ -87,7 +95,7 @@ final class MovementController {
+             if (path == null || path.length() < 2) {
+                 BlockPos player = client.player.blockPosition();
+                 if (goal.matches(player.getX(), player.getY(), player.getZ())) return true;
+-                throw new IllegalStateException("No useful route in loaded terrain");
++                throw new NavigationFailure("No useful route in loaded terrain");
+             }
+         }
+         if (pathIndex == path.length()) {
+@@ -203,10 +211,11 @@ final class MovementController {
+     private void retry(String reason) {
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+-        if (++replans > 8) throw new IllegalStateException(reason + " (retry limit reached)");
++        if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
+         search();
+     }
+     void stop() {
++        explorationRoute = false;
+         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+diff --git a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+index 157adea..2a40fe5 100644
+--- a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
++++ b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+@@ -43,6 +43,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+     private static final int MAX_RUN_TICKS = 6_000;
+     private static final int OBSERVE_EVERY_TICKS = 20;
++    private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
++    private boolean resourceInitiallyLoaded;
+     private static final int FLOOR_Y = 63;
+     private static final int PLAYER_Y = FLOOR_Y + 1;
+ 
+@@ -230,7 +232,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick && latestSnapshot.inventoryEmpty()) {
+                     readyTicks++;
+                     if (readyTicks >= 20 && client.player.getY() > FLOOR_Y
+-                        && client.level.getBlockState(new BlockPos(6, PLAYER_Y, 0)).is(Blocks.OAK_LOG)) {
++                        && (EXPLORATION_MODE
++                            ? client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)
++                            : client.level.getBlockState(new BlockPos(6, PLAYER_Y, 0)).is(Blocks.OAK_LOG))) {
+                         startGatherCommand();
+                     }
+                 }
+@@ -287,11 +291,11 @@ public final class RuntimeVerification implements ClientModInitializer {
+             try {
+                 ServerPlayer player = requireServerPlayer(server);
+                 ServerLevel world = server.overworld();
+-                for (int x = -12; x <= 18; x++) {
++                for (int x = -12; x <= (EXPLORATION_MODE ? 96 : 18); x++) {
+                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
+                 }
+                 for (int index = 0; index < 8; index++) {
+-                    world.setBlockAndUpdate(new BlockPos(6 + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
++                    world.setBlockAndUpdate(new BlockPos((EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
+                 }
+                 for (int x = 6; x <= 17; x++) world.setBlockAndUpdate(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.defaultBlockState());
+                 world.setBlockAndUpdate(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.defaultBlockState());
+@@ -341,7 +345,13 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private void startGatherCommand() {
+-        activeCase = "gather_wood_8";
++        activeCase = EXPLORATION_MODE ? "explore_to_unloaded_wood_8" : "gather_wood_8";
++        if (EXPLORATION_MODE) {
++            resourceInitiallyLoaded = client.level.getChunkSource().getChunk(5, 0,
++                net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) != null;
++            if (resourceInitiallyLoaded) { fail("far resource chunk was already loaded at goal start"); return; }
++            if (!requireEngine().config.allowExploration) { fail("exploration policy was disabled in verifier config"); return; }
++        }
+         activeItem = "minecraft:oak_log";
+         activeCount = 8;
+         activeRequiresEmpty = true;
+@@ -358,6 +368,10 @@ public final class RuntimeVerification implements ClientModInitializer {
+             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
+             && (state != State.SMELTING_IRON || serverFurnaceOpened)
+             && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
++        if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
++                && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
++            fail("far resource goal completed without observed bounded exploration travel"); return;
++        }
+         if (targetReached && state == State.GATHERING_FOOD
+             && (latestSnapshot.foodLevel <= activeFoodLevelAtStart
+                 || latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= activeBreadCountAtStart)) {
+@@ -370,7 +384,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 default -> "server inventory reached target and the engine returned idle";
+             };
+             addResult(true, observed, detail);
+-            if (state == State.GATHERING_WOOD) startCraftingTableCommand();
++            if (state == State.GATHERING_WOOD && EXPLORATION_MODE) {
++                state = State.CAPTURING; captureStartedAtTick = clientTicks;
++            } else if (state == State.GATHERING_WOOD) startCraftingTableCommand();
+             else if (state == State.CRAFTING_TABLE) startCraftingSticksCommand();
+             else if (state == State.CRAFTING_STICKS) startAdditionalCase(State.CRAFTING_WOOD_PICK, "craft_wooden_pickaxe", "minecraft:wooden_pickaxe");
+             else if (state == State.CRAFTING_WOOD_PICK) startAdditionalCase(State.CRAFTING_STONE_PICK, "craft_stone_pickaxe", "minecraft:stone_pickaxe");
+@@ -566,7 +582,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private void finishRun() {
+         state = State.COMPLETE;
+-        boolean passed = results.size() == 9 && results.stream().allMatch(CaseResult::passed);
++        boolean passed = results.size() == (EXPLORATION_MODE ? 1 : 9) && results.stream().allMatch(CaseResult::passed);
+         writeEvidence(passed ? "passed" : "failed");
+         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
+         client.stop();
+@@ -633,6 +649,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 cases.add(item);
+             }
+             root.add("cases", cases);
++            root.addProperty("explorationFixture", EXPLORATION_MODE);
++            root.addProperty("resourceInitiallyLoaded", resourceInitiallyLoaded);
++            root.addProperty("explorationAttempts", requireEngine().explorationAttemptsMade());
+             Files.writeString(evidenceDirectory.resolve("run-" + runId + ".json"),
+                 new GsonBuilder().setPrettyPrinting().create().toJson(root), StandardCharsets.UTF_8);
+         } catch (Exception exception) {
+diff --git a/nav/src/main/java/dev/lodekeeper/nav/ExplorationFrontier.java b/nav/src/main/java/dev/lodekeeper/nav/ExplorationFrontier.java
+new file mode 100644
+index 0000000..247a993
+--- /dev/null
++++ b/nav/src/main/java/dev/lodekeeper/nav/ExplorationFrontier.java
+@@ -0,0 +1,85 @@
++package dev.lodekeeper.nav;
++
++import java.util.HashSet;
++import java.util.Set;
++import java.util.function.LongSupplier;
++
++/** Bounded surface exploration. Proposes loaded safe waypoints; routing remains the caller's job. */
++public final class ExplorationFrontier {
++    public enum Status { IN_PROGRESS, READY, EXHAUSTED }
++    public record Waypoint(int x, int y, int z) {}
++    private static final int[][] DIRECTIONS = {{1,0},{0,1},{-1,0},{0,-1},{1,1},{-1,1},{-1,-1},{1,-1}};
++    private static final int[] HEIGHTS = {0,1,-1,2,-2,3,-3};
++    private static final int CANDIDATES = DIRECTIONS.length * 4 * HEIGHTS.length;
++    private final int originX, originZ, maxAttempts, maxDistance;
++    private final LongSupplier clock;
++    private final Set<Long> visited = new HashSet<>();
++    private final StanceProbe probe = new StanceProbe();
++    private int currentX, currentY, currentZ, index, attempts;
++    private long bestScore = Long.MIN_VALUE;
++    private Waypoint best;
++    private Status status = Status.EXHAUSTED;
++
++    public ExplorationFrontier(int originX, int originZ, int maxAttempts, int maxDistance) {
++        this(originX, originZ, maxAttempts, maxDistance, System::nanoTime);
++    }
++    ExplorationFrontier(int originX, int originZ, int maxAttempts, int maxDistance, LongSupplier clock) {
++        if (maxAttempts < 1 || maxAttempts > 128 || maxDistance < 16 || maxDistance > 2048) {
++            throw new IllegalArgumentException("exploration limits out of range");
++        }
++        this.originX = originX; this.originZ = originZ;
++        this.maxAttempts = maxAttempts; this.maxDistance = maxDistance; this.clock = clock;
++        visited.add(region(originX, originZ));
++    }
++    public void beginAt(int x, int y, int z) {
++        currentX = x; currentY = y; currentZ = z; index = 0; best = null; bestScore = Long.MIN_VALUE;
++        status = attempts >= maxAttempts || !withinBound(x,z) ? Status.EXHAUSTED : Status.IN_PROGRESS;
++        // Reserve the attempt before probing: interrupted/timed-out searches also consume the bound.
++        if (status == Status.IN_PROGRESS) attempts++;
++    }
++    public Status advance(Terrain terrain, int probeBudget, long nanosBudget) {
++        if (probeBudget < 1 || nanosBudget < 1) throw new IllegalArgumentException("positive search budgets required");
++        if (status != Status.IN_PROGRESS) return status;
++        long started = clock.getAsLong();
++        int probes = 0;
++        while (index < CANDIDATES && probes < probeBudget && clock.getAsLong() - started < nanosBudget) {
++            int candidate = index++; probes++;
++            int height = HEIGHTS[candidate % HEIGHTS.length];
++            int radius = 4 * (1 + candidate / HEIGHTS.length % 4);
++            int[] direction = DIRECTIONS[candidate / (HEIGHTS.length * 4)];
++            long x = (long) currentX + direction[0] * radius;
++            long y = (long) currentY + height;
++            long z = (long) currentZ + direction[1] * radius;
++            if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE || y < Integer.MIN_VALUE || y > Integer.MAX_VALUE
++                    || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE) continue;
++            int px = (int) x, py = (int) y, pz = (int) z;
++            long localDistance = (x - currentX) * (x - currentX) + (z - currentZ) * (z - currentZ);
++            if (localDistance < 64 || localDistance > 256 || !withinBound(px,pz)
++                    || visited.contains(region(px,pz)) || region(px,pz) == region(currentX,currentZ)) continue;
++            terrain.probeStance(px,py,pz,probe.clear());
++            if (!probe.loaded || !probe.bodyClear || !probe.fullSupport || probe.hazard || probe.water
++                    || probe.climbable || probe.breakCount != 0) continue;
++            long ox = x - originX, oz = z - originZ;
++            long score = (ox * ox + oz * oz) * 32 + localDistance - Math.abs(height);
++            if (score > bestScore) { bestScore = score; best = new Waypoint(px,py,pz); }
++        }
++        if (index == CANDIDATES) {
++            if (best == null) status = Status.EXHAUSTED;
++            else { visited.add(region(best.x,best.z)); status = Status.READY; }
++        }
++        return status;
++    }
++    public Waypoint waypoint() {
++        if (status != Status.READY) throw new IllegalStateException("no ready exploration waypoint");
++        return best;
++    }
++    public int attempts() { return attempts; }
++    private boolean withinBound(int x, int z) {
++        long dx = (long) x - originX, dz = (long) z - originZ;
++        return Math.abs(dx) <= maxDistance && Math.abs(dz) <= maxDistance
++                && dx * dx + dz * dz <= (long) maxDistance * maxDistance;
++    }
++    private static long region(int x, int z) {
++        return ((long) Math.floorDiv(x,8) << 32) | (Math.floorDiv(z,8) & 0xffff_ffffL);
++    }
++}

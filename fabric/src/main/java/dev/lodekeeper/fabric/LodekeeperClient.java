@@ -70,16 +70,20 @@ public final class LodekeeperClient implements ClientModInitializer {
     private void configure(CommandParser.ConfigCommand command) throws java.io.IOException {
         LodekeeperConfig config = engine.config;
         if (command.key() == null) {
-            engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius + ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding + ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat); return;
+            engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius + ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding + ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", allowExploration=" + config.allowExploration
+                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance); return;
         }
         String key = command.key(), value = command.value();
-        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat"); return; }
+        if (value == null) { engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, allowExploration, explorationAttempts, explorationDistance"); return; }
         switch (key) {
             case "prefix" -> {
                 if (value.isBlank() || value.length() > 16 || value.startsWith("/")) throw new IllegalArgumentException("Prefix must be 1–16 characters and may not start with /");
                 config.prefix = value;
             }
             case "searchRadius" -> config.searchRadius = Integer.parseInt(value);
+            case "allowExploration" -> config.allowExploration = bool(value);
+            case "explorationAttempts" -> config.explorationAttempts = Integer.parseInt(value);
+            case "explorationDistance" -> config.explorationDistance = Integer.parseInt(value);
             case "pauseBelowHealth" -> config.pauseBelowHealth = Float.parseFloat(value);
             case "allowBreaking" -> config.allowBreaking = bool(value);
             case "allowBuilding" -> config.allowBuilding = bool(value);

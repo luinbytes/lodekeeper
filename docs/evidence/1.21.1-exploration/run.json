@@ -1,0 +1,19 @@
+{
+  "runId":"2026-10-05T10-21-54-941894Z-7b7b64b5",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "elapsedMillis":78052,
+  "clientTicks":1446,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "cases":[
+    {"name":"explore_to_unloaded_wood_8","item":"minecraft:oak_log","expected":8,"serverObserved":8,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":1209,"worldTicks":1209,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[86.63477140184156,64.0,0.47991810342814234],"screenshot":"screenshots/lodekeeper-2026-10-05T10-21-54-941894Z-7b7b64b5-explore_to_unloaded_wood_8.png"}
+  ],
+  "explorationFixture":true,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":2
+}

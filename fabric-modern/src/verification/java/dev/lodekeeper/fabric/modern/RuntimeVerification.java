@@ -43,6 +43,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final int MAX_RUN_TICKS = 6_000;
     private static final int OBSERVE_EVERY_TICKS = 20;
+    private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
+    private boolean resourceInitiallyLoaded;
     private static final int FLOOR_Y = 63;
     private static final int PLAYER_Y = FLOOR_Y + 1;
 
@@ -230,7 +232,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick && latestSnapshot.inventoryEmpty()) {
                     readyTicks++;
                     if (readyTicks >= 20 && client.player.getY() > FLOOR_Y
-                        && client.level.getBlockState(new BlockPos(6, PLAYER_Y, 0)).is(Blocks.OAK_LOG)) {
+                        && (EXPLORATION_MODE
+                            ? client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)
+                            : client.level.getBlockState(new BlockPos(6, PLAYER_Y, 0)).is(Blocks.OAK_LOG))) {
                         startGatherCommand();
                     }
                 }
@@ -287,11 +291,11 @@ public final class RuntimeVerification implements ClientModInitializer {
             try {
                 ServerPlayer player = requireServerPlayer(server);
                 ServerLevel world = server.overworld();
-                for (int x = -12; x <= 18; x++) {
+                for (int x = -12; x <= (EXPLORATION_MODE ? 96 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
                 }
                 for (int index = 0; index < 8; index++) {
-                    world.setBlockAndUpdate(new BlockPos(6 + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
+                    world.setBlockAndUpdate(new BlockPos((EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
                 }
                 for (int x = 6; x <= 17; x++) world.setBlockAndUpdate(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.defaultBlockState());
                 world.setBlockAndUpdate(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.defaultBlockState());
@@ -341,7 +345,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startGatherCommand() {
-        activeCase = "gather_wood_8";
+        activeCase = EXPLORATION_MODE ? "explore_to_unloaded_wood_8" : "gather_wood_8";
+        if (EXPLORATION_MODE) {
+            resourceInitiallyLoaded = client.level.getChunkSource().getChunk(5, 0,
+                net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) != null;
+            if (resourceInitiallyLoaded) { fail("far resource chunk was already loaded at goal start"); return; }
+            if (!requireEngine().config.allowExploration) { fail("exploration policy was disabled in verifier config"); return; }
+        }
         activeItem = "minecraft:oak_log";
         activeCount = 8;
         activeRequiresEmpty = true;
@@ -358,6 +368,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
             && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
+        if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
+                && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
+            fail("far resource goal completed without observed bounded exploration travel"); return;
+        }
         if (targetReached && state == State.GATHERING_FOOD
             && (latestSnapshot.foodLevel <= activeFoodLevelAtStart
                 || latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= activeBreadCountAtStart)) {
@@ -370,7 +384,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 default -> "server inventory reached target and the engine returned idle";
             };
             addResult(true, observed, detail);
-            if (state == State.GATHERING_WOOD) startCraftingTableCommand();
+            if (state == State.GATHERING_WOOD && EXPLORATION_MODE) {
+                state = State.CAPTURING; captureStartedAtTick = clientTicks;
+            } else if (state == State.GATHERING_WOOD) startCraftingTableCommand();
             else if (state == State.CRAFTING_TABLE) startCraftingSticksCommand();
             else if (state == State.CRAFTING_STICKS) startAdditionalCase(State.CRAFTING_WOOD_PICK, "craft_wooden_pickaxe", "minecraft:wooden_pickaxe");
             else if (state == State.CRAFTING_WOOD_PICK) startAdditionalCase(State.CRAFTING_STONE_PICK, "craft_stone_pickaxe", "minecraft:stone_pickaxe");
@@ -566,7 +582,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void finishRun() {
         state = State.COMPLETE;
-        boolean passed = results.size() == 9 && results.stream().allMatch(CaseResult::passed);
+        boolean passed = results.size() == (EXPLORATION_MODE ? 1 : 9) && results.stream().allMatch(CaseResult::passed);
         writeEvidence(passed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
         client.stop();
@@ -633,6 +649,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 cases.add(item);
             }
             root.add("cases", cases);
+            root.addProperty("explorationFixture", EXPLORATION_MODE);
+            root.addProperty("resourceInitiallyLoaded", resourceInitiallyLoaded);
+            root.addProperty("explorationAttempts", requireEngine().explorationAttemptsMade());
             Files.writeString(evidenceDirectory.resolve("run-" + runId + ".json"),
                 new GsonBuilder().setPrettyPrinting().create().toJson(root), StandardCharsets.UTF_8);
         } catch (Exception exception) {

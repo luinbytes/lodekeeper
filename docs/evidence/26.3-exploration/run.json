@@ -1,0 +1,41 @@
+{
+  "runId": "2026-10-05T10-25-07-188041Z-789b8aee",
+  "status": "passed",
+  "minecraftVersion": "26.3",
+  "worldKind": "isolated_superflat_fixture",
+  "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+  "runDirectory": "/Users/luinbytes/src/lodekeeper/fabric-modern/run-verification",
+  "worldId": "run-205cbce45f914f9d",
+  "elapsedMillis": 80560,
+  "clientTicks": 1421,
+  "failure": "",
+  "serverTableOpened": false,
+  "serverFurnaceOpened": false,
+  "serverTableOpenings": 0,
+  "cases": [
+    {
+      "name": "explore_to_unloaded_wood_8",
+      "item": "minecraft:oak_log",
+      "expected": 8,
+      "serverObserved": 8,
+      "inventoryEmptyAtStart": true,
+      "passed": true,
+      "clientTicks": 1242,
+      "worldTicks": 1242,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "server inventory reached target and the engine returned idle",
+      "serverHealth": 20.0,
+      "serverDifficulty": "PEACEFUL",
+      "serverCraftingTableOpenedDuringCase": false,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverFoodLevelAtStart": 20,
+      "serverFoodLevelObserved": 20,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "86.69999998807907,64.0,0.5"
+    }
+  ],
+  "explorationFixture": true,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 2
+}

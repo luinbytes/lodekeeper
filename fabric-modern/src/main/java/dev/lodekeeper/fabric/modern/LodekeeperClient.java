@@ -77,12 +77,13 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (command.key() == null) {
             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
-                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat);
+                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", allowExploration=" + config.allowExploration
+                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance);
             return;
         }
         String key = command.key(), value = command.value();
         if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat");
+            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, allowExploration, explorationAttempts, explorationDistance");
             return;
         }
         switch (key) {
@@ -92,6 +93,9 @@ public final class LodekeeperClient implements ClientModInitializer {
                 config.prefix = value;
             }
             case "searchRadius" -> config.searchRadius = Integer.parseInt(value);
+            case "allowExploration" -> config.allowExploration = bool(value);
+            case "explorationAttempts" -> config.explorationAttempts = Integer.parseInt(value);
+            case "explorationDistance" -> config.explorationDistance = Integer.parseInt(value);
             case "pauseBelowHealth" -> config.pauseBelowHealth = Float.parseFloat(value);
             case "allowBreaking" -> config.allowBreaking = bool(value);
             case "allowBuilding" -> config.allowBuilding = bool(value);

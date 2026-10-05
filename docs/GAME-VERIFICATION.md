@@ -69,3 +69,11 @@ The [2026-10-05 controlled run](evidence/1.20.1-basic/run.json) passed the origi
 ## Recorded expanded legacy run
 
 The [1.20.1 nine-case run](evidence/1.20.1-progression/run.json) passed on 2026-10-05 in 162,653 ms. The integrated server observed each target in inventory, four crafting-table openings, a furnace opening, and bread consumption with hunger increasing from 7 to 12. All nine observations report full health. Screenshots accompany the JSON. The run uses the deterministic resource pad and does not establish natural-world exploration or complete mechanic coverage.
+
+## Distant-resource scenario
+
+The optional JVM flag `-Dlodekeeper.verify.exploration=true` selects a single wood goal instead of the nine-case progression suite. The disposable fixture extends the supported floor and puts eight logs at X=80–87. The verifier requires their client chunk to be unloaded when the empty-inventory goal starts, then checks server inventory, travel beyond X=48, a nonzero exploration-attempt count and an idle engine. It grants no logs or tools.
+
+The [recorded 1.21.1 run](evidence/1.21.1-exploration/run.json) passed with eight logs, health 20, X=86.63 and two exploration attempts: 1,209 goal ticks and 78,052 ms for the isolated verification run. Its [artifact record](evidence/1.21.1-exploration/artifact.json) includes the exact archived working-tree source patch used by the development client. This verifies controlled travel into initially unloaded resource terrain; it does not establish natural-world exploration or persistent resource knowledge.
+
+The [recorded 26.3 run](evidence/26.3-exploration/run.json) also passed the distant-resource goal with eight server-observed logs, health 20 and two exploration attempts. Its [artifact record](evidence/26.3-exploration/artifact.json) archives the exact source patch, including bounded fallback among dropped and scanned log outputs. Both clients were run sequentially with no Gradle process during gameplay.

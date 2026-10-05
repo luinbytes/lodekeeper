@@ -31,6 +31,14 @@ final class MovementController {
     private double edgeStartX, edgeStartY, edgeStartZ;
     private double lastDistance = Double.POSITIVE_INFINITY;
     private int replans;
+    private boolean explorationRoute;
+    static final class NavigationFailure extends IllegalStateException {
+        NavigationFailure(String reason) { super(reason); }
+    }
+    void startExploration(BlockPos waypoint) {
+        stop(); explorationRoute = true;
+        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; search();
+    }
     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
     }
@@ -64,9 +72,9 @@ final class MovementController {
         BlockPos start = client.player.blockPosition();
         Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
         int spare = Math.max(0, actions.count(scaffold.asItem()) - 16); // Preserve a conservative supply reserve.
-        Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(3)
-            .allowBreaking(config.allowBreaking).allowBuilding(config.allowBuilding && spare > 0)
-            .allowParkour(config.allowParkour).allowSwimming(true).allowClimbing(true)
+        Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(explorationRoute ? 1 : 3)
+            .allowBreaking(!explorationRoute && config.allowBreaking).allowBuilding(!explorationRoute && config.allowBuilding && spare > 0)
+            .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
         planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
         path = null; pathIndex = 1; actionIndex = 0; ticksWithoutProgress = 0; lastDistance = Double.POSITIVE_INFINITY;
@@ -79,7 +87,7 @@ final class MovementController {
             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
             if (status == NavStatus.IN_PROGRESS) return false;
             if (status == NavStatus.STALE) { retry("Terrain changed during search"); return false; }
-            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new IllegalStateException("Navigation: " + status
+            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status
                     + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
             path = planner.getPath();
             validatedPathIndex = -1;
@@ -87,7 +95,7 @@ final class MovementController {
             if (path == null || path.length() < 2) {
                 BlockPos player = client.player.blockPosition();
                 if (goal.matches(player.getX(), player.getY(), player.getZ())) return true;
-                throw new IllegalStateException("No useful route in loaded terrain");
+                throw new NavigationFailure("No useful route in loaded terrain");
             }
         }
         if (pathIndex == path.length()) {
@@ -203,10 +211,11 @@ final class MovementController {
     private void retry(String reason) {
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
-        if (++replans > 8) throw new IllegalStateException(reason + " (retry limit reached)");
+        if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
         search();
     }
     void stop() {
+        explorationRoute = false;
         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
         input.idle(); actions.cancel();
         if (client.player != null) client.player.setSprinting(false);
