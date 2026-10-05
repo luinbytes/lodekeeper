@@ -79,6 +79,9 @@ final class AutomationEngine {
     private final Set<String> unavailableSources = new HashSet<>();
     private final Map<String, List<BlockPos>> discoveredSources = new LinkedHashMap<>();
     private final AcquisitionPlanner planner = new AcquisitionPlanner();
+    private final NearbyResources nearbyResources;
+    private long pendingPlanPreferencesVersion, stepPreferencesVersion;
+    private int preferenceRefreshCooldown;
     private ClientWorld world;
     private GameCatalog catalog;
     private Request active;
@@ -99,6 +102,8 @@ final class AutomationEngine {
     private final Set<BlockPos> rejectedResources = new HashSet<>();
     private BlockPos target;
     private CraftingAction crafting;
+    private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
+    private StonecuttingAction stonecutting;
     private SmeltingAction smelting;
     private boolean moving, movingPickup, paused, openingStation, foregroundYieldPending, stopAfterStep;
     private ScreenHandler ownedStationHandler, stationOpeningFrom;
@@ -118,6 +123,7 @@ final class AutomationEngine {
     private String status = "idle";
     AutomationEngine(MinecraftClient client, LodekeeperConfig config) {
         this.client = client; this.config = config;
+        nearbyResources = new NearbyResources(client);
         actions = new PlayerActions(client); input = new BotInput(client); terrain = new GameTerrain(client, config);
         movement = new MovementController(client, config, actions, input, terrain);
         food = new FoodController(client, actions);
@@ -126,6 +132,7 @@ final class AutomationEngine {
         if (client.world != world) {
             stopNow(false); world = client.world; ownedStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             recipeRefreshPending = false;
+            nearbyResources.reset();
             inventorySampleTicks = 0; inventoryFingerprintInitialized = false; observedInventory = Map.of();
         }
         if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentProvider())) {
@@ -137,6 +144,8 @@ final class AutomationEngine {
             }
         }
         if (client.player == null || client.world == null) { food.stop(); input.release(); return; }
+        nearbyResources.tick(catalog, config.scanBlocksPerTick);
+        if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
         try {
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
@@ -147,7 +156,7 @@ final class AutomationEngine {
             if (active == null && !paused) startNextRequest();
             if (active == null || paused) { food.stop(); input.release(); return; }
             if (!client.player.isAlive() || client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
-            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && smelting == null && !openingStation) { food.stop(); input.release(); return; }
+            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { food.stop(); input.release(); return; }
             if (foregroundYieldPending && !transactionInProgress() && !openingStation && !canYieldMaintenanceNow()) {
                 input.release(); status = "foreground queued; waiting for inventory screen and cursor to be safe"; return;
             }
@@ -184,6 +193,10 @@ final class AutomationEngine {
                     else status = "waiting for recipe catalog";
                     return;
                 }
+                if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) {
+                    requestPlan();
+                    return;
+                }
                 if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
                 if (goalCount() >= active.count) { finishGoal(); return; }
                 if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
@@ -191,11 +204,11 @@ final class AutomationEngine {
                 if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
                 if (result.steps().isEmpty()) { finishGoal(); return; }
-                begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment());
+                begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion);
             }
             if (step == null) return;
             if (stepCatalogGeneration != catalog.generation() || !catalog.ready()) {
-                if (crafting != null || smelting != null) {
+                if (crafting != null || stonecutting != null || smelting != null) {
                     // The action owns an immutable RecipeWork snapshot. Let it finish the
                     // in-flight transfer and safely drain before replanning against new data.
                     requestActiveTransactionDrain();
@@ -207,11 +220,19 @@ final class AutomationEngine {
                     return;
                 }
             }
+            if (step.kind() == PlanKind.GATHER && target == null && scan != null
+                    && stepPreferencesVersion != nearbyResources.version() && preferenceRefreshCooldown == 0) {
+                preferenceRefreshCooldown = 20;
+                resetAction();
+                requestPlan();
+                return;
+            }
             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
             if (observed != lastObservedCount) { lastObservedCount = observed; actionTicks = 0; }
             if (smelting != null && smelting.progressToken() != lastSmeltProgress) { lastSmeltProgress = smelting.progressToken(); actionTicks = 0; }
-            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId());
-            if (step.output() != null && crafting == null && smelting == null
+            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId()
+                    + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
+            if (step.output() != null && crafting == null && stonecutting == null && smelting == null
                     && !openingStation
                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
                 input.idle();
@@ -345,14 +366,16 @@ final class AutomationEngine {
         if (previewPending) { message("A plan preview is already in progress"); return; }
         ensureCatalog();
         if (!catalog.ready()) { message("Recipe catalog is loading; try plan again shortly"); return; }
+        if (!nearbyResources.ready()) { message("Indexing local resource options; try plan again shortly"); return; }
         observeInventory();
         ItemId item = name == null ? active != null ? active.item : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item : queue.peekFirst().item : resolve(name);
         if (item == null) { message("No active or queued goal"); return; }
         CatalogSnapshot snapshot = catalog.snapshot(); InventorySnapshot inventory = inventorySnapshot(item);
         var previewWorld = client.world;
+        PlanningPreferences preferences = nearbyResources.snapshot();
         long previewGeneration = catalog.generation();
         previewPending = true;
-        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
+        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count, preferences), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
             previewPending = false;
             if (client.world != previewWorld || catalog == null) return;
             if (!catalog.ready() || catalog.generation() != previewGeneration) { message("Recipe catalog changed; try plan again"); return; }
@@ -364,11 +387,11 @@ final class AutomationEngine {
             }
         }));
     }
-    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count) {
-        PlanResult result = planner.planFast(snapshot, inventory, item, count);
+    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count, PlanningPreferences preferences) {
+        PlanResult result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
         for (int retry = 0; retry < 4 && !result.success()
                 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT); retry++) {
-            result = planner.planFast(snapshot, inventory, item, count);
+            result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
         }
         return result;
     }
@@ -443,7 +466,7 @@ final class AutomationEngine {
 
     private boolean transactionInProgress() {
         return step != null && (step.kind() == PlanKind.CRAFT || step.kind() == PlanKind.SMELT)
-                && (crafting != null || smelting != null);
+                && (crafting != null || stonecutting != null || smelting != null);
     }
 
     private boolean isActiveMaintenanceTransaction(ItemId item) {
@@ -460,12 +483,13 @@ final class AutomationEngine {
 
     private void requestActiveTransactionDrain() {
         if (crafting != null) crafting.requestDrain();
+        if (stonecutting != null) stonecutting.requestDrain();
         if (smelting != null) smelting.requestDrain();
     }
 
     private boolean canYieldMaintenanceNow() {
         if (active == null || !active.maintained() || client.player == null || transactionInProgress()
-                || crafting != null || smelting != null || openingStation
+                || crafting != null || stonecutting != null || smelting != null || openingStation
                 || client.player.currentScreenHandler != client.player.playerScreenHandler) return false;
         return client.player.currentScreenHandler.getCursorStack().isEmpty();
     }
@@ -557,6 +581,7 @@ final class AutomationEngine {
         foodReplanPending = false;
         ensureCatalog(); status = "planning";
         if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
+        if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
         observeInventory();
         if (goalCount() >= active.count) { finishGoal(); return; }
         ItemId item = active.item;
@@ -581,10 +606,12 @@ final class AutomationEngine {
         final ItemId targetItem = item; final int targetCount = requested;
         HarvestOffer harvestOffer = active.anyLogs && config.optimizeWoodTools
                 ? captureHarvestOffer(active.count - goalCount()) : null;
+        PlanningPreferences preferences = nearbyResources.snapshot();
+        pendingPlanPreferencesVersion = nearbyResources.version();
         pendingPlanGeneration = catalog.generation();
         CatalogSnapshot filteredSnapshot = snapshot;
         pendingPlan = CompletableFuture.supplyAsync(() -> {
-            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount);
+            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
             if (filteredPlan.success() && harvestOffer != null) {
                 try {
                     PlanResult investmentPlan = planner.planFast(harvestOffer.catalog(), harvestOffer.inventory(),
@@ -612,7 +639,7 @@ final class AutomationEngine {
                 return new PlanningOutcome(filteredPlan, false, false);
             }
             // Recovery has its own default fast-planner budget (20 ms); each planner call remains independently capped.
-            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount);
+            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
             return new PlanningOutcome(filteredPlan,
                     ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
         }, plannerWorker);
@@ -902,11 +929,16 @@ final class AutomationEngine {
                     && eligibleLogs.contains(entity.getStack().getItem()))
                 .stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
             droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getStack().getItem());
-            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius);
+            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius,rejectedResources);
             logScanGeneration = catalog.generation();
         }
-        status = "discovering nearby logs";
-        if (!logScan.advance(config.scanBlocksPerTick,1_000_000)) return null;
+        long beforeDiscovery = logScan.progressToken();
+        boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,1_000_000);
+        status = "discovering nearby logs · " + logScan.progressDescription();
+        if (!discoveryComplete && !logScan.hasCandidates()) {
+            if (logScan.progressToken() != beforeDiscovery) actionTicks = 0;
+            return null;
+        }
         Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
         Set<ItemId> outputs = new LinkedHashSet<>();
         if (droppedLogCandidate != null) outputs.add(droppedLogCandidate);
@@ -928,7 +960,7 @@ final class AutomationEngine {
         for (GatherSource source : new HashSet<>(logSources.values())) {
             if (source.output().equals(droppedLogCandidate)) continue;
             boolean present = source.blocks().stream().anyMatch(id -> logScan.found(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
-            if (!present) unavailableSources.add(source.sourceId());
+            if (logScan.complete() && !present) unavailableSources.add(source.sourceId());
         }
         droppedLogCandidate = null;
         logScan = null; logSources.clear();
@@ -953,7 +985,7 @@ final class AutomationEngine {
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
         return count;
     }
-    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment) {
+    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment, long plannedPreferencesVersion) {
         if (!catalog.ready() || catalog.generation() != plannedGeneration) {
             if (catalog.ready()) requestPlan();
             else status = "waiting for recipe catalog";
@@ -961,6 +993,7 @@ final class AutomationEngine {
         }
         resetAction(); rejectedStationSites.clear(); stationPlacementFailures = 0; stationDiscoveryDone = false;
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
+        stepPreferencesVersion = plannedPreferencesVersion;
         status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline; lastSmeltProgress = 0;
@@ -1056,9 +1089,14 @@ final class AutomationEngine {
             }
         }
         if (target == null) {
-            if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius);
-            status = "discovering " + step.output();
-            if (!scan.advance(config.scanBlocksPerTick, 1_000_000)) return;
+            if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
+            long beforeDiscovery = scan.progressToken();
+            boolean discoveryComplete = scan.advance(config.scanBlocksPerTick, 1_000_000);
+            status = "discovering " + step.output() + " · " + scan.progressDescription();
+            if (!discoveryComplete && !scan.hasCandidates()) {
+                if (scan.progressToken() != beforeDiscovery) actionTicks = 0;
+                return;
+            }
             target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
             if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
             discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
@@ -1167,7 +1205,8 @@ final class AutomationEngine {
         }
         if (openingStation) {
             boolean correct = step.kind() == PlanKind.CRAFT
-                    ? handler instanceof net.minecraft.screen.CraftingScreenHandler
+                    ? (isStonecuttingStep() ? handler.getClass() == net.minecraft.screen.StonecutterScreenHandler.class
+                        : handler instanceof net.minecraft.screen.CraftingScreenHandler)
                     : step.kind() == PlanKind.SMELT && isExactCookingStationHandler(handler, step.station());
             if (correct) {
                 if (handler != stationOpeningFrom) ownedStationHandler = handler;
@@ -1194,7 +1233,24 @@ final class AutomationEngine {
         if (!openingStation) stationOpeningFrom = null;
         return false;
     }
+    private boolean isStonecuttingStep() {
+        return step != null && STONECUTTER.equals(step.station());
+    }
+    private void stonecut() {
+        if (stonecutting == null) {
+            StonecuttingWork work = catalog.stonecuts.get(step.sourceId());
+            if (work == null || !catalog.ready() || stepCatalogGeneration != catalog.generation())
+                throw new IllegalStateException("Stonecutting recipe disappeared or changed before it could start");
+            if (!stationReady()) return;
+            stonecutting = new StonecuttingAction(client, actions, work, step,
+                    () -> catalog != null && catalog.ready() && stepCatalogGeneration == catalog.generation()
+                            && catalog.usesCurrentProvider());
+        }
+        if (shouldDrainActiveTransaction()) stonecutting.requestDrain();
+        if (stonecutting.tick()) completeStep();
+    }
     private void craft() {
+        if (isStonecuttingStep()) { stonecut(); return; }
         if (crafting == null) {
             if (!stationReady()) return;
             var recipe = catalog.recipes.get(step.sourceId());
@@ -1362,6 +1418,8 @@ final class AutomationEngine {
         String warning = "";
         try { if (crafting != null) crafting.pause(); }
         catch (RuntimeException ex) { warning = describe(ex); }
+        try { if (stonecutting != null) stonecutting.pause(); }
+        catch (RuntimeException exception) { warning = warning.isBlank() ? exception.getMessage() : warning + "; " + exception.getMessage(); }
         try { if (smelting != null) smelting.pause(); }
         catch (RuntimeException ex) { warning = warning.isBlank() ? describe(ex) : warning + "; " + describe(ex); }
         return warning;
@@ -1386,7 +1444,7 @@ final class AutomationEngine {
         try { movement.stop(); }
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
-            crafting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
+            crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }

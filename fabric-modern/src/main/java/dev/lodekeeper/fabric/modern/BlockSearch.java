@@ -17,20 +17,27 @@ import java.util.Set;
 final class BlockSearch {
     private final Minecraft client;
     private final Set<Block> blocks;
+    private final Set<BlockPos> excluded;
     private final Set<Block> matchedBlocks = new java.util.HashSet<>();
     private final BlockPos origin;
     private final int radius;
     private final List<ChunkPos> chunks = new ArrayList<>();
     private LevelChunk chunk;
-    private int chunkIndex, sectionIndex, cellIndex;
+    private int chunkIndex, sectionIndex, sectionCursor, cellIndex;
+    private int[] sectionOrder;
     private final PriorityQueue<BlockPos> candidates;
     private BlockPos best;
     private double bestDistance = Double.POSITIVE_INFINITY;
     private boolean done;
 
     BlockSearch(Minecraft client, Set<Block> blocks, int radius) {
+        this(client, blocks, radius, Set.of());
+    }
+
+    BlockSearch(Minecraft client, Set<Block> blocks, int radius, Set<BlockPos> excluded) {
         this.client = client;
         this.blocks = Set.copyOf(blocks);
+        this.excluded = Set.copyOf(excluded);
         this.radius = radius;
         origin = client.player.blockPosition();
         candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos position) -> position.distSqr(origin)).reversed());
@@ -52,17 +59,19 @@ final class BlockSearch {
                 ChunkPos pos = chunks.get(chunkIndex++);
                 var loaded = client.level.getChunk(pos.x(), pos.z(), ChunkStatus.FULL, false);
                 chunk = loaded instanceof LevelChunk levelChunk ? levelChunk : null;
-                sectionIndex = 0;
+                sectionCursor = 0;
                 cellIndex = 0;
                 if (chunk == null) continue;
+                if (sectionOrder == null) sectionOrder = orderSections(chunk.getSections().length, client.level.getMinY());
             }
             LevelChunkSection[] sectionsArray = chunk.getSections();
-            if (sectionIndex == sectionsArray.length) { chunk = null; continue; }
+            if (sectionCursor == sectionOrder.length) { chunk = null; continue; }
+            sectionIndex = sectionOrder[sectionCursor];
             LevelChunkSection section = sectionsArray[sectionIndex];
             if (cellIndex == 0) {
                 sections++;
                 if (section.hasOnlyAir() || !section.maybeHas(state -> blocks.contains(state.getBlock()))) {
-                    sectionIndex++;
+                    sectionCursor++;
                     continue;
                 }
             }
@@ -76,6 +85,11 @@ final class BlockSearch {
                 double distance = position.distSqr(origin);
                 if (horizontal <= radius * radius) {
                     matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
+                    if (excluded.contains(position)) {
+                        probes++;
+                        if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
+                        continue;
+                    }
                     if (candidates.size() < 512) candidates.add(position);
                     else if (distance < candidates.peek().distSqr(origin)) {
                         candidates.remove();
@@ -85,11 +99,26 @@ final class BlockSearch {
                 }
             }
             probes++;
-            if (++cellIndex == 4096) { cellIndex = 0; sectionIndex++; }
+            if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
         }
         return done;
     }
 
+    private int[] orderSections(int count, int bottomY) {
+        return java.util.stream.IntStream.range(0, count).boxed()
+                .sorted(Comparator.comparingInt((Integer section) -> {
+                    int min = bottomY + section * 16;
+                    return origin.getY() < min ? min - origin.getY()
+                            : origin.getY() > min + 15 ? origin.getY() - min - 15 : 0;
+                }).thenComparingInt(Integer::intValue))
+                .mapToInt(Integer::intValue).toArray();
+    }
+
+    /** Candidates can be used before discovery finishes; absence is proven only after completion. */
+    long progressToken() { return ((long) chunkIndex << 32) | ((long) sectionCursor << 16) | cellIndex; }
+    String progressDescription() { return "chunk " + Math.min(chunkIndex, chunks.size()) + "/" + chunks.size(); }
+    boolean hasCandidates() { return !candidates.isEmpty(); }
+    boolean complete() { return done; }
     boolean found(Block block) { return matchedBlocks.contains(block); }
     BlockPos result() { return best; }
     List<BlockPos> results() {

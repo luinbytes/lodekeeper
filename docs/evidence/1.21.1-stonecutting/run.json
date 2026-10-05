@@ -1,0 +1,31 @@
+{
+  "runId":"2026-10-05T17-06-51-662349Z-534dd023",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"stonecutting",
+  "elapsedMillis":22815,
+  "clientTicks":341,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"native_stonecutter_144_slabs","item":"minecraft:stone_slab","expected":144,"serverObserved":144,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":101,"worldTicks":101,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached 144 minecraft:stone_slab with 56 inputs remaining after opening the native stonecutter menu","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-05T17-06-51-662349Z-534dd023-native_stonecutter_144_slabs.png","elapsedMillisFromCommand":5036,"completionClientTick":321,"completionWorldTick":201,"completionHealth":20.0,"fullServerInventory":{"minecraft:stone":56,"minecraft:stone_slab":144},"requiresEmptyAtStart":false,"processingStation":"stonecutter","nativeRecipeType":"stonecutting","initialResources":{"minecraft:stone":128,"minecraft:stonecutter":1},"serverCorrectStationMenuOpenedDuringCase":true,"initialRawInputCount":128,"finalRawInputCount":56,"initialCoalCount":0,"finalCoalCount":0,"initialStationItemCount":1,"finalStationItemCount":0}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "stonecuttingFixture":true,
+  "nativeRecipeType":"stonecutting",
+  "processingStation":"stonecutter",
+  "serverStonecutterOpenings":1,
+  "stonecuttingFixtureProvidedStock":{"minecraft:stone":128,"minecraft:stonecutter":1},
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

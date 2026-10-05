@@ -1,4 +1,16 @@
-# Cooking stations
+# Processing stations
+
+## Stonecutting
+
+Lodekeeper can select and execute a native stonecutter recipe, preserving its exact synchronized selection identity. It places or opens a stonecutter, inserts only planned ingredients, chooses the input-filtered native recipe row and checks server-synchronized output quantities. Custom stonecutting recipes use the same path when their ingredient and output display resolve unambiguously.
+
+The controlled [1.21.1 batch](evidence/1.21.1-stonecutting/run.json) requested 144 slabs from 128 stone and one stonecutter. It finished with exactly 144 slabs and 56 stone, full health, an idle engine and a server-confirmed stonecutter opening. The separate [stop-after-insertion check](evidence/1.21.1-stonecutting-drain/run.json) sent an ordinary `!lk stop` after 64 owned stone entered the native input slot. A fresh server observation confirmed all 128 stone returned and zero slabs produced. The [26.3 bulk batch](evidence/26.3-stonecutting/run.json) and [stop/drain](evidence/26.3-stonecutting-drain/run.json) checks also passed the same quantities and native menu observations. These checks prepare supplies and terrain; natural acquisition and remote-server acceptance remain separate.
+
+Native output quick-move can repeat a recipe across the whole inserted input stack. Before issuing it, the actor checks capacity for the entire expected cohort. Input transfers are capped at 64 items and planned remaining operations; component-exact input and output ledgers must agree with observed consumption. Stop waits for an issued move to settle, then returns owned input. Unexpected cursor contents, ambiguous selection, changed recipes, mismatched outputs, insufficient room and unrelated input changes stop the transaction for recovery.
+
+The synchronized recipe provider is capped at 4,096 entries, native display expansion at 64 alternatives, and supported stack capacity at 99. Input and output must be different items. These limits avoid ambiguous accounting; they do not describe every recipe a mod can implement. Smithing requires a separate executor.
+
+## Cooking
 
 Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. Controlled [1.21.1 smoker](evidence/1.21.1-smoker/run.json) and [26.3 blast-furnace](evidence/26.3-blast-furnace/run.json) batches passed; other exact-version runtime checks remain pending. Compilation and source review do not establish gameplay support. Campfires still need a separate executor.
 

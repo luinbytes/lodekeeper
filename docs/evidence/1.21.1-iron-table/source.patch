@@ -1,0 +1,2021 @@
+diff --git a/fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java b/fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java
+index eaaab42..15da916 100644
+--- a/fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java
++++ b/fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java
+@@ -99,6 +99,61 @@ final class GameApi {
+         return client.world == null ? null : client.world.getRecipeManager();
+     }
+ 
++    static Object stonecuttingProviderIdentity(net.minecraft.client.MinecraftClient client) {
++        return client.world == null ? null : client.world.getRecipeManager();
++    }
++
++    static List<StonecuttingWork> stonecuttingRecipes(net.minecraft.client.MinecraftClient client) {
++        if (client.world == null) return List.of();
++        net.minecraft.recipe.RecipeManager manager = client.world.getRecipeManager();
++        List<RecipeEntry<net.minecraft.recipe.StonecuttingRecipe>> entries = manager
++                .listAllOfType(RecipeType.STONECUTTING);
++        if (entries.size() > 4096) throw new IllegalArgumentException("stonecutting recipe source exceeds 4096 entries");
++        List<StonecuttingWork> works = new ArrayList<>(entries.size());
++        for (RecipeEntry<net.minecraft.recipe.StonecuttingRecipe> entry : entries) {
++            try {
++                net.minecraft.recipe.StonecuttingRecipe recipe = entry.value();
++                List<Ingredient> ingredients = recipe.getIngredients();
++                if (ingredients.size() != 1 || ingredients.get(0).isEmpty()) continue;
++                ItemStack output = result(recipe, client.world.getRegistryManager());
++                if (output.isEmpty() || output.getCount() > 99) continue;
++                works.add(new StonecuttingWork("stonecutting:" + entry.id(), ingredients.get(0), output, entry));
++            } catch (RuntimeException unsupportedRow) {
++                // Reject only this invalid native option; keep other synchronized rows usable.
++            }
++        }
++        return List.copyOf(works);
++    }
++
++    static int stonecuttingRecipeIndex(net.minecraft.client.MinecraftClient client,
++                                       net.minecraft.screen.StonecutterScreenHandler handler, StonecuttingWork work) {
++        if (client == null || client.world == null || handler == null || work == null
++                || !(work.selectionKey() instanceof RecipeEntry<?> selected)
++                || !(selected.value() instanceof net.minecraft.recipe.StonecuttingRecipe target)) return -1;
++        boolean current = client.world.getRecipeManager().listAllOfType(RecipeType.STONECUTTING)
++                .stream().anyMatch(entry -> entry == selected);
++        if (!current) return -1;
++        ItemStack heldInput = handler.getSlot(0).getStack();
++        if (heldInput.isEmpty() || !work.input().test(heldInput)) return -1;
++        int match = -1;
++        List<RecipeEntry<net.minecraft.recipe.StonecuttingRecipe>> visible = handler.getAvailableRecipes();
++        for (int index = 0; index < visible.size(); index++) {
++            RecipeEntry<net.minecraft.recipe.StonecuttingRecipe> candidateEntry = visible.get(index);
++            if (candidateEntry != selected) continue;
++            if (match >= 0) return -1;
++            net.minecraft.recipe.StonecuttingRecipe candidate = candidateEntry.value();
++            List<Ingredient> ingredients = candidate.getIngredients();
++            if (candidate != target || ingredients.size() != 1 || ingredients.get(0) != work.input()
++                    || !ingredients.get(0).test(heldInput)) return -1;
++            ItemStack actual = result(candidate, client.world.getRegistryManager());
++            ItemStack expected = work.outputPerOperation();
++            if (actual.isEmpty() || actual.getCount() != expected.getCount()
++                    || !ItemStack.areItemsAndComponentsEqual(actual, expected)) return -1;
++            match = index;
++        }
++        return match;
++    }
++
+     static void loadRecipes(net.minecraft.client.MinecraftClient client, Consumer<RecipeCatalogSnapshot> publish) {
+         if (client.world == null) { publish.accept(RecipeCatalogSnapshot.empty()); return; }
+         RecipeManager manager = client.world.getRecipeManager();
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java b/fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java
+index 3c2345a..517e0db 100644
+--- a/fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java
+@@ -79,6 +79,9 @@ final class AutomationEngine {
+     private final Set<String> unavailableSources = new HashSet<>();
+     private final Map<String, List<BlockPos>> discoveredSources = new LinkedHashMap<>();
+     private final AcquisitionPlanner planner = new AcquisitionPlanner();
++    private final NearbyResources nearbyResources;
++    private long pendingPlanPreferencesVersion, stepPreferencesVersion;
++    private int preferenceRefreshCooldown;
+     private ClientWorld world;
+     private GameCatalog catalog;
+     private Request active;
+@@ -99,6 +102,8 @@ final class AutomationEngine {
+     private final Set<BlockPos> rejectedResources = new HashSet<>();
+     private BlockPos target;
+     private CraftingAction crafting;
++    private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
++    private StonecuttingAction stonecutting;
+     private SmeltingAction smelting;
+     private boolean moving, movingPickup, paused, openingStation, foregroundYieldPending, stopAfterStep;
+     private ScreenHandler ownedStationHandler, stationOpeningFrom;
+@@ -118,6 +123,7 @@ final class AutomationEngine {
+     private String status = "idle";
+     AutomationEngine(MinecraftClient client, LodekeeperConfig config) {
+         this.client = client; this.config = config;
++        nearbyResources = new NearbyResources(client);
+         actions = new PlayerActions(client); input = new BotInput(client); terrain = new GameTerrain(client, config);
+         movement = new MovementController(client, config, actions, input, terrain);
+         food = new FoodController(client, actions);
+@@ -126,6 +132,7 @@ final class AutomationEngine {
+         if (client.world != world) {
+             stopNow(false); world = client.world; ownedStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
+             recipeRefreshPending = false;
++            nearbyResources.reset();
+             inventorySampleTicks = 0; inventoryFingerprintInitialized = false; observedInventory = Map.of();
+         }
+         if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentProvider())) {
+@@ -137,6 +144,8 @@ final class AutomationEngine {
+             }
+         }
+         if (client.player == null || client.world == null) { food.stop(); input.release(); return; }
++        nearbyResources.tick(catalog, config.scanBlocksPerTick);
++        if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
+         if (foodCooldown > 0) foodCooldown--;
+         try {
+         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
+@@ -147,7 +156,7 @@ final class AutomationEngine {
+             if (active == null && !paused) startNextRequest();
+             if (active == null || paused) { food.stop(); input.release(); return; }
+             if (!client.player.isAlive() || client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
+-            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && smelting == null && !openingStation) { food.stop(); input.release(); return; }
++            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { food.stop(); input.release(); return; }
+             if (foregroundYieldPending && !transactionInProgress() && !openingStation && !canYieldMaintenanceNow()) {
+                 input.release(); status = "foreground queued; waiting for inventory screen and cursor to be safe"; return;
+             }
+@@ -184,6 +193,10 @@ final class AutomationEngine {
+                     else status = "waiting for recipe catalog";
+                     return;
+                 }
++                if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) {
++                    requestPlan();
++                    return;
++                }
+                 if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
+                 if (goalCount() >= active.count) { finishGoal(); return; }
+                 if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
+@@ -191,11 +204,11 @@ final class AutomationEngine {
+                 if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
+                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
+                 if (result.steps().isEmpty()) { finishGoal(); return; }
+-                begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment());
++                begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion);
+             }
+             if (step == null) return;
+             if (stepCatalogGeneration != catalog.generation() || !catalog.ready()) {
+-                if (crafting != null || smelting != null) {
++                if (crafting != null || stonecutting != null || smelting != null) {
+                     // The action owns an immutable RecipeWork snapshot. Let it finish the
+                     // in-flight transfer and safely drain before replanning against new data.
+                     requestActiveTransactionDrain();
+@@ -207,11 +220,19 @@ final class AutomationEngine {
+                     return;
+                 }
+             }
++            if (step.kind() == PlanKind.GATHER && target == null && scan != null
++                    && stepPreferencesVersion != nearbyResources.version() && preferenceRefreshCooldown == 0) {
++                preferenceRefreshCooldown = 20;
++                resetAction();
++                requestPlan();
++                return;
++            }
+             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
+             if (observed != lastObservedCount) { lastObservedCount = observed; actionTicks = 0; }
+             if (smelting != null && smelting.progressToken() != lastSmeltProgress) { lastSmeltProgress = smelting.progressToken(); actionTicks = 0; }
+-            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId());
+-            if (step.output() != null && crafting == null && smelting == null
++            if (++actionTicks > config.actionTimeoutTicks) throw new IllegalStateException("Action timeout: " + step.sourceId()
++                    + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
++            if (step.output() != null && crafting == null && stonecutting == null && smelting == null
+                     && !openingStation
+                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
+                 input.idle();
+@@ -345,14 +366,16 @@ final class AutomationEngine {
+         if (previewPending) { message("A plan preview is already in progress"); return; }
+         ensureCatalog();
+         if (!catalog.ready()) { message("Recipe catalog is loading; try plan again shortly"); return; }
++        if (!nearbyResources.ready()) { message("Indexing local resource options; try plan again shortly"); return; }
+         observeInventory();
+         ItemId item = name == null ? active != null ? active.item : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item : queue.peekFirst().item : resolve(name);
+         if (item == null) { message("No active or queued goal"); return; }
+         CatalogSnapshot snapshot = catalog.snapshot(); InventorySnapshot inventory = inventorySnapshot(item);
+         var previewWorld = client.world;
++        PlanningPreferences preferences = nearbyResources.snapshot();
+         long previewGeneration = catalog.generation();
+         previewPending = true;
+-        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
++        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count, preferences), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
+             previewPending = false;
+             if (client.world != previewWorld || catalog == null) return;
+             if (!catalog.ready() || catalog.generation() != previewGeneration) { message("Recipe catalog changed; try plan again"); return; }
+@@ -364,11 +387,11 @@ final class AutomationEngine {
+             }
+         }));
+     }
+-    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count) {
+-        PlanResult result = planner.planFast(snapshot, inventory, item, count);
++    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count, PlanningPreferences preferences) {
++        PlanResult result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
+         for (int retry = 0; retry < 4 && !result.success()
+                 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT); retry++) {
+-            result = planner.planFast(snapshot, inventory, item, count);
++            result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
+         }
+         return result;
+     }
+@@ -443,7 +466,7 @@ final class AutomationEngine {
+ 
+     private boolean transactionInProgress() {
+         return step != null && (step.kind() == PlanKind.CRAFT || step.kind() == PlanKind.SMELT)
+-                && (crafting != null || smelting != null);
++                && (crafting != null || stonecutting != null || smelting != null);
+     }
+ 
+     private boolean isActiveMaintenanceTransaction(ItemId item) {
+@@ -460,12 +483,13 @@ final class AutomationEngine {
+ 
+     private void requestActiveTransactionDrain() {
+         if (crafting != null) crafting.requestDrain();
++        if (stonecutting != null) stonecutting.requestDrain();
+         if (smelting != null) smelting.requestDrain();
+     }
+ 
+     private boolean canYieldMaintenanceNow() {
+         if (active == null || !active.maintained() || client.player == null || transactionInProgress()
+-                || crafting != null || smelting != null || openingStation
++                || crafting != null || stonecutting != null || smelting != null || openingStation
+                 || client.player.currentScreenHandler != client.player.playerScreenHandler) return false;
+         return client.player.currentScreenHandler.getCursorStack().isEmpty();
+     }
+@@ -557,6 +581,7 @@ final class AutomationEngine {
+         foodReplanPending = false;
+         ensureCatalog(); status = "planning";
+         if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
++        if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
+         observeInventory();
+         if (goalCount() >= active.count) { finishGoal(); return; }
+         ItemId item = active.item;
+@@ -581,10 +606,12 @@ final class AutomationEngine {
+         final ItemId targetItem = item; final int targetCount = requested;
+         HarvestOffer harvestOffer = active.anyLogs && config.optimizeWoodTools
+                 ? captureHarvestOffer(active.count - goalCount()) : null;
++        PlanningPreferences preferences = nearbyResources.snapshot();
++        pendingPlanPreferencesVersion = nearbyResources.version();
+         pendingPlanGeneration = catalog.generation();
+         CatalogSnapshot filteredSnapshot = snapshot;
+         pendingPlan = CompletableFuture.supplyAsync(() -> {
+-            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount);
++            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
+             if (filteredPlan.success() && harvestOffer != null) {
+                 try {
+                     PlanResult investmentPlan = planner.planFast(harvestOffer.catalog(), harvestOffer.inventory(),
+@@ -612,7 +639,7 @@ final class AutomationEngine {
+                 return new PlanningOutcome(filteredPlan, false, false);
+             }
+             // Recovery has its own default fast-planner budget (20 ms); each planner call remains independently capped.
+-            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount);
++            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
+             return new PlanningOutcome(filteredPlan,
+                     ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
+         }, plannerWorker);
+@@ -902,11 +929,16 @@ final class AutomationEngine {
+                     && eligibleLogs.contains(entity.getStack().getItem()))
+                 .stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
+             droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getStack().getItem());
+-            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius);
++            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius,rejectedResources);
+             logScanGeneration = catalog.generation();
+         }
+-        status = "discovering nearby logs";
+-        if (!logScan.advance(config.scanBlocksPerTick,1_000_000)) return null;
++        long beforeDiscovery = logScan.progressToken();
++        boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,1_000_000);
++        status = "discovering nearby logs · " + logScan.progressDescription();
++        if (!discoveryComplete && !logScan.hasCandidates()) {
++            if (logScan.progressToken() != beforeDiscovery) actionTicks = 0;
++            return null;
++        }
+         Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
+         Set<ItemId> outputs = new LinkedHashSet<>();
+         if (droppedLogCandidate != null) outputs.add(droppedLogCandidate);
+@@ -928,7 +960,7 @@ final class AutomationEngine {
+         for (GatherSource source : new HashSet<>(logSources.values())) {
+             if (source.output().equals(droppedLogCandidate)) continue;
+             boolean present = source.blocks().stream().anyMatch(id -> logScan.found(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
+-            if (!present) unavailableSources.add(source.sourceId());
++            if (logScan.complete() && !present) unavailableSources.add(source.sourceId());
+         }
+         droppedLogCandidate = null;
+         logScan = null; logSources.clear();
+@@ -953,7 +985,7 @@ final class AutomationEngine {
+         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
+         return count;
+     }
+-    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment) {
++    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment, long plannedPreferencesVersion) {
+         if (!catalog.ready() || catalog.generation() != plannedGeneration) {
+             if (catalog.ready()) requestPlan();
+             else status = "waiting for recipe catalog";
+@@ -961,6 +993,7 @@ final class AutomationEngine {
+         }
+         resetAction(); rejectedStationSites.clear(); stationPlacementFailures = 0; stationDiscoveryDone = false;
+         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
++        stepPreferencesVersion = plannedPreferencesVersion;
+         status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
+         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
+         lastObservedCount = baseline; lastSmeltProgress = 0;
+@@ -1056,9 +1089,14 @@ final class AutomationEngine {
+             }
+         }
+         if (target == null) {
+-            if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius);
+-            status = "discovering " + step.output();
+-            if (!scan.advance(config.scanBlocksPerTick, 1_000_000)) return;
++            if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
++            long beforeDiscovery = scan.progressToken();
++            boolean discoveryComplete = scan.advance(config.scanBlocksPerTick, 1_000_000);
++            status = "discovering " + step.output() + " · " + scan.progressDescription();
++            if (!discoveryComplete && !scan.hasCandidates()) {
++                if (scan.progressToken() != beforeDiscovery) actionTicks = 0;
++                return;
++            }
+             target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
+             if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
+             discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
+@@ -1167,7 +1205,8 @@ final class AutomationEngine {
+         }
+         if (openingStation) {
+             boolean correct = step.kind() == PlanKind.CRAFT
+-                    ? handler instanceof net.minecraft.screen.CraftingScreenHandler
++                    ? (isStonecuttingStep() ? handler.getClass() == net.minecraft.screen.StonecutterScreenHandler.class
++                        : handler instanceof net.minecraft.screen.CraftingScreenHandler)
+                     : step.kind() == PlanKind.SMELT && isExactCookingStationHandler(handler, step.station());
+             if (correct) {
+                 if (handler != stationOpeningFrom) ownedStationHandler = handler;
+@@ -1194,7 +1233,24 @@ final class AutomationEngine {
+         if (!openingStation) stationOpeningFrom = null;
+         return false;
+     }
++    private boolean isStonecuttingStep() {
++        return step != null && STONECUTTER.equals(step.station());
++    }
++    private void stonecut() {
++        if (stonecutting == null) {
++            StonecuttingWork work = catalog.stonecuts.get(step.sourceId());
++            if (work == null || !catalog.ready() || stepCatalogGeneration != catalog.generation())
++                throw new IllegalStateException("Stonecutting recipe disappeared or changed before it could start");
++            if (!stationReady()) return;
++            stonecutting = new StonecuttingAction(client, actions, work, step,
++                    () -> catalog != null && catalog.ready() && stepCatalogGeneration == catalog.generation()
++                            && catalog.usesCurrentProvider());
++        }
++        if (shouldDrainActiveTransaction()) stonecutting.requestDrain();
++        if (stonecutting.tick()) completeStep();
++    }
+     private void craft() {
++        if (isStonecuttingStep()) { stonecut(); return; }
+         if (crafting == null) {
+             if (!stationReady()) return;
+             var recipe = catalog.recipes.get(step.sourceId());
+@@ -1362,6 +1418,8 @@ final class AutomationEngine {
+         String warning = "";
+         try { if (crafting != null) crafting.pause(); }
+         catch (RuntimeException ex) { warning = describe(ex); }
++        try { if (stonecutting != null) stonecutting.pause(); }
++        catch (RuntimeException exception) { warning = warning.isBlank() ? exception.getMessage() : warning + "; " + exception.getMessage(); }
+         try { if (smelting != null) smelting.pause(); }
+         catch (RuntimeException ex) { warning = warning.isBlank() ? describe(ex) : warning + "; " + describe(ex); }
+         return warning;
+@@ -1386,7 +1444,7 @@ final class AutomationEngine {
+         try { movement.stop(); }
+         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
+         finally {
+-            crafting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
++            crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
+             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
+             exploring = false; explorationMoving = false; explorationTicks = 0;
+         }
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/BlockSearch.java b/fabric/src/main/java/dev/lodekeeper/fabric/BlockSearch.java
+index f6080fb..7aa1785 100644
+--- a/fabric/src/main/java/dev/lodekeeper/fabric/BlockSearch.java
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/BlockSearch.java
+@@ -17,18 +17,25 @@ import java.util.PriorityQueue;
+ final class BlockSearch {
+     private final MinecraftClient client;
+     private final Set<Block> blocks;
++    private final Set<BlockPos> excluded;
+     private final Set<Block> matchedBlocks = new java.util.HashSet<>();
+     private final BlockPos origin;
+     private final int radius;
+     private final List<ChunkPos> chunks = new ArrayList<>();
+     private WorldChunk chunk;
+-    private int chunkIndex, sectionIndex, cellIndex;
++    private int chunkIndex, sectionIndex, sectionCursor, cellIndex;
++    private int[] sectionOrder;
+     private final PriorityQueue<BlockPos> candidates;
+     private BlockPos best;
+     private double bestDistance = Double.POSITIVE_INFINITY;
+     private boolean done;
+     BlockSearch(MinecraftClient client, Set<Block> blocks, int radius) {
+-        this.client = client; this.blocks = Set.copyOf(blocks); this.radius = radius;
++        this(client, blocks, radius, Set.of());
++    }
++
++    BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded) {
++        this.client = client; this.blocks = Set.copyOf(blocks);
++        this.excluded = Set.copyOf(excluded); this.radius = radius;
+         origin = client.player.getBlockPos();
+         candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos pos) -> pos.getSquaredDistance(origin)).reversed());
+         int chunkRadius = (radius + 15) / 16;
+@@ -45,14 +52,16 @@ final class BlockSearch {
+                 if (chunkIndex == chunks.size()) { done = true; break; }
+                 ChunkPos pos = chunks.get(chunkIndex++);
+                 chunk = client.world.getChunkManager().getChunk(pos.x, pos.z, ChunkStatus.FULL, false);
+-                sectionIndex = 0; cellIndex = 0;
++                sectionCursor = 0; cellIndex = 0;
+                 if (chunk == null) continue;
++                if (sectionOrder == null) sectionOrder = orderSections(chunk.getSectionArray().length, client.world.getBottomY());
+             }
+-            if (sectionIndex == chunk.getSectionArray().length) { chunk = null; continue; }
++            if (sectionCursor == sectionOrder.length) { chunk = null; continue; }
++            sectionIndex = sectionOrder[sectionCursor];
+             ChunkSection section = chunk.getSection(sectionIndex);
+             if (cellIndex == 0) {
+                 sections++;
+-                if (section.isEmpty() || !section.hasAny(s -> blocks.contains(s.getBlock()))) { sectionIndex++; continue; }
++                if (section.isEmpty() || !section.hasAny(s -> blocks.contains(s.getBlock()))) { sectionCursor++; continue; }
+             }
+             int x = cellIndex & 15, z = cellIndex >> 4 & 15, y = cellIndex >> 8;
+             if (blocks.contains(section.getBlockState(x, y, z).getBlock())) {
+@@ -61,16 +70,36 @@ final class BlockSearch {
+                 double distance = pos.getSquaredDistance(origin);
+                 if (horizontal <= radius * radius) {
+                     matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
++                    if (excluded.contains(pos)) {
++                        probes++;
++                        if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
++                        continue;
++                    }
+                     if (candidates.size() < 512) candidates.add(pos);
+                     else if (distance < candidates.peek().getSquaredDistance(origin)) { candidates.remove(); candidates.add(pos); }
+                     if (distance < bestDistance) { bestDistance = distance; best = pos; }
+                 }
+             }
+             probes++;
+-            if (++cellIndex == 4096) { cellIndex = 0; sectionIndex++; }
++            if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
+         }
+         return done;
+     }
++    private int[] orderSections(int count, int bottomY) {
++        return java.util.stream.IntStream.range(0, count).boxed()
++                .sorted(Comparator.comparingInt((Integer section) -> {
++                    int min = bottomY + section * 16;
++                    return origin.getY() < min ? min - origin.getY()
++                            : origin.getY() > min + 15 ? origin.getY() - min - 15 : 0;
++                }).thenComparingInt(Integer::intValue))
++                .mapToInt(Integer::intValue).toArray();
++    }
++
++    /** Candidates can be used before discovery finishes; absence is proven only after completion. */
++    long progressToken() { return ((long) chunkIndex << 32) | ((long) sectionCursor << 16) | cellIndex; }
++    String progressDescription() { return "chunk " + Math.min(chunkIndex, chunks.size()) + "/" + chunks.size(); }
++    boolean hasCandidates() { return !candidates.isEmpty(); }
++    boolean complete() { return done; }
+     boolean found(Block block) { return matchedBlocks.contains(block); }
+     BlockPos result() { return best; }
+     List<BlockPos> results() { return candidates.stream().sorted(Comparator.comparingDouble(pos -> pos.getSquaredDistance(origin))).toList(); }
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java b/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
+index 7f2a38b..f64e48d 100644
+--- a/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java
+@@ -16,11 +16,13 @@ import java.util.function.Consumer;
+ final class GameCatalog {
+     final List<AcquisitionSource> sources = new ArrayList<>();
+     final Map<String, RecipeWork> recipes = new HashMap<>();
++    final Map<String, StonecuttingWork> stonecuts = new HashMap<>();
+     final Map<TagId, List<ItemId>> tags = new HashMap<>();
+     final Set<ItemId> items = new TreeSet<>();
+     final List<String> unsupported = new ArrayList<>();
+     private final MinecraftClient client;
+     private Object recipeProvider;
++    private Object stonecuttingProvider;
+     private CatalogSnapshot cachedSnapshot;
+     private long generation;
+     private boolean ready;
+@@ -30,7 +32,8 @@ final class GameCatalog {
+         long requestedGeneration = ++generation;
+         ready = false;
+         recipeProvider = GameApi.recipeProviderIdentity(client);
+-        cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
++        stonecuttingProvider = GameApi.stonecuttingProviderIdentity(client);
++        cachedSnapshot = null; sources.clear(); recipes.clear(); stonecuts.clear(); tags.clear(); items.clear(); unsupported.clear();
+         fuelBurnTicks.clear();
+         for (Item item : Registries.ITEM) {
+             items.add(id(item));
+@@ -50,7 +53,7 @@ final class GameCatalog {
+         }
+     }
+     private void applyRecipeSnapshot(RecipeCatalogSnapshot snapshot) {
+-        sources.clear(); recipes.clear(); unsupported.clear(); fuelBurnTicks.clear(); cachedSnapshot = null;
++        sources.clear(); recipes.clear(); stonecuts.clear(); unsupported.clear(); fuelBurnTicks.clear(); cachedSnapshot = null;
+         unsupported.addAll(snapshot.unsupported());
+         fuelBurnTicks.putAll(snapshot.fuelBurnTicks());
+         snapshot.recipes().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+@@ -111,6 +114,7 @@ final class GameCatalog {
+         finishLoad();
+     }
+     private void finishLoad() {
++        loadStonecuttingRecipes();
+         gatherSources();
+         ExtensionCatalog.append(this);
+         cachedSnapshot = null;
+@@ -121,6 +125,33 @@ final class GameCatalog {
+                     + ", samples=" + unsupported.stream().limit(3).toList());
+         }
+     }
++    private void loadStonecuttingRecipes() {
++        try {
++            for (StonecuttingWork work : GameApi.stonecuttingRecipes(client)) {
++                try {
++                    ItemStack output = work.outputPerOperation();
++                    Ingredient input = ingredient(work.input());
++                    if (input.alternatives().contains(ItemSelector.item(id(output.getItem())))) {
++                        unsupported.add(work.sourceId() + ": stonecutting input and output must be different items");
++                        continue;
++                    }
++                    if (stonecuts.containsKey(work.sourceId())) {
++                        unsupported.add(work.sourceId() + ": duplicate synchronized stonecutting recipe");
++                        continue;
++                    }
++                    stonecuts.put(work.sourceId(), work);
++                    sources.add(new CraftingSource(work.sourceId(), id(output.getItem()), output.getCount(),
++                            RecipeType.SHAPELESS, 0, 0, List.of(new RecipeSlot(-1, input)),
++                            List.of(station(Blocks.STONECUTTER))));
++                } catch (IllegalArgumentException exception) {
++                    stonecuts.remove(work.sourceId());
++                    unsupported.add(work.sourceId() + ": " + describe(exception));
++                }
++            }
++        } catch (RuntimeException exception) {
++            unsupported.add("stonecutting provider: " + describe(exception));
++        }
++    }
+     private List<RecipeSlot> recipeSlots(List<RecipeWork.Input> inputs, boolean shaped) {
+         List<RecipeSlot> slots = new ArrayList<>();
+         for (RecipeWork.Input input : inputs) {
+@@ -179,7 +210,8 @@ final class GameCatalog {
+     long generation() { return generation; }
+     boolean ready() { return ready; }
+     boolean usesProvider(Object provider) { return recipeProvider == provider; }
+-    boolean usesCurrentProvider() { return client.world != null && recipeProvider == GameApi.recipeProviderIdentity(client); }
++    boolean usesCurrentProvider() { return client.world != null && recipeProvider == GameApi.recipeProviderIdentity(client)
++            && stonecuttingProvider == GameApi.stonecuttingProviderIdentity(client); }
+     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
+     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
+     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/NearbyResources.java b/fabric/src/main/java/dev/lodekeeper/fabric/NearbyResources.java
+new file mode 100644
+index 0000000..45d2b71
+--- /dev/null
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/NearbyResources.java
+@@ -0,0 +1,178 @@
++package dev.lodekeeper.fabric;
++
++import dev.lodekeeper.core.GatherSource;
++import dev.lodekeeper.core.PlanningPreferences;
++import net.minecraft.client.MinecraftClient;
++import net.minecraft.block.Block;
++import net.minecraft.block.Blocks;
++import net.minecraft.registry.Registries;
++import net.minecraft.util.math.BlockPos;
++import net.minecraft.world.chunk.ChunkStatus;
++
++import java.util.LinkedHashSet;
++import java.util.Set;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.Map;
++
++/** Small, loaded-world observations used only to order plans, never to prove absence or reachability. */
++final class NearbyResources {
++    private static final int RADIUS = 8;
++    private static final int WIDTH = RADIUS * 2 + 1;
++    private static final int MAX_INDEXED_SOURCES = 4096;
++    private static final int MAX_INDEXED_BLOCKS = 8192;
++    private static final int MAX_SOURCES_PER_BLOCK = 32;
++    private static final int MAX_OBSERVED_SOURCES = 256;
++    private static final int[] OFFSETS = java.util.stream.IntStream.range(0, WIDTH * WIDTH * WIDTH).boxed()
++            .sorted(Comparator.comparingInt(NearbyResources::distance).thenComparingInt(Integer::intValue))
++            .mapToInt(Integer::intValue).toArray();
++
++    private final MinecraftClient client;
++    private final Map<Block, Set<String>> sourcesByBlock = new HashMap<>();
++    private final Map<String, BlockPos> observations = new HashMap<>();
++    private final Map<String, Integer> fallbackEffort = new HashMap<>();
++    private BlockPos origin;
++    private long generation = -1;
++    private long version;
++    private int cursor, sourceCursor, blockCursor, indexedSources, indexedBlocks;
++    private GatherSource indexingGather;
++    private boolean indexComplete;
++    private final Map<Block, Float> hardnessCache = new HashMap<>();
++
++    NearbyResources(MinecraftClient client) { this.client = client; }
++
++    void reset() {
++        origin = null;
++        generation = -1;
++        cursor = 0;
++        sourceCursor = blockCursor = indexedSources = indexedBlocks = 0;
++        indexingGather = null;
++        indexComplete = false;
++        hardnessCache.clear();
++        sourcesByBlock.clear();
++        fallbackEffort.clear();
++        observations.clear();
++        version++;
++    }
++
++    void tick(GameCatalog catalog, int configuredProbeBudget) {
++        if (client.world == null || client.player == null || catalog == null || !catalog.ready()) return;
++        if (generation != catalog.generation()) {
++            reset();
++            generation = catalog.generation();
++        }
++        long deadline = System.nanoTime() + 500_000;
++        advanceIndex(catalog, deadline);
++        if (!indexComplete) return;
++        BlockPos feet = client.player.getBlockPos();
++        if (origin == null || feet.getSquaredDistance(origin) > 16) {
++            origin = feet.toImmutable();
++            observations.clear();
++            cursor = 0;
++            version++;
++        }
++        int probes = 0, budget = Math.min(128, configuredProbeBudget);
++        while (cursor < OFFSETS.length && probes < budget && System.nanoTime() < deadline) {
++            int offset = OFFSETS[cursor++];
++            BlockPos position = origin.add(dx(offset), dy(offset), dz(offset));
++            probes++;
++            if (!chunkPresent(position)) continue;
++            Block block = client.world.getBlockState(position).getBlock();
++            Set<String> sources = sourcesByBlock.get(block);
++            if (sources == null) continue;
++            for (String source : sources) {
++                if (System.nanoTime() >= deadline) break;
++                BlockPos previous = observations.get(source);
++                if (previous == null) {
++                    if (observations.size() >= MAX_OBSERVED_SOURCES) continue;
++                    observations.put(source, position);
++                    version++;
++                } else if (position.getSquaredDistance(origin) < previous.getSquaredDistance(origin)) {
++                    observations.put(source, position);
++                }
++            }
++        }
++    }
++
++    private void advanceIndex(GameCatalog catalog, long deadline) {
++        int units = 0;
++        while (!indexComplete && units++ < 512 && System.nanoTime() < deadline) {
++            if (indexedBlocks >= MAX_INDEXED_BLOCKS) { indexComplete = true; break; }
++            if (indexingGather == null) {
++                if (sourceCursor >= catalog.sources.size() || indexedSources >= MAX_INDEXED_SOURCES
++                        || indexedBlocks >= MAX_INDEXED_BLOCKS) {
++                    indexComplete = true;
++                    break;
++                }
++                var source = catalog.sources.get(sourceCursor++);
++                if (!(source instanceof GatherSource gather)) continue;
++                indexedSources++;
++                indexingGather = gather;
++                blockCursor = 0;
++            }
++            if (blockCursor >= indexingGather.blocks().size()) {
++                indexingGather = null;
++                continue;
++            }
++            var blockId = indexingGather.blocks().get(blockCursor++);
++            indexedBlocks++;
++            Block block = Registries.BLOCK.get(GameApi.identifier(blockId.toString()));
++            if (block == null || block == Blocks.AIR) continue;
++            Set<String> fanOut = sourcesByBlock.computeIfAbsent(block, ignored -> new LinkedHashSet<>());
++            if (fanOut.size() < MAX_SOURCES_PER_BLOCK) fanOut.add(indexingGather.sourceId());
++            // Only native vanilla blocks get an unobserved effort estimate. Custom sources stay unknown.
++            if (!blockId.namespace().equals("minecraft") || !block.getClass().getName().startsWith("net.minecraft.")) continue;
++            Float hardness = hardnessCache.get(block);
++            if (hardness == null) {
++                try { hardness = block.getDefaultState().getHardness(client.world, client.player.getBlockPos()); }
++                catch (RuntimeException ignored) { hardness = Float.NaN; }
++                hardnessCache.put(block, hardness);
++            }
++            if (Float.isFinite(hardness) && hardness >= 0) {
++                int effort = 1_000_000 + (int) Math.min(100_000_000,
++                        Math.ceil(hardness * 1000.0 / indexingGather.outputCount()));
++                fallbackEffort.merge(indexingGather.sourceId(), effort, Math::min);
++            }
++        }
++    }
++
++    boolean ready() { return indexComplete; }
++
++    PlanningPreferences snapshot() {
++        if (client.world == null || origin == null) return PlanningPreferences.NONE;
++        Map<String, Integer> ranks = new HashMap<>(fallbackEffort);
++        boolean invalidated = false;
++        var entries = observations.entrySet().iterator();
++        while (entries.hasNext()) {
++            var entry = entries.next();
++            BlockPos position = entry.getValue();
++            Set<String> sources = chunkPresent(position)
++                    ? sourcesByBlock.get(client.world.getBlockState(position).getBlock()) : null;
++            if (sources == null || !sources.contains(entry.getKey())) {
++                entries.remove();
++                invalidated = true;
++                continue;
++            }
++            ranks.put(entry.getKey(), 1 + (int) position.getSquaredDistance(origin));
++        }
++        if (invalidated) {
++            // A mined nearest block must not hide farther live candidates in the same window.
++            cursor = 0;
++            version++;
++        }
++        return new PlanningPreferences(ranks);
++    }
++
++    private boolean chunkPresent(BlockPos position) {
++        return client.world.getChunkManager().getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
++    }
++
++    long version() { return version; }
++    private static int dx(int offset) { return offset % WIDTH - RADIUS; }
++    private static int dy(int offset) { return offset / WIDTH % WIDTH - RADIUS; }
++    private static int dz(int offset) { return offset / (WIDTH * WIDTH) - RADIUS; }
++    private static int distance(int offset) {
++        int x = dx(offset), y = dy(offset), z = dz(offset);
++        return x * x + y * y + z * z;
++    }
++}
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingAction.java b/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingAction.java
+new file mode 100644
+index 0000000..6ff3100
+--- /dev/null
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingAction.java
+@@ -0,0 +1,477 @@
++package dev.lodekeeper.fabric;
++
++import dev.lodekeeper.core.ItemId;
++import dev.lodekeeper.core.PlanKind;
++import dev.lodekeeper.core.PlanStep;
++import dev.lodekeeper.core.RecipeType;
++import dev.lodekeeper.core.SelectedItemRequirement;
++import dev.lodekeeper.core.StationId;
++import net.minecraft.client.MinecraftClient;
++import net.minecraft.item.Item;
++import net.minecraft.item.ItemStack;
++import net.minecraft.recipe.Ingredient;
++import net.minecraft.screen.ScreenHandler;
++import net.minecraft.screen.StonecutterScreenHandler;
++
++import java.util.LinkedHashMap;
++import java.util.Map;
++import java.util.Objects;
++import java.util.function.BooleanSupplier;
++
++/** Executes a planned native stonecutting recipe without touching unrelated station contents. */
++final class StonecuttingAction {
++    private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
++    private static final int MAX_SELECTION_WAIT_TICKS = 40;
++    private static final int SELECTION_RETRY_TICKS = 5;
++
++    private enum MovePurpose { OUTPUT, INPUT_DRAIN }
++
++    private final MinecraftClient client;
++    private final StonecuttingWork work;
++    private final BooleanSupplier recipeCurrent;
++    private final Ingredient inputPredicate;
++    private final ItemStack expectedOutput;
++    private final Item outputItem;
++    private final int operations, outputPerOperation, plannedOutput;
++    private final Map<ItemId, Integer> remainingMaterials = new LinkedHashMap<>();
++
++    private StonecutterScreenHandler handler;
++    private SlotTransfer transfer;
++    private VerifiedQuickMove quickMove;
++    private ItemId transferMaterial;
++    private ItemStack transferInput;
++    private ItemStack expectedInput;
++    private int transferAmount;
++    private int submittedInput, returnedInput, collectedOutput;
++    private int quickMoveInputAmount;
++    private int lastObservedConsumed;
++    private int outputSelectionIndex = -1;
++    private int selectionTargetIndex = -1;
++    private int selectionWaitTicks, previewWaitTicks;
++    private MovePurpose movePurpose;
++    private boolean initialized, drainRequested;
++
++    private static final class StaleRecipeBeforeOutputClick extends RuntimeException {}
++    private static final class SelectionChangedBeforeOutputClick extends RuntimeException {}
++    private static final class PreviewChangedBeforeOutputClick extends RuntimeException {}
++
++    StonecuttingAction(MinecraftClient client, PlayerActions actions, StonecuttingWork work,
++                       PlanStep step, BooleanSupplier recipeCurrent) {
++        this.client = Objects.requireNonNull(client, "client");
++        Objects.requireNonNull(actions, "actions");
++        this.work = Objects.requireNonNull(work, "work");
++        Objects.requireNonNull(step, "step");
++        this.recipeCurrent = Objects.requireNonNull(recipeCurrent, "recipeCurrent");
++        if (step.kind() != PlanKind.CRAFT || step.recipeType() != RecipeType.SHAPELESS
++                || step.recipeWidth() != 0 || step.recipeHeight() != 0
++                || !STONECUTTER.equals(step.station()) || !work.sourceId().equals(step.sourceId())) {
++            throw new IllegalArgumentException("Stonecutter action received a mismatched plan step");
++        }
++        if (work.selectionKey() == null) throw new IllegalArgumentException("Stonecutting recipe has no native selection key");
++
++        inputPredicate = Objects.requireNonNull(work.input(), "stonecutting input");
++        expectedOutput = work.outputPerOperation();
++        if (expectedOutput == null || expectedOutput.isEmpty()) throw new IllegalArgumentException("Stonecutting output is empty");
++        outputItem = expectedOutput.getItem();
++        outputPerOperation = expectedOutput.getCount();
++        operations = step.operationCount();
++        long outputCount = (long) operations * outputPerOperation;
++        if (operations < 1 || outputPerOperation < 1 || outputPerOperation > expectedOutput.getMaxCount()
++                || outputCount > Integer.MAX_VALUE
++                || step.outputCount() != outputCount || !step.output().equals(GameCatalog.id(outputItem))) {
++            throw new IllegalArgumentException("Stonecutting plan disagrees with its native output quantity");
++        }
++        plannedOutput = (int) outputCount;
++
++        ItemStack[] matchingInputs = inputPredicate.getMatchingStacks();
++        if (matchingInputs.length == 0) throw new IllegalArgumentException("Stonecutting input has no known item alternatives");
++        for (ItemStack candidate : matchingInputs) {
++            if (!candidate.isEmpty() && candidate.isOf(outputItem)) {
++                throw new IllegalArgumentException("Stonecutting input and output must be different items");
++            }
++        }
++
++        int selectedCount = 0;
++        for (var requirement : step.requirements()) {
++            if (!(requirement instanceof SelectedItemRequirement selected)) continue;
++            if (!"recipe ingredient".equals(selected.purpose()) || selected.recipeSlot() != 0 || !selected.consumed()) {
++                throw new IllegalArgumentException("Stonecutting plan has an unsupported selected-item requirement");
++            }
++            Item item = GameCatalog.item(selected.item());
++            if (item == outputItem) throw new IllegalArgumentException("Stonecutting input and output must be different items");
++            remainingMaterials.merge(selected.item(), selected.count(), Math::addExact);
++            selectedCount = Math.addExact(selectedCount, selected.count());
++        }
++        if (remainingMaterials.isEmpty() || selectedCount != operations) {
++            throw new IllegalArgumentException("Stonecutting plan must select exactly one input per operation");
++        }
++    }
++
++    boolean tick() {
++        if (client.player == null || client.interactionManager == null) throw new IllegalStateException("No player");
++        if (!initialized) initialize();
++        if (client.player.currentScreenHandler != handler) {
++            throw new IllegalStateException("Stonecutter changed or closed during the planned transaction");
++        }
++
++        if (transfer != null) return advanceInputTransfer();
++        if (quickMove != null) return advanceQuickMove();
++        if (!handler.getCursorStack().isEmpty()) {
++            throw new IllegalStateException("Cursor is occupied; finish your inventory action before stonecutting");
++        }
++        validateLedger();
++
++        if (!drainRequested && submittedInput > returnedInput && !recipeCurrent.getAsBoolean()) {
++            drainRequested = true;
++        }
++        if (drainRequested) return drainOwnedInput();
++
++        ItemStack currentInput = handler.getSlot(0).getStack();
++        if (!currentInput.isEmpty()) {
++            prepareOutputMove();
++            return false;
++        }
++
++        if (collectedOutput == plannedOutput) {
++            if (submittedInput != operations || !allMaterialsSubmitted()) {
++                throw new IllegalStateException("Stonecutting output completed before all planned input was submitted");
++            }
++            return true;
++        }
++        if (submittedInput >= operations || !hasRemainingMaterials()) {
++            throw new IllegalStateException("Stonecutting plan ended before its exact output was collected; leaving the station open");
++        }
++        if (!recipeCurrent.getAsBoolean()) {
++            throw new IllegalStateException("Stonecutting recipe changed before any new input was transferred");
++        }
++        if (!handler.getSlot(1).getStack().isEmpty()) {
++            if (++previewWaitTicks > MAX_SELECTION_WAIT_TICKS) {
++                throw new IllegalStateException("Stonecutter output did not clear after its input was consumed; leaving the station open");
++            }
++            return false;
++        }
++        previewWaitTicks = 0;
++        startNextInputBatch();
++        return false;
++    }
++
++    private void initialize() {
++        ScreenHandler current = client.player.currentScreenHandler;
++        if (current == null || current.getClass() != StonecutterScreenHandler.class) {
++            throw new IllegalStateException("Open the required native stonecutter");
++        }
++        handler = (StonecutterScreenHandler) current;
++        if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied");
++        if (!handler.getSlot(0).getStack().isEmpty() || !handler.getSlot(1).getStack().isEmpty()) {
++            throw new IllegalStateException("Stonecutter input or output already contains items; clear it before automation");
++        }
++        initialized = true;
++    }
++
++    private boolean advanceInputTransfer() {
++        if (!transfer.tick()) return false;
++        ItemStack placed = handler.getSlot(0).getStack();
++        if (placed.isEmpty() || placed.getCount() != transferAmount
++                || !GameApi.canCombine(placed, transferInput) || !inputPredicate.test(placed)) {
++            throw new IllegalStateException("Stonecutter input transfer did not match the selected recipe cohort; leaving the station open");
++        }
++        int budget = remainingMaterials.getOrDefault(transferMaterial, 0);
++        if (budget < transferAmount) throw new IllegalStateException("Stonecutting material budget changed during input transfer");
++        remainingMaterials.put(transferMaterial, budget - transferAmount);
++        submittedInput = Math.addExact(submittedInput, transferAmount);
++        expectedInput = placed.copyWithCount(1);
++        transfer = null;
++        transferMaterial = null;
++        transferInput = null;
++        transferAmount = 0;
++        selectionTargetIndex = -1;
++        selectionWaitTicks = 0;
++        previewWaitTicks = 0;
++        validateLedger();
++        return false;
++    }
++
++    private boolean advanceQuickMove() {
++        try {
++            if (!quickMove.tick()) return false;
++        } catch (StaleRecipeBeforeOutputClick stale) {
++            quickMove = null;
++            movePurpose = null;
++            drainRequested = true;
++            return false;
++        } catch (SelectionChangedBeforeOutputClick changed) {
++            quickMove = null;
++            movePurpose = null;
++            outputSelectionIndex = -1;
++            selectionTargetIndex = -1;
++            selectionWaitTicks = 0;
++            return false;
++        } catch (PreviewChangedBeforeOutputClick changed) {
++            quickMove = null;
++            movePurpose = null;
++            outputSelectionIndex = -1;
++            previewWaitTicks = 0;
++            return false;
++        }
++
++        int moved = quickMove.movedCount();
++        MovePurpose completedPurpose = movePurpose;
++        if (completedPurpose == MovePurpose.OUTPUT) {
++            int consumedNow = consumedInputCount();
++            int consumedBefore = lastObservedConsumed;
++            int consumed = consumedNow - consumedBefore;
++            long expectedMove = (long) outputPerOperation * consumed;
++            long nextCollected = (long) collectedOutput + moved;
++            if (consumed < 1 || moved != expectedMove || nextCollected > plannedOutput
++                    || nextCollected != (long) outputPerOperation * consumedNow) {
++                throw new IllegalStateException("Stonecutter output and input deltas did not match the planned operations; leaving the station open");
++            }
++            if (!handler.getSlot(0).getStack().isEmpty()) validateOwnedInput();
++            collectedOutput = Math.addExact(collectedOutput, moved);
++            outputSelectionIndex = -1;
++            lastObservedConsumed = consumedNow;
++            validateLedger();
++            quickMove = null;
++            movePurpose = null;
++        } else if (completedPurpose == MovePurpose.INPUT_DRAIN) {
++            if (moved < 1 || moved > quickMoveInputAmount) {
++                throw new IllegalStateException("Stonecutter returned an unexpected amount of owned input; leaving the station open");
++            }
++            int nextReturned = Math.addExact(returnedInput, moved);
++            int current = handler.getSlot(0).getStack().getCount();
++            int nextConsumed = submittedInput - nextReturned - current;
++            if (nextReturned > submittedInput || nextConsumed != lastObservedConsumed
++                    || nextConsumed < 0 || collectedOutput != (long) outputPerOperation * nextConsumed) {
++                throw new IllegalStateException("Returned stonecutter input did not preserve the transaction ledger; leaving the station open");
++            }
++            if (current > 0) validateOwnedInput();
++            returnedInput = nextReturned;
++            quickMoveInputAmount = 0;
++            validateLedger();
++            quickMove = null;
++            movePurpose = null;
++        } else {
++            throw new IllegalStateException("Stonecutter transaction lost its movement purpose");
++        }
++        return false;
++    }
++
++    private void startNextInputBatch() {
++        if (!handler.getSlot(0).getStack().isEmpty()) throw new IllegalStateException("Stonecutter input is not empty before a new batch");
++        Supply supply = findSupply();
++        ItemStack source = supply.stack();
++        var destination = handler.getSlot(0);
++        if (!destination.canInsert(source)) throw new IllegalStateException("Stonecutter cannot accept the selected input stack");
++        int destinationRoom = destination.getMaxItemCount(source);
++        int outputCapacity = exactOutputCapacity();
++        int outputOperationCapacity = outputCapacity / outputPerOperation;
++        int remainingOperations = operations - submittedInput;
++        int materialBudget = remainingMaterials.getOrDefault(supply.id(), 0);
++        int amount = Math.min(64, Math.min(source.getCount(), Math.min(destinationRoom,
++                Math.min(remainingOperations, Math.min(materialBudget, outputOperationCapacity)))));
++        if (amount < 1) {
++            throw new IllegalStateException("Stonecutter output inventory lacks room for one planned operation; no new input was inserted");
++        }
++        transferMaterial = supply.id();
++        transferInput = source.copyWithCount(1);
++        transferAmount = amount;
++        transfer = new SlotTransfer(client, handler, supply.slotId(), 0, amount);
++    }
++
++    private record Supply(int slotId, ItemId id, ItemStack stack) {
++        private Supply { stack = stack.copy(); }
++        @Override public ItemStack stack() { return stack.copy(); }
++    }
++
++    private Supply findSupply() {
++        for (Map.Entry<ItemId, Integer> material : remainingMaterials.entrySet()) {
++            if (material.getValue() < 1) continue;
++            Item item = GameCatalog.item(material.getKey());
++            if (item == outputItem) throw new IllegalStateException("Stonecutting input and output must be different items");
++            for (var slot : handler.slots) {
++                if (slot.inventory != client.player.getInventory() || slot.getIndex() >= 36) continue;
++                ItemStack stack = slot.getStack();
++                if (!stack.isEmpty() && stack.isOf(item) && inputPredicate.test(stack)) {
++                    return new Supply(slot.id, material.getKey(), stack);
++                }
++            }
++        }
++        throw new IllegalStateException("A selected stonecutting ingredient no longer matches an inventory stack; no unmatched item was consumed");
++    }
++
++    private void prepareOutputMove() {
++        if (!recipeCurrent.getAsBoolean()) {
++            drainRequested = true;
++            return;
++        }
++        int recipeIndex = GameApi.stonecuttingRecipeIndex(client, handler, work);
++        if (recipeIndex < 0) {
++            drainRequested = true;
++            return;
++        }
++        if (handler.getSelectedRecipe() != recipeIndex) {
++            if (selectionTargetIndex != recipeIndex) {
++                selectionTargetIndex = recipeIndex;
++                selectionWaitTicks = 0;
++                client.interactionManager.clickButton(handler.syncId, recipeIndex);
++            } else if (++selectionWaitTicks % SELECTION_RETRY_TICKS == 0) {
++                client.interactionManager.clickButton(handler.syncId, recipeIndex);
++            }
++            if (selectionWaitTicks > MAX_SELECTION_WAIT_TICKS) drainRequested = true;
++            return;
++        }
++        selectionTargetIndex = recipeIndex;
++        selectionWaitTicks = 0;
++        ItemStack result = handler.getSlot(1).getStack();
++        if (!isExpectedOutput(result)) {
++            if (++previewWaitTicks > MAX_SELECTION_WAIT_TICKS) drainRequested = true;
++            return;
++        }
++        previewWaitTicks = 0;
++        validateLedger();
++        validateOwnedInput();
++        outputSelectionIndex = recipeIndex;
++        quickMove = new VerifiedQuickMove(client, handler, 1, outputItem, "stonecutter output",
++                this::authorizedOutputAdjustment, this::validateOutputBeforeClick);
++        movePurpose = MovePurpose.OUTPUT;
++    }
++
++    private void validateOutputBeforeClick() {
++        if (drainRequested || !recipeCurrent.getAsBoolean()) throw new StaleRecipeBeforeOutputClick();
++        int recipeIndex = GameApi.stonecuttingRecipeIndex(client, handler, work);
++        if (recipeIndex < 0) throw new StaleRecipeBeforeOutputClick();
++        if (handler.getSelectedRecipe() != recipeIndex) throw new SelectionChangedBeforeOutputClick();
++        ItemStack result = handler.getSlot(1).getStack();
++        if (!isExpectedOutput(result)) throw new PreviewChangedBeforeOutputClick();
++        validateLedger();
++        validateOwnedInput();
++        int currentInput = handler.getSlot(0).getStack().getCount();
++        long requiredCapacity = (long) outputPerOperation * currentInput;
++        if (currentInput < 1 || exactOutputCapacity() < requiredCapacity) {
++            throw new IllegalStateException("Stonecutter output needs room for every owned input before transfer; clear inventory space and resume");
++        }
++        outputSelectionIndex = recipeIndex;
++    }
++
++    private int authorizedOutputAdjustment() {
++        long adjustment = (long) outputPerOperation * consumedInputCount();
++        if (outputSelectionIndex >= 0 && handler.getSelectedRecipe() == outputSelectionIndex
++                && handler.getSlot(0).getStack().getCount() > 0
++                && isExpectedOutput(handler.getSlot(1).getStack())) {
++            adjustment += outputPerOperation;
++        }
++        if (adjustment < 0 || adjustment > Integer.MAX_VALUE) {
++            throw new IllegalStateException("Stonecutter output authorization exceeded its planned bound");
++        }
++        return (int) adjustment;
++    }
++
++    private boolean isExpectedOutput(ItemStack stack) {
++        return !stack.isEmpty() && stack.getCount() == outputPerOperation
++                && GameApi.canCombine(stack, expectedOutput);
++    }
++
++    private boolean drainOwnedInput() {
++        validateLedger();
++        ItemStack input = handler.getSlot(0).getStack();
++        if (input.isEmpty()) {
++            if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied while draining stonecutter input");
++            return true;
++        }
++        validateOwnedInput();
++        quickMoveInputAmount = input.getCount();
++        quickMove = new VerifiedQuickMove(client, handler, 0, input.getItem(), "owned stonecutter input",
++                null, this::validateDrainBeforeClick);
++        movePurpose = MovePurpose.INPUT_DRAIN;
++        return false;
++    }
++
++    private void validateDrainBeforeClick() {
++        if (!drainRequested) throw new IllegalStateException("Stonecutter drain was cancelled before returning owned input");
++        validateLedger();
++        validateOwnedInput();
++        if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied while draining stonecutter input");
++        // The result slot is virtual while input remains. Drain must not collect or trust it.
++    }
++
++    private void validateOwnedInput() {
++        ItemStack input = handler.getSlot(0).getStack();
++        if (input.isEmpty()) throw new IllegalStateException("Owned stonecutter input disappeared; leaving the station open");
++        if (expectedInput == null || !GameApi.canCombine(input, expectedInput) || !inputPredicate.test(input)) {
++            throw new IllegalStateException("Stonecutter input components or recipe predicate changed; leaving the station open");
++        }
++        int outstanding = submittedInput - returnedInput;
++        if (outstanding < 0 || input.getCount() > outstanding) {
++            throw new IllegalStateException("Stonecutter contains unexplained input; leaving the station open");
++        }
++    }
++
++    private int consumedInputCount() {
++        if (handler == null) return 0;
++        int outstanding = submittedInput - returnedInput;
++        int current = handler.getSlot(0).getStack().getCount();
++        int consumed = outstanding - current;
++        if (outstanding < 0 || current > outstanding || consumed < 0 || consumed > operations) {
++            throw new IllegalStateException("Stonecutter input ownership ledger is inconsistent; leaving the station open");
++        }
++        return consumed;
++    }
++
++    private void validateLedger() {
++        if (handler == null) return;
++        int consumed = consumedInputCount();
++        long authorizedOutput = (long) outputPerOperation * consumed;
++        if (collectedOutput != authorizedOutput || collectedOutput < 0 || collectedOutput > plannedOutput
++                || submittedInput > operations || returnedInput > submittedInput) {
++            throw new IllegalStateException("Stonecutter input and collected-output ledger disagree; leaving the station open");
++        }
++        ItemStack input = handler.getSlot(0).getStack();
++        if (!input.isEmpty()) validateOwnedInput();
++    }
++
++    private int exactOutputCapacity() {
++        long capacity = 0;
++        for (var slot : handler.slots) {
++            if (slot.inventory != client.player.getInventory() || slot.getIndex() >= 36
++                    || !slot.canInsert(expectedOutput)) continue;
++            ItemStack stack = slot.getStack();
++            if (stack.isEmpty()) {
++                capacity += slot.getMaxItemCount(expectedOutput);
++            } else if (GameApi.canCombine(stack, expectedOutput)) {
++                capacity += Math.max(0, slot.getMaxItemCount(expectedOutput) - stack.getCount());
++            }
++        }
++        return (int) Math.min(Integer.MAX_VALUE, capacity);
++    }
++
++    private boolean hasRemainingMaterials() {
++        return remainingMaterials.values().stream().anyMatch(count -> count > 0);
++    }
++
++    private boolean allMaterialsSubmitted() {
++        return remainingMaterials.values().stream().allMatch(count -> count == 0);
++    }
++
++    void requestDrain() { drainRequested = true; }
++
++    void recover() {
++        if (transfer != null) transfer.recover();
++        if (handler == null) return;
++        if (client.player == null || client.player.currentScreenHandler != handler) {
++            if (quickMove != null || !handler.getSlot(0).getStack().isEmpty()) {
++                throw new IllegalStateException("Stonecutter ownership is unresolved; keep the station open for recovery");
++            }
++        }
++        if (!handler.getCursorStack().isEmpty()) {
++            throw new IllegalStateException("Return the cursor stack before closing the stonecutter");
++        }
++        if (quickMove != null) {
++            throw new IllegalStateException("A stonecutter quickmove is still being verified; keep the station open and resume recovery");
++        }
++        if (!handler.getSlot(0).getStack().isEmpty()) {
++            throw new IllegalStateException("Owned stonecutter input remains; keep the station open and resume to drain it");
++        }
++    }
++
++    void pause() { recover(); }
++}
+diff --git a/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingWork.java b/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingWork.java
+new file mode 100644
+index 0000000..79e05cf
+--- /dev/null
++++ b/fabric/src/main/java/dev/lodekeeper/fabric/StonecuttingWork.java
+@@ -0,0 +1,23 @@
++package dev.lodekeeper.fabric;
++
++import net.minecraft.item.ItemStack;
++import net.minecraft.recipe.Ingredient;
++
++import java.util.Objects;
++
++/** Immutable native recipe facts needed to select one synchronized stonecutting option. */
++record StonecuttingWork(String sourceId, Ingredient input, ItemStack outputPerOperation, Object selectionKey) {
++    StonecuttingWork {
++        if (sourceId == null || !sourceId.startsWith("stonecutting:")
++                || input == null || input.isEmpty() || selectionKey == null) {
++            throw new IllegalArgumentException("stonecutting work is missing its source, input, or selection key");
++        }
++        Objects.requireNonNull(outputPerOperation, "outputPerOperation");
++        if (outputPerOperation.isEmpty() || outputPerOperation.getCount() > 99) {
++            throw new IllegalArgumentException("stonecutting output must be nonempty with count at most 99");
++        }
++        outputPerOperation = outputPerOperation.copy();
++    }
++
++    @Override public ItemStack outputPerOperation() { return outputPerOperation.copy(); }
++}
+diff --git a/fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java b/fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java
+index fdb943b..0eb637b 100644
+--- a/fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java
++++ b/fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java
+@@ -1,5 +1,16 @@
+ package dev.lodekeeper.fabric;
+ 
++import com.google.gson.JsonArray;
++import com.google.gson.JsonObject;
++import com.google.gson.GsonBuilder;
++import dev.lodekeeper.core.AcquisitionPlanner;
++import dev.lodekeeper.core.AcquisitionSource;
++import dev.lodekeeper.core.BlockedReason;
++import dev.lodekeeper.core.CatalogSnapshot;
++import dev.lodekeeper.core.InventorySnapshot;
++import dev.lodekeeper.core.ItemId;
++import dev.lodekeeper.core.PlanResult;
++import dev.lodekeeper.core.PlanStep;
+ import net.fabricmc.api.ClientModInitializer;
+ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+@@ -47,10 +58,15 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
+     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
++    private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
+     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
+     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
+     private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
+     private static final boolean COOKING_MODE = COOKING_STATION_MODE != null;
++    private static final boolean STONECUTTING_MODE = Boolean.getBoolean("lodekeeper.verify.stonecutting");
++    private static final boolean STONECUTTING_DRAIN_MODE = Boolean.getBoolean("lodekeeper.verify.stonecuttingDrain");
++    private static final boolean PROCESSING_MODE = COOKING_MODE || STONECUTTING_MODE;
++    private static final String PROCESSING_STATION_MODE = STONECUTTING_MODE ? "stonecutter" : COOKING_STATION_MODE;
+     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
+     private static final String OAK_LOG_ID = "minecraft:oak_log";
+     private static final String WOODEN_AXE_ID = "minecraft:wooden_axe";
+@@ -58,6 +74,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final String COOKED_PORKCHOP_ID = "minecraft:cooked_porkchop";
+     private static final String RAW_IRON_ID = "minecraft:raw_iron";
+     private static final String IRON_INGOT_ID = "minecraft:iron_ingot";
++    private static final int STONECUTTING_DRAIN_COMMAND_TARGET = 144;
++    private static final int IRON_PICKAXE_PROBE_TIMEOUT_TICKS = 200;
++    private static final int IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT = 4;
+     private boolean resourceInitiallyLoaded;
+     private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : 6_000;
+     private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L : 300_000_000_000L;
+@@ -101,6 +120,17 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private int activeFurnaceOpeningsAtStart;
+     private int activeSmokerOpeningsAtStart;
+     private int activeBlastFurnaceOpeningsAtStart;
++    private int activeStonecutterOpeningsAtStart;
++    private boolean stonecuttingDrainStopInjected, stonecuttingDrainStopAttempted;
++    private int stonecuttingDrainInputCountAtStop;
++    private int stonecuttingDrainStopClientTick = -1, stonecuttingDrainStopServerTick = -1;
++    private long observationRequestSequence, latestObservationRequestSequence;
++    private long stonecuttingDrainRequiredObservationSequence = -1;
++    private GameCatalog ironPickaxeProbeCatalog;
++    private JsonObject ironPickaxePlannerProbeEvidence;
++    private int ironPickaxeProbeStartedAtTick = -1;
++    private boolean ironPickaxeProbeStarted, ironPickaxeProbeFinished;
++    private volatile int serverStonecutterOpenings;
+     private Map<String, Integer> activeInitialResources = Map.of();
+     private int foodBreadCountBeforeSetup;
+     private String failure = "";
+@@ -145,8 +175,16 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 client.scheduleStop();
+                 return;
+             }
++            if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) {
++                failure = "lodekeeper.verify.stonecuttingDrain requires lodekeeper.verify.stonecutting=true";
++                state = State.FAILED;
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.scheduleStop();
++                return;
++            }
+             if (selectedFixtureModes() > 1) {
+-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.bulkWood, and lodekeeper.verify.cookingStation are mutually exclusive";
++                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+                 state = State.FAILED;
+                 writeEvidence("failed");
+                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+@@ -182,6 +220,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                         serverSmokerOpened = true;
+                         serverSmokerOpenings++;
+                     }
++                    if (handler.getClass() == net.minecraft.screen.StonecutterScreenHandler.class) serverStonecutterOpenings++;
+                     if (handler instanceof BlastFurnaceScreenHandler) {
+                         serverBlastFurnaceOpened = true;
+                         serverBlastFurnaceOpenings++;
+@@ -253,6 +292,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     state = State.WAITING_FOR_EMPTY_SNAPSHOT;
+                     readyTicks = 0;
+                     requestObservation();
++                    if (IRON_PICKAXE_MODE) startIronPickaxePlannerProbe();
+                 }
+                 return;
+             }
+@@ -279,8 +319,26 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 }
+                 return;
+             }
+-            if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+-                if (COOKING_MODE) {
++                if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
++                if (IRON_PICKAXE_MODE) {
++                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
++                    tickIronPickaxePlannerProbe();
++                    if (state == State.FAILED) return;
++                    boolean startingStockObserved = latestSnapshot != null
++                        && latestSnapshot.serverTick >= fixtureReadyServerTick
++                        && latestSnapshot.health == 20.0F
++                        && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1));
++                    if (startingStockObserved && ironPickaxeProbeFinished) {
++                        if (++readyTicks >= 20 && client.player.getY() > PLAYER_Y - 1
++                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK)) {
++                            startIronPickaxeCommand();
++                        }
++                    } else {
++                        readyTicks = 0;
++                    }
++                    return;
++                }
++                if (PROCESSING_MODE) {
+                     boolean startingResourcesObserved = latestSnapshot != null
+                         && latestSnapshot.serverTick >= fixtureReadyServerTick
+                         && latestSnapshot.inventory.equals(cookingProvidedStock())
+@@ -305,7 +363,12 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 }
+                 return;
+             }
+-            if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
++            maybeInjectStonecuttingDrainStop();
++            if (clientTicks % OBSERVE_EVERY_TICKS == 0
++                    || (stonecuttingDrainStopInjected && requireEngine().status().startsWith("idle")
++                        && latestObservationRequestSequence < stonecuttingDrainRequiredObservationSequence)) {
++                requestObservation();
++            }
+             evaluateCurrentCase();
+             if (state == State.CAPTURING && screenshotWritesPending == 0 && clientTicks - captureStartedAtTick >= 20) finishRun();
+             else if (state == State.CAPTURING && clientTicks - captureStartedAtTick >= 100) finishRun();
+@@ -381,18 +444,18 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 ServerPlayerEntity player = requireServerPlayer(server);
+                 ServerWorld world = server.getOverworld();
+                 // A bounded, level pad makes the fixture deterministic while retaining normal survival physics.
+-                for (int x = -12; x <= (COOKING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE ? 30 : 18); x++) {
++                for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 30 : 18); x++) {
+                     for (int z = -6; z <= 6; z++) world.setBlockState(new BlockPos(x, FIXTURE_FLOOR_Y, z), Blocks.BEDROCK.getDefaultState(), 3);
+                 }
+-                if (!COOKING_MODE) {
++                if (!PROCESSING_MODE) {
+                     for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
+                         world.setBlockState(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.getDefaultState(), 3);
+                     }
+                     if (!BULK_WOOD_MODE) {
+-                        for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE ? 25 : 17); x++) {
++                        for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 25 : 17); x++) {
+                             world.setBlockState(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.getDefaultState(), 3);
+                         }
+-                        if (DIAMOND_BOOTSTRAP_MODE) {
++                        if (DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE) {
+                             world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                             world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                             world.setBlockState(new BlockPos(18, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+@@ -401,6 +464,11 @@ public final class RuntimeVerification implements ClientModInitializer {
+                             for (int x = 20; x <= 23; x++) {
+                                 world.setBlockState(new BlockPos(x, PLAYER_Y, 4), Blocks.DIAMOND_ORE.getDefaultState(), 3);
+                             }
++                            if (IRON_PICKAXE_MODE) {
++                                for (int index = 0; index < IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT; index++) {
++                                    world.setBlockState(new BlockPos(16 + index, 20, 4), Blocks.DEEPSLATE.getDefaultState(), 3);
++                                }
++                            }
+                         } else {
+                             world.setBlockState(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.getDefaultState(), 3);
+                             world.setBlockState(new BlockPos(17, PLAYER_Y, 4), Blocks.IRON_ORE.getDefaultState(), 3);
+@@ -413,7 +481,10 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     }
+                 }
+                 clearInventory(player.getInventory());
+-                if (COOKING_MODE) seedCookingInventory(player);
++                if (PROCESSING_MODE) seedCookingInventory(player);
++                if (IRON_PICKAXE_MODE && !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
++                    throw new IllegalStateException("could not seed the single iron-pickaxe verifier crafting table");
++                }
+                 player.setHealth(player.getMaxHealth());
+                 player.getHungerManager().setFoodLevel(20);
+                 if (!VerificationApi.teleport(player, world, 0.5, PLAYER_Y, 0.5, 0.0F, 0.0F)) {
+@@ -437,22 +508,23 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private static Item cookingRawItem() {
+-        return "smoker".equals(COOKING_STATION_MODE) ? Items.PORKCHOP : Items.RAW_IRON;
++        return STONECUTTING_MODE ? Items.STONE : "smoker".equals(COOKING_STATION_MODE) ? Items.PORKCHOP : Items.RAW_IRON;
+     }
+ 
+     private static Item cookingStationItem() {
+-        return "smoker".equals(COOKING_STATION_MODE) ? Items.SMOKER : Items.BLAST_FURNACE;
++        return STONECUTTING_MODE ? Items.STONECUTTER : "smoker".equals(COOKING_STATION_MODE) ? Items.SMOKER : Items.BLAST_FURNACE;
+     }
+ 
+     private static String cookingRawItemId() {
+-        return "smoker".equals(COOKING_STATION_MODE) ? RAW_PORKCHOP_ID : RAW_IRON_ID;
++        return STONECUTTING_MODE ? "minecraft:stone" : "smoker".equals(COOKING_STATION_MODE) ? RAW_PORKCHOP_ID : RAW_IRON_ID;
+     }
+ 
+     private static String cookingOutputId() {
+-        return "smoker".equals(COOKING_STATION_MODE) ? COOKED_PORKCHOP_ID : IRON_INGOT_ID;
++        return STONECUTTING_MODE ? "minecraft:stone_slab" : "smoker".equals(COOKING_STATION_MODE) ? COOKED_PORKCHOP_ID : IRON_INGOT_ID;
+     }
+ 
+     private static String cookingRecipeType() {
++        if (STONECUTTING_MODE) return "stonecutting";
+         return switch (COOKING_STATION_MODE == null ? "" : COOKING_STATION_MODE) {
+             case "smoker" -> "smoking";
+             case "blast_furnace" -> "blasting";
+@@ -461,12 +533,13 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private static String cookingOutputCommandName() {
+-        return "smoker".equals(COOKING_STATION_MODE) ? "cooked_porkchop" : "iron_ingot";
++        return STONECUTTING_MODE ? "stone_slab" : "smoker".equals(COOKING_STATION_MODE) ? "cooked_porkchop" : "iron_ingot";
+     }
+ 
+     private static Map<String, Integer> cookingProvidedStock() {
++        if (STONECUTTING_MODE) return Map.of("minecraft:stone", 128, "minecraft:stonecutter", 1);
+         return Map.of(cookingRawItemId(), 128, "minecraft:coal", 9,
+-            "minecraft:" + COOKING_STATION_MODE, 1);
++            "minecraft:" + PROCESSING_STATION_MODE, 1);
+     }
+ 
+     private static void seedCookingInventory(ServerPlayerEntity player) {
+@@ -475,7 +548,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 throw new IllegalStateException("could not seed two 64-item raw cooking stacks");
+             }
+         }
+-        if (!player.getInventory().insertStack(new ItemStack(Items.COAL, 9))) {
++        if (!STONECUTTING_MODE && !player.getInventory().insertStack(new ItemStack(Items.COAL, 9))) {
+             throw new IllegalStateException("could not seed nine verifier coal");
+         }
+         if (!player.getInventory().insertStack(new ItemStack(cookingStationItem(), 1))) {
+@@ -484,17 +557,230 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private void startCookingCommand() {
+-        activeCase = "native_" + COOKING_STATION_MODE + "_72";
++        activeCase = STONECUTTING_DRAIN_MODE ? "native_stonecutter_drain_after_insertion"
++            : STONECUTTING_MODE ? "native_stonecutter_144_slabs" : "native_" + COOKING_STATION_MODE + "_72";
+         activeItem = cookingOutputId();
+-        activeCount = 72;
++        activeCount = STONECUTTING_DRAIN_MODE ? 0 : STONECUTTING_MODE ? 144 : 72;
+         activeRequiresEmpty = false;
+         activeStartedEmpty = latestSnapshot.inventoryEmpty();
+         activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+         beginCaseClock();
+-        sendCommand("!lk get " + cookingOutputCommandName() + " 72");
++        sendCommand("!lk get " + cookingOutputCommandName() + " "
++            + (STONECUTTING_DRAIN_MODE ? STONECUTTING_DRAIN_COMMAND_TARGET : activeCount));
+         state = State.COOKING;
+     }
+ 
++    private void startIronPickaxePlannerProbe() {
++        if (ironPickaxeProbeStarted) return;
++        ironPickaxeProbeStarted = true;
++        ironPickaxeProbeStartedAtTick = clientTicks;
++        ironPickaxeProbeCatalog = new GameCatalog(client);
++        ironPickaxePlannerProbeEvidence = new JsonObject();
++        ironPickaxePlannerProbeEvidence.addProperty("status", "loading");
++        ironPickaxePlannerProbeEvidence.addProperty("planningPreferences", "none");
++        ironPickaxePlannerProbeEvidence.addProperty("isGameplayEvidence", false);
++        ironPickaxePlannerProbeEvidence.addProperty("inventory", "minecraft:crafting_table x1 only");
++        try {
++            ironPickaxeProbeCatalog.load();
++        } catch (RuntimeException exception) {
++            completeIronPickaxeProbeUnavailable("catalog load failed: " + exception);
++        }
++    }
++
++    private void tickIronPickaxePlannerProbe() {
++        if (!IRON_PICKAXE_MODE || !ironPickaxeProbeStarted || ironPickaxeProbeFinished) return;
++        if (ironPickaxeProbeCatalog != null && ironPickaxeProbeCatalog.ready()) {
++            try {
++                CatalogSnapshot catalogSnapshot = ironPickaxeProbeCatalog.snapshot();
++                InventorySnapshot inventory = new InventorySnapshot(Map.of(ItemId.parse("minecraft:crafting_table"), 1));
++                AcquisitionPlanner planner = new AcquisitionPlanner();
++                PlanResult ironPickaxe = planner.planFast(catalogSnapshot, inventory,
++                    ItemId.parse("minecraft:iron_pickaxe"), 1);
++                PlanResult stonePickaxe = planner.planFast(catalogSnapshot, inventory,
++                    ItemId.parse("minecraft:stone_pickaxe"), 1);
++                ironPickaxePlannerProbeEvidence = ironPickaxePlannerEvidence(catalogSnapshot, inventory, ironPickaxe, stonePickaxe);
++                ironPickaxeProbeFinished = true;
++                writeIronPickaxeCatalogSnapshot(catalogSnapshot);
++                logPlannerProbeResult("iron_pickaxe", ironPickaxe);
++                logPlannerProbeResult("stone_pickaxe", stonePickaxe);
++            } catch (RuntimeException exception) {
++                completeIronPickaxeProbeUnavailable("planner probe failed: " + exception);
++            }
++        } else if (clientTicks - ironPickaxeProbeStartedAtTick >= IRON_PICKAXE_PROBE_TIMEOUT_TICKS) {
++            completeIronPickaxeProbeUnavailable("catalog was not ready within "
++                + IRON_PICKAXE_PROBE_TIMEOUT_TICKS + " client ticks");
++        }
++    }
++
++    private void completeIronPickaxeProbeUnavailable(String reason) {
++        if (ironPickaxePlannerProbeEvidence == null) ironPickaxePlannerProbeEvidence = new JsonObject();
++        ironPickaxePlannerProbeEvidence.addProperty("status", "unavailable");
++        ironPickaxePlannerProbeEvidence.addProperty("failure", reason);
++        ironPickaxePlannerProbeEvidence.addProperty("planningPreferences", "none");
++        ironPickaxePlannerProbeEvidence.addProperty("isGameplayEvidence", false);
++        ironPickaxeProbeFinished = true;
++        System.err.println("[Lodekeeper verification] Iron-pickaxe planner probe unavailable: " + reason);
++    }
++
++    private JsonObject ironPickaxePlannerEvidence(CatalogSnapshot catalogSnapshot, InventorySnapshot inventory,
++                                                   PlanResult ironPickaxe, PlanResult stonePickaxe) {
++        JsonObject probe = new JsonObject();
++        probe.addProperty("status", "complete");
++        probe.addProperty("catalogReady", true);
++        probe.addProperty("catalogGeneration", ironPickaxeProbeCatalog.generation());
++        probe.addProperty("planningPreferences", "none");
++        probe.addProperty("isGameplayEvidence", false);
++        JsonObject inventoryItems = new JsonObject();
++        inventory.counts().forEach((item, count) -> inventoryItems.addProperty(item.toString(), count));
++        probe.add("inventoryCounts", inventoryItems);
++        probe.add("ironPickaxe", plannerResultEvidence(ironPickaxe));
++        probe.add("stonePickaxe", plannerResultEvidence(stonePickaxe));
++        return probe;
++    }
++
++    private void writeIronPickaxeCatalogSnapshot(CatalogSnapshot catalogSnapshot) {
++        var gson = new GsonBuilder().setPrettyPrinting().create();
++        JsonObject export = new JsonObject();
++        export.addProperty("format", "lodekeeper.catalog_snapshot.v1");
++        export.addProperty("minecraftVersion", VerificationApi.minecraftVersion());
++        export.addProperty("catalogGeneration", ironPickaxeProbeCatalog.generation());
++        JsonArray items = new JsonArray();
++        ironPickaxeProbeCatalog.items.stream().sorted().forEach(item -> items.add(item.toString()));
++        export.add("items", items);
++        JsonArray definitions = new JsonArray();
++        catalogSnapshot.itemDefinitions().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
++            JsonObject definition = new JsonObject();
++            definition.addProperty("item", entry.getKey().toString());
++            definition.addProperty("maximumDurability", entry.getValue().maximumDurability());
++            definition.addProperty("fuelBurnTicks", entry.getValue().fuelBurnTicks());
++            JsonArray aliases = new JsonArray();
++            entry.getValue().aliases().forEach(aliases::add);
++            definition.add("aliases", aliases);
++            definitions.add(definition);
++        });
++        export.add("itemDefinitions", definitions);
++        JsonArray tags = new JsonArray();
++        ironPickaxeProbeCatalog.tags.keySet().stream().sorted().forEach(tag -> {
++            JsonObject entry = new JsonObject();
++            entry.addProperty("tag", tag.toString());
++            JsonArray members = new JsonArray();
++            ironPickaxeProbeCatalog.tags.get(tag).stream().sorted().forEach(item -> members.add(item.toString()));
++            entry.add("items", members);
++            tags.add(entry);
++        });
++        export.add("tags", tags);
++        JsonArray sources = new JsonArray();
++        ironPickaxeProbeCatalog.sources.stream().sorted((left, right) -> left.sourceId().compareTo(right.sourceId())).forEach(source -> {
++            JsonObject entry = new JsonObject();
++            entry.addProperty("sourceId", source.sourceId());
++            entry.addProperty("sourceType", source.sourceType());
++            entry.addProperty("output", source.output().toString());
++            entry.addProperty("outputCount", source.outputCount());
++            entry.addProperty("definition", source.toString());
++            entry.addProperty("definitionType", source.getClass().getSimpleName());
++            entry.add("definitionJson", gson.toJsonTree(source));
++            sources.add(entry);
++        });
++        export.add("sources", sources);
++        JsonArray unsupported = new JsonArray();
++        ironPickaxeProbeCatalog.unsupported.forEach(unsupported::add);
++        export.add("unsupported", unsupported);
++        String fileName = "iron-pickaxe-catalog-" + runId + ".json";
++        try {
++            Files.writeString(evidenceDirectory.resolve(fileName),
++                gson.toJson(export), StandardCharsets.UTF_8);
++            ironPickaxePlannerProbeEvidence.addProperty("catalogSnapshotFile", fileName);
++            ironPickaxePlannerProbeEvidence.addProperty("knownItemCount", ironPickaxeProbeCatalog.items.size());
++            ironPickaxePlannerProbeEvidence.addProperty("sourceCount", ironPickaxeProbeCatalog.sources.size());
++            ironPickaxePlannerProbeEvidence.addProperty("tagCount", ironPickaxeProbeCatalog.tags.size());
++        } catch (IOException exception) {
++            ironPickaxePlannerProbeEvidence.addProperty("catalogExportFailure", exception.toString());
++        }
++    }
++
++    private static JsonObject plannerResultEvidence(PlanResult result) {
++        JsonObject plan = new JsonObject();
++        plan.addProperty("target", result.target().toString());
++        plan.addProperty("requestedCount", result.requestedCount());
++        plan.addProperty("success", result.success());
++        plan.addProperty("optimal", result.optimal());
++        plan.addProperty("expandedNodes", result.expandedNodes());
++        plan.addProperty("elapsedNanos", result.elapsedNanos());
++        JsonArray blockedReasons = new JsonArray();
++        for (BlockedReason reason : result.blockedReasons()) {
++            JsonObject item = new JsonObject();
++            item.addProperty("code", reason.code().name());
++            if (reason.item() != null) item.addProperty("item", reason.item().toString());
++            item.addProperty("detail", reason.detail());
++            JsonArray path = new JsonArray();
++            reason.dependencyPath().forEach(dependency -> path.add(dependency.toString()));
++            item.add("dependencyPath", path);
++            blockedReasons.add(item);
++        }
++        plan.add("blockedReasons", blockedReasons);
++        JsonArray steps = new JsonArray();
++        for (PlanStep step : result.steps()) {
++            JsonObject item = new JsonObject();
++            item.addProperty("kind", step.kind().name());
++            item.addProperty("sourceId", step.sourceId());
++            if (step.output() != null) item.addProperty("output", step.output().toString());
++            item.addProperty("outputCount", step.outputCount());
++            item.addProperty("operationCount", step.operationCount());
++            if (step.station() != null) item.addProperty("station", step.station().toString());
++            JsonArray requirements = new JsonArray();
++            step.requirements().forEach(requirement -> requirements.add(requirement.toString()));
++            item.add("requirements", requirements);
++            steps.add(item);
++        }
++        plan.add("steps", steps);
++        return plan;
++    }
++
++    private static void logPlannerProbeResult(String name, PlanResult result) {
++        System.out.println("[Lodekeeper verification] Planner probe " + name + " success=" + result.success()
++            + ", expandedNodes=" + result.expandedNodes() + ", elapsedNanos=" + result.elapsedNanos()
++            + ", blockedReasons=" + result.blockedReasons());
++        result.blockedReasons().forEach(reason -> System.err.println("[Lodekeeper verification] Planner probe "
++            + name + " blocked " + reason.code() + " at " + reason.item() + ": " + reason.detail()
++            + " path=" + reason.dependencyPath()));
++    }
++
++    private void startIronPickaxeCommand() {
++        activeCase = "iron_pickaxe_from_crafting_table_only";
++        activeItem = IRON_PICKAXE_ID;
++        activeCount = 1;
++        activeRequiresEmpty = false;
++        activeStartedEmpty = latestSnapshot.inventoryEmpty();
++        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
++        beginCaseClock();
++        sendCommand("!lk get iron_pickaxe");
++        state = State.GATHERING_WOOD;
++    }
++
++    private void maybeInjectStonecuttingDrainStop() {
++        if (!STONECUTTING_DRAIN_MODE || state != State.COOKING || stonecuttingDrainStopAttempted
++                || client.player == null || client.player.currentScreenHandler == null
++                || client.player.currentScreenHandler.getClass() != net.minecraft.screen.StonecutterScreenHandler.class) return;
++        net.minecraft.screen.StonecutterScreenHandler handler =
++            (net.minecraft.screen.StonecutterScreenHandler) client.player.currentScreenHandler;
++        ItemStack ownedInput = handler.getSlot(0).getStack();
++        if (ownedInput.isEmpty() || !ownedInput.isOf(Items.STONE) || !handler.getCursorStack().isEmpty()) return;
++        if (ClientAccess.main(client.player.getInventory()).stream().anyMatch(stack -> stack.isOf(Items.STONE_SLAB))) {
++            fail("stonecutting drain stop was not injected before the first slab output");
++            return;
++        }
++
++        stonecuttingDrainStopAttempted = true;
++        stonecuttingDrainInputCountAtStop = ownedInput.getCount();
++        stonecuttingDrainStopClientTick = clientTicks;
++        stonecuttingDrainStopServerTick = latestSnapshot == null ? -1 : latestSnapshot.serverTick;
++        stonecuttingDrainRequiredObservationSequence = observationRequestSequence + 1;
++        sendCommand("!lk stop");
++        stonecuttingDrainStopInjected = true;
++        System.out.println("[Lodekeeper verification] Injected !lk stop with " + stonecuttingDrainInputCountAtStop
++            + " owned stone in the native stonecutter at client tick " + stonecuttingDrainStopClientTick);
++    }
++
+     private void startGatherCommand() {
+         if (BULK_WOOD_MODE) {
+             activeCase = "bulk_wood_64";
+@@ -537,20 +823,32 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private void evaluateCurrentCase() {
+         if (activeCase == null || state == State.CAPTURING) return;
+         if (latestSnapshot == null) return;
++        if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
++                && latestSnapshot.count(cookingOutputId()) > 0) {
++            fail("stonecutting drain stop was not injected before the first slab output");
++            return;
++        }
+         int observed = latestSnapshot.count(activeItem);
+-        boolean targetReached = (BULK_WOOD_MODE || COOKING_MODE ? observed == activeCount : observed >= activeCount)
++        boolean targetReached = (BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
+             && requireEngine().status().startsWith("idle")
+             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
+             && (state != State.SMELTING_IRON || serverFurnaceOpened)
+-            && (!COOKING_MODE || (state == State.COOKING
+-                && latestSnapshot.count(cookingRawItemId()) == 56
+-                && latestSnapshot.count("minecraft:coal") == 0
++            && (!PROCESSING_MODE || (state == State.COOKING
+                 && latestSnapshot.health == 20.0F
+-                && correctCookingStationMenuOpened()))
++                && correctCookingStationMenuOpened()
++                && (STONECUTTING_DRAIN_MODE ? stonecuttingDrainOutcomeObserved()
++                    : latestSnapshot.count(cookingRawItemId()) == 56
++                        && latestSnapshot.count("minecraft:coal") == 0
++                        && (!STONECUTTING_MODE || latestSnapshot.inventory.equals(
++                            Map.of("minecraft:stone", 56, "minecraft:stone_slab", 144))))))
+             && (!DIAMOND_BOOTSTRAP_MODE || (state == State.GATHERING_WOOD
+                 && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
+                 && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
+                 && latestSnapshot.count(IRON_PICKAXE_ID) >= 1))
++            && (!IRON_PICKAXE_MODE || (state == State.GATHERING_WOOD
++                && latestSnapshot.health == 20.0F
++                && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
++                && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart))
+             && (!BULK_WOOD_MODE || (latestSnapshot.count(OAK_LOG_ID) == 64
+                 && (WOOD_TOOLS_MODE
+                     ? serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
+@@ -568,12 +866,18 @@ public final class RuntimeVerification implements ClientModInitializer {
+             fail("food-use case reached its log target without server-confirmed bread consumption and hunger recovery");
+         } else if (targetReached) {
+             String screenshot = capture(activeCase);
+-            String detail = COOKING_MODE
+-                ? "server inventory reached 72 " + cookingOutputId() + " with 56 raw inputs and no coal in inventory after opening the native " + COOKING_STATION_MODE + " menu"
++            String detail = STONECUTTING_DRAIN_MODE
++                ? "sent ordinary !lk stop at client tick " + stonecuttingDrainStopClientTick + " with "
++                    + stonecuttingDrainInputCountAtStop + " owned stone in the native stonecutter; fresh server tick "
++                    + latestSnapshot.serverTick + " observed exact starting stock restored with zero slabs (command target 144, expected output 0)"
++                : PROCESSING_MODE
++                ? "server inventory reached " + activeCount + " " + cookingOutputId() + " with 56 inputs remaining after opening the native " + PROCESSING_STATION_MODE + " menu"
+                 : BULK_WOOD_MODE
+                 ? (WOOD_TOOLS_MODE
+                     ? "server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes"
+                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
++                : IRON_PICKAXE_MODE
++                ? "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
+                 : DIAMOND_BOOTSTRAP_MODE
+                 ? "server inventory reached diamond boots after the integrated server observed crafting table and furnace menus and an iron pickaxe"
+                 : switch (state) {
+@@ -583,7 +887,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 default -> "server inventory reached target and engine returned idle";
+             };
+             addResult(true, observed, detail, screenshot);
+-            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE)) {
++            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE)) {
+                 state = State.CAPTURING; captureStartedAtTick = clientTicks;
+             } else if (state == State.GATHERING_WOOD) {
+                 startCraftingTableCommand();
+@@ -606,10 +910,14 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 captureStartedAtTick = clientTicks;
+             }
+         } else if (requireEngine().status().startsWith("paused")) {
+-            fail("automation paused during " + activeCase + ": " + requireEngine().status());
++            fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
++                ? "stonecutting drain stop was never injected before automation paused: " + requireEngine().status()
++                : "automation paused during " + activeCase + ": " + requireEngine().status());
+         } else if (clientTicks - caseStartedAtTick > MAX_RUN_TICKS) {
+             addResult(false, observed, "case timed out; engine status=" + requireEngine().status(), null);
+-            fail("case timed out: " + activeCase);
++            fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
++                ? "stonecutting drain stop was never injected because owned input with an empty cursor was not observed"
++                : "case timed out: " + activeCase);
+         }
+     }
+ 
+@@ -707,14 +1015,28 @@ public final class RuntimeVerification implements ClientModInitializer {
+         activeFurnaceOpeningsAtStart = serverFurnaceOpenings;
+         activeSmokerOpeningsAtStart = serverSmokerOpenings;
+         activeBlastFurnaceOpeningsAtStart = serverBlastFurnaceOpenings;
++        activeStonecutterOpeningsAtStart = serverStonecutterOpenings;
+     }
+ 
+     private boolean correctCookingStationMenuOpened() {
++        if (STONECUTTING_MODE) return serverStonecutterOpenings > activeStonecutterOpeningsAtStart;
+         return "smoker".equals(COOKING_STATION_MODE)
+             ? serverSmokerOpened && serverSmokerOpenings > activeSmokerOpeningsAtStart
+             : serverBlastFurnaceOpened && serverBlastFurnaceOpenings > activeBlastFurnaceOpeningsAtStart;
+     }
+ 
++    private boolean stonecuttingDrainOutcomeObserved() {
++        return stonecuttingDrainStopInjected && stonecuttingDrainInputCountAtStop > 0
++            && stonecuttingDrainStopClientTick >= caseStartedAtTick
++            && stonecuttingDrainRequiredObservationSequence > 0
++            && latestObservationRequestSequence >= stonecuttingDrainRequiredObservationSequence
++            && latestSnapshot.serverTick > stonecuttingDrainStopServerTick
++            && latestSnapshot.inventory.equals(Map.of("minecraft:stone", 128))
++            && latestSnapshot.count("minecraft:stone_slab") == 0
++            && latestSnapshot.count("minecraft:coal") == 0
++            && latestSnapshot.count("minecraft:stonecutter") == 0;
++    }
++
+     private void sendCommand(String command) {
+         ClientPlayNetworkHandler network = client.getNetworkHandler();
+         if (network == null) throw new IllegalStateException("Integrated client is not connected");
+@@ -725,6 +1047,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+         if (observationFuture != null || client.player == null || !client.isIntegratedServerRunning()) return;
+         IntegratedServer server = requireServer();
+         CompletableFuture<ServerSnapshot> capture = new CompletableFuture<>();
++        long requestSequence = ++observationRequestSequence;
+         observationFuture = capture;
+         server.execute(() -> {
+             try {
+@@ -733,6 +1056,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 ServerWorld world = server.getOverworld();
+                 ServerSnapshot snapshot = new ServerSnapshot(server.getTicks(), world.getTime(), inventory.counts(),
+                     inventory.woodenAxeRemainingDurability(),
++                    IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
+                     player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
+                     player.getX(), player.getY(), player.getZ());
+                 capture.complete(snapshot);
+@@ -748,6 +1072,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 return;
+             }
+             latestSnapshot = snapshot;
++            latestObservationRequestSequence = requestSequence;
+         }));
+     }
+ 
+@@ -764,6 +1089,14 @@ public final class RuntimeVerification implements ClientModInitializer {
+         return new ServerInventorySnapshot(counts, woodenAxes);
+     }
+ 
++    private static int countIronPickaxeDeepslate(ServerWorld world) {
++        int remaining = 0;
++        for (int index = 0; index < IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT; index++) {
++            if (world.getBlockState(new BlockPos(16 + index, 20, 4)).isOf(Blocks.DEEPSLATE)) remaining++;
++        }
++        return remaining;
++    }
++
+     private static void countStacks(Iterable<ItemStack> stacks, Map<String, Integer> counts, List<Integer> woodenAxes) {
+         for (ItemStack stack : stacks) {
+             if (stack.isEmpty()) continue;
+@@ -810,15 +1143,15 @@ public final class RuntimeVerification implements ClientModInitializer {
+             latestSnapshot == null ? Map.of() : latestSnapshot.inventory,
+             latestSnapshot == null ? List.of() : latestSnapshot.woodenAxeRemainingDurability,
+             clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime,
+-            COOKING_MODE ? COOKING_STATION_MODE : "", COOKING_MODE ? cookingRecipeType() : "",
+-            COOKING_MODE ? activeInitialResources : Map.of(), COOKING_MODE && correctCookingStationMenuOpened(),
+-            COOKING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
+-            COOKING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
+-            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
++            PROCESSING_MODE ? PROCESSING_STATION_MODE : "", PROCESSING_MODE ? cookingRecipeType() : "",
++            PROCESSING_MODE || IRON_PICKAXE_MODE ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
++            PROCESSING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
++            PROCESSING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
++            PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
+             latestSnapshot == null ? 0 : latestSnapshot.count("minecraft:coal"),
+-            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:" + COOKING_STATION_MODE, 0) : 0,
+-            latestSnapshot == null || !COOKING_MODE ? 0
+-                : latestSnapshot.count("minecraft:" + COOKING_STATION_MODE)));
++            PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:" + PROCESSING_STATION_MODE, 0) : 0,
++            latestSnapshot == null || !PROCESSING_MODE ? 0
++                : latestSnapshot.count("minecraft:" + PROCESSING_STATION_MODE)));
+     }
+ 
+     private String capture(String name) {
+@@ -839,7 +1172,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+ 
+     private void finishRun() {
+         state = State.COMPLETE;
+-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE || COOKING_MODE ? 1 : 9;
++        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
+         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
+         writeEvidence(allPassed ? "passed" : "failed");
+         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence: " + evidenceDirectory);
+@@ -936,7 +1269,21 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 }
+                 json.append(']');
+             }
+-            if (COOKING_MODE) {
++                if (IRON_PICKAXE_MODE) {
++                    json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
++                        .append(",\"completionClientTick\":").append(result.completionClientTick)
++                        .append(",\"completionWorldTick\":").append(result.completionWorldTick)
++                        .append(",\"completionHealth\":").append(result.health)
++                        .append(",\"finalDeepslateFixtureBlockCount\":")
++                        .append(latestSnapshot == null ? -1 : latestSnapshot.ironPickaxeDeepslateRemaining)
++                        .append(",\"deepslateFixtureBlocksMined\":")
++                        .append(latestSnapshot == null ? -1 : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining)
++                        .append(",\"fullServerInventory\":");
++                    appendStringIntMap(json, result.serverInventory);
++                    json.append(",\"initialResources\":");
++                    appendStringIntMap(json, result.initialResources);
++                }
++            if (PROCESSING_MODE) {
+                 json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
+                     .append(",\"completionClientTick\":").append(result.completionClientTick)
+                     .append(",\"completionWorldTick\":").append(result.completionWorldTick)
+@@ -944,8 +1291,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     .append(",\"fullServerInventory\":");
+                 appendStringIntMap(json, result.serverInventory);
+                 json.append(",\"requiresEmptyAtStart\":").append(result.requiresEmptyAtStart)
+-                    .append(",\"cookingStation\":\"").append(escape(result.cookingStation)).append('\"')
+-                    .append(",\"nativeCookingRecipeType\":\"").append(escape(result.cookingRecipeType)).append('\"')
++                    .append(STONECUTTING_MODE ? ",\"processingStation\":\"" : ",\"cookingStation\":\"").append(escape(result.cookingStation)).append('\"')
++                    .append(STONECUTTING_MODE ? ",\"nativeRecipeType\":\"" : ",\"nativeCookingRecipeType\":\"").append(escape(result.cookingRecipeType)).append('\"')
+                     .append(",\"initialResources\":");
+                 appendStringIntMap(json, result.initialResources);
+                 json.append(",\"serverCorrectStationMenuOpenedDuringCase\":")
+@@ -961,9 +1308,43 @@ public final class RuntimeVerification implements ClientModInitializer {
+         }
+         json.append("  ],\n  \"explorationFixture\":").append(EXPLORATION_MODE)
+             .append(",\n  \"diamondBootsFixture\":").append(DIAMOND_BOOTSTRAP_MODE)
++            .append(",\n  \"ironPickaxeFixture\":").append(IRON_PICKAXE_MODE)
+             .append(",\n  \"bulkWoodFixtureLogCount\":").append(BULK_WOOD_MODE ? 80 : 0)
+             .append(",\n  \"woodToolsFlag\":").append(WOOD_TOOLS_MODE)
+             .append(",\n  \"woodToolsEnabled\":").append(BULK_WOOD_MODE && WOOD_TOOLS_MODE);
++        if (IRON_PICKAXE_MODE) {
++            json.append(",\n  \"ironPickaxeFixtureProvidedStock\":{\"minecraft:crafting_table\":1}")
++                .append(",\n  \"ironPickaxeGoalCommand\":\"!lk get iron_pickaxe\"")
++                .append(",\n  \"ironPickaxeExpectedOutput\":1")
++                .append(",\n  \"ironPickaxeNativeTableOpenings\":").append(serverTableOpenings)
++                .append(",\n  \"ironPickaxeNativeFurnaceOpenings\":").append(serverFurnaceOpenings)
++                .append(",\n  \"ironPickaxeDeepslateFixtureInitialBlockCount\":4")
++                .append(",\n  \"ironPickaxeDeepslateFixturePositions\":[\"16,20,4\",\"17,20,4\",\"18,20,4\",\"19,20,4\"]")
++                .append(",\n  \"ironPickaxeDeepslateFixtureRemainingBlockCount\":")
++                .append(latestSnapshot == null ? -1 : latestSnapshot.ironPickaxeDeepslateRemaining)
++                .append(",\n  \"ironPickaxeDeepslateFixtureMinedBlockCount\":")
++                .append(latestSnapshot == null ? -1 : 4 - latestSnapshot.ironPickaxeDeepslateRemaining)
++                .append(",\n  \"ironPickaxePlannerProbe\":")
++                .append(ironPickaxePlannerProbeEvidence == null ? "null" : ironPickaxePlannerProbeEvidence.toString());
++        }
++        if (STONECUTTING_MODE) {
++            json.append(",\n  \"stonecuttingFixture\":true,\n  \"nativeRecipeType\":\"stonecutting\",\n  \"processingStation\":\"stonecutter\",\n  \"serverStonecutterOpenings\":")
++                .append(serverStonecutterOpenings).append(",\n  \"stonecuttingFixtureProvidedStock\":");
++            appendStringIntMap(json, cookingProvidedStock());
++            if (STONECUTTING_DRAIN_MODE) {
++                json.append(",\n  \"stonecuttingDrainStopAttempted\":").append(stonecuttingDrainStopAttempted)
++                    .append(",\n  \"stonecuttingDrainStopInjected\":").append(stonecuttingDrainStopInjected)
++                    .append(",\n  \"stonecuttingDrainOriginalCommandTarget\":").append(STONECUTTING_DRAIN_COMMAND_TARGET)
++                    .append(",\n  \"stonecuttingDrainExpectedOutput\":0")
++                    .append(",\n  \"stonecuttingDrainInputCountAtStop\":").append(stonecuttingDrainInputCountAtStop)
++                    .append(",\n  \"stonecuttingDrainStopClientTick\":").append(stonecuttingDrainStopClientTick)
++                    .append(",\n  \"stonecuttingDrainServerObservationTickBeforeStop\":").append(stonecuttingDrainStopServerTick)
++                    .append(",\n  \"stonecuttingDrainFreshServerObservationTick\":")
++                    .append(latestSnapshot == null ? -1 : latestSnapshot.serverTick)
++                    .append(",\n  \"stonecuttingDrainRequiredObservationSequence\":").append(stonecuttingDrainRequiredObservationSequence)
++                    .append(",\n  \"stonecuttingDrainLatestObservationSequence\":").append(latestObservationRequestSequence);
++            }
++        }
+         if (COOKING_MODE) json.append(",\n  \"cookingStationFixture\":true,\n  \"cookingRecipeType\":\"")
+             .append(cookingRecipeType()).append('\"');
+         json.append(",\n  \"resourceInitiallyLoaded\":").append(resourceInitiallyLoaded)
+@@ -990,15 +1371,19 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static String verificationMode() {
+         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
+         if (COOKING_MODE && !isSupportedCookingStationMode()) return "invalid_cooking_station";
++        if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) return "invalid_stonecutting_drain";
++        if (STONECUTTING_DRAIN_MODE) return "stonecutting_drain";
++        if (STONECUTTING_MODE) return "stonecutting";
+         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
+         if (BULK_WOOD_MODE) return "bulk_wood";
++        if (IRON_PICKAXE_MODE) return "iron_pickaxe";
+         if (DIAMOND_BOOTSTRAP_MODE) return "diamond_boots";
+         return EXPLORATION_MODE ? "exploration" : "default";
+     }
+ 
+     private static int selectedFixtureModes() {
+         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+-            + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0);
++            + (IRON_PICKAXE_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
+     }
+ 
+     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
+@@ -1009,7 +1394,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+     }
+ 
+     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
+-                                  List<Integer> woodenAxeRemainingDurability, float health, int foodLevel,
++                                  List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
++                                  float health, int foodLevel,
+                                   String difficulty, double x, double y, double z) {
+         private ServerSnapshot {
+             inventory = Map.copyOf(inventory);

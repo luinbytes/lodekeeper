@@ -1,0 +1,224 @@
+{
+  "runId": "2026-10-05T17-30-32-524019Z-26d3c0ab",
+  "status": "passed",
+  "minecraftVersion": "26.3",
+  "worldKind": "isolated_superflat_fixture",
+  "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+  "verificationMode": "iron_pickaxe",
+  "runDirectory": "/Users/luinbytes/src/lodekeeper/fabric-modern/run-verification",
+  "worldId": "run-2783335499d448b0",
+  "elapsedMillis": 128664,
+  "clientTicks": 2381,
+  "failure": "",
+  "serverTableOpened": true,
+  "serverFurnaceOpened": true,
+  "serverTableOpenings": 4,
+  "serverFurnaceOpenings": 1,
+  "ironPickaxeFixture": true,
+  "ironPickaxeFixtureProvidedStock": {
+    "minecraft:crafting_table": 1
+  },
+  "ironPickaxeGoalCommand": "!lk get iron_pickaxe",
+  "ironPickaxeExpectedOutput": 1,
+  "ironPickaxeNativeTableOpenings": 4,
+  "ironPickaxeNativeFurnaceOpenings": 1,
+  "ironPickaxeDeepslateFixtureInitialBlockCount": 4,
+  "ironPickaxeDeepslateFixturePositions": [
+    "16,20,4",
+    "17,20,4",
+    "18,20,4",
+    "19,20,4"
+  ],
+  "ironPickaxeDeepslateFixtureRemainingBlockCount": 4,
+  "ironPickaxeDeepslateFixtureMinedBlockCount": 0,
+  "ironPickaxePlannerProbe": {
+    "status": "complete",
+    "catalogReady": true,
+    "catalogGeneration": 1,
+    "planningPreferences": "none",
+    "isGameplayEvidence": false,
+    "inventoryCounts": {
+      "minecraft:crafting_table": 1
+    },
+    "ironPickaxe": {
+      "target": "minecraft:iron_pickaxe",
+      "requestedCount": 1,
+      "success": false,
+      "optimal": false,
+      "expandedNodes": 59,
+      "elapsedNanos": 21006446,
+      "blockedReasons": [
+        {
+          "code": "TIME_LIMIT",
+          "item": "minecraft:iron_ingot",
+          "detail": "Planner time budget exhausted",
+          "dependencyPath": [
+            "minecraft:iron_ingot",
+            "minecraft:iron_pickaxe"
+          ]
+        }
+      ],
+      "steps": []
+    },
+    "stonePickaxe": {
+      "target": "minecraft:stone_pickaxe",
+      "requestedCount": 1,
+      "success": true,
+      "optimal": false,
+      "expandedNodes": 35,
+      "elapsedNanos": 968133,
+      "blockedReasons": [],
+      "steps": [
+        {
+          "kind": "GATHER",
+          "sourceId": "gather:minecraft:acacia_log",
+          "output": "minecraft:acacia_log",
+          "outputCount": 1,
+          "operationCount": 1,
+          "requirements": []
+        },
+        {
+          "kind": "CRAFT",
+          "sourceId": "server:minecraft:acacia_planks:7",
+          "output": "minecraft:acacia_planks",
+          "outputCount": 4,
+          "operationCount": 1,
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:acacia_log, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d0]"
+          ]
+        },
+        {
+          "kind": "CRAFT",
+          "sourceId": "server:minecraft:stick:1422",
+          "output": "minecraft:stick",
+          "outputCount": 4,
+          "operationCount": 1,
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:acacia_planks, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d0]",
+            "SelectedItemRequirement[item\u003dminecraft:acacia_planks, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d1]"
+          ]
+        },
+        {
+          "kind": "GATHER",
+          "sourceId": "gather:minecraft:acacia_log",
+          "output": "minecraft:acacia_log",
+          "outputCount": 1,
+          "operationCount": 1,
+          "requirements": []
+        },
+        {
+          "kind": "CRAFT",
+          "sourceId": "server:minecraft:acacia_planks:7",
+          "output": "minecraft:acacia_planks",
+          "outputCount": 4,
+          "operationCount": 1,
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:acacia_log, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d0]"
+          ]
+        },
+        {
+          "kind": "PLACE_STATION",
+          "sourceId": "place:minecraft:crafting_table",
+          "outputCount": 0,
+          "operationCount": 1,
+          "station": "minecraft:crafting_table",
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:crafting_table, count\u003d1, consumed\u003dtrue, purpose\u003dstation placement, recipeSlot\u003d-1]"
+          ]
+        },
+        {
+          "kind": "CRAFT",
+          "sourceId": "server:minecraft:wooden_pickaxe:1718",
+          "output": "minecraft:wooden_pickaxe",
+          "outputCount": 1,
+          "operationCount": 1,
+          "station": "minecraft:crafting_table",
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:stick, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d4]",
+            "SelectedItemRequirement[item\u003dminecraft:stick, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d7]",
+            "SelectedItemRequirement[item\u003dminecraft:acacia_planks, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d0]",
+            "SelectedItemRequirement[item\u003dminecraft:acacia_planks, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d1]",
+            "SelectedItemRequirement[item\u003dminecraft:acacia_planks, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d2]",
+            "SelectedStationRequirement[station\u003dminecraft:crafting_table, purpose\u003duse station]"
+          ]
+        },
+        {
+          "kind": "GATHER",
+          "sourceId": "gather:minecraft:cobbled_deepslate",
+          "output": "minecraft:cobbled_deepslate",
+          "outputCount": 3,
+          "operationCount": 3,
+          "requirements": [
+            "SelectedToolRequirement[item\u003dminecraft:wooden_pickaxe, minimumDurability\u003d2, purpose\u003dharvest minecraft:cobbled_deepslate]"
+          ]
+        },
+        {
+          "kind": "CRAFT",
+          "sourceId": "server:minecraft:stone_pickaxe:1440",
+          "output": "minecraft:stone_pickaxe",
+          "outputCount": 1,
+          "operationCount": 1,
+          "station": "minecraft:crafting_table",
+          "requirements": [
+            "SelectedItemRequirement[item\u003dminecraft:stick, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d4]",
+            "SelectedItemRequirement[item\u003dminecraft:stick, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d7]",
+            "SelectedItemRequirement[item\u003dminecraft:cobbled_deepslate, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d0]",
+            "SelectedItemRequirement[item\u003dminecraft:cobbled_deepslate, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d1]",
+            "SelectedItemRequirement[item\u003dminecraft:cobbled_deepslate, count\u003d1, consumed\u003dtrue, purpose\u003drecipe ingredient, recipeSlot\u003d2]",
+            "SelectedStationRequirement[station\u003dminecraft:crafting_table, purpose\u003duse station]"
+          ]
+        }
+      ]
+    },
+    "catalogSnapshotFile": "iron-pickaxe-catalog-2026-10-05T17-30-32-524019Z-26d3c0ab.json",
+    "knownItemCount": 1661,
+    "sourceCount": 1774,
+    "tagCount": 499
+  },
+  "cases": [
+    {
+      "name": "iron_pickaxe_from_crafting_table_only",
+      "item": "minecraft:iron_pickaxe",
+      "expected": 1,
+      "serverObserved": 1,
+      "inventoryEmptyAtStart": false,
+      "passed": true,
+      "clientTicks": 2194,
+      "worldTicks": 2194,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings",
+      "serverHealth": 20.0,
+      "serverDifficulty": "PEACEFUL",
+      "serverCraftingTableOpenedDuringCase": true,
+      "serverFurnaceOpenedDuringCase": true,
+      "serverIronPickaxeCount": 1,
+      "serverFoodLevelAtStart": 20,
+      "serverFoodLevelObserved": 20,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "7.548341285586053,64.0,0.453368313068795",
+      "elapsedMillisFromCommand": 109723,
+      "completionClientTick": 2361,
+      "completionWorldTick": 2297,
+      "completionHealth": 20.0,
+      "fullServerInventory": {
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 2,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:wooden_pickaxe": 1
+      },
+      "initialResources": {
+        "minecraft:crafting_table": 1
+      },
+      "deepslateFixtureBlocksMined": 0
+    }
+  ],
+  "explorationFixture": false,
+  "diamondBootsFixture": false,
+  "bulkWoodFixtureLogCount": 0,
+  "woodToolsFlag": false,
+  "woodToolsEnabled": false,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 0
+}

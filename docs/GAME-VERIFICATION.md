@@ -88,6 +88,14 @@ The [1.21.1 check](evidence/1.21.1-diamond-boots/run.json) passed in 166,032 ms 
 
 The [26.3 check](evidence/26.3-diamond-boots/run.json) passed the same command from empty inventory in 171,892 ms and 3,069 goal ticks, with full health, a retained iron pickaxe and both native menus observed on the server. Its [paired artifact manifest](evidence/26.3-diamond-boots/artifact.json) preserves the exact source patch. This modern harness records server evidence without a screenshot. The clients ran sequentially, without Gradle during gameplay.
 
+## Iron pickaxe from a crafting table
+
+The optional flag `-Dlodekeeper.verify.ironPickaxe=true` instead runs one `!lk get iron_pickaxe` goal from exactly one held crafting table. It records ordinary table and furnace openings, full server inventory and four deep deepslate fixture blocks beneath the bedrock pad. It also exports a typed Minecraft-free catalog snapshot and records no-hint planner probes as separate planning evidence. Prepared resources are not natural-world ore-discovery evidence.
+
+## Native stonecutting batch and stop
+
+`-Dlodekeeper.verify.stonecutting=true` selects a 144-slab native batch from exactly 128 stone and one stonecutter. Adding `-Dlodekeeper.verify.stonecuttingDrain=true` sends `!lk stop` after owned input is observed in the native menu and before output is collected. The drain outcome requires a fresh server observation after stop, exactly 128 returned stone, zero slabs, an idle engine and full health. Both modes are mutually exclusive with the other acquisition fixtures and keep the normal resource bounds.
+
 ## Native fast-cooking batch
 
 The optional JVM flag `-Dlodekeeper.verify.cookingStation=smoker` or `blast_furnace` selects one native 72-output batch. It is mutually exclusive with the exploration, diamond-boots and bulk-wood fixtures; an invalid selector fails before world creation. Only this mode extends the verifier limit to 10,000 ticks and 500 seconds.

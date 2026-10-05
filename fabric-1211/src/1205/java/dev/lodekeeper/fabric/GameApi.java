@@ -97,6 +97,60 @@ final class GameApi {
         return client.world == null ? null : client.world.getRecipeManager();
     }
 
+    static Object stonecuttingProviderIdentity(net.minecraft.client.MinecraftClient client) {
+        return client.world == null ? null : client.world.getRecipeManager();
+    }
+
+    static List<StonecuttingWork> stonecuttingRecipes(net.minecraft.client.MinecraftClient client) {
+        if (client.world == null) return List.of();
+        List<RecipeEntry<net.minecraft.recipe.StonecuttingRecipe>> entries = client.world.getRecipeManager()
+                .listAllOfType(RecipeType.STONECUTTING);
+        if (entries.size() > 4096) throw new IllegalArgumentException("stonecutting recipe source exceeds 4096 entries");
+        List<StonecuttingWork> works = new ArrayList<>(entries.size());
+        for (RecipeEntry<net.minecraft.recipe.StonecuttingRecipe> entry : entries) {
+            try {
+                net.minecraft.recipe.StonecuttingRecipe recipe = entry.value();
+                List<Ingredient> ingredients = recipe.getIngredients();
+                if (ingredients.size() != 1 || ingredients.get(0).isEmpty()) continue;
+                ItemStack output = result(recipe, client.world.getRegistryManager());
+                if (output.isEmpty() || output.getCount() > 99) continue;
+                works.add(new StonecuttingWork("stonecutting:" + entry.id(), ingredients.get(0), output, entry));
+            } catch (RuntimeException unsupportedRow) {
+                // Reject only this invalid native option; keep other synchronized rows usable.
+            }
+        }
+        return List.copyOf(works);
+    }
+
+    static int stonecuttingRecipeIndex(net.minecraft.client.MinecraftClient client,
+                                       net.minecraft.screen.StonecutterScreenHandler handler, StonecuttingWork work) {
+        if (client == null || client.world == null || handler == null || work == null
+                || !(work.selectionKey() instanceof RecipeEntry<?> selected)
+                || !(selected.value() instanceof net.minecraft.recipe.StonecuttingRecipe target)) return -1;
+        boolean current = client.world.getRecipeManager().listAllOfType(RecipeType.STONECUTTING)
+                .stream().anyMatch(entry -> entry == selected);
+        if (!current) return -1;
+        ItemStack heldInput = handler.getSlot(0).getStack();
+        if (heldInput.isEmpty() || !work.input().test(heldInput)) return -1;
+        int match = -1;
+        List<RecipeEntry<net.minecraft.recipe.StonecuttingRecipe>> visible = handler.getAvailableRecipes();
+        for (int index = 0; index < visible.size(); index++) {
+            RecipeEntry<net.minecraft.recipe.StonecuttingRecipe> candidateEntry = visible.get(index);
+            if (candidateEntry != selected) continue;
+            if (match >= 0) return -1;
+            net.minecraft.recipe.StonecuttingRecipe candidate = candidateEntry.value();
+            List<Ingredient> ingredients = candidate.getIngredients();
+            if (candidate != target || ingredients.size() != 1 || ingredients.get(0) != work.input()
+                    || !ingredients.get(0).test(heldInput)) return -1;
+            ItemStack actual = result(candidate, client.world.getRegistryManager());
+            ItemStack expected = work.outputPerOperation();
+            if (actual.isEmpty() || actual.getCount() != expected.getCount()
+                    || !ItemStack.areItemsAndComponentsEqual(actual, expected)) return -1;
+            match = index;
+        }
+        return match;
+    }
+
     static void loadRecipes(net.minecraft.client.MinecraftClient client, Consumer<RecipeCatalogSnapshot> publish) {
         if (client.world == null) { publish.accept(RecipeCatalogSnapshot.empty()); return; }
         RecipeManager manager = client.world.getRecipeManager();

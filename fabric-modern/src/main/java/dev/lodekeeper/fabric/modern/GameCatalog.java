@@ -73,6 +73,7 @@ final class GameCatalog {
 
     final List<AcquisitionSource> sources = new ArrayList<>();
     final Map<String, RecipeWork> recipes = new HashMap<>();
+    final Map<String, StonecuttingWork> stonecuts = new HashMap<>();
     final Map<TagId, List<ItemId>> tags = new HashMap<>();
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
@@ -80,6 +81,7 @@ final class GameCatalog {
     private CatalogSnapshot cachedSnapshot;
     private boolean ready;
     private long loadGeneration;
+    private Object stonecuttingProvider;
     private Map<ItemId, Long> fuelTicksByItem = Map.of();
     private record CookingFuelContext(Block station, int duration) {}
     private final Map<CookingFuelContext, Map<ItemId, Long>> remoteCookingFuels = new HashMap<>();
@@ -90,11 +92,13 @@ final class GameCatalog {
         long generation = ++loadGeneration;
         cachedSnapshot = null;
         ready = false;
-        sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
+        sources.clear(); recipes.clear(); stonecuts.clear(); tags.clear(); items.clear(); unsupported.clear();
         pendingDefinitions.clear();
         fuelTicksByItem = Map.of();
         remoteCookingFuels.clear();
+        stonecuttingProvider = GameApi.stonecuttingProviderIdentity(client);
         loadRegisteredItems();
+        loadStonecuttingRecipes();
         loadConservativeGatherSources();
         appendExtensions();
         MinecraftServer server = client.getSingleplayerServer();
@@ -159,6 +163,36 @@ final class GameCatalog {
         cachedSnapshot = null;
     }
 
+    boolean usesCurrentStonecuttingProvider() {
+        return client.level != null && stonecuttingProvider == GameApi.stonecuttingProviderIdentity(client);
+    }
+    private void loadStonecuttingRecipes() {
+        try {
+            for (StonecuttingWork work : GameApi.stonecuttingRecipes(client)) {
+                try {
+                    ItemStack output = work.outputPerOperation();
+                    Ingredient input = coreIngredient(work.input());
+                    if (input.alternatives().contains(ItemSelector.item(id(output.getItem())))) {
+                        unsupported.add(work.sourceId() + ": stonecutting input and output must be different items");
+                        continue;
+                    }
+                    if (stonecuts.containsKey(work.sourceId())) {
+                        unsupported.add(work.sourceId() + ": duplicate synchronized stonecutting recipe");
+                        continue;
+                    }
+                    stonecuts.put(work.sourceId(), work);
+                    sources.add(new CraftingSource(work.sourceId(), id(output.getItem()), output.getCount(),
+                            RecipeType.SHAPELESS, 0, 0, List.of(new RecipeSlot(-1, input)),
+                            List.of(station(Blocks.STONECUTTER))));
+                } catch (IllegalArgumentException exception) {
+                    stonecuts.remove(work.sourceId());
+                    unsupported.add(work.sourceId() + ": " + exception.getMessage());
+                }
+            }
+        } catch (RuntimeException exception) {
+            unsupported.add("stonecutting provider: " + exception.getMessage());
+        }
+    }
     boolean ready() { return ready; }
     long generation() { return loadGeneration; }
 

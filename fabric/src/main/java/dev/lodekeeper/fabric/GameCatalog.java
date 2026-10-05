@@ -16,11 +16,13 @@ import java.util.function.Consumer;
 final class GameCatalog {
     final List<AcquisitionSource> sources = new ArrayList<>();
     final Map<String, RecipeWork> recipes = new HashMap<>();
+    final Map<String, StonecuttingWork> stonecuts = new HashMap<>();
     final Map<TagId, List<ItemId>> tags = new HashMap<>();
     final Set<ItemId> items = new TreeSet<>();
     final List<String> unsupported = new ArrayList<>();
     private final MinecraftClient client;
     private Object recipeProvider;
+    private Object stonecuttingProvider;
     private CatalogSnapshot cachedSnapshot;
     private long generation;
     private boolean ready;
@@ -30,7 +32,8 @@ final class GameCatalog {
         long requestedGeneration = ++generation;
         ready = false;
         recipeProvider = GameApi.recipeProviderIdentity(client);
-        cachedSnapshot = null; sources.clear(); recipes.clear(); tags.clear(); items.clear(); unsupported.clear();
+        stonecuttingProvider = GameApi.stonecuttingProviderIdentity(client);
+        cachedSnapshot = null; sources.clear(); recipes.clear(); stonecuts.clear(); tags.clear(); items.clear(); unsupported.clear();
         fuelBurnTicks.clear();
         for (Item item : Registries.ITEM) {
             items.add(id(item));
@@ -50,7 +53,7 @@ final class GameCatalog {
         }
     }
     private void applyRecipeSnapshot(RecipeCatalogSnapshot snapshot) {
-        sources.clear(); recipes.clear(); unsupported.clear(); fuelBurnTicks.clear(); cachedSnapshot = null;
+        sources.clear(); recipes.clear(); stonecuts.clear(); unsupported.clear(); fuelBurnTicks.clear(); cachedSnapshot = null;
         unsupported.addAll(snapshot.unsupported());
         fuelBurnTicks.putAll(snapshot.fuelBurnTicks());
         snapshot.recipes().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
@@ -111,6 +114,7 @@ final class GameCatalog {
         finishLoad();
     }
     private void finishLoad() {
+        loadStonecuttingRecipes();
         gatherSources();
         ExtensionCatalog.append(this);
         cachedSnapshot = null;
@@ -119,6 +123,33 @@ final class GameCatalog {
             System.out.println("[Lodekeeper verification] catalog recipes=" + recipes.size()
                     + ", sources=" + sources.size() + ", rejected=" + unsupported.size()
                     + ", samples=" + unsupported.stream().limit(3).toList());
+        }
+    }
+    private void loadStonecuttingRecipes() {
+        try {
+            for (StonecuttingWork work : GameApi.stonecuttingRecipes(client)) {
+                try {
+                    ItemStack output = work.outputPerOperation();
+                    Ingredient input = ingredient(work.input());
+                    if (input.alternatives().contains(ItemSelector.item(id(output.getItem())))) {
+                        unsupported.add(work.sourceId() + ": stonecutting input and output must be different items");
+                        continue;
+                    }
+                    if (stonecuts.containsKey(work.sourceId())) {
+                        unsupported.add(work.sourceId() + ": duplicate synchronized stonecutting recipe");
+                        continue;
+                    }
+                    stonecuts.put(work.sourceId(), work);
+                    sources.add(new CraftingSource(work.sourceId(), id(output.getItem()), output.getCount(),
+                            RecipeType.SHAPELESS, 0, 0, List.of(new RecipeSlot(-1, input)),
+                            List.of(station(Blocks.STONECUTTER))));
+                } catch (IllegalArgumentException exception) {
+                    stonecuts.remove(work.sourceId());
+                    unsupported.add(work.sourceId() + ": " + describe(exception));
+                }
+            }
+        } catch (RuntimeException exception) {
+            unsupported.add("stonecutting provider: " + describe(exception));
         }
     }
     private List<RecipeSlot> recipeSlots(List<RecipeWork.Input> inputs, boolean shaped) {
@@ -179,7 +210,8 @@ final class GameCatalog {
     long generation() { return generation; }
     boolean ready() { return ready; }
     boolean usesProvider(Object provider) { return recipeProvider == provider; }
-    boolean usesCurrentProvider() { return client.world != null && recipeProvider == GameApi.recipeProviderIdentity(client); }
+    boolean usesCurrentProvider() { return client.world != null && recipeProvider == GameApi.recipeProviderIdentity(client)
+            && stonecuttingProvider == GameApi.stonecuttingProviderIdentity(client); }
     static ItemId id(Item item) { return ItemId.parse(Registries.ITEM.getId(item).toString()); }
     static StationRequirement station(Block block) { return new StationRequirement(StationId.parse(Registries.BLOCK.getId(block).toString()), id(block.asItem()), "use station"); }
     static Item item(ItemId id) { return Registries.ITEM.get(GameApi.identifier(id.toString())); }

@@ -26,6 +26,7 @@ import net.minecraft.recipe.display.RecipeDisplay;
 import net.minecraft.recipe.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.recipe.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.recipe.display.SlotDisplay;
+import net.minecraft.recipe.display.SlotDisplayContexts;
 import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.integrated.IntegratedServer;
@@ -117,6 +118,71 @@ final class GameApi {
         IntegratedServer server = client.getServer();
         if (server != null) return server.getRecipeManager();
         return client.player == null ? null : client.player.getRecipeBook();
+    }
+
+    static Object stonecuttingProviderIdentity(MinecraftClient client) {
+        return client.world == null ? null : client.world.getRecipeManager().getStonecutterRecipes();
+    }
+
+    static List<StonecuttingWork> stonecuttingRecipes(MinecraftClient client) {
+        if (client.world == null) return List.of();
+        List<net.minecraft.recipe.display.CuttingRecipeDisplay.GroupEntry<net.minecraft.recipe.StonecuttingRecipe>> entries =
+                client.world.getRecipeManager().getStonecutterRecipes().entries();
+        if (entries.size() > 4096) throw new IllegalArgumentException("stonecutting recipe source exceeds 4096 entries");
+        List<StonecuttingWork> works = new ArrayList<>(entries.size());
+        for (int index = 0; index < entries.size(); index++) {
+            try {
+                var entry = entries.get(index);
+                Ingredient input = entry.input();
+                if (input == null || input.isEmpty()) continue;
+                ItemStack output = stonecuttingDisplayOutput(entry.recipe().optionDisplay(), client.world);
+                if (output.isEmpty()) continue;
+                works.add(new StonecuttingWork("stonecutting:sync:" + index, input, output, entry));
+            } catch (RuntimeException unsupportedRow) {
+                // Reject only this malformed display row; preserve the remaining synced options.
+            }
+        }
+        return List.copyOf(works);
+    }
+
+    static int stonecuttingRecipeIndex(MinecraftClient client, net.minecraft.screen.StonecutterScreenHandler handler,
+                                       StonecuttingWork work) {
+        if (client == null || client.world == null || handler == null || work == null
+                || !(work.selectionKey() instanceof net.minecraft.recipe.display.CuttingRecipeDisplay.GroupEntry<?> selected)) return -1;
+        var currentEntries = client.world.getRecipeManager().getStonecutterRecipes().entries();
+        if (currentEntries.stream().noneMatch(entry -> entry == selected)) return -1;
+        ItemStack heldInput = handler.getSlot(0).getStack();
+        if (heldInput.isEmpty() || !work.input().test(heldInput)) return -1;
+        int match = -1;
+        var visible = handler.getAvailableRecipes().entries();
+        for (int index = 0; index < visible.size(); index++) {
+            var candidate = visible.get(index);
+            if (candidate != selected) continue;
+            if (match >= 0 || candidate.input() != work.input() || !candidate.input().test(heldInput)) return -1;
+            ItemStack actual = stonecuttingDisplayOutput(candidate.recipe().optionDisplay(), client.world);
+            ItemStack expected = work.outputPerOperation();
+            if (actual.isEmpty() || actual.getCount() != expected.getCount()
+                    || !ItemStack.areItemsAndComponentsEqual(actual, expected)) return -1;
+            match = index;
+        }
+        return match;
+    }
+
+    private static ItemStack stonecuttingDisplayOutput(SlotDisplay display, World world) {
+        List<ItemStack> alternatives = display.appendStacks(SlotDisplayContexts.createParameters(world),
+                (net.minecraft.recipe.display.DisplayedItemFactory.FromStack<ItemStack>) ItemStack::copy)
+                .limit(65).toList();
+        if (alternatives.isEmpty() || alternatives.size() > 64 || alternatives.stream().anyMatch(ItemStack::isEmpty)) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack expected = alternatives.getFirst();
+        if (expected.getCount() > 99) return ItemStack.EMPTY;
+        for (int index = 1; index < alternatives.size(); index++) {
+            ItemStack alternative = alternatives.get(index);
+            if (alternative.getCount() != expected.getCount()
+                    || !ItemStack.areItemsAndComponentsEqual(alternative, expected)) return ItemStack.EMPTY;
+        }
+        return expected.copy();
     }
 
     static void loadRecipes(MinecraftClient client, Consumer<RecipeCatalogSnapshot> publish) {

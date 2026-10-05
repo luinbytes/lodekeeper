@@ -22,7 +22,9 @@
 !lk stop
 ```
 
-Matching recipes can use a smoker or blast furnace. Controlled 72-item batches passed on [1.21.1](docs/evidence/1.21.1-smoker/run.json) and [26.3](docs/evidence/26.3-blast-furnace/run.json); see the [current cooking limits](docs/PROCESSING-STATIONS.md).
+Matching recipes can use a smoker or blast furnace. Controlled 72-item batches passed on [1.21.1](docs/evidence/1.21.1-smoker/run.json) and [26.3](docs/evidence/26.3-blast-furnace/run.json); see the [current station limits](docs/PROCESSING-STATIONS.md).
+
+Stonecutter automation is also in development: bulk cutting and safe stop/drain checks passed on [1.21.1](docs/evidence/1.21.1-stonecutting/run.json) and [26.3](docs/evidence/26.3-stonecutting/run.json). Ordinary stone and nearby wood now guide tool progression; see the [iron-pickaxe check](docs/evidence/1.21.1-iron-table/run.json). These changes are not yet in Preview 1.
 
 For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
@@ -73,7 +75,8 @@ Source lives in `core` (acquisition and commands), `nav` (custom navigation), an
 - [Isolated gameplay verifier](docs/GAME-VERIFICATION.md)
 - [Custom block drop contracts](docs/CUSTOM-CONTENT.md)
 - [Full mechanic coverage ledger](docs/COVERAGE.md)
-- [Cooking station expansion design](docs/PROCESSING-STATIONS.md)
+- [Processing stations and their limits](docs/PROCESSING-STATIONS.md)
+- [Local resource planning and discovery](docs/LOCAL-PLANNING.md)
 - [Bootstrap planning and safe approaches](docs/BOOTSTRAP-PLANNER.md)
 - [Repository instructions](AGENTS.md)
 

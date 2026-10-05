@@ -9,3 +9,5 @@ A client-only survival automation mod with no Baritone dependency. The pure Java
 - `fabric`: Minecraft integration, execution and configuration.
 
 Adapters consume public core and navigation APIs. Runtime inventories are authoritative, replanning after completion or failure. Unknown sources remain explicit blocked goals, never success. Exact support includes only independently compiled versions; runtime acceptance has its own matrix.
+
+[Local resource planning](LOCAL-PLANNING.md) describes advisory observations, invalidation, bounded ranking and discovery. [Processing stations](PROCESSING-STATIONS.md) describes native station selection and transaction ownership.

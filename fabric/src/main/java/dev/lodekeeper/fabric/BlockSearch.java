@@ -17,18 +17,25 @@ import java.util.PriorityQueue;
 final class BlockSearch {
     private final MinecraftClient client;
     private final Set<Block> blocks;
+    private final Set<BlockPos> excluded;
     private final Set<Block> matchedBlocks = new java.util.HashSet<>();
     private final BlockPos origin;
     private final int radius;
     private final List<ChunkPos> chunks = new ArrayList<>();
     private WorldChunk chunk;
-    private int chunkIndex, sectionIndex, cellIndex;
+    private int chunkIndex, sectionIndex, sectionCursor, cellIndex;
+    private int[] sectionOrder;
     private final PriorityQueue<BlockPos> candidates;
     private BlockPos best;
     private double bestDistance = Double.POSITIVE_INFINITY;
     private boolean done;
     BlockSearch(MinecraftClient client, Set<Block> blocks, int radius) {
-        this.client = client; this.blocks = Set.copyOf(blocks); this.radius = radius;
+        this(client, blocks, radius, Set.of());
+    }
+
+    BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded) {
+        this.client = client; this.blocks = Set.copyOf(blocks);
+        this.excluded = Set.copyOf(excluded); this.radius = radius;
         origin = client.player.getBlockPos();
         candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos pos) -> pos.getSquaredDistance(origin)).reversed());
         int chunkRadius = (radius + 15) / 16;
@@ -45,14 +52,16 @@ final class BlockSearch {
                 if (chunkIndex == chunks.size()) { done = true; break; }
                 ChunkPos pos = chunks.get(chunkIndex++);
                 chunk = client.world.getChunkManager().getChunk(pos.x, pos.z, ChunkStatus.FULL, false);
-                sectionIndex = 0; cellIndex = 0;
+                sectionCursor = 0; cellIndex = 0;
                 if (chunk == null) continue;
+                if (sectionOrder == null) sectionOrder = orderSections(chunk.getSectionArray().length, client.world.getBottomY());
             }
-            if (sectionIndex == chunk.getSectionArray().length) { chunk = null; continue; }
+            if (sectionCursor == sectionOrder.length) { chunk = null; continue; }
+            sectionIndex = sectionOrder[sectionCursor];
             ChunkSection section = chunk.getSection(sectionIndex);
             if (cellIndex == 0) {
                 sections++;
-                if (section.isEmpty() || !section.hasAny(s -> blocks.contains(s.getBlock()))) { sectionIndex++; continue; }
+                if (section.isEmpty() || !section.hasAny(s -> blocks.contains(s.getBlock()))) { sectionCursor++; continue; }
             }
             int x = cellIndex & 15, z = cellIndex >> 4 & 15, y = cellIndex >> 8;
             if (blocks.contains(section.getBlockState(x, y, z).getBlock())) {
@@ -61,16 +70,36 @@ final class BlockSearch {
                 double distance = pos.getSquaredDistance(origin);
                 if (horizontal <= radius * radius) {
                     matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
+                    if (excluded.contains(pos)) {
+                        probes++;
+                        if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
+                        continue;
+                    }
                     if (candidates.size() < 512) candidates.add(pos);
                     else if (distance < candidates.peek().getSquaredDistance(origin)) { candidates.remove(); candidates.add(pos); }
                     if (distance < bestDistance) { bestDistance = distance; best = pos; }
                 }
             }
             probes++;
-            if (++cellIndex == 4096) { cellIndex = 0; sectionIndex++; }
+            if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
         }
         return done;
     }
+    private int[] orderSections(int count, int bottomY) {
+        return java.util.stream.IntStream.range(0, count).boxed()
+                .sorted(Comparator.comparingInt((Integer section) -> {
+                    int min = bottomY + section * 16;
+                    return origin.getY() < min ? min - origin.getY()
+                            : origin.getY() > min + 15 ? origin.getY() - min - 15 : 0;
+                }).thenComparingInt(Integer::intValue))
+                .mapToInt(Integer::intValue).toArray();
+    }
+
+    /** Candidates can be used before discovery finishes; absence is proven only after completion. */
+    long progressToken() { return ((long) chunkIndex << 32) | ((long) sectionCursor << 16) | cellIndex; }
+    String progressDescription() { return "chunk " + Math.min(chunkIndex, chunks.size()) + "/" + chunks.size(); }
+    boolean hasCandidates() { return !candidates.isEmpty(); }
+    boolean complete() { return done; }
     boolean found(Block block) { return matchedBlocks.contains(block); }
     BlockPos result() { return best; }
     List<BlockPos> results() { return candidates.stream().sorted(Comparator.comparingDouble(pos -> pos.getSquaredDistance(origin))).toList(); }

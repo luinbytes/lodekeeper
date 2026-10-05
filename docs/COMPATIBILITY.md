@@ -73,3 +73,5 @@ Native cooking stations at `53c48a6`: independent review and exact local 1.21.1/
 ### Published preview jar, 1.21.1
 
 [Development Preview 1's exact 1.21.1 jar](evidence/1.21.1-preview-jar/README.md) also passed all nine controlled cases. Fabric Loader remapped the published intermediary jar into the isolated development namespace; production source outputs were excluded, loaded class origins point to the processed artifact, and bundled core/navigation classes match the published jar byte for byte. Normal user-launcher and broader version/server acceptance remain open.
+
+The nearby-resource preference and cache-invalidation changes have controlled crafting-table-only iron-pickaxe checks on [1.21.1](evidence/1.21.1-iron-table/run.json) and [26.3](evidence/26.3-iron-table/run.json). Both finish at full health with native crafting-table and ordinary furnace interactions and without mining the deep deepslate fixture. These checks use development classes and exact archived source patches; they do not replace published-jar or natural-world acceptance.

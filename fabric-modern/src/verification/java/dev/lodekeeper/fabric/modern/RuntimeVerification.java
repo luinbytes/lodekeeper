@@ -3,6 +3,14 @@ package dev.lodekeeper.fabric.modern;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import dev.lodekeeper.core.AcquisitionPlanner;
+import dev.lodekeeper.core.AcquisitionSource;
+import dev.lodekeeper.core.BlockedReason;
+import dev.lodekeeper.core.CatalogSnapshot;
+import dev.lodekeeper.core.InventorySnapshot;
+import dev.lodekeeper.core.ItemId;
+import dev.lodekeeper.core.PlanResult;
+import dev.lodekeeper.core.PlanStep;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -17,7 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.AbstractFurnaceMenu;
+import net.minecraft.world.inventory.FurnaceMenu;
 import net.minecraft.world.inventory.SmokerMenu;
 import net.minecraft.world.inventory.BlastFurnaceMenu;
 import net.minecraft.world.inventory.CraftingMenu;
@@ -45,11 +53,17 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
     private static final boolean COOKING_MODE = COOKING_STATION_MODE != null;
+    private static final boolean STONECUTTING_MODE = Boolean.getBoolean("lodekeeper.verify.stonecutting");
+    private static final boolean STONECUTTING_DRAIN_MODE = Boolean.getBoolean("lodekeeper.verify.stonecuttingDrain");
+    private static final boolean PROCESSING_MODE = COOKING_MODE || STONECUTTING_MODE;
+    private static final String PROCESSING_STATION_MODE = STONECUTTING_MODE ? "stonecutter" : COOKING_STATION_MODE;
+    private static final int STONECUTTING_DRAIN_COMMAND_TARGET = 144;
     private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : 6_000;
     private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L : 300_000_000_000L;
     private static final int OBSERVE_EVERY_TICKS = 20;
     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
+    private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
@@ -59,6 +73,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String COOKED_PORKCHOP_ID = "minecraft:cooked_porkchop";
     private static final String RAW_IRON_ID = "minecraft:raw_iron";
     private static final String IRON_INGOT_ID = "minecraft:iron_ingot";
+    private static final int IRON_PICKAXE_PROBE_TIMEOUT_TICKS = 200;
+    private static final int IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT = 4;
     private boolean resourceInitiallyLoaded;
     private static final int FLOOR_Y = 63;
     private static final int PLAYER_Y = FLOOR_Y + 1;
@@ -105,6 +121,17 @@ public final class RuntimeVerification implements ClientModInitializer {
     private int activeFurnaceOpeningsAtStart;
     private int activeSmokerOpeningsAtStart;
     private int activeBlastFurnaceOpeningsAtStart;
+    private int activeStonecutterOpeningsAtStart;
+    private boolean stonecuttingDrainStopInjected, stonecuttingDrainStopAttempted;
+    private int stonecuttingDrainInputCountAtStop;
+    private int stonecuttingDrainStopClientTick = -1, stonecuttingDrainStopServerTick = -1;
+    private long observationRequestSequence, latestObservationRequestSequence;
+    private long stonecuttingDrainRequiredObservationSequence = -1;
+    private GameCatalog ironPickaxeProbeCatalog;
+    private JsonObject ironPickaxePlannerProbeEvidence;
+    private int ironPickaxeProbeStartedAtTick = -1;
+    private boolean ironPickaxeProbeStarted, ironPickaxeProbeFinished;
+    private volatile int serverStonecutterOpenings;
     private Map<String, Integer> activeInitialResources = Map.of();
     private int foodBreadCountBeforeSetup;
     private String failure = "";
@@ -133,9 +160,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.stop();
                 return;
             }
+            if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) {
+                state = State.FAILED;
+                failure = "lodekeeper.verify.stonecuttingDrain requires lodekeeper.verify.stonecutting=true";
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.stop();
+                return;
+            }
             if (selectedFixtureModes() > 1) {
                 state = State.FAILED;
-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.bulkWood, and lodekeeper.verify.cookingStation are mutually exclusive";
+                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.stop();
@@ -248,6 +283,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     state = State.WAITING_FOR_EMPTY_SNAPSHOT;
                     readyTicks = 0;
                     requestObservation();
+                    if (IRON_PICKAXE_MODE) startIronPickaxePlannerProbe();
                 }
                 return;
             }
@@ -275,7 +311,25 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
-                if (COOKING_MODE) {
+                if (IRON_PICKAXE_MODE) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    tickIronPickaxePlannerProbe();
+                    if (state == State.FAILED) return;
+                    boolean startingStockObserved = latestSnapshot != null
+                        && latestSnapshot.serverTick >= fixtureReadyServerTick
+                        && latestSnapshot.health == 20.0F
+                        && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1));
+                    if (startingStockObserved && ironPickaxeProbeFinished) {
+                        if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
+                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)) {
+                            startIronPickaxeCommand();
+                        }
+                    } else {
+                        readyTicks = 0;
+                    }
+                    return;
+                }
+                if (PROCESSING_MODE) {
                     boolean startingResourcesObserved = latestSnapshot != null
                         && latestSnapshot.serverTick >= fixtureReadyServerTick
                         && latestSnapshot.inventory.equals(cookingProvidedStock())
@@ -302,7 +356,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 return;
             }
-            if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+            maybeInjectStonecuttingDrainStop();
+            if (clientTicks % OBSERVE_EVERY_TICKS == 0
+                    || (stonecuttingDrainStopInjected && requireEngine().status().startsWith("idle")
+                        && latestObservationRequestSequence < stonecuttingDrainRequiredObservationSequence)) {
+                requestObservation();
+            }
             evaluateCurrentCase();
             if (state == State.CAPTURING && clientTicks - captureStartedAtTick >= 20) finishRun();
         } catch (Exception exception) {
@@ -354,18 +413,18 @@ public final class RuntimeVerification implements ClientModInitializer {
             try {
                 ServerPlayer player = requireServerPlayer(server);
                 ServerLevel world = server.overworld();
-                for (int x = -12; x <= (COOKING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE ? 30 : 18); x++) {
+                for (int x = -12; x <= (PROCESSING_MODE || BULK_WOOD_MODE ? 100 : EXPLORATION_MODE ? 96 : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 30 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
                 }
-                if (!COOKING_MODE) {
+                if (!PROCESSING_MODE) {
                     for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
                         world.setBlockAndUpdate(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
                     }
                     if (!BULK_WOOD_MODE) {
-                        for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE ? 25 : 17); x++) {
+                        for (int x = 6; x <= (DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE ? 25 : 17); x++) {
                             world.setBlockAndUpdate(new BlockPos(x, PLAYER_Y, 2), Blocks.STONE.defaultBlockState());
                         }
-                        if (DIAMOND_BOOTSTRAP_MODE) {
+                        if (DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE) {
                             world.setBlockAndUpdate(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.defaultBlockState());
                             world.setBlockAndUpdate(new BlockPos(17, PLAYER_Y, 4), Blocks.COAL_ORE.defaultBlockState());
                             world.setBlockAndUpdate(new BlockPos(18, PLAYER_Y, 4), Blocks.IRON_ORE.defaultBlockState());
@@ -373,6 +432,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                             world.setBlockAndUpdate(new BlockPos(17, PLAYER_Y + 1, 4), Blocks.IRON_ORE.defaultBlockState());
                             for (int x = 20; x <= 23; x++) {
                                 world.setBlockAndUpdate(new BlockPos(x, PLAYER_Y, 4), Blocks.DIAMOND_ORE.defaultBlockState());
+                            }
+                            if (IRON_PICKAXE_MODE) {
+                                for (int index = 0; index < IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT; index++) {
+                                    world.setBlockAndUpdate(new BlockPos(16 + index, 20, 4), Blocks.DEEPSLATE.defaultBlockState());
+                                }
                             }
                         } else {
                             world.setBlockAndUpdate(new BlockPos(16, PLAYER_Y, 4), Blocks.COAL_ORE.defaultBlockState());
@@ -385,14 +449,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                         }
                     }
                 }
-                if (!BULK_WOOD_MODE && !COOKING_MODE) {
+                if (!BULK_WOOD_MODE && !PROCESSING_MODE) {
                     long coalTicks = GameApi.fuelTicks(world, new ItemStack(Items.COAL));
                     long plankTicks = GameApi.fuelTicks(world, new ItemStack(Items.OAK_PLANKS));
                     if (coalTicks != 1600 || plankTicks != 300)
                         throw new IllegalStateException("standard furnace fuel snapshot differs: coal=" + coalTicks + ", oak_planks=" + plankTicks);
                 }
                 clearInventory(player);
-                if (COOKING_MODE) seedCookingInventory(player);
+                if (PROCESSING_MODE) seedCookingInventory(player);
+                if (IRON_PICKAXE_MODE && !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
+                    throw new IllegalStateException("could not seed the single iron-pickaxe verifier crafting table");
+                }
                 player.setHealth(player.getMaxHealth());
                 player.getFoodData().setFoodLevel(20);
                 player.teleportTo(0.5, PLAYER_Y, 0.5);
@@ -417,22 +484,23 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static ItemStack cookingRawStack() {
-        return new ItemStack("smoker".equals(COOKING_STATION_MODE) ? Items.PORKCHOP : Items.RAW_IRON, 64);
+        return new ItemStack(STONECUTTING_MODE ? Items.STONE : "smoker".equals(COOKING_STATION_MODE) ? Items.PORKCHOP : Items.RAW_IRON, 64);
     }
 
     private static ItemStack cookingStationStack() {
-        return new ItemStack("smoker".equals(COOKING_STATION_MODE) ? Items.SMOKER : Items.BLAST_FURNACE, 1);
+        return new ItemStack(STONECUTTING_MODE ? Items.STONECUTTER : "smoker".equals(COOKING_STATION_MODE) ? Items.SMOKER : Items.BLAST_FURNACE, 1);
     }
 
     private static String cookingRawItemId() {
-        return "smoker".equals(COOKING_STATION_MODE) ? RAW_PORKCHOP_ID : RAW_IRON_ID;
+        return STONECUTTING_MODE ? "minecraft:stone" : "smoker".equals(COOKING_STATION_MODE) ? RAW_PORKCHOP_ID : RAW_IRON_ID;
     }
 
     private static String cookingOutputId() {
-        return "smoker".equals(COOKING_STATION_MODE) ? COOKED_PORKCHOP_ID : IRON_INGOT_ID;
+        return STONECUTTING_MODE ? "minecraft:stone_slab" : "smoker".equals(COOKING_STATION_MODE) ? COOKED_PORKCHOP_ID : IRON_INGOT_ID;
     }
 
     private static String cookingRecipeType() {
+        if (STONECUTTING_MODE) return "stonecutting";
         return switch (COOKING_STATION_MODE == null ? "" : COOKING_STATION_MODE) {
             case "smoker" -> "smoking";
             case "blast_furnace" -> "blasting";
@@ -441,12 +509,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String cookingOutputCommandName() {
-        return "smoker".equals(COOKING_STATION_MODE) ? "cooked_porkchop" : "iron_ingot";
+        return STONECUTTING_MODE ? "stone_slab" : "smoker".equals(COOKING_STATION_MODE) ? "cooked_porkchop" : "iron_ingot";
     }
 
     private static Map<String, Integer> cookingProvidedStock() {
+        if (STONECUTTING_MODE) return Map.of("minecraft:stone", 128, "minecraft:stonecutter", 1);
         return Map.of(cookingRawItemId(), 128, "minecraft:coal", 9,
-            "minecraft:" + COOKING_STATION_MODE, 1);
+            "minecraft:" + PROCESSING_STATION_MODE, 1);
     }
 
     private static void seedCookingInventory(ServerPlayer player) {
@@ -455,7 +524,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 throw new IllegalStateException("could not seed two 64-item raw cooking stacks");
             }
         }
-        if (!player.getInventory().add(new ItemStack(Items.COAL, 9))) {
+        if (!STONECUTTING_MODE && !player.getInventory().add(new ItemStack(Items.COAL, 9))) {
             throw new IllegalStateException("could not seed nine verifier coal");
         }
         if (!player.getInventory().add(cookingStationStack())) {
@@ -464,15 +533,229 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startCookingCommand() {
-        activeCase = "native_" + COOKING_STATION_MODE + "_72";
+        activeCase = STONECUTTING_DRAIN_MODE ? "native_stonecutter_drain_after_insertion"
+            : STONECUTTING_MODE ? "native_stonecutter_144_slabs" : "native_" + COOKING_STATION_MODE + "_72";
         activeItem = cookingOutputId();
-        activeCount = 72;
+        activeCount = STONECUTTING_DRAIN_MODE ? 0 : STONECUTTING_MODE ? 144 : 72;
         activeRequiresEmpty = false;
         activeStartedEmpty = latestSnapshot.inventoryEmpty();
         activeInitialResources = Map.copyOf(latestSnapshot.inventory);
         beginCaseClock();
-        sendCommand("!lk get " + cookingOutputCommandName() + " 72");
+        sendCommand("!lk get " + cookingOutputCommandName() + " "
+            + (STONECUTTING_DRAIN_MODE ? STONECUTTING_DRAIN_COMMAND_TARGET : activeCount));
         state = State.COOKING;
+    }
+
+    private void maybeInjectStonecuttingDrainStop() {
+        if (!STONECUTTING_DRAIN_MODE || state != State.COOKING || stonecuttingDrainStopAttempted
+                || client.player == null || client.player.containerMenu == null
+                || client.player.containerMenu.getClass() != net.minecraft.world.inventory.StonecutterMenu.class) return;
+        net.minecraft.world.inventory.StonecutterMenu menu =
+            (net.minecraft.world.inventory.StonecutterMenu) client.player.containerMenu;
+        ItemStack ownedInput = menu.getSlot(0).getItem();
+        if (ownedInput.isEmpty() || !ownedInput.is(Items.STONE) || !menu.getCarried().isEmpty()) return;
+        for (ItemStack stack : client.player.getInventory().getNonEquipmentItems()) {
+            if (stack.is(Items.STONE_SLAB)) {
+                fail("stonecutting drain stop was not injected before the first slab output");
+                return;
+            }
+        }
+
+        stonecuttingDrainStopAttempted = true;
+        stonecuttingDrainInputCountAtStop = ownedInput.getCount();
+        stonecuttingDrainStopClientTick = clientTicks;
+        stonecuttingDrainStopServerTick = latestSnapshot == null ? -1 : latestSnapshot.serverTick;
+        stonecuttingDrainRequiredObservationSequence = observationRequestSequence + 1;
+        sendCommand("!lk stop");
+        stonecuttingDrainStopInjected = true;
+        System.out.println("[Lodekeeper verification] Injected !lk stop with " + stonecuttingDrainInputCountAtStop
+            + " owned stone in the native stonecutter at client tick " + stonecuttingDrainStopClientTick);
+    }
+
+    private void startIronPickaxePlannerProbe() {
+        if (ironPickaxeProbeStarted) return;
+        ironPickaxeProbeStarted = true;
+        ironPickaxeProbeStartedAtTick = clientTicks;
+        ironPickaxeProbeCatalog = new GameCatalog(client);
+        ironPickaxePlannerProbeEvidence = new JsonObject();
+        ironPickaxePlannerProbeEvidence.addProperty("status", "loading");
+        ironPickaxePlannerProbeEvidence.addProperty("planningPreferences", "none");
+        ironPickaxePlannerProbeEvidence.addProperty("isGameplayEvidence", false);
+        try {
+            ironPickaxeProbeCatalog.load();
+        } catch (RuntimeException exception) {
+            completeIronPickaxeProbeUnavailable("catalog load failed: " + exception);
+        }
+    }
+
+    private void tickIronPickaxePlannerProbe() {
+        if (!IRON_PICKAXE_MODE || !ironPickaxeProbeStarted || ironPickaxeProbeFinished) return;
+        if (ironPickaxeProbeCatalog != null && ironPickaxeProbeCatalog.ready()) {
+            try {
+                CatalogSnapshot catalogSnapshot = ironPickaxeProbeCatalog.snapshot();
+                InventorySnapshot inventory = new InventorySnapshot(Map.of(ItemId.parse("minecraft:crafting_table"), 1));
+                AcquisitionPlanner planner = new AcquisitionPlanner();
+                PlanResult ironPickaxe = planner.planFast(catalogSnapshot, inventory,
+                    ItemId.parse("minecraft:iron_pickaxe"), 1);
+                PlanResult stonePickaxe = planner.planFast(catalogSnapshot, inventory,
+                    ItemId.parse("minecraft:stone_pickaxe"), 1);
+                ironPickaxePlannerProbeEvidence = ironPickaxePlannerEvidence(catalogSnapshot, inventory, ironPickaxe, stonePickaxe);
+                ironPickaxeProbeFinished = true;
+                writeIronPickaxeCatalogSnapshot(catalogSnapshot);
+                logPlannerProbeResult("iron_pickaxe", ironPickaxe);
+                logPlannerProbeResult("stone_pickaxe", stonePickaxe);
+            } catch (RuntimeException exception) {
+                completeIronPickaxeProbeUnavailable("planner probe failed: " + exception);
+            }
+        } else if (clientTicks - ironPickaxeProbeStartedAtTick >= IRON_PICKAXE_PROBE_TIMEOUT_TICKS) {
+            completeIronPickaxeProbeUnavailable("catalog was not ready within "
+                + IRON_PICKAXE_PROBE_TIMEOUT_TICKS + " client ticks");
+        }
+    }
+
+    private void completeIronPickaxeProbeUnavailable(String reason) {
+        if (ironPickaxePlannerProbeEvidence == null) ironPickaxePlannerProbeEvidence = new JsonObject();
+        ironPickaxePlannerProbeEvidence.addProperty("status", "unavailable");
+        ironPickaxePlannerProbeEvidence.addProperty("failure", reason);
+        ironPickaxePlannerProbeEvidence.addProperty("planningPreferences", "none");
+        ironPickaxePlannerProbeEvidence.addProperty("isGameplayEvidence", false);
+        ironPickaxeProbeFinished = true;
+        System.err.println("[Lodekeeper verification] Iron-pickaxe planner probe unavailable: " + reason);
+    }
+
+    private JsonObject ironPickaxePlannerEvidence(CatalogSnapshot catalogSnapshot, InventorySnapshot inventory,
+                                                   PlanResult ironPickaxe, PlanResult stonePickaxe) {
+        JsonObject probe = new JsonObject();
+        probe.addProperty("status", "complete");
+        probe.addProperty("catalogReady", true);
+        probe.addProperty("catalogGeneration", ironPickaxeProbeCatalog.generation());
+        probe.addProperty("planningPreferences", "none");
+        probe.addProperty("isGameplayEvidence", false);
+        JsonObject inventoryItems = new JsonObject();
+        inventory.counts().forEach((item, count) -> inventoryItems.addProperty(item.toString(), count));
+        probe.add("inventoryCounts", inventoryItems);
+        probe.add("ironPickaxe", plannerResultEvidence(ironPickaxe));
+        probe.add("stonePickaxe", plannerResultEvidence(stonePickaxe));
+        return probe;
+    }
+
+    private void writeIronPickaxeCatalogSnapshot(CatalogSnapshot catalogSnapshot) {
+        var gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonObject export = new JsonObject();
+        export.addProperty("format", "lodekeeper.catalog_snapshot.v1");
+        export.addProperty("minecraftVersion", VerificationApi.minecraftVersion());
+        export.addProperty("catalogGeneration", ironPickaxeProbeCatalog.generation());
+        JsonArray items = new JsonArray();
+        ironPickaxeProbeCatalog.items.stream().sorted().forEach(item -> items.add(item.toString()));
+        export.add("items", items);
+        JsonArray definitions = new JsonArray();
+        catalogSnapshot.itemDefinitions().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            JsonObject definition = new JsonObject();
+            definition.addProperty("item", entry.getKey().toString());
+            definition.addProperty("maximumDurability", entry.getValue().maximumDurability());
+            definition.addProperty("fuelBurnTicks", entry.getValue().fuelBurnTicks());
+            JsonArray aliases = new JsonArray();
+            entry.getValue().aliases().forEach(aliases::add);
+            definition.add("aliases", aliases);
+            definitions.add(definition);
+        });
+        export.add("itemDefinitions", definitions);
+        JsonArray tags = new JsonArray();
+        ironPickaxeProbeCatalog.tags.keySet().stream().sorted().forEach(tag -> {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("tag", tag.toString());
+            JsonArray members = new JsonArray();
+            ironPickaxeProbeCatalog.tags.get(tag).stream().sorted().forEach(item -> members.add(item.toString()));
+            entry.add("items", members);
+            tags.add(entry);
+        });
+        export.add("tags", tags);
+        JsonArray sources = new JsonArray();
+        ironPickaxeProbeCatalog.sources.stream().sorted((left, right) -> left.sourceId().compareTo(right.sourceId())).forEach(source -> {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("sourceId", source.sourceId());
+            entry.addProperty("sourceType", source.sourceType());
+            entry.addProperty("output", source.output().toString());
+            entry.addProperty("outputCount", source.outputCount());
+            entry.addProperty("definition", source.toString());
+            entry.addProperty("definitionType", source.getClass().getSimpleName());
+            entry.add("definitionJson", gson.toJsonTree(source));
+            sources.add(entry);
+        });
+        export.add("sources", sources);
+        JsonArray unsupported = new JsonArray();
+        ironPickaxeProbeCatalog.unsupported.forEach(unsupported::add);
+        export.add("unsupported", unsupported);
+        String fileName = "iron-pickaxe-catalog-" + runId + ".json";
+        try {
+            Files.writeString(evidenceDirectory.resolve(fileName),
+                gson.toJson(export), StandardCharsets.UTF_8);
+            ironPickaxePlannerProbeEvidence.addProperty("catalogSnapshotFile", fileName);
+            ironPickaxePlannerProbeEvidence.addProperty("knownItemCount", ironPickaxeProbeCatalog.items.size());
+            ironPickaxePlannerProbeEvidence.addProperty("sourceCount", ironPickaxeProbeCatalog.sources.size());
+            ironPickaxePlannerProbeEvidence.addProperty("tagCount", ironPickaxeProbeCatalog.tags.size());
+        } catch (IOException exception) {
+            ironPickaxePlannerProbeEvidence.addProperty("catalogExportFailure", exception.toString());
+        }
+    }
+
+    private static JsonObject plannerResultEvidence(PlanResult result) {
+        JsonObject plan = new JsonObject();
+        plan.addProperty("target", result.target().toString());
+        plan.addProperty("requestedCount", result.requestedCount());
+        plan.addProperty("success", result.success());
+        plan.addProperty("optimal", result.optimal());
+        plan.addProperty("expandedNodes", result.expandedNodes());
+        plan.addProperty("elapsedNanos", result.elapsedNanos());
+        JsonArray blockedReasons = new JsonArray();
+        for (BlockedReason reason : result.blockedReasons()) {
+            JsonObject item = new JsonObject();
+            item.addProperty("code", reason.code().name());
+            if (reason.item() != null) item.addProperty("item", reason.item().toString());
+            item.addProperty("detail", reason.detail());
+            JsonArray path = new JsonArray();
+            reason.dependencyPath().forEach(dependency -> path.add(dependency.toString()));
+            item.add("dependencyPath", path);
+            blockedReasons.add(item);
+        }
+        plan.add("blockedReasons", blockedReasons);
+        JsonArray steps = new JsonArray();
+        for (PlanStep step : result.steps()) {
+            JsonObject item = new JsonObject();
+            item.addProperty("kind", step.kind().name());
+            item.addProperty("sourceId", step.sourceId());
+            if (step.output() != null) item.addProperty("output", step.output().toString());
+            item.addProperty("outputCount", step.outputCount());
+            item.addProperty("operationCount", step.operationCount());
+            if (step.station() != null) item.addProperty("station", step.station().toString());
+            JsonArray requirements = new JsonArray();
+            step.requirements().forEach(requirement -> requirements.add(requirement.toString()));
+            item.add("requirements", requirements);
+            steps.add(item);
+        }
+        plan.add("steps", steps);
+        return plan;
+    }
+
+    private static void logPlannerProbeResult(String name, PlanResult result) {
+        System.out.println("[Lodekeeper verification] Planner probe " + name + " success=" + result.success()
+            + ", expandedNodes=" + result.expandedNodes() + ", elapsedNanos=" + result.elapsedNanos()
+            + ", blockedReasons=" + result.blockedReasons());
+        result.blockedReasons().forEach(reason -> System.err.println("[Lodekeeper verification] Planner probe "
+            + name + " blocked " + reason.code() + " at " + reason.item() + ": " + reason.detail()
+            + " path=" + reason.dependencyPath()));
+    }
+
+    private void startIronPickaxeCommand() {
+        activeCase = "iron_pickaxe_from_crafting_table_only";
+        activeItem = IRON_PICKAXE_ID;
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        beginCaseClock();
+        sendCommand("!lk get iron_pickaxe");
+        state = State.GATHERING_WOOD;
     }
 
     private void observeServerMenu(MinecraftServer server) {
@@ -485,7 +768,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 serverTableOpened = true;
                 serverTableOpenings++;
             }
-            if (menu instanceof AbstractFurnaceMenu) {
+            if (menu instanceof FurnaceMenu) {
                 serverFurnaceOpened = true;
                 serverFurnaceOpenings++;
             }
@@ -493,6 +776,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 serverSmokerOpened = true;
                 serverSmokerOpenings++;
             }
+            if (menu.getClass() == net.minecraft.world.inventory.StonecutterMenu.class) serverStonecutterOpenings++;
             if (menu instanceof BlastFurnaceMenu) {
                 serverBlastFurnaceOpened = true;
                 serverBlastFurnaceOpenings++;
@@ -542,20 +826,32 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void evaluateCurrentCase() {
         if (activeCase == null || state == State.CAPTURING || latestSnapshot == null) return;
+        if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
+                && latestSnapshot.count(cookingOutputId()) > 0) {
+            fail("stonecutting drain stop was not injected before the first slab output");
+            return;
+        }
         int observed = latestSnapshot.count(activeItem);
-        boolean targetReached = (BULK_WOOD_MODE || COOKING_MODE ? observed == activeCount : observed >= activeCount)
+        boolean targetReached = (BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
-            && (!COOKING_MODE || (state == State.COOKING
-                && latestSnapshot.count(cookingRawItemId()) == 56
-                && latestSnapshot.count("minecraft:coal") == 0
+            && (!PROCESSING_MODE || (state == State.COOKING
                 && latestSnapshot.health == 20.0F
-                && correctCookingStationMenuOpened()))
+                && correctCookingStationMenuOpened()
+                && (STONECUTTING_DRAIN_MODE ? stonecuttingDrainOutcomeObserved()
+                    : latestSnapshot.count(cookingRawItemId()) == 56
+                        && latestSnapshot.count("minecraft:coal") == 0
+                        && (!STONECUTTING_MODE || latestSnapshot.inventory.equals(
+                            Map.of("minecraft:stone", 56, "minecraft:stone_slab", 144))))))
             && (!DIAMOND_BOOTSTRAP_MODE || (state == State.GATHERING_WOOD
                 && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
                 && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
                 && latestSnapshot.count(IRON_PICKAXE_ID) >= 1))
+            && (!IRON_PICKAXE_MODE || (state == State.GATHERING_WOOD
+                && latestSnapshot.health == 20.0F
+                && serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
+                && serverFurnaceOpened && serverFurnaceOpenings > activeFurnaceOpeningsAtStart))
             && (!BULK_WOOD_MODE || (latestSnapshot.count(OAK_LOG_ID) == 64
                 && (WOOD_TOOLS_MODE
                     ? serverTableOpened && serverTableOpenings > activeTableOpeningsAtStart
@@ -572,12 +868,18 @@ public final class RuntimeVerification implements ClientModInitializer {
                 || latestSnapshot.count(VerificationContentInitializer.BREAD_ID) >= activeBreadCountAtStart)) {
             fail("food-use goal completed without server-confirmed bread consumption and hunger recovery");
         } else if (targetReached) {
-            String detail = COOKING_MODE
-                ? "server inventory reached 72 " + cookingOutputId() + " with 56 raw inputs and no coal in inventory after opening the native " + COOKING_STATION_MODE + " menu"
+            String detail = STONECUTTING_DRAIN_MODE
+                ? "sent ordinary !lk stop at client tick " + stonecuttingDrainStopClientTick + " with "
+                    + stonecuttingDrainInputCountAtStop + " owned stone in the native stonecutter; fresh server tick "
+                    + latestSnapshot.serverTick + " observed exact starting stock restored with zero slabs (command target 144, expected output 0)"
+                : PROCESSING_MODE
+                ? "server inventory reached " + activeCount + " " + cookingOutputId() + " with 56 inputs remaining after opening the native " + PROCESSING_STATION_MODE + " menu"
                 : BULK_WOOD_MODE
                 ? (WOOD_TOOLS_MODE
                     ? "server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes"
                     : "server inventory reached exactly 64 oak logs with no wooden axes or crafting table opening")
+                : IRON_PICKAXE_MODE
+                ? "server inventory reached one iron pickaxe at full health after native crafting-table and furnace menu openings"
                 : DIAMOND_BOOTSTRAP_MODE
                 ? "server inventory reached diamond boots after the integrated server observed crafting table and furnace menus and an iron pickaxe"
                 : switch (state) {
@@ -587,7 +889,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 default -> "server inventory reached target and the engine returned idle";
             };
             addResult(true, observed, detail);
-            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE)) {
+            if (state == State.GATHERING_WOOD && (EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE)) {
                 state = State.CAPTURING; captureStartedAtTick = clientTicks;
             } else if (state == State.GATHERING_WOOD) startCraftingTableCommand();
             else if (state == State.CRAFTING_TABLE) startCraftingSticksCommand();
@@ -602,9 +904,13 @@ public final class RuntimeVerification implements ClientModInitializer {
                 captureStartedAtTick = clientTicks;
             }
         } else if (requireEngine().status().startsWith("paused")) {
-            fail("automation paused during " + activeCase + ": " + requireEngine().status());
+            fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
+                ? "stonecutting drain stop was never injected before automation paused: " + requireEngine().status()
+                : "automation paused during " + activeCase + ": " + requireEngine().status());
         } else if (clientTicks - caseStartedAtTick > MAX_RUN_TICKS) {
-            fail("case timed out: " + activeCase + "; engine status=" + requireEngine().status());
+            fail(STONECUTTING_DRAIN_MODE && !stonecuttingDrainStopInjected
+                ? "stonecutting drain stop was never injected because owned input with an empty cursor was not observed"
+                : "case timed out: " + activeCase + "; engine status=" + requireEngine().status());
         }
     }
 
@@ -705,12 +1011,26 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeFurnaceOpeningsAtStart = serverFurnaceOpenings;
         activeSmokerOpeningsAtStart = serverSmokerOpenings;
         activeBlastFurnaceOpeningsAtStart = serverBlastFurnaceOpenings;
+        activeStonecutterOpeningsAtStart = serverStonecutterOpenings;
     }
 
     private boolean correctCookingStationMenuOpened() {
+        if (STONECUTTING_MODE) return serverStonecutterOpenings > activeStonecutterOpeningsAtStart;
         return "smoker".equals(COOKING_STATION_MODE)
             ? serverSmokerOpened && serverSmokerOpenings > activeSmokerOpeningsAtStart
             : serverBlastFurnaceOpened && serverBlastFurnaceOpenings > activeBlastFurnaceOpeningsAtStart;
+    }
+
+    private boolean stonecuttingDrainOutcomeObserved() {
+        return stonecuttingDrainStopInjected && stonecuttingDrainInputCountAtStop > 0
+            && stonecuttingDrainStopClientTick >= caseStartedAtTick
+            && stonecuttingDrainRequiredObservationSequence > 0
+            && latestObservationRequestSequence >= stonecuttingDrainRequiredObservationSequence
+            && latestSnapshot.serverTick > stonecuttingDrainStopServerTick
+            && latestSnapshot.inventory.equals(Map.of("minecraft:stone", 128))
+            && latestSnapshot.count("minecraft:stone_slab") == 0
+            && latestSnapshot.count("minecraft:coal") == 0
+            && latestSnapshot.count("minecraft:stonecutter") == 0;
     }
 
     private void sendCommand(String command) {
@@ -722,6 +1042,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (observationFuture != null || client.player == null || client.getSingleplayerServer() == null) return;
         MinecraftServer server = requireServer();
         CompletableFuture<ServerSnapshot> capture = new CompletableFuture<>();
+        long requestSequence = ++observationRequestSequence;
         observationFuture = capture;
         server.execute(() -> {
             try {
@@ -730,6 +1051,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerLevel world = player.level();
                 capture.complete(new ServerSnapshot(server.getTickCount(), world.getGameTime(), inventory.counts(),
                     inventory.woodenAxeRemainingDurability(),
+                    IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ()));
             } catch (Throwable throwable) {
@@ -744,6 +1066,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             latestSnapshot = snapshot;
+            latestObservationRequestSequence = requestSequence;
         }));
     }
 
@@ -756,6 +1079,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             countStack(player.getItemBySlot(slot), counts, woodenAxes);
         }
         return new ServerInventorySnapshot(counts, woodenAxes);
+    }
+
+    private static int countIronPickaxeDeepslate(ServerLevel world) {
+        int remaining = 0;
+        for (int index = 0; index < IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT; index++) {
+            if (world.getBlockState(new BlockPos(16 + index, 20, 4)).is(Blocks.DEEPSLATE)) remaining++;
+        }
+        return remaining;
     }
 
     private static void countStack(ItemStack stack, Map<String, Integer> counts, List<Integer> woodenAxes) {
@@ -800,20 +1131,20 @@ public final class RuntimeVerification implements ClientModInitializer {
             latestSnapshot == null ? Map.of() : latestSnapshot.inventory,
             latestSnapshot == null ? List.of() : latestSnapshot.woodenAxeRemainingDurability,
             clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime,
-            COOKING_MODE ? COOKING_STATION_MODE : "", COOKING_MODE ? cookingRecipeType() : "",
-            COOKING_MODE ? activeInitialResources : Map.of(), COOKING_MODE && correctCookingStationMenuOpened(),
-            COOKING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
-            COOKING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
-            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
+            PROCESSING_MODE ? PROCESSING_STATION_MODE : "", PROCESSING_MODE ? cookingRecipeType() : "",
+            PROCESSING_MODE || IRON_PICKAXE_MODE ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
+            PROCESSING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
+            PROCESSING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
+            PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
             latestSnapshot == null ? 0 : latestSnapshot.count("minecraft:coal"),
-            COOKING_MODE ? activeInitialResources.getOrDefault("minecraft:" + COOKING_STATION_MODE, 0) : 0,
-            latestSnapshot == null || !COOKING_MODE ? 0
-                : latestSnapshot.count("minecraft:" + COOKING_STATION_MODE)));
+            PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:" + PROCESSING_STATION_MODE, 0) : 0,
+            latestSnapshot == null || !PROCESSING_MODE ? 0
+                : latestSnapshot.count("minecraft:" + PROCESSING_STATION_MODE)));
     }
 
     private void finishRun() {
         state = State.COMPLETE;
-        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || BULK_WOOD_MODE || COOKING_MODE ? 1 : 9;
+        int expectedCases = EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean passed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(passed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
@@ -858,19 +1189,54 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("serverFurnaceOpened", serverFurnaceOpened);
             root.addProperty("serverTableOpenings", serverTableOpenings);
             root.addProperty("serverFurnaceOpenings", serverFurnaceOpenings);
-            if (COOKING_MODE) {
+            root.addProperty("ironPickaxeFixture", IRON_PICKAXE_MODE);
+            if (IRON_PICKAXE_MODE) {
+                JsonObject initialStock = new JsonObject();
+                initialStock.addProperty("minecraft:crafting_table", 1);
+                root.add("ironPickaxeFixtureProvidedStock", initialStock);
+                root.addProperty("ironPickaxeGoalCommand", "!lk get iron_pickaxe");
+                root.addProperty("ironPickaxeExpectedOutput", 1);
+                root.addProperty("ironPickaxeNativeTableOpenings", serverTableOpenings);
+                root.addProperty("ironPickaxeNativeFurnaceOpenings", serverFurnaceOpenings);
+                root.addProperty("ironPickaxeDeepslateFixtureInitialBlockCount", IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT);
+                JsonArray deepslatePositions = new JsonArray();
+                for (int index = 0; index < IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT; index++) {
+                    deepslatePositions.add((16 + index) + ",20,4");
+                }
+                root.add("ironPickaxeDeepslateFixturePositions", deepslatePositions);
+                root.addProperty("ironPickaxeDeepslateFixtureRemainingBlockCount",
+                    latestSnapshot == null ? -1 : latestSnapshot.ironPickaxeDeepslateRemaining);
+                root.addProperty("ironPickaxeDeepslateFixtureMinedBlockCount", latestSnapshot == null ? -1
+                    : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining);
+                if (ironPickaxePlannerProbeEvidence != null) root.add("ironPickaxePlannerProbe", ironPickaxePlannerProbeEvidence);
+            }
+            if (PROCESSING_MODE) {
                 root.addProperty("serverSmokerOpened", serverSmokerOpened);
                 root.addProperty("serverSmokerOpenings", serverSmokerOpenings);
                 root.addProperty("serverBlastFurnaceOpened", serverBlastFurnaceOpened);
                 root.addProperty("serverBlastFurnaceOpenings", serverBlastFurnaceOpenings);
-                root.addProperty("cookingStationProperty", COOKING_STATION_MODE);
-                root.addProperty("cookingRecipeType", cookingRecipeType());
-                root.addProperty("cookingStationFixture", true);
+                root.addProperty(STONECUTTING_MODE ? "processingStation" : "cookingStationProperty", PROCESSING_STATION_MODE);
+                root.addProperty("serverStonecutterOpenings", serverStonecutterOpenings);
+                root.addProperty(STONECUTTING_MODE ? "nativeRecipeType" : "cookingRecipeType", cookingRecipeType());
+                root.addProperty(STONECUTTING_MODE ? "stonecuttingFixture" : "cookingStationFixture", true);
                 JsonObject providedStock = new JsonObject();
-                if (isSupportedCookingStationMode()) {
+                if (STONECUTTING_MODE || isSupportedCookingStationMode()) {
                 cookingProvidedStock().forEach(providedStock::addProperty);
                 }
-                root.add("cookingFixtureProvidedStock", providedStock);
+                root.add(STONECUTTING_MODE ? "stonecuttingFixtureProvidedStock" : "cookingFixtureProvidedStock", providedStock);
+                if (STONECUTTING_DRAIN_MODE) {
+                    root.addProperty("stonecuttingDrainStopAttempted", stonecuttingDrainStopAttempted);
+                    root.addProperty("stonecuttingDrainStopInjected", stonecuttingDrainStopInjected);
+                    root.addProperty("stonecuttingDrainOriginalCommandTarget", STONECUTTING_DRAIN_COMMAND_TARGET);
+                    root.addProperty("stonecuttingDrainExpectedOutput", 0);
+                    root.addProperty("stonecuttingDrainInputCountAtStop", stonecuttingDrainInputCountAtStop);
+                    root.addProperty("stonecuttingDrainStopClientTick", stonecuttingDrainStopClientTick);
+                    root.addProperty("stonecuttingDrainServerObservationTickBeforeStop", stonecuttingDrainStopServerTick);
+                    root.addProperty("stonecuttingDrainFreshServerObservationTick",
+                        latestSnapshot == null ? -1 : latestSnapshot.serverTick);
+                    root.addProperty("stonecuttingDrainRequiredObservationSequence", stonecuttingDrainRequiredObservationSequence);
+                    root.addProperty("stonecuttingDrainLatestObservationSequence", latestObservationRequestSequence);
+                }
             }
             JsonArray cases = new JsonArray();
             for (CaseResult result : results) {
@@ -880,7 +1246,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 item.addProperty("expected", result.expected);
                 item.addProperty("serverObserved", result.observed);
                 item.addProperty("inventoryEmptyAtStart", result.inventoryEmptyAtStart);
-                if (COOKING_MODE) item.addProperty("requiresEmptyAtStart", result.requiresEmptyAtStart);
+                if (PROCESSING_MODE) item.addProperty("requiresEmptyAtStart", result.requiresEmptyAtStart);
                 item.addProperty("passed", result.passed);
                 item.addProperty("clientTicks", result.clientTicks);
                 item.addProperty("worldTicks", result.worldTicks);
@@ -910,7 +1276,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     for (int remaining : result.woodenAxeRemainingDurability) axeDurability.add(remaining);
                     item.add("woodenAxeRemainingDurabilityPerStack", axeDurability);
                 }
-                if (COOKING_MODE) {
+                if (PROCESSING_MODE) {
                     item.addProperty("elapsedMillisFromCommand", result.elapsedMillis);
                     item.addProperty("completionClientTick", result.completionClientTick);
                     item.addProperty("completionWorldTick", result.completionWorldTick);
@@ -919,8 +1285,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                     result.serverInventory.entrySet().stream().sorted(Map.Entry.comparingByKey())
                         .forEach(entry -> inventory.addProperty(entry.getKey(), entry.getValue()));
                     item.add("fullServerInventory", inventory);
-                    item.addProperty("cookingStation", result.cookingStation);
-                    item.addProperty("nativeCookingRecipeType", result.cookingRecipeType);
+                    item.addProperty(STONECUTTING_MODE ? "processingStation" : "cookingStation", result.cookingStation);
+                    item.addProperty(STONECUTTING_MODE ? "nativeRecipeType" : "nativeCookingRecipeType", result.cookingRecipeType);
                     JsonObject initialResources = new JsonObject();
                     result.initialResources.forEach(initialResources::addProperty);
                     item.add("initialResources", initialResources);
@@ -931,6 +1297,21 @@ public final class RuntimeVerification implements ClientModInitializer {
                     item.addProperty("finalCoalCount", result.finalCoalCount);
                     item.addProperty("initialStationItemCount", result.initialStationItemCount);
                     item.addProperty("finalStationItemCount", result.finalStationItemCount);
+                }
+                if (IRON_PICKAXE_MODE) {
+                    item.addProperty("elapsedMillisFromCommand", result.elapsedMillis);
+                    item.addProperty("completionClientTick", result.completionClientTick);
+                    item.addProperty("completionWorldTick", result.completionWorldTick);
+                    item.addProperty("completionHealth", result.health);
+                    JsonObject inventory = new JsonObject();
+                    result.serverInventory.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> inventory.addProperty(entry.getKey(), entry.getValue()));
+                    item.add("fullServerInventory", inventory);
+                    JsonObject initialResources = new JsonObject();
+                    result.initialResources.forEach(initialResources::addProperty);
+                    item.add("initialResources", initialResources);
+                    item.addProperty("deepslateFixtureBlocksMined", latestSnapshot == null ? -1
+                        : IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT - latestSnapshot.ironPickaxeDeepslateRemaining);
                 }
                 cases.add(item);
             }
@@ -953,6 +1334,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static String verificationMode() {
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
         if (COOKING_MODE && !isSupportedCookingStationMode()) return "invalid_cooking_station";
+        if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) return "invalid_stonecutting_drain";
+        if (STONECUTTING_DRAIN_MODE) return "stonecutting_drain";
+        if (IRON_PICKAXE_MODE) return "iron_pickaxe";
+        if (STONECUTTING_MODE) return "stonecutting";
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
         if (BULK_WOOD_MODE) return "bulk_wood";
         if (DIAMOND_BOOTSTRAP_MODE) return "diamond_boots";
@@ -961,7 +1346,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private static int selectedFixtureModes() {
         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
-            + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0);
+            + (IRON_PICKAXE_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0) + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
     }
 
     private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
@@ -972,7 +1357,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
-                                  List<Integer> woodenAxeRemainingDurability, float health, int foodLevel,
+                                  List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
+                                  float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {
             inventory = Map.copyOf(inventory);
