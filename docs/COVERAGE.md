@@ -5,7 +5,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | Capability | Current evidence | Next acceptance scenario |
 | --- | --- | --- |
 | Client commands, configurable prefix, plan preview, queues | Implemented; parser regression checks | Remote-server command interception and bounded preview spam |
-| Quantity planning, ingredient alternatives, tool and fuel reservations | Java regression checks | Long acquisition chains with interruptions and inventory changes |
+| Quantity planning, ingredient alternatives, tool and fuel reservations | Java regression checks; controlled [1.21.1 single-command boots from empty inventory](evidence/1.21.1-diamond-boots/run.json) | Long acquisition chains with interruptions and inventory changes |
 | Walking and mining reachable resources | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 logs and stone | Natural forest, cave and underground ore discovery |
 | Jumping, drops, swimming, climbing, parkour | Navigation model and hazard regressions; physical behavior pending | Separate obstacle courses, submerged exits and safe fall limits |
 | Breaking obstacles and building paths | Navigation model; physical behavior pending | Reversible bridge and tunnel with material limits |

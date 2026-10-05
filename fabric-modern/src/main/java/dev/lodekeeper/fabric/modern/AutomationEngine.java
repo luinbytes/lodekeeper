@@ -111,7 +111,7 @@ final class AutomationEngine {
     private BlockPos target;
     private CraftingAction crafting;
     private SmeltingAction smelting;
-    private boolean moving, paused, openingStation, foregroundYieldPending, stopAfterStep;
+    private boolean moving, movingPickup, paused, openingStation, foregroundYieldPending, stopAfterStep;
     private AbstractContainerMenu ownedStationMenu, stationOpeningFrom;
     private final Set<ItemId> unmaintainAfterStep = new java.util.TreeSet<>();
     private final Map<ItemId, Integer> maintainAfterStep = new TreeMap<>();
@@ -206,7 +206,7 @@ final class AutomationEngine {
                 if (!pendingPlan.isDone()) return;
                 PlanResult result = pendingPlan.join();
                 pendingPlan = null;
-                if (!result.success() && planningRetries++ < 1 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT)) {
+                if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT)) {
                     requestPlan();
                     return;
                 }
@@ -236,8 +236,9 @@ final class AutomationEngine {
             verifyTicks = 0;
             if (moving) {
                 status = movement.status();
-                try { if (movement.tick()) { moving = false; movement.stop(); } }
+                try { if (movement.tick()) { moving = false; movingPickup = false; movement.stop(); } }
                 catch (MovementController.NavigationFailure blocked) {
+                    if (movingPickup) throw new IllegalStateException("Unable to collect dropped " + step.output() + ": " + blocked.getMessage());
                     if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
                     rejectResource();
                 }
@@ -603,7 +604,7 @@ final class AutomationEngine {
         ItemId targetItem = item;
         int targetCount = requested;
         CatalogSnapshot planningSnapshot = snapshot;
-        pendingPlan = CompletableFuture.supplyAsync(() -> planner.plan(planningSnapshot, inventory, targetItem, targetCount), plannerWorker);
+        pendingPlan = CompletableFuture.supplyAsync(() -> planner.planFast(planningSnapshot, inventory, targetItem, targetCount), plannerWorker);
     }
 
     private ItemId chooseLogs() {
@@ -651,8 +652,13 @@ final class AutomationEngine {
             discoveredSources.put(entry.getKey(),entry.getValue());
         }
         logCandidates.addAll(outputs);
+        // Presence is independent of the nearest-512 position cache; dense forests must not hide rare variants.
+        for (GatherSource source : new HashSet<>(logSources.values())) {
+            if (source.output().equals(droppedLogCandidate)) continue;
+            boolean present = source.blocks().stream().anyMatch(id -> logScan.found(GameCatalog.block(id)));
+            if (!present) unavailableSources.add(source.sourceId());
+        }
         droppedLogCandidate = null;
-        if (logCandidates.isEmpty()) logSources.values().forEach(source -> unavailableSources.add(source.sourceId()));
         logScan = null; logSources.clear();
         return logCandidates.peekFirst();
     }
@@ -864,21 +870,27 @@ final class AutomationEngine {
         var searchBox = client.player.getBoundingBox().inflate(12);
         Item wanted = GameCatalog.item(step.output());
         ItemEntity dropped = client.level.getEntities(EntityTypeTest.forClass(ItemEntity.class), searchBox,
-                        entity -> entity.isAlive() && (entity.onGround() || entity.isInWater()) && entity.getItem().is(wanted))
+                        entity -> entity.isAlive() && entity.getItem().is(wanted))
                 .stream().min(Comparator.comparingDouble(client.player::distanceToSqr)).orElse(null);
         if (dropped != null) {
-            if (client.player.distanceToSqr(dropped) > 1) {
-                movement.start(dropped.blockPosition(), 0);
-                moving = true;
+            // Fresh drops may still be falling or waiting for the native pickup delay.
+            // Do not exhaust a mined source while its observable output is settling.
+            if (!dropped.onGround() && !dropped.isInWater() || client.player.getBoundingBox().inflate(1, 0, 1).intersects(dropped.getBoundingBox())) {
+                status = "waiting to collect " + step.output();
                 return;
             }
-            if (!config.allowBreaking) {
-                status = "waiting for nearby dropped items";
-                return;
-            }
+            movement.startPickup(dropped);
+            movingPickup = true; moving = true;
+            return;
         }
         if (!config.allowBreaking) {
             throw new IllegalStateException("Gathering requires breaking blocks, but allowBreaking=false; enable it with config allowBreaking true");
+        }
+        if (target == null && scan == null && !discoveredSources.containsKey(step.sourceId())
+                && catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) {
+            chooseLogs();
+            if (logScan != null) return;
+            if (unavailableSources.contains(step.sourceId())) { resetAction(); requestPlan(); return; }
         }
         if (target == null) {
             List<BlockPos> known = discoveredSources.get(step.sourceId());
@@ -1124,7 +1136,7 @@ final class AutomationEngine {
         try { movement.stop(); }
         catch (RuntimeException exception) { message("Movement cancellation: " + exception.getMessage()); }
         finally {
-            crafting = null; smelting = null; openingStation = false; moving = false;
+            crafting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }

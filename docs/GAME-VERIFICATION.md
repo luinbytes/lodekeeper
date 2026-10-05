@@ -60,7 +60,7 @@ The development verifier itself is never included in those production jars. Each
 - screenshots under `<module>/run/verification/evidence/screenshots/`
 - its isolated world under `<module>/run/verification/worlds/run-<id>/`
 
-Keep the world and evidence when diagnosing a failure. After the client has stopped, the module's entire `run/verification` directory is disposable. The nine-case source suite includes acquisition, crafting-table use, tool progression, smelting, custom registry content and food use. The added custom-content and food cases still need a successful version-specific compile and runtime run before those behaviors are claimed as verified. Diamond equipment, parkour, bridging and natural-world exploration remain separate scenarios. Table and furnace menu observations come from the server, independently of client screenshots.
+Keep the world and evidence when diagnosing a failure. After the client has stopped, the module's entire `run/verification` directory is disposable. The nine-case source suite includes acquisition, crafting-table use, tool progression, smelting, custom registry content and food use. Recorded nine-case runs on 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 include the custom-content and food cases; exact records are linked in the compatibility ledger. Diamond equipment, parkour, bridging and natural-world exploration remain separate scenarios. Table and furnace menu observations come from the server, independently of client screenshots.
 
 ## Recorded 1.20.1 check
 
@@ -77,3 +77,11 @@ The optional JVM flag `-Dlodekeeper.verify.exploration=true` selects a single wo
 The [recorded 1.21.1 run](evidence/1.21.1-exploration/run.json) passed with eight logs, health 20, X=86.63 and two exploration attempts: 1,209 goal ticks and 78,052 ms for the isolated verification run. Its [artifact record](evidence/1.21.1-exploration/artifact.json) includes the exact archived working-tree source patch used by the development client. This verifies controlled travel into initially unloaded resource terrain; it does not establish natural-world exploration or persistent resource knowledge.
 
 The [recorded 26.3 run](evidence/26.3-exploration/run.json) also passed the distant-resource goal with eight server-observed logs, health 20 and two exploration attempts. Its [artifact record](evidence/26.3-exploration/artifact.json) archives the exact source patch, including bounded fallback among dropped and scanned log outputs. Both clients were run sequentially with no Gradle process during gameplay.
+
+## Single-command diamond equipment
+
+The optional JVM flag `-Dlodekeeper.verify.diamondBoots=true` replaces the nine-case suite with one `!lk get diamond_boots` command from an empty inventory. It is mutually exclusive with exploration mode. The disposable pad contains logs, stone, coal, three iron ores and four diamond ores. It grants no tools, ingredients or target equipment.
+
+A pass requires an idle engine, one server-observed pair of diamond boots, a retained iron pickaxe, and server-observed crafting-table and furnace openings during the case. This checks dependency bootstrapping and actual player interactions together; the prepared resource layout remains separate from natural-world acquisition.
+
+The [1.21.1 check](evidence/1.21.1-diamond-boots/run.json) passed in 166,032 ms with full health and 2,995 goal ticks. Its [artifact manifest](evidence/1.21.1-diamond-boots/artifact.json) and archived source patch identify the development client. The [earlier failed check](evidence/1.21.1-diamond-boots-failed/run.json) is retained with its own source evidence. The planning and approach changes are described in [bootstrap planning](BOOTSTRAP-PLANNER.md).

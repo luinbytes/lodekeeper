@@ -17,6 +17,7 @@ import java.util.Set;
 final class BlockSearch {
     private final Minecraft client;
     private final Set<Block> blocks;
+    private final Set<Block> matchedBlocks = new java.util.HashSet<>();
     private final BlockPos origin;
     private final int radius;
     private final List<ChunkPos> chunks = new ArrayList<>();
@@ -74,6 +75,7 @@ final class BlockSearch {
                         + Math.pow(position.getZ() - origin.getZ(), 2);
                 double distance = position.distSqr(origin);
                 if (horizontal <= radius * radius) {
+                    matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
                     if (candidates.size() < 512) candidates.add(position);
                     else if (distance < candidates.peek().distSqr(origin)) {
                         candidates.remove();
@@ -88,6 +90,7 @@ final class BlockSearch {
         return done;
     }
 
+    boolean found(Block block) { return matchedBlocks.contains(block); }
     BlockPos result() { return best; }
     List<BlockPos> results() {
         return candidates.stream().sorted(Comparator.comparingDouble(position -> position.distSqr(origin))).toList();

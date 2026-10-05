@@ -19,13 +19,25 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
         include:
-          - minecraft: '1.20'
+          - minecraft: '26.3'
+            java: '25'
+            module: fabric-modern
+          - minecraft: '1.21.1'
+            java: '21'
+            module: fabric-1211
+          - minecraft: '1.20.1'
             java: '17'
             module: fabric
-          - minecraft: '1.20.1'
+          - minecraft: '1.21.11'
+            java: '21'
+            module: fabric-1212
+          - minecraft: '1.21.2'
+            java: '21'
+            module: fabric-1212
+          - minecraft: '1.20'
             java: '17'
             module: fabric
           - minecraft: '1.20.2'
@@ -46,12 +58,6 @@ jobs:
           - minecraft: '1.21'
             java: '21'
             module: fabric-1211
-          - minecraft: '1.21.1'
-            java: '21'
-            module: fabric-1211
-          - minecraft: '1.21.2'
-            java: '21'
-            module: fabric-1212
           - minecraft: '1.21.3'
             java: '21'
             module: fabric-1212
@@ -76,9 +82,6 @@ jobs:
           - minecraft: '1.21.10'
             java: '21'
             module: fabric-1212
-          - minecraft: '1.21.11'
-            java: '21'
-            module: fabric-1212
           - minecraft: '26.1'
             java: '25'
             module: fabric-modern
@@ -89,9 +92,6 @@ jobs:
             java: '25'
             module: fabric-modern
           - minecraft: '26.2'
-            java: '25'
-            module: fabric-modern
-          - minecraft: '26.3'
             java: '25'
             module: fabric-modern
     steps:

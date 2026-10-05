@@ -1,0 +1,22 @@
+{
+  "runId":"2026-10-05T11-09-21-182940Z-5f46c334",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"diamond_boots",
+  "elapsedMillis":69980,
+  "clientTicks":1295,
+  "failure":"automation paused during bootstrap_diamond_boots: paused · No plan: [Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:iron_ingot] · 0 foreground queued · 0 maintenance queued",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":2,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"bootstrap_diamond_boots","item":"minecraft:diamond_boots","expected":1,"serverObserved":0,"inventoryEmptyAtStart":true,"passed":false,"clientTicks":1082,"worldTicks":1082,"engineStatus":"paused · No plan: [Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:iron_ingot] · 0 foreground queued · 0 maintenance queued","detail":"automation paused during bootstrap_diamond_boots: paused · No plan: [Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:diamond, Dependency cycle while obtaining minecraft:iron_ingot] · 0 foreground queued · 0 maintenance queued","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[7.812005068803668,64.0,1.3870567456936758],"screenshot":"screenshots/lodekeeper-2026-10-05T11-09-21-182940Z-5f46c334-failed-bootstrap_diamond_boots.png"}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":true,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

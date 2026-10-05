@@ -28,6 +28,20 @@ public final class AcquisitionPlanner {
     }
 
     public PlanResult plan(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count, PlannerLimits limits) {
+        return planInternal(catalog, inventory, target, count, limits, false);
+    }
+
+    /** Finds a complete feasible seed before spending the remaining shared budget on beam search. */
+    public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count) {
+        return planFast(catalog, inventory, target, count, PlannerLimits.DEFAULT);
+    }
+
+    public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count, PlannerLimits limits) {
+        return planInternal(catalog, inventory, target, count, limits, true);
+    }
+
+    private PlanResult planInternal(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count,
+                                    PlannerLimits limits, boolean seedFirst) {
         Objects.requireNonNull(catalog, "catalog");
         Objects.requireNonNull(inventory, "inventory");
         Objects.requireNonNull(target, "target");
@@ -40,7 +54,26 @@ public final class AcquisitionPlanner {
             return failure(target, count, BlockedReason.Code.UNKNOWN_ITEM, "Item is not present in the current catalog", 0, elapsed(started));
         }
 
-        Search search = new Search(catalog, limits, started, clock);
+        int seedNodes = 0;
+        if (seedFirst) {
+            PlannerLimits seedLimits = new PlannerLimits(limits.maximumDepth(),
+                    Math.min(1_024, limits.maximumExpandedNodes()), Math.max(1, limits.maximumElapsedMillis() * 3 / 4),
+                    limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
+            Search seed = new Search(catalog, seedLimits, started, clock, true);
+            List<State> feasible = seed.satisfy(target, count, false, new State(inventory, catalog), Set.of(), 0, "requested target", -1);
+            seedNodes = seed.expanded;
+            if (!feasible.isEmpty()) {
+                return new PlanResult(target, count, feasible.get(0).steps, List.of(), false, seedNodes, elapsed(started));
+            }
+            if (seedNodes >= limits.maximumExpandedNodes()) {
+                return failure(target, count, BlockedReason.Code.NODE_LIMIT, "Planner node budget exhausted", seedNodes, elapsed(started));
+            }
+        }
+        // Keep the original start/deadline and subtract seed work from the global expansion cap.
+        PlannerLimits remaining = seedNodes == 0 ? limits : new PlannerLimits(limits.maximumDepth(),
+                limits.maximumExpandedNodes() - seedNodes, limits.maximumElapsedMillis(),
+                limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
+        Search search = new Search(catalog, remaining, started, clock, false);
         State initial = new State(inventory, catalog);
         List<State> plans = search.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
         if (plans.isEmpty()) {
@@ -49,10 +82,10 @@ public final class AcquisitionPlanner {
                 BlockedReason.Code code = search.limitCode == null ? BlockedReason.Code.NO_SOURCE : search.limitCode;
                 reasons = List.of(new BlockedReason(code, target, "No bounded acquisition plan was found", List.of(target)));
             }
-            return new PlanResult(target, count, List.of(), reasons, false, search.expanded, elapsed(started));
+            return new PlanResult(target, count, List.of(), reasons, false, seedNodes + search.expanded, elapsed(started));
         }
         State best = plans.get(0);
-        return new PlanResult(target, count, best.steps, List.of(), !search.truncated, search.expanded, elapsed(started));
+        return new PlanResult(target, count, best.steps, List.of(), !search.truncated, seedNodes + search.expanded, elapsed(started));
     }
 
     private static PlanResult failure(ItemId target, int count, BlockedReason.Code code, String detail, int nodes, long nanos) {
@@ -66,17 +99,19 @@ public final class AcquisitionPlanner {
         private final PlannerLimits limits;
         private final long deadline;
         private final LongSupplier clock;
+        private final boolean firstFeasible;
         private final LinkedHashSet<BlockedReason> failures = new LinkedHashSet<>();
         private int expanded;
         private boolean truncated;
         private BlockedReason.Code limitCode;
         private BlockedReason limitReason;
 
-        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock) {
+        private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock, boolean firstFeasible) {
             this.catalog = catalog;
             this.limits = limits;
             this.deadline = started + limits.maximumElapsedMillis() * 1_000_000L;
             this.clock = clock;
+            this.firstFeasible = firstFeasible;
         }
 
         private List<State> satisfy(ItemId item, int count, boolean consume, State state, Set<ItemId> path, int depth, String purpose, int recipeSlot) {
@@ -123,6 +158,12 @@ public final class AcquisitionPlanner {
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth, boolean heldGatherOnly) {
             if (!visit(item, path, depth)) return List.of();
             List<AcquisitionSource> sources = catalog.sourcesFor(item);
+            if (firstFeasible) {
+                sources = sources.stream().sorted(Comparator
+                        .comparingInt((AcquisitionSource source) -> source instanceof GatherSource ? 0
+                                : source instanceof SmeltingSource ? 1 : source instanceof CraftingSource ? 2 : 3)
+                        .thenComparing(AcquisitionSource::sourceId)).toList();
+            }
             if (sources.isEmpty()) {
                 fail(BlockedReason.Code.NO_SOURCE, item, "No acquisition source is known for " + item, pathWith(path, item));
                 return List.of();
@@ -178,6 +219,7 @@ public final class AcquisitionPlanner {
                     completed.operations += operations;
                     if (source instanceof GatherSource) completed.gatherOperations += operations;
                     results.add(completed);
+                    if (firstFeasible) return List.of(completed);
                 }
             }
             if (results.isEmpty() && !truncated && sources.isEmpty()) {
@@ -253,6 +295,7 @@ public final class AcquisitionPlanner {
                 for (Prepared value : held) {
                     if (remainingUses == 0) {
                         next.add(withAllocatedRequirements(value, allocations, slots, perSlot, purpose));
+                        if (firstFeasible) return List.of(next.get(0));
                         continue;
                     }
                     int remainingCount = remainingUses * ingredientCount;
@@ -262,6 +305,7 @@ public final class AcquisitionPlanner {
                             var combined = new LinkedHashMap<>(allocations);
                             combined.merge(fallback, remainingCount, Integer::sum);
                             next.add(withAllocatedRequirements(new Prepared(ready, value.selected), combined, slots, perSlot, purpose));
+                            if (firstFeasible) return List.of(next.get(0));
                         }
                     }
                 }
@@ -339,6 +383,7 @@ public final class AcquisitionPlanner {
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedItemRequirement(fuel, needed, true, "smelting fuel", -1));
                         next.add(new Prepared(ready, List.copyOf(selected)));
+                        if (firstFeasible) return List.of(next.get(0));
                     }
                 }
             }
@@ -371,6 +416,7 @@ public final class AcquisitionPlanner {
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedItemRequirement(item, amount, consume, purpose, recipeSlot));
                         next.add(new Prepared(ready, List.copyOf(selected)));
+                        if (firstFeasible) return List.of(next.get(0));
                     }
                 }
             }
@@ -390,6 +436,12 @@ public final class AcquisitionPlanner {
                 List<ItemId> choices = held.isEmpty()
                         ? rankedAlternatives(requirement.tools(), candidate.state, 1, false, path)
                         : held;
+                if (firstFeasible && held.isEmpty()) {
+                    // Adapters/providers declare cheap bootstrap tools before advanced tiers.
+                    List<ItemId> declared = requirement.tools().alternatives().stream()
+                            .flatMap(selector -> catalog.expand(selector).stream()).distinct().toList();
+                    choices = choices.stream().sorted(Comparator.comparingInt(declared::indexOf)).toList();
+                }
                 for (ItemId item : choices) {
                     if (!visit(item, path, depth + 1)) break;
                     for (State ready : ensureTool(item, requirement, operations, candidate.state, path, depth + 1)) {
@@ -401,6 +453,7 @@ public final class AcquisitionPlanner {
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedToolRequirement(item, requirement.minimumDurability(), requirement.purpose()));
                         next.add(new Prepared(forecast, List.copyOf(selected)));
+                        if (firstFeasible) return List.of(next.get(0));
                     }
                 }
             }

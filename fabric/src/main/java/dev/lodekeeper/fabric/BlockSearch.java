@@ -17,6 +17,7 @@ import java.util.PriorityQueue;
 final class BlockSearch {
     private final MinecraftClient client;
     private final Set<Block> blocks;
+    private final Set<Block> matchedBlocks = new java.util.HashSet<>();
     private final BlockPos origin;
     private final int radius;
     private final List<ChunkPos> chunks = new ArrayList<>();
@@ -59,6 +60,7 @@ final class BlockSearch {
                 double horizontal = Math.pow(pos.getX() - origin.getX(), 2) + Math.pow(pos.getZ() - origin.getZ(), 2);
                 double distance = pos.getSquaredDistance(origin);
                 if (horizontal <= radius * radius) {
+                    matchedBlocks.add(section.getBlockState(x, y, z).getBlock());
                     if (candidates.size() < 512) candidates.add(pos);
                     else if (distance < candidates.peek().getSquaredDistance(origin)) { candidates.remove(); candidates.add(pos); }
                     if (distance < bestDistance) { bestDistance = distance; best = pos; }
@@ -69,6 +71,7 @@ final class BlockSearch {
         }
         return done;
     }
+    boolean found(Block block) { return matchedBlocks.contains(block); }
     BlockPos result() { return best; }
     List<BlockPos> results() { return candidates.stream().sorted(Comparator.comparingDouble(pos -> pos.getSquaredDistance(origin))).toList(); }
 }

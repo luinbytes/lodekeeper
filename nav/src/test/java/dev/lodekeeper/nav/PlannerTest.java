@@ -9,6 +9,69 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class PlannerTest {
     @Test
+    void anyOfFindsAReachableStanceWhenTheFirstCandidateIsDisconnected() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.stance(0, 0, 0).fullSupport = true;
+        terrain.stance(1, 0, 0).fullSupport = true;
+        terrain.stance(3, 0, 0).fullSupport = true;
+        Goal goal = Goal.anyOf(Position.pack(3, 0, 0), Position.pack(1, 0, 0), Position.pack(3, 0, 0));
+
+        Planner planner = planner(terrain, 0, 0, 0, goal, new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.FOUND, finish(planner));
+        Path path = planner.getPath();
+        assertEquals(1, path.step(path.length() - 1).x);
+        assertEquals(3, goal.x, "the first supplied point remains the diagnostic coordinate");
+    }
+
+    @Test
+    void anyOfReturnsNoPathWhenEveryCandidateIsBlocked() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.stance(0, 0, 0).fullSupport = true;
+        terrain.stance(1, 0, 0).fullSupport = true;
+        terrain.stances.get(Position.pack(1, 0, 0)).hazard = true;
+        terrain.stance(2, 0, 0).fullSupport = true;
+        terrain.stances.get(Position.pack(2, 0, 0)).hazard = true;
+
+        Planner planner = planner(terrain, 0, 0, 0,
+                Goal.anyOf(Position.pack(1, 0, 0), Position.pack(2, 0, 0)),
+                new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.NO_PATH, finish(planner));
+    }
+
+    @Test
+    void anyOfCopiesInputsEnforcesItsLimitAndAcceptsPackedCoordinateBoundaries() {
+        long first = Position.pack(2, 0, 0);
+        long second = Position.pack(1, 0, 0);
+        long[] candidates = {first, second, first};
+        Goal copied = Goal.anyOf(candidates);
+        candidates[0] = Position.pack(3, 0, 0);
+
+        assertTrue(copied.matches(2, 0, 0));
+        assertTrue(copied.matches(1, 0, 0));
+        assertFalse(copied.matches(3, 0, 0));
+        assertEquals(2, copied.x);
+        assertThrows(IllegalArgumentException.class, () -> Goal.anyOf());
+        assertThrows(IllegalArgumentException.class, () -> Goal.anyOf(new long[129]));
+        long[] atLimit = new long[128];
+        for (int i = 0; i < atLimit.length; i++) atLimit[i] = Position.pack(i, 0, 0);
+        assertDoesNotThrow(() -> Goal.anyOf(atLimit));
+
+        int minX = -33_554_432;
+        int minY = -2_048;
+        int minZ = -33_554_432;
+        int maxX = 33_554_431;
+        int maxY = 2_047;
+        int maxZ = 33_554_431;
+        Goal boundaries = Goal.anyOf(Position.pack(minX, minY, minZ), Position.pack(maxX, maxY, maxZ));
+        assertTrue(boundaries.matches(minX, minY, minZ));
+        assertTrue(boundaries.matches(maxX, maxY, maxZ));
+        assertFalse(boundaries.matches(0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> Position.pack(maxX + 1, maxY, maxZ));
+    }
+
+    @Test
     void rejectsUnknownAndHazardousTerrain() {
         FakeTerrain unloaded = new FakeTerrain();
         unloaded.stance(0, 0, 0).fullSupport = true;
@@ -215,7 +278,8 @@ final class PlannerTest {
         }
         edges.add(new int[] {0, 1, 0, 17});
         edges.add(new int[] {0, -1, 0, 17});
-        for (Goal goal : java.util.List.of(Goal.exact(0, 0, 0), Goal.near(0, 0, 0, 2))) {
+        for (Goal goal : java.util.List.of(Goal.exact(0, 0, 0), Goal.near(0, 0, 0, 2),
+                Goal.anyOf(Position.pack(0, 0, 0), Position.pack(3, 0, 0)))) {
             for (int x = -6; x <= 6; x++) for (int y = -6; y <= 6; y++) for (int z = -6; z <= 6; z++) {
                 long h = goal.heuristic(x, y, z);
                 assertTrue(h >= 0);

@@ -77,7 +77,7 @@ final class AutomationEngine {
     private BlockPos target;
     private CraftingAction crafting;
     private SmeltingAction smelting;
-    private boolean moving, paused, openingStation, foregroundYieldPending, stopAfterStep;
+    private boolean moving, movingPickup, paused, openingStation, foregroundYieldPending, stopAfterStep;
     private ScreenHandler ownedStationHandler, stationOpeningFrom;
     private final Set<ItemId> unmaintainAfterStep = new TreeSet<>();
     private final Map<ItemId, Integer> maintainAfterStep = new TreeMap<>();
@@ -160,7 +160,7 @@ final class AutomationEngine {
                     else status = "waiting for recipe catalog";
                     return;
                 }
-                if (!result.success() && planningRetries++ < 1 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
+                if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
                 if (!result.success() && tryNextLogPlan(result)) return;
                 if (!result.success() && canExplore(result)) { beginExploration(); return; }
                 if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
@@ -195,8 +195,9 @@ final class AutomationEngine {
             verifyTicks = 0;
             if (moving) {
                 status = movement.status();
-                try { if (movement.tick()) { moving = false; movement.stop(); } }
+                try { if (movement.tick()) { moving = false; movingPickup = false; movement.stop(); } }
                 catch (MovementController.NavigationFailure blocked) {
+                    if (movingPickup) throw new IllegalStateException("Unable to collect dropped " + step.output() + ": " + blocked.getMessage());
                     if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
                     rejectResource();
                 }
@@ -531,7 +532,7 @@ final class AutomationEngine {
         int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item) : active.count;
         final ItemId targetItem = item; final int targetCount = requested;
         pendingPlanGeneration = catalog.generation();
-        pendingPlan = CompletableFuture.supplyAsync(() -> planner.plan(snapshot, inventory, targetItem, targetCount), plannerWorker);
+        pendingPlan = CompletableFuture.supplyAsync(() -> planner.planFast(snapshot, inventory, targetItem, targetCount), plannerWorker);
     }
     private ItemId chooseLogs() {
         if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
@@ -578,8 +579,13 @@ final class AutomationEngine {
             discoveredSources.put(entry.getKey(),entry.getValue());
         }
         logCandidates.addAll(outputs);
+        // Presence is independent of the nearest-512 position cache; dense forests must not hide rare variants.
+        for (GatherSource source : new HashSet<>(logSources.values())) {
+            if (source.output().equals(droppedLogCandidate)) continue;
+            boolean present = source.blocks().stream().anyMatch(id -> logScan.found(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
+            if (!present) unavailableSources.add(source.sourceId());
+        }
         droppedLogCandidate = null;
-        if (logCandidates.isEmpty()) logSources.values().forEach(source -> unavailableSources.add(source.sourceId()));
         logScan = null; logSources.clear();
         return logCandidates.peekFirst();
     }
@@ -681,13 +687,26 @@ final class AutomationEngine {
     private void gather() {
         Set<Block> blocks = new HashSet<>();
         step.candidateBlocks().forEach(id -> blocks.add(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
-        ItemEntity dropped = client.world.getEntitiesByClass(ItemEntity.class, client.player.getBoundingBox().expand(12), e -> e.isAlive() && (e.isOnGround() || e.isTouchingWater()) && e.getStack().isOf(GameCatalog.item(step.output()))).stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
+        ItemEntity dropped = client.world.getEntitiesByClass(ItemEntity.class, client.player.getBoundingBox().expand(12), e -> e.isAlive() && e.getStack().isOf(GameCatalog.item(step.output()))).stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
         if (dropped != null) {
-            if (client.player.squaredDistanceTo(dropped) > 1) { movement.start(dropped.getBlockPos(), 0); moving = true; return; }
-            if (!config.allowBreaking) { status = "waiting for nearby dropped items"; return; }
+            // Fresh drops may still be falling or waiting for the native pickup delay.
+            // Do not exhaust a mined source while its observable output is settling.
+            if (!dropped.isOnGround() && !dropped.isTouchingWater() || client.player.getBoundingBox().expand(1, 0, 1).intersects(dropped.getBoundingBox())) {
+                status = "waiting to collect " + step.output();
+                return;
+            }
+            movement.startPickup(dropped);
+            movingPickup = true; moving = true;
+            return;
         }
         if (!config.allowBreaking) {
             throw new IllegalStateException("Gathering requires breaking blocks, but allowBreaking=false; enable it with config allowBreaking true");
+        }
+        if (target == null && scan == null && !discoveredSources.containsKey(step.sourceId())
+                && catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) {
+            chooseLogs();
+            if (logScan != null) return;
+            if (unavailableSources.contains(step.sourceId())) { resetAction(); requestPlan(); return; }
         }
         if (target == null) {
             List<BlockPos> known = discoveredSources.get(step.sourceId());
@@ -998,7 +1017,7 @@ final class AutomationEngine {
         try { movement.stop(); }
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
-            crafting = null; smelting = null; openingStation = false; moving = false;
+            crafting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
             step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }

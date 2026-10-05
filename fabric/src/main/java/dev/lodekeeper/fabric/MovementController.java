@@ -44,8 +44,7 @@ final class MovementController {
         search();
     }
     void startInteraction(BlockPos target) {
-        BlockPos best = null;
-        double bestDistance = Double.POSITIVE_INFINITY;
+        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
         for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             BlockPos stance = target.add(dx, dy, dz);
             if (stance.down().equals(target)) continue; // Mining must not remove the support for arrival.
@@ -57,12 +56,28 @@ final class MovementController {
             if (eye.squaredDistanceTo(aim) > reach * reach) continue;
             var hit = client.world.raycast(new net.minecraft.world.RaycastContext(eye, aim, net.minecraft.world.RaycastContext.ShapeType.OUTLINE, net.minecraft.world.RaycastContext.FluidHandling.NONE, client.player));
             if (hit.getType() != net.minecraft.util.hit.HitResult.Type.BLOCK || !hit.getBlockPos().equals(target)) continue;
-            double distance = client.player.squaredDistanceTo(Vec3d.ofCenter(stance));
-            if (distance < bestDistance) { bestDistance = distance; best = stance; }
+            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
-        if (best == null) { start(target, 1); return; } // Buried targets require a mined approach.
-        stop(); goal = Goal.exact(best.getX(), best.getY(), best.getZ()); replans = 0; search();
+        if (stances.isEmpty()) { start(target, 1); return; }
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
     }
+    void startPickup(net.minecraft.entity.ItemEntity item) {
+        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
+        BlockPos target = item.getBlockPos();
+        for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            BlockPos stance = target.add(dx, dy, dz);
+            terrain.probeStance(stance.getX(), stance.getY(), stance.getZ(), probe);
+            if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)) continue;
+            // Reserve .25 blocks for the navigator's arrival tolerance.
+            var contact = new net.minecraft.util.math.Box(stance.getX() - .55, stance.getY(), stance.getZ() - .55,
+                stance.getX() + 1.55, stance.getY() + 1.8, stance.getZ() + 1.55);
+            if (!contact.intersects(item.getBoundingBox())) continue;
+            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+        }
+        if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
+    }
+
     private void search() {
         terrain.beginSearch();
         BlockPos start = client.player.getBlockPos();
@@ -88,12 +103,12 @@ final class MovementController {
             validatedPathIndex = -1;
             validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
             if (path == null || path.length() < 2) {
-                if (goal.matches(client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ())) return true;
+                if (goal.matches(client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ())) return finishArrival();
                 throw new NavigationFailure("No useful route in loaded terrain");
             }
         }
         if (pathIndex == path.length()) {
-            if (goal.matches(client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ())) { input.idle(); return true; }
+            if (goal.matches(client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ())) { input.idle(); return finishArrival(); }
             retry("Route segment ended before goal"); return false;
         }
         Path.Step next = path.step(pathIndex);
@@ -199,6 +214,25 @@ final class MovementController {
         boolean sneak = next.movement == Path.Movement.BRIDGE;
         input.drive(horizontal > .12 ? 1 : 0, 0, jump, sneak);
         client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
+        return false;
+    }
+    private boolean finishArrival() {
+        if (goal.kind != Goal.Kind.ANY || path.length() != 1) return true;
+        BlockPos feet = client.player.getBlockPos();
+        double dx = feet.getX() + .5 - client.player.getX();
+        double dz = feet.getZ() + .5 - client.player.getZ();
+        if (Math.hypot(dx, dz) < .12) return true;
+        terrain.probeStance(feet.getX(), feet.getY(), feet.getZ(), probe);
+        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)
+                || !terrain.isMotionClear(client.player.getX(), client.player.getY(), client.player.getZ(),
+                feet.getX() + .5, feet.getY(), feet.getZ() + .5, 0, probe)) {
+            throw new NavigationFailure("Cannot safely center at the interaction stance");
+        }
+        if (++ticksWithoutProgress > 80) throw new NavigationFailure("Interaction stance centering stalled");
+        client.player.setSprinting(false);
+        client.player.setYaw((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90));
+        client.player.setPitch(0);
+        input.drive(.4f, 0, false, false);
         return false;
     }
     private void retry(String reason) {

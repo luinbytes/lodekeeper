@@ -591,6 +591,119 @@ final class AcquisitionPlannerTest {
         assertEquals(BlockedReason.Code.NODE_LIMIT, result.blockedReasons().get(0).code());
     }
 
+    @Test
+    void fastPlanBootstrapsDiamondBootsWithoutExpandingEveryWoodAndToolChoice() {
+        ItemId cobble = ItemId.parse("minecraft:cobblestone"), coal = ItemId.parse("minecraft:coal");
+        ItemId rawIron = ItemId.parse("minecraft:raw_iron"), iron = ItemId.parse("minecraft:iron_ingot");
+        ItemId diamond = ItemId.parse("minecraft:diamond"), boots = ItemId.parse("minecraft:diamond_boots");
+        ItemId table = ItemId.parse("minecraft:crafting_table"), furnace = ItemId.parse("minecraft:furnace");
+        ItemId wooden = ItemId.parse("minecraft:wooden_pickaxe"), stone = ItemId.parse("minecraft:stone_pickaxe");
+        ItemId ironPick = ItemId.parse("minecraft:iron_pickaxe"), diamondPick = ItemId.parse("minecraft:diamond_pickaxe");
+        StationRequirement tableRequirement = new StationRequirement(StationId.parse(table.toString()), table, "craft");
+        StationRequirement furnaceRequirement = new StationRequirement(StationId.parse(furnace.toString()), furnace, "smelt");
+        TagId plankTag = TagId.parse("test:many_planks");
+        var builder = CatalogSnapshot.builder().item(STICKS, 0).item(cobble, 0).item(coal, 0, 1600)
+                .item(rawIron, 0).item(iron, 0).item(diamond, 0).item(boots, 0).item(table, 0).item(furnace, 0)
+                .item(wooden, 59).item(stone, 131).item(ironPick, 250).item(diamondPick, 1561);
+        var planks = new java.util.ArrayList<ItemId>();
+        for (int index = 0; index < 24; index++) {
+            ItemId log = ItemId.parse("test:log_" + index), plank = ItemId.parse("test:plank_" + index);
+            planks.add(plank);
+            builder.item(log, 0).item(plank, 0)
+                .source(new GatherSource("gather:log_" + index, log, 1, List.of(BlockId.parse(log.toString()))))
+                .source(new CraftingSource("craft:planks_" + index, plank, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(log))), List.of()));
+        }
+        builder.tag(plankTag, planks);
+        builder.source(new CraftingSource("craft:sticks", STICKS, 4, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.tag(plankTag, 2))), List.of()));
+        builder.source(new CraftingSource("craft:table", table, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.tag(plankTag, 4))), List.of()));
+        for (var entry : Map.of(wooden, Ingredient.tag(plankTag, 3), stone, Ingredient.of(3, cobble),
+                ironPick, Ingredient.of(3, iron), diamondPick, Ingredient.of(3, diamond)).entrySet()) {
+            builder.source(new CraftingSource("craft:" + entry.getKey().path(), entry.getKey(), 1, RecipeType.SHAPELESS, 0, 0,
+                    List.of(new RecipeSlot(-1, entry.getValue()), new RecipeSlot(-1, Ingredient.of(2, STICKS))),
+                    List.of(tableRequirement)));
+        }
+        builder.source(new GatherSource("gather:cobble", cobble, 1, List.of(BlockId.parse("minecraft:stone")),
+                List.of(new ToolRequirement(Ingredient.of(wooden, stone, ironPick, diamondPick), 2, "mine", 1))));
+        builder.source(new GatherSource("gather:raw_iron", rawIron, 1, List.of(BlockId.parse("minecraft:iron_ore")),
+                List.of(new ToolRequirement(Ingredient.of(stone, ironPick, diamondPick), 2, "mine", 1))));
+        builder.source(new GatherSource("gather:coal", coal, 1, List.of(BlockId.parse("minecraft:coal_ore")),
+                List.of(new ToolRequirement(Ingredient.of(wooden, stone, ironPick, diamondPick), 2, "mine", 1))));
+        builder.source(new GatherSource("gather:diamond", diamond, 1, List.of(BlockId.parse("minecraft:diamond_ore")),
+                List.of(new ToolRequirement(Ingredient.of(ironPick, diamondPick), 2, "mine", 1))));
+        builder.source(new CraftingSource("craft:furnace", furnace, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.of(8, cobble))), List.of(tableRequirement)));
+        builder.source(new SmeltingSource("smelt:iron", iron, 1, Ingredient.of(rawIron),
+                List.of(ItemSelector.item(coal)), 200, List.of(furnaceRequirement)));
+        ItemId ironBlock = ItemId.parse("minecraft:iron_block");
+        builder.item(ironBlock, 0)
+                .source(new CraftingSource("craft:iron_ingot_from_block", iron, 9, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(ironBlock))), List.of()))
+                .source(new CraftingSource("craft:iron_block", ironBlock, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(9, iron))), List.of(tableRequirement)));
+        builder.source(new CraftingSource("craft:boots", boots, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.of(4, diamond))), List.of(tableRequirement)));
+        PlanResult result = planner().planFast(builder.build(), new InventorySnapshot(Map.of()), boots, 1,
+                new PlannerLimits(48, 300, 20, 12, 4096, 1_000_000));
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertFalse(result.optimal());
+        assertEquals(4, result.steps().stream().filter(step -> step.sourceId().equals("gather:diamond"))
+                .mapToInt(PlanStep::outputCount).sum());
+        assertEquals(3, result.steps().stream().filter(step -> step.sourceId().equals("smelt:iron"))
+                .mapToInt(PlanStep::outputCount).sum());
+        assertTrue(indexOfSource(result, "craft:wooden_pickaxe") < indexOfSource(result, "craft:stone_pickaxe"));
+        assertTrue(indexOfSource(result, "craft:stone_pickaxe") < indexOfSource(result, "craft:iron_pickaxe"));
+        assertTrue(indexOfSource(result, "craft:iron_pickaxe") < indexOfSource(result, "gather:diamond"));
+        assertTrue(result.expandedNodes() < 300);
+    }
+
+    @Test
+    void fastPlanRestartsFromOriginalInventoryAfterGreedyResourceConflict() {
+        ItemId a = ItemId.parse("test:a"), b = ItemId.parse("test:b");
+        ItemId intermediate = ItemId.parse("test:intermediate"), target = ItemId.parse("test:target");
+        var builder = CatalogSnapshot.builder().item(a, 0).item(b, 0).item(intermediate, 0).item(target, 0);
+        for (ItemId input : List.of(a, b)) builder.source(new CraftingSource("craft:" + input.path(), intermediate, 1,
+                RecipeType.SHAPELESS, 0, 0, List.of(new RecipeSlot(-1, Ingredient.of(input))), List.of()));
+        builder.source(new CraftingSource("craft:target", target, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.of(intermediate)), new RecipeSlot(-1, Ingredient.of(a))), List.of()));
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(a, 1, b, 1));
+        CatalogSnapshot catalog = builder.build();
+        PlanResult result = planner().planFast(catalog, inventory, target, 1);
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("craft:b", "craft:target"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(Map.of(a, 1, b, 1), inventory.counts());
+        assertTrue(result.blockedReasons().isEmpty());
+        PlanResult beamOnly = planner().plan(catalog, inventory, target, 1);
+        assertTrue(result.expandedNodes() > beamOnly.expandedNodes());
+        int insufficientCombinedBudget = result.expandedNodes() - 1;
+        PlanResult capped = planner().planFast(catalog, inventory, target, 1,
+                new PlannerLimits(48, insufficientCombinedBudget, 20, 12, 4096, 1_000_000));
+        assertFalse(capped.success());
+        assertEquals(insufficientCombinedBudget, capped.expandedNodes());
+        assertEquals(BlockedReason.Code.NODE_LIMIT, capped.blockedReasons().get(0).code());
+    }
+
+    @Test
+    void fastPlanFallbackSharesTheOriginalTimeAndNodeBudgets() {
+        CatalogSnapshot catalog = woodToSticksCatalog();
+        for (long observed : new long[]{15_000_000L, 19_999_999L, 20_000_000L}) {
+            var reads = new java.util.concurrent.atomic.AtomicInteger();
+            var planner = new AcquisitionPlanner(() -> reads.getAndIncrement() == 0 ? 0L : observed);
+            PlanResult result = planner.planFast(catalog, new InventorySnapshot(Map.of(LOG, 1)), LOG, 1);
+            assertEquals(observed < 20_000_000L, result.success());
+            assertEquals(observed, result.elapsedNanos());
+            assertTrue(result.expandedNodes() <= PlannerLimits.DEFAULT.maximumExpandedNodes());
+            if (!result.success()) assertEquals(BlockedReason.Code.TIME_LIMIT, result.blockedReasons().get(0).code());
+        }
+        PlanResult bounded = planner().planFast(catalog, new InventorySnapshot(Map.of()), STICKS, 4,
+                new PlannerLimits(48, 6, 20, 12, 4096, 1_000_000));
+        assertFalse(bounded.success());
+        assertEquals(6, bounded.expandedNodes());
+        assertEquals(BlockedReason.Code.NODE_LIMIT, bounded.blockedReasons().get(0).code());
+    }
+
     private static CatalogSnapshot woodToSticksCatalog() {
         return CatalogSnapshot.builder()
                 .item(LOG, 0)

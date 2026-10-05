@@ -47,8 +47,7 @@ final class MovementController {
         search();
     }
     void startInteraction(BlockPos target) {
-        BlockPos best = null;
-        double bestDistance = Double.POSITIVE_INFINITY;
+        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
         for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             BlockPos stance = target.offset(dx, dy, dz);
             if (stance.below().equals(target)) continue;
@@ -60,13 +59,28 @@ final class MovementController {
             if (eye.distanceToSqr(aim) > reach * reach) continue;
             var hit = client.level.clip(new ClipContext(eye, aim, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
             if (hit.getType() != HitResult.Type.BLOCK || !hit.getBlockPos().equals(target)) continue;
-            double distance = client.player.distanceToSqr(Vec3.atCenterOf(stance));
-            if (distance < bestDistance) { bestDistance = distance; best = stance; }
+            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
         }
-        if (best == null) { start(target, 1); return; }
-        stop(); goal = Goal.exact(best.getX(), best.getY(), best.getZ()); replans = 0;
-        search();
+        if (stances.isEmpty()) { start(target, 1); return; }
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
     }
+    void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
+        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
+        BlockPos target = item.blockPosition();
+        for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            BlockPos stance = target.offset(dx, dy, dz);
+            terrain.probeStance(stance.getX(), stance.getY(), stance.getZ(), probe);
+            if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)) continue;
+            // Reserve .25 blocks for the navigator's arrival tolerance.
+            var contact = new net.minecraft.world.phys.AABB(stance.getX() - .55, stance.getY(), stance.getZ() - .55,
+                stance.getX() + 1.55, stance.getY() + 1.8, stance.getZ() + 1.55);
+            if (!contact.intersects(item.getBoundingBox())) continue;
+            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
+        }
+        if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
+        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; search();
+    }
+
     private void search() {
         terrain.beginSearch();
         BlockPos start = client.player.blockPosition();
@@ -94,13 +108,13 @@ final class MovementController {
             validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
             if (path == null || path.length() < 2) {
                 BlockPos player = client.player.blockPosition();
-                if (goal.matches(player.getX(), player.getY(), player.getZ())) return true;
+                if (goal.matches(player.getX(), player.getY(), player.getZ())) return finishArrival();
                 throw new NavigationFailure("No useful route in loaded terrain");
             }
         }
         if (pathIndex == path.length()) {
             BlockPos player = client.player.blockPosition();
-            if (goal.matches(player.getX(), player.getY(), player.getZ())) { input.idle(); return true; }
+            if (goal.matches(player.getX(), player.getY(), player.getZ())) { input.idle(); return finishArrival(); }
             retry("Route segment ended before goal"); return false;
         }
         Path.Step next = path.step(pathIndex);
@@ -206,6 +220,25 @@ final class MovementController {
         boolean sneak = next.movement == Path.Movement.BRIDGE;
         input.drive(horizontal > .12 ? 1 : 0, 0, jump, sneak);
         client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
+        return false;
+    }
+    private boolean finishArrival() {
+        if (goal.kind != Goal.Kind.ANY || path.length() != 1) return true;
+        BlockPos feet = client.player.blockPosition();
+        double dx = feet.getX() + .5 - client.player.getX();
+        double dz = feet.getZ() + .5 - client.player.getZ();
+        if (Math.hypot(dx, dz) < .12) return true;
+        terrain.probeStance(feet.getX(), feet.getY(), feet.getZ(), probe);
+        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)
+                || !terrain.isMotionClear(client.player.getX(), client.player.getY(), client.player.getZ(),
+                feet.getX() + .5, feet.getY(), feet.getZ() + .5, 0, probe)) {
+            throw new NavigationFailure("Cannot safely center at the interaction stance");
+        }
+        if (++ticksWithoutProgress > 80) throw new NavigationFailure("Interaction stance centering stalled");
+        client.player.setSprinting(false);
+        client.player.setYRot((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90));
+        client.player.setXRot(0);
+        input.drive(.4f, 0, false, false);
         return false;
     }
     private void retry(String reason) {
