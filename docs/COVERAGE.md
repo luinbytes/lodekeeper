@@ -6,13 +6,13 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | --- | --- | --- |
 | Client commands, configurable prefix, plan preview, queues | Implemented; parser regression checks | Remote-server command interception and bounded preview spam |
 | Quantity planning, ingredient alternatives, tool and fuel reservations | Java regression checks | Long acquisition chains with interruptions and inventory changes |
-| Walking and mining reachable resources | Controlled 1.20.1, 1.21.1, 1.21.2 and 26.3 logs and stone | Natural forest, cave and underground ore discovery |
+| Walking and mining reachable resources | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 logs and stone | Natural forest, cave and underground ore discovery |
 | Jumping, drops, swimming, climbing, parkour | Navigation model and hazard regressions; physical behavior pending | Separate obstacle courses, submerged exits and safe fall limits |
 | Breaking obstacles and building paths | Navigation model; physical behavior pending | Reversible bridge and tunnel with material limits |
-| Inventory 2×2 and crafting-table 3×3 crafting | Controlled 1.20.1, 1.21.1, 1.21.2 and 26.3 logs, sticks and tool progression | Mixed alternatives, remainders, repeated crafts and cancellation |
-| Furnace construction and ownership | Controlled 1.20.1, 1.21.1, 1.21.2 and 26.3 furnace construction and iron smelting | Stop a bulk smelt, full inventory, outsider edits |
-| Automatic eating | Controlled 1.20.1, 1.21.1, 1.21.2 and 26.3 bread consumption, hunger recovery and resumed gathering | Natural-world food policy and other adapter families |
-| Modded registry items and ordinary recipes | Controlled 1.20.1, 1.21.1, 1.21.2 and 26.3 custom ore to custom 3×3 recipe, without target-item grants | Additional modded recipes, remainders and adapter families |
+| Inventory 2×2 and crafting-table 3×3 crafting | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 logs, sticks and tool progression | Mixed alternatives, remainders, repeated crafts and cancellation |
+| Furnace construction and ownership | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 furnace construction and iron smelting | Stop a bulk smelt, full inventory, outsider edits |
+| Automatic eating | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 bread consumption, hunger recovery and resumed gathering | Natural-world food policy and other adapter families |
+| Modded registry items and ordinary recipes | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 custom ore to custom 3×3 recipe, without target-item grants | Additional modded recipes, remainders and adapter families |
 | Project inventory loadouts and maintained stock | Implemented; quantity and hysteresis regressions | Foreground preemption, removal and protected stock during real crafting |
 | Full recipe knowledge | Legacy synchronized catalogs; modern local-server/learned-display prototype | Local reload and remote recipe-book updates; explicit locked-recipe blocker |
 | Exploration and persistent resource knowledge | Bounded loaded-chunk discovery only | Find a resource outside the initial loaded radius without unsafe travel |
