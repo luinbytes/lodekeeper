@@ -301,6 +301,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 for (int index = 0; index < 4; index++) {
                     world.setBlockAndUpdate(new BlockPos(8 + index, PLAYER_Y, 4), rubyOre.defaultBlockState());
                 }
+                long coalTicks = GameApi.fuelTicks(world, new ItemStack(Items.COAL));
+                long plankTicks = GameApi.fuelTicks(world, new ItemStack(Items.OAK_PLANKS));
+                if (coalTicks != 1600 || plankTicks != 300)
+                    throw new IllegalStateException("standard furnace fuel snapshot differs: coal=" + coalTicks + ", oak_planks=" + plankTicks);
                 clearInventory(player);
                 player.setHealth(player.getMaxHealth());
                 player.getFoodData().setFoodLevel(20);
