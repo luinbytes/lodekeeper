@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Development preview:** there is no playable release yet. Nine controlled checks each on 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 passed gathering, inventory/table crafting, tool and furnace progression, iron smelting, custom-content crafting, and eating while gathering. A single-command diamond-boots bootstrap on 1.21.1 also passed from empty inventory. Separate distant-wood checks on 1.21.1 and 26.3 passed travel into initially unloaded resource terrain; natural-world progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
+> **Development preview:** there is no playable release yet. Nine controlled checks each on 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 passed gathering, inventory/table crafting, tool and furnace progression, iron smelting, custom-content crafting, and eating while gathering. Single-command diamond-boots bootstraps on 1.21.1 and 26.3 also passed from empty inventory. Separate distant-wood checks on 1.21.1 and 26.3 passed travel into initially unloaded resource terrain; natural-world progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
 
 ### Tell it what you need
 
