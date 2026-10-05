@@ -46,6 +46,8 @@ final class MovementController {
     private int searchTicks;
     private int nextPartialCheckTick;
     private boolean budgetedSegment;
+    private enum DropPhase { NONE, LAUNCH, FALLING }
+    private DropPhase dropPhase = DropPhase.NONE;
     private int jumpEdgeIndex = -1;
     private boolean jumpWasAirborne;
     private boolean explorationRoute;
@@ -199,6 +201,7 @@ final class MovementController {
         if (planner != null) planner.cancel();
         planner = null;
         path = null;
+        dropPhase = DropPhase.NONE;
         clearPendingWorldAction();
         terrain.refreshStandingDimensions();
         if (canPlanFromCurrentStance()) {
@@ -252,6 +255,7 @@ final class MovementController {
             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
         planner = Planner.fromFeetY16(terrain, start.getX(), startFeetY16, start.getZ(), goal, options);
         path = null; pathIndex = 1; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
+        dropPhase = DropPhase.NONE;
         jumpEdgeIndex = -1; jumpWasAirborne = false;
         validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
     }
@@ -414,21 +418,32 @@ final class MovementController {
         settlingTicks = 0;
         long currentRevision = terrain.revision();
         boolean newEdge = validatedPathIndex != pathIndex;
+        Path.Step source = path.step(pathIndex - 1);
+        if (!newEdge && next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH
+                && hasDepartedDropLaunch(source, next,
+                edgeStartX, edgeStartZ,
+                client.player.getX(), client.player.getY(), client.player.getZ())) {
+            dropPhase = DropPhase.FALLING;
+        }
         if (newEdge || currentRevision != validatedRevision) {
-            Path.Step source = path.step(pathIndex - 1);
             double feetX = client.player.getX();
             double feetY = client.player.getY();
             double feetZ = client.player.getZ();
+            boolean validateCurrentStance = next.movement == Path.Movement.DROP
+                    ? dropPhase == DropPhase.LAUNCH : client.player.onGround();
             boolean safe = newEdge
                     ? PathEdgeValidator.isSafeEdge(terrain, source, next, feetX, feetY, feetZ,
                     true, true, config.allowParkour, sourceProbe, probe)
                     : PathEdgeValidator.isSafeContinuation(terrain, source, next,
                     edgeStartX, edgeStartY, edgeStartZ, feetX, feetY, feetZ,
-                    client.player.onGround(), config.allowParkour, sourceProbe, probe);
+                    validateCurrentStance, config.allowParkour, sourceProbe, probe);
             if (!safe) {
                 retry("Route edge became unsafe"); return false;
             }
-            if (newEdge) { edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ; }
+            if (newEdge) {
+                edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ;
+                dropPhase = next.movement == Path.Movement.DROP ? DropPhase.LAUNCH : DropPhase.NONE;
+            }
             validatedPathIndex = pathIndex;
             // A lift-only continuation does not prove the horizontal remainder. Keep it
             // uncached until feet clear the ledge, forcing that proof before forward input.
@@ -449,7 +464,8 @@ final class MovementController {
                 && currentFeetY >= next.feetY() ? Path.Movement.WALK : next.movement;
         if (!PathEdgeValidator.isCurrentMotionSafe(terrain, pointMovement,
                 currentFeetX, currentFeetY, currentFeetZ,
-                client.player.onGround(), sourceProbe, emptyProbe)) {
+                client.player.onGround(), next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH,
+                sourceProbe, emptyProbe)) {
             retry("Current player volume or support became unsafe"); return false;
         }
         int currentFeetY16 = GameTerrain.quantizedFeetY16(currentFeetY);
@@ -462,9 +478,11 @@ final class MovementController {
                 };
         double arrivalRadius = centeredLaunchRequired ? .10 : .22;
         if (horizontal < arrivalRadius && (currentFeetY16 == next.feetY16 || mediumArrival)
-                && (client.player.onGround() || probe.water || probe.climbable)) {
+                && (client.player.onGround() || probe.water || probe.climbable)
+                && (next.movement != Path.Movement.DROP || sourceProbe.fullSupport)) {
             client.player.setSprinting(false);
-            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; recordProgress(); return false;
+            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
+            dropPhase = DropPhase.NONE; recordProgress(); return false;
         }
         double distance = delta.lengthSqr();
         if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
@@ -482,10 +500,63 @@ final class MovementController {
         boolean sneak = next.movement == Path.Movement.BRIDGE;
         boolean risingBeforeLedge = next.movement == Path.Movement.JUMP
                 && currentFeetY < next.feetY();
-        input.drive(!risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0,
-                0, jump, sneak);
+        float forwardInput = next.movement == Path.Movement.DROP
+                ? dropForwardInput(next, currentFeetX, currentFeetY, currentFeetZ)
+                : !risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0;
+        input.drive(forwardInput, 0, jump, sneak);
         client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
         return false;
+    }
+
+    private boolean hasDepartedDropLaunch(Path.Step source, Path.Step destination,
+                                          double edgeStartX, double edgeStartZ,
+                                          double feetX, double feetY, double feetZ) {
+        if (feetY < source.feetY() - 0.05) return true;
+        int feetY16 = GameTerrain.quantizedFeetY16(feetY);
+        if (feetY16 == GameTerrain.INVALID_FEET_Y16
+                || !terrain.probeCurrentStance(feetX, feetY16, feetZ, sourceProbe)
+                || !sourceProbe.loaded || sourceProbe.hazard || !sourceProbe.bodyClear
+                || sourceProbe.breakCount != 0 || sourceProbe.fullSupport) return false;
+        AABB standingBox = client.player.getDimensions(Pose.STANDING).makeBoundingBox(0, 0, 0);
+        double halfWidth = (standingBox.maxX - standingBox.minX) * 0.5;
+        double routeX = destination.x + 0.5 - edgeStartX;
+        double routeZ = destination.z + 0.5 - edgeStartZ;
+        double projectedDisplacement = (feetX - edgeStartX) * routeX + (feetZ - edgeStartZ) * routeZ;
+        return projectedDisplacement > 1.0e-4
+                && crossesSourceFootprint(source, destination, feetX, feetZ, halfWidth);
+    }
+
+    private static boolean crossesSourceFootprint(Path.Step source, Path.Step destination,
+                                                  double feetX, double feetZ, double halfWidth) {
+        return (destination.x > source.x && feetX + halfWidth > source.x + 1.0001)
+                || (destination.x < source.x && feetX - halfWidth < source.x - 0.0001)
+                || (destination.z > source.z && feetZ + halfWidth > source.z + 1.0001)
+                || (destination.z < source.z && feetZ - halfWidth < source.z - 0.0001);
+    }
+
+    private float dropForwardInput(Path.Step destination, double feetX, double feetY, double feetZ) {
+        Vec3 motion = client.player.getDeltaMovement();
+        double towardX = destination.x + 0.5 - feetX;
+        double towardZ = destination.z + 0.5 - feetZ;
+        double distance = Math.hypot(towardX, towardZ);
+        if (distance < 1.0e-6) return 0;
+        towardX /= distance;
+        towardZ /= distance;
+        double closingSpeed = motion.x * towardX + motion.z * towardZ;
+        double desiredSpeed = dropPhase == DropPhase.LAUNCH ? 0.16 : Math.min(0.16, distance * 0.55);
+        float input = (float) Math.max(-0.6, Math.min(0.6, (desiredSpeed - closingSpeed) * 8.0));
+        if (input >= 0) return input;
+
+        double reverseDistance = Math.min(0.18, Math.max(0.04, Math.abs(closingSpeed) * 1.5));
+        double reverseX = feetX - towardX * reverseDistance;
+        double reverseZ = feetZ - towardZ * reverseDistance;
+        double reverseY = Math.max(destination.feetY(), feetY + Math.min(0.0, motion.y));
+        Path.Step source = path.step(pathIndex - 1);
+        if (!PathEdgeValidator.isWithinEdgeCorridor(source, destination,
+                    edgeStartX, edgeStartY, edgeStartZ, reverseX, reverseY, reverseZ)
+                || !PathEdgeValidator.isSweepClear(terrain, feetX, feetY, feetZ,
+                    reverseX, reverseY, reverseZ, emptyProbe)) return 0;
+        return input;
     }
     private boolean goalMatchesPlayer() {
         int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
@@ -548,7 +619,7 @@ final class MovementController {
     }
 
     void stop() {
-        explorationRoute = false; settlingTicks = 0; jumpEdgeIndex = -1; jumpWasAirborne = false;
+        explorationRoute = false; settlingTicks = 0; dropPhase = DropPhase.NONE; jumpEdgeIndex = -1; jumpWasAirborne = false;
         surfaceRecovery.stop();
         clearPendingWorldAction();
         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;

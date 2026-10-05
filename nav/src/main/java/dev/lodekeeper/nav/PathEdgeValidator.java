@@ -256,17 +256,27 @@ public final class PathEdgeValidator {
                                               double feetX, double feetY, double feetZ,
                                               boolean grounded, StanceProbe stanceProbe,
                                               StanceProbe emptyProbe) {
+        return isCurrentMotionSafe(terrain, movement, feetX, feetY, feetZ,
+                grounded, false, stanceProbe, emptyProbe);
+    }
+
+    public static boolean isCurrentMotionSafe(Terrain terrain, Path.Movement movement,
+                                              double feetX, double feetY, double feetZ,
+                                              boolean grounded, boolean requireFullSupport,
+                                              StanceProbe stanceProbe, StanceProbe emptyProbe) {
         if (terrain == null || movement == null || stanceProbe == null || emptyProbe == null
                 || !Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)) return false;
         if (!terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ,
                 0.0, emptyProbe)) return false;
-        if (!grounded) return true;
+        if (!grounded && !requireFullSupport) return true;
 
         if (!probeCurrentStance(terrain, feetX, feetY, feetZ, movement, stanceProbe)) return false;
-        // A validated drop leaves full launch support before vanilla clears its grounded flag.
+        if (requireFullSupport && !stanceProbe.fullSupport) return false;
+        // The active edge proves launch and landing; this point guard permits vanilla's stale
+        // grounded flag after geometric departure while still checking the live body and hazards.
         if (movement == Path.Movement.DROP) {
             return stanceProbe.loaded && !stanceProbe.hazard && stanceProbe.bodyClear
-                    && stanceProbe.breakCount == 0 && stanceProbe.hasGroundSupport();
+                    && stanceProbe.breakCount == 0;
         }
         return safeStance(stanceProbe, movement, true);
     }

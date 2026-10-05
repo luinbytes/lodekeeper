@@ -1,0 +1,179 @@
+{
+  "checkedAt": "2026-10-05T23:28:29.765205+00:00",
+  "productionBuildCommit": "f92a6cab7105a65fba2482fd5e1f71d9d0c4be36",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075",
+  "status": "completed",
+  "conclusion": "success",
+  "exactVersionBuilds": 24,
+  "scope": "Exact-key grounded movement pruning and partial-support DROP point correction. Later visualization, shared ingredient discovery and explicit departure/landing work are excluded. Build success is separate from gameplay acceptance and performance comparison.",
+  "jobs": [
+    {
+      "name": "adapters (1.20.1, 17, fabric)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:12:44Z",
+      "completedAt": "2026-10-05T23:15:12Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133262"
+    },
+    {
+      "name": "adapters (1.21.3, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:17:36Z",
+      "completedAt": "2026-10-05T23:19:37Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133496"
+    },
+    {
+      "name": "adapters (1.20.5, 21, fabric-1211)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:16:00Z",
+      "completedAt": "2026-10-05T23:18:47Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133497"
+    },
+    {
+      "name": "adapters (1.20.4, 17, fabric-1202)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:15:14Z",
+      "completedAt": "2026-10-05T23:17:02Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133509"
+    },
+    {
+      "name": "adapters (1.21.11, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:12:41Z",
+      "completedAt": "2026-10-05T23:14:06Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133562"
+    },
+    {
+      "name": "adapters (1.20.2, 17, fabric-1202)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:14:47Z",
+      "completedAt": "2026-10-05T23:17:32Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133565"
+    },
+    {
+      "name": "adapters (1.21.4, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:18:49Z",
+      "completedAt": "2026-10-05T23:20:24Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133595"
+    },
+    {
+      "name": "adapters (1.20.3, 17, fabric-1202)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:14:57Z",
+      "completedAt": "2026-10-05T23:16:36Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133630"
+    },
+    {
+      "name": "adapters (1.21.2, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:13:52Z",
+      "completedAt": "2026-10-05T23:15:55Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133683"
+    },
+    {
+      "name": "adapters (1.20, 17, fabric)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:14:09Z",
+      "completedAt": "2026-10-05T23:14:45Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133729"
+    },
+    {
+      "name": "adapters (1.20.6, 21, fabric-1211)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:16:39Z",
+      "completedAt": "2026-10-05T23:19:07Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133735"
+    },
+    {
+      "name": "adapters (1.21.1, 21, fabric-1211)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:12:41Z",
+      "completedAt": "2026-10-05T23:14:54Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133800"
+    },
+    {
+      "name": "adapters (26.3, 25, fabric-modern)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:12:41Z",
+      "completedAt": "2026-10-05T23:13:49Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133825"
+    },
+    {
+      "name": "adapters (1.21, 21, fabric-1211)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:17:05Z",
+      "completedAt": "2026-10-05T23:19:19Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023133847"
+    },
+    {
+      "name": "adapters (1.21.6, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:19:21Z",
+      "completedAt": "2026-10-05T23:20:37Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135240"
+    },
+    {
+      "name": "adapters (1.21.8, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:20:26Z",
+      "completedAt": "2026-10-05T23:22:04Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135256"
+    },
+    {
+      "name": "adapters (1.21.9, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:20:40Z",
+      "completedAt": "2026-10-05T23:22:13Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135283"
+    },
+    {
+      "name": "adapters (1.21.5, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:19:10Z",
+      "completedAt": "2026-10-05T23:20:46Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135350"
+    },
+    {
+      "name": "adapters (26.1, 25, fabric-modern)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:21:46Z",
+      "completedAt": "2026-10-05T23:22:38Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135441"
+    },
+    {
+      "name": "adapters (1.21.10, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:20:49Z",
+      "completedAt": "2026-10-05T23:22:46Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135444"
+    },
+    {
+      "name": "adapters (26.1.2, 25, fabric-modern)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:22:16Z",
+      "completedAt": "2026-10-05T23:23:33Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135461"
+    },
+    {
+      "name": "adapters (1.21.7, 21, fabric-1212)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:19:39Z",
+      "completedAt": "2026-10-05T23:21:43Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135492"
+    },
+    {
+      "name": "adapters (26.2, 25, fabric-modern)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:22:41Z",
+      "completedAt": "2026-10-05T23:24:13Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135588"
+    },
+    {
+      "name": "adapters (26.1.1, 25, fabric-modern)",
+      "conclusion": "success",
+      "startedAt": "2026-10-05T23:22:06Z",
+      "completedAt": "2026-10-05T23:23:09Z",
+      "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37387033075/job/112023135667"
+    }
+  ]
+}

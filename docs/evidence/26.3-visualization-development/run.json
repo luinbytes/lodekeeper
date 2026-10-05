@@ -1,0 +1,134 @@
+{
+  "runId": "2026-10-05T23-24-38-489462Z-719ffdfb",
+  "status": "passed",
+  "minecraftVersion": "26.3",
+  "worldKind": "isolated_superflat_fixture",
+  "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+  "verificationMode": "nearby_wood",
+  "runDirectory": "/Users/luinbytes/src/lodekeeper/fabric-modern/run-verification",
+  "worldId": "run-a603174481fa46fa",
+  "elapsedMillis": 41512,
+  "clientTicks": 561,
+  "failure": "",
+  "serverTableOpened": false,
+  "serverFurnaceOpened": false,
+  "serverTableOpenings": 0,
+  "serverFurnaceOpenings": 0,
+  "ironPickaxeFixture": false,
+  "ironPickaxeEmptyDistantWoodFlag": false,
+  "nearbyWoodFlag": true,
+  "nearbyWoodGoal": "crafting_table",
+  "nearbyWoodTerrain": "meadow",
+  "nativeRouteBenchmark": [
+    {
+      "warmup": true,
+      "elapsedNanos": 154776814,
+      "advanceCalls": 39,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 92832601,
+      "advanceCalls": 31,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 86061698,
+      "advanceCalls": 30,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 100441332,
+      "advanceCalls": 26,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    }
+  ],
+  "coalRecoveryFixture": false,
+  "cases": [
+    {
+      "name": "nearby_crafting_table_20_blocks_meadow",
+      "item": "minecraft:crafting_table",
+      "expected": 1,
+      "serverObserved": 1,
+      "inventoryEmptyAtStart": true,
+      "passed": true,
+      "clientTicks": 375,
+      "worldTicks": 376,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "server inventory reached one minecraft:crafting_table from empty inventory with oak logs 20 blocks away",
+      "serverHealth": 20.0,
+      "serverDifficulty": "PEACEFUL",
+      "serverCraftingTableOpenedDuringCase": false,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverIronPickaxeCount": 0,
+      "serverFoodLevelAtStart": 20,
+      "serverFoodLevelObserved": 20,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "19.80728312360883,67.0,0.5",
+      "elapsedMillisFromCommand": 18371,
+      "firstServerMovementMillisFromCommand": 2370,
+      "liveRouteScreenshot": "screenshots/lodekeeper-2026-10-05T23-24-38-489462Z-719ffdfb-nearby_crafting_table_20_blocks_meadow-active-route.png",
+      "nativeRouteBenchmark": [
+        {
+          "warmup": true,
+          "elapsedNanos": 154776814,
+          "advanceCalls": 39,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 92832601,
+          "advanceCalls": 31,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 86061698,
+          "advanceCalls": 30,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 100441332,
+          "advanceCalls": 26,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        }
+      ],
+      "requiresEmptyAtStart": true
+    }
+  ],
+  "explorationFixture": false,
+  "diamondBootsFixture": false,
+  "bulkWoodFixtureLogCount": 0,
+  "woodToolsFlag": false,
+  "woodToolsEnabled": false,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 0
+}

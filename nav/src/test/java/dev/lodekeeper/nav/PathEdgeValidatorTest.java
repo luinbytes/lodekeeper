@@ -121,22 +121,67 @@ final class PathEdgeValidatorTest {
         terrain.stance(1, 0, 0).fullSupport = true;
         assertTrue(edge(terrain, source, landing, .5, 1, .5, true, true));
 
+        assertTrue(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .5, 1, .5, true, true, new StanceProbe(), new StanceProbe()));
         current.fullSupport = false;
         current.surfaceSupport = true;
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .5, 1, .5, true, true, new StanceProbe(), new StanceProbe()),
+                "the launch phase rechecks full support without relying on a revision change");
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .5, 1, .5, false, true, new StanceProbe(), new StanceProbe()),
+                "the grounded flag cannot bypass the launch phase's support requirement");
         assertTrue(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
                 .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
         assertFalse(edge(terrain, source, landing, .85, 1, .5, true, true),
                 "a new drop still needs full launch support");
+        assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .5, 1, .5, .5, 1, .5, true, true,
+                new StanceProbe(), new StanceProbe()),
+                "a terrain revision before departure still needs full support under the player");
 
         current.surfaceSupport = false;
         assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .5, 1, .5, true, true, new StanceProbe(), new StanceProbe()));
+        assertTrue(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
+                .85, 1, .5, true, new StanceProbe(), new StanceProbe()),
+                "vanilla may still report grounded for a tick after the validated drop leaves support");
+        assertFalse(edge(terrain, source, landing, .85, 1, .5, true, true));
+        assertTrue(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .5, 1, .5, .85, 1, .5, false, true,
+                new StanceProbe(), new StanceProbe()),
+                "a departed drop rechecks its landing and remaining sweep without relaunching");
+        assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.WALK,
                 .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
+        StanceProbe landingProbe = terrain.stance(1, 0, 0);
+        landingProbe.fullSupport = false;
+        assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .85, 1, .5, .85, 1, .5, false, true,
+                new StanceProbe(), new StanceProbe()),
+                "a departed drop still needs its original safe landing support");
+        landingProbe.fullSupport = true;
+        landingProbe.hazard = true;
+        assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .85, 1, .5, .85, 1, .5, false, true,
+                new StanceProbe(), new StanceProbe()),
+                "a departed drop rejects a hazardous landing");
+        landingProbe.hazard = false;
+        landingProbe.bodyClear = false;
+        assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .85, 1, .5, .85, 1, .5, false, true,
+                new StanceProbe(), new StanceProbe()),
+                "a departed drop rejects a blocked landing body");
+        landingProbe.bodyClear = true;
         current.surfaceSupport = true;
         current.hazard = true;
         assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
                 .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
         current.hazard = false;
         terrain.sweepClear = false;
+        assertFalse(PathEdgeValidator.isSafeContinuation(terrain, source, landing,
+                .85, 1, .5, .85, 1, .5, false, true,
+                new StanceProbe(), new StanceProbe()),
+                "a departed drop rejects a changed remaining sweep");
         assertFalse(PathEdgeValidator.isCurrentMotionSafe(terrain, Path.Movement.DROP,
                 .85, 1, .5, true, new StanceProbe(), new StanceProbe()));
     }
