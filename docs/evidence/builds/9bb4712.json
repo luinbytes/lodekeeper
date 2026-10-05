@@ -1,0 +1,249 @@
+{
+  "sourceCommit": "9bb47122271bdbdf6f9f53665624b9a048ae4fdc",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37296721624",
+  "ciConclusion": "success",
+  "checkedAt": "2026-10-05",
+  "scope": "All24 exact development builds and downloaded artifact inspection including bounded resource exploration and unified wood discovery. Predates dependency-union and fast-bootstrap planner work; not gameplay acceptance.",
+  "artifacts": [
+    {
+      "minecraft": "1.20",
+      "artifact": "lodekeeper-1.20-0.1.0-dev.jar",
+      "sha256": "a6a9f6de5b33bf727c02a5c50ed590ea5ddb45faaaec8464b23ef967aff76d8d",
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.1",
+      "artifact": "lodekeeper-1.20.1-0.1.0-dev.jar",
+      "sha256": "b5f5d769930ad826f37e3709de37d83ca170183fadd0334d8fbb8a96299b1faa",
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.2",
+      "artifact": "lodekeeper-1.20.2-0.1.0-dev.jar",
+      "sha256": "47f5d58534af013d36bf475870c1e9d06a457d1d0e6932df61689703101d43e7",
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.3",
+      "artifact": "lodekeeper-1.20.3-0.1.0-dev.jar",
+      "sha256": "817a964bb3d35e992700368fc91d57d2f6433d53419fd42121c48ef227703842",
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.4",
+      "artifact": "lodekeeper-1.20.4-0.1.0-dev.jar",
+      "sha256": "22a4bbf5e82c9432f60155e80eeb02bcb3f39a40c067d24c6091da2e0937ce60",
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.5",
+      "artifact": "lodekeeper-1.20.5-0.1.0-dev.jar",
+      "sha256": "117e9750de3ca743aa2b427f74d11b6af402f52521c0ca16ad102da9e9225fa5",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.20.6",
+      "artifact": "lodekeeper-1.20.6-0.1.0-dev.jar",
+      "sha256": "454653de27674e6d8c577c18b6a6f63f9081d314b571a45f7dfead5c4d4397fe",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21",
+      "artifact": "lodekeeper-1.21-0.1.0-dev.jar",
+      "sha256": "13ed3ffb59b8fc8da10804b8b99bc1ae39386fcc2bdd2e58e6bc2ff4f8c9572c",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.1",
+      "artifact": "lodekeeper-1.21.1-0.1.0-dev.jar",
+      "sha256": "dc305e8ad802612016069f75c7867561b0c454ad0fa477b88bb2d10adf1a3a1b",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.10",
+      "artifact": "lodekeeper-1.21.10-0.1.0-dev.jar",
+      "sha256": "fce80b00ab568601d260d85169d795c7af5e4b93cfac02d9d7d4cc4770a9e342",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.11",
+      "artifact": "lodekeeper-1.21.11-0.1.0-dev.jar",
+      "sha256": "c75a7cf83c8de05cb75551134e3e2b44641a5a4e21086352192c47b724111750",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.2",
+      "artifact": "lodekeeper-1.21.2-0.1.0-dev.jar",
+      "sha256": "b8eb1bb347ce042fc6a316d15158a95001daa50cf7460ad538ff3e91ea845244",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.3",
+      "artifact": "lodekeeper-1.21.3-0.1.0-dev.jar",
+      "sha256": "c45ae480fcd6810c5a7b2e19ecd2d596139bcd20dbe2b579b84b25e85ffc5df8",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.4",
+      "artifact": "lodekeeper-1.21.4-0.1.0-dev.jar",
+      "sha256": "c8458fc4c7edc95f40b9ec1858d5e3a136c3f327eeef59d407905c68e3c872b0",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.5",
+      "artifact": "lodekeeper-1.21.5-0.1.0-dev.jar",
+      "sha256": "e275864c6344fcc337306e4a4764ad8c87d7653987b8afd7ab52fae02cfd4cc6",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.6",
+      "artifact": "lodekeeper-1.21.6-0.1.0-dev.jar",
+      "sha256": "99937b46ce63e9e52a4e87d8db71b15370c0820ca65257d2c1b1cc0ba33ea42d",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.7",
+      "artifact": "lodekeeper-1.21.7-0.1.0-dev.jar",
+      "sha256": "35d61d781c5b9beeca74beeb397b288cf1877653c9eb52717a66050d6d632660",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.8",
+      "artifact": "lodekeeper-1.21.8-0.1.0-dev.jar",
+      "sha256": "ac4e107d2be9d6377bdd9551ef263d0bea8c6cbbc2f1a5e6070271ccfa3ec898",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "1.21.9",
+      "artifact": "lodekeeper-1.21.9-0.1.0-dev.jar",
+      "sha256": "b3b84f3b74ae24ab8aab933fddc0c041a781a9ff7437f327a6f35e847c8498c6",
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "26.1",
+      "artifact": "lodekeeper-26.1-0.1.0-dev.jar",
+      "sha256": "73bff69a461f1a34199f04b133f5f77618f12d5143397c4973949c9d1fd7fe29",
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "26.1.1",
+      "artifact": "lodekeeper-26.1.1-0.1.0-dev.jar",
+      "sha256": "0db6d48efc500750bf4b03e8e6abdd0a7ec4f5b3536ec6a32ff666702286df65",
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "26.1.2",
+      "artifact": "lodekeeper-26.1.2-0.1.0-dev.jar",
+      "sha256": "65806982537defe2c8663353a905d3cd0e2c36ad715ecebe42c59800bd14d918",
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "26.2",
+      "artifact": "lodekeeper-26.2-0.1.0-dev.jar",
+      "sha256": "e40239e4a98e3886a71c423a3b09a4ee4d10300b0be0fe54adef991a13ed868e",
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    },
+    {
+      "minecraft": "26.3",
+      "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+      "sha256": "16c51500a8ccb615bb940579508e835eb2c9ac0f58991f249ec5443bb67d1ff4",
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadata": true,
+      "verificationFixturesExcluded": true
+    }
+  ]
+}

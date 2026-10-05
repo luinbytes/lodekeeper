@@ -10,14 +10,14 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.3, 1.20.4 | 17 | Each exact CI development build passes | Pending |
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
-| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
+| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases and initially unloaded distant wood pass; natural-world checks pending** |
 | 1.21.2, 1.21.3 | 21 | Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
 | 1.21.4, 1.21.5 | 21 | Both exact CI development builds pass after client API/toolchain fixes | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Each exact CI development build and native display regressions pass | Pending |
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
-| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `68d2998` | Pending |
-| 26.2 | 25 | Exact local and CI development builds pass at `68d2998` | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases pass; natural-world checks pending |
+| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `9bb4712` | Pending |
+| 26.2 | 25 | Exact local and CI development builds pass at `9bb4712` | Pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases and initially unloaded distant wood pass; natural-world checks pending |
 
 ## What a check proves
 
@@ -53,3 +53,5 @@ Controlled 1.21.2 progression: [nine-case observations and screenshots](evidence
 Controlled 1.21.11 at `68d2998`: [nine-case observations and screenshots](evidence/1.21.11-progression/run.json), with [paired artifact/source digests](evidence/1.21.11-progression/artifact.json). All nine cases pass in 170563 ms with health 20 throughout, including native inventory/table crafting, furnace smelting, custom content and automatic eating. This also exercises the 1.21.5+ input family and 1.21.9+ client API seams. It does not establish gameplay on the intervening exact releases or ordinary-world progression.
 
 All 24 exact stable profiles pass in [CI at `68d2998`](https://github.com/luinbytes/lodekeeper/actions/runs/37292298245). [Downloaded artifact inspection](evidence/builds/68d2998.json) validates every SHA-256 against its CI digest, exact Minecraft metadata, required JVM/class versions, bundled Java 17 core, required Yarn mixin refmaps, and exclusion of verifier classes/content. This is a packaging milestone, not gameplay support across all 24 releases; it predates the bounded exploration work.
+
+Bounded exploration at `9bb4712`: [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3](evidence/26.3-exploration/run.json) controlled single-goal checks passed from empty inventory to eight logs in an initially unloaded resource chunk. The archived source patches identify the exact development clients. [All24 exact builds pass](https://github.com/luinbytes/lodekeeper/actions/runs/37296721624); [downloaded artifact inspection](evidence/builds/9bb4712.json) verifies their digests, exact metadata, JVM versions, bundled Java17 navigation/core and verifier exclusion. This predates the dependency-union and fast-bootstrap planner changes.

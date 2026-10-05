@@ -46,6 +46,7 @@ Source lives in `core` (acquisition and commands), `nav` (custom navigation), an
 - [Isolated gameplay verifier](docs/GAME-VERIFICATION.md)
 - [Custom block drop contracts](docs/CUSTOM-CONTENT.md)
 - [Full mechanic coverage ledger](docs/COVERAGE.md)
+- [Cooking station expansion design](docs/PROCESSING-STATIONS.md)
 - [Repository instructions](AGENTS.md)
 
 Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks; this project makes no superiority claim before those measurements exist.
