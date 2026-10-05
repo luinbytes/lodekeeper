@@ -51,6 +51,32 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void reservesHeldItemsForLessFlexibleShapelessIngredientsAcrossCraftCycles() {
+        ItemId a = ItemId.parse("test:a");
+        ItemId b = ItemId.parse("test:b");
+        ItemId output = ItemId.parse("test:output");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(a, 0)
+                .item(b, 0)
+                .item(output, 0)
+                .source(new CraftingSource("overlapping-shapeless", output, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.choices(List.of(a, b), 1)),
+                                new RecipeSlot(-1, Ingredient.of(a))), List.of()))
+                .build();
+
+        PlanResult result = new AcquisitionPlanner().plan(catalog, new InventorySnapshot(Map.of(a, 2, b, 2)), output, 2);
+
+        assertTrue(result.success());
+        PlanStep craft = result.steps().stream().filter(step -> step.kind() == PlanKind.CRAFT).findFirst().orElseThrow();
+        assertEquals(2, craft.operationCount());
+        List<SelectedItemRequirement> ingredients = craft.requirements().stream()
+                .filter(SelectedItemRequirement.class::isInstance).map(SelectedItemRequirement.class::cast)
+                .filter(requirement -> requirement.purpose().equals("recipe ingredient")).toList();
+        assertEquals(Set.of(new SelectedItemRequirement(b, 2, true, "recipe ingredient", 0),
+                new SelectedItemRequirement(a, 2, true, "recipe ingredient", 1)), Set.copyOf(ingredients));
+    }
+
+    @Test
     void computesFuelForTheWholeSmeltingBatch() {
         ItemId rawIron = ItemId.parse("minecraft:raw_iron");
         ItemId iron = ItemId.parse("minecraft:iron_ingot");

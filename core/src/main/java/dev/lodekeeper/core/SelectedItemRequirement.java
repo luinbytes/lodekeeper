@@ -2,7 +2,7 @@ package dev.lodekeeper.core;
 
 import java.util.Objects;
 
-/** Exact item amount selected for a step. count is total across all operations. */
+/** Exact item amount selected for a step. count is total across all operations; planner recipe slots identify concrete shaped or shapeless ingredients. */
 public record SelectedItemRequirement(ItemId item, int count, boolean consumed, String purpose, int recipeSlot) implements SelectedRequirement {
     public SelectedItemRequirement {
         Objects.requireNonNull(item, "item");

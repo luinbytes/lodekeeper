@@ -164,9 +164,17 @@ public final class AcquisitionPlanner {
 
         private List<Prepared> prepareCrafting(List<Prepared> initial, CraftingSource source, int operations, Set<ItemId> path, int depth) {
             List<Prepared> prepared = initial;
-            Map<Ingredient, List<RecipeSlot>> groups = new LinkedHashMap<>();
-            for (RecipeSlot slot : source.slots()) groups.computeIfAbsent(slot.ingredient(), ignored -> new ArrayList<>()).add(slot);
-            for (Map.Entry<Ingredient, List<RecipeSlot>> entry : groups.entrySet()) {
+            Map<Ingredient, List<Integer>> groups = new LinkedHashMap<>();
+            for (int index = 0; index < source.slots().size(); index++) {
+                RecipeSlot slot = source.slots().get(index);
+                int recipeIndex = source.recipeType() == RecipeType.SHAPELESS ? index : slot.slotIndex();
+                groups.computeIfAbsent(slot.ingredient(), ignored -> new ArrayList<>()).add(recipeIndex);
+            }
+            List<Map.Entry<Ingredient, List<Integer>>> orderedGroups = groups.entrySet().stream()
+                    .sorted(Comparator.comparingInt((Map.Entry<Ingredient, List<Integer>> entry) -> expanded(entry.getKey(), path).size())
+                            .thenComparingInt(entry -> entry.getValue().stream().mapToInt(Integer::intValue).min().orElse(Integer.MAX_VALUE)))
+                    .toList();
+            for (Map.Entry<Ingredient, List<Integer>> entry : orderedGroups) {
                 Ingredient ingredient = entry.getKey();
                 long total = (long) ingredient.count() * operations * entry.getValue().size();
                 long perSlot = (long) ingredient.count() * operations;
@@ -174,7 +182,7 @@ public final class AcquisitionPlanner {
                     fail(BlockedReason.Code.STEP_LIMIT, source.output(), "Recipe ingredient quantity exceeds planner limits", pathWith(path, source.output()));
                     return List.of();
                 }
-                List<Integer> slots = entry.getValue().stream().map(RecipeSlot::slotIndex).toList();
+                List<Integer> slots = entry.getValue().stream().sorted().toList();
                 prepared = chooseIngredientGroup(prepared, ingredient, (int) total, (int) perSlot, slots,
                         "recipe ingredient", path, depth);
                 if (prepared.isEmpty()) return prepared;
@@ -187,10 +195,11 @@ public final class AcquisitionPlanner {
                                                      Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             List<ItemId> alternatives = expanded(ingredient, path);
+            int requiredUses = total / ingredient.count();
             for (Prepared candidate : initial) {
                 // Allocate full ingredient-count chunks from held tag alternatives before sourcing more.
                 int ingredientCount = ingredient.count();
-                int remainingUses = total / ingredientCount;
+                int remainingUses = requiredUses;
                 var allocations = new LinkedHashMap<ItemId, Integer>();
                 List<ItemId> stocked = alternatives.stream().filter(item -> candidate.state.spendableCount(item) >= ingredientCount)
                         .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.spendableCount(item)).reversed().thenComparing(Comparator.naturalOrder()))
