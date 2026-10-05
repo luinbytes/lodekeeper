@@ -136,7 +136,8 @@ final class GameCatalog {
                 else if (state.isIn(BlockTags.NEEDS_IRON_TOOL)) tools = new ItemId[]{id(Items.IRON_PICKAXE), id(Items.DIAMOND_PICKAXE), id(Items.NETHERITE_PICKAXE)};
                 else if (state.isIn(BlockTags.NEEDS_STONE_TOOL)) tools = new ItemId[]{id(Items.STONE_PICKAXE), id(Items.IRON_PICKAXE), id(Items.DIAMOND_PICKAXE), id(Items.NETHERITE_PICKAXE)};
                 else tools = new ItemId[]{id(Items.WOODEN_PICKAXE), id(Items.STONE_PICKAXE), id(Items.IRON_PICKAXE), id(Items.DIAMOND_PICKAXE), id(Items.NETHERITE_PICKAXE)};
-                requirements.add(new ToolRequirement(Ingredient.of(tools), 8, "harvest " + Registries.BLOCK.getId(block)));
+                // Vanilla tool components charge one point for each successful block break.
+                requirements.add(new ToolRequirement(Ingredient.of(tools), 2, "harvest " + Registries.BLOCK.getId(block), 1));
             }
             sources.add(new GatherSource("gather:" + Registries.BLOCK.getId(block), id(drop), 1, List.of(BlockId.parse(Registries.BLOCK.getId(block).toString())), requirements));
         }

@@ -57,10 +57,10 @@ final class PlayerActions {
         int bestSlot = -1; float speed = 0; int durability = -1;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = client.player.getInventory().getStack(i);
-            if (stack.isEmpty() || stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= 1) continue;
+            int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : Integer.MAX_VALUE;
+            if (stack.isEmpty() || !hasSafeDurability(stack, 1)) continue;
             if (state.isToolRequired() && !stack.isSuitableFor(state)) continue;
             float candidate = stack.getMiningSpeedMultiplier(state);
-            int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : Integer.MAX_VALUE;
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
         if (state.isToolRequired() && bestSlot < 0) return false;
@@ -104,9 +104,18 @@ final class PlayerActions {
     boolean hasTool(SelectedToolRequirement tool) {
         if (client.player == null) return false;
         for (ItemStack stack : client.player.getInventory().main)
-            if (!stack.isEmpty() && stack.isOf(GameCatalog.item(tool.item())) && (!stack.isDamageable() || stack.getMaxDamage() - stack.getDamage() >= tool.minimumDurability())) return true;
+            if (!stack.isEmpty() && stack.isOf(GameCatalog.item(tool.item())) && hasSafeDurability(stack, tool.minimumDurability())) return true;
         return false;
     }
+
+    private static boolean hasSafeDurability(ItemStack stack, int minimumDurability) {
+        int wear = GameApi.blockBreakWear(stack);
+        if (wear < 0) return false;
+        if (!stack.isDamageable()) return true;
+        int remaining = stack.getMaxDamage() - stack.getDamage();
+        return remaining >= minimumDurability && remaining > wear;
+    }
+
     boolean mine(BlockPos position) { return mine(position, null); }
     boolean mine(BlockPos position, SelectedToolRequirement tool) {
         if (client.world == null || client.player == null || client.interactionManager == null) return false;
@@ -118,7 +127,7 @@ final class PlayerActions {
             int slot = -1;
             for (int i = 0; i < 36; i++) {
                 ItemStack stack = client.player.getInventory().getStack(i);
-                if (stack.isOf(GameCatalog.item(tool.item())) && (!stack.isDamageable() || stack.getMaxDamage() - stack.getDamage() >= tool.minimumDurability()) && (!state.isToolRequired() || stack.isSuitableFor(state))) { slot = i; break; }
+                if (stack.isOf(GameCatalog.item(tool.item())) && hasSafeDurability(stack, tool.minimumDurability()) && (!state.isToolRequired() || stack.isSuitableFor(state))) { slot = i; break; }
             }
             if (slot < 0 || !selectSlot(slot)) return false;
         }

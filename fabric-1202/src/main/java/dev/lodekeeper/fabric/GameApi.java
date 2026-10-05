@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
+import net.minecraft.item.MiningToolItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.Ingredient;
@@ -33,6 +34,9 @@ final class GameApi {
     static Identifier identifier(String value) { return new Identifier(value); }
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.canCombine(first, second); }
+
+    /** Vanilla mining tools in this profile have a fixed one point of wear per block. */
+    static int blockBreakWear(ItemStack stack) { return stack.getItem() instanceof MiningToolItem ? 1 : 0; }
 
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }
 

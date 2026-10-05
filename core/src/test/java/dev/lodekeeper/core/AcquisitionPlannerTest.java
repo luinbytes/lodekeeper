@@ -419,6 +419,116 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void miningWearUsesActualKnownChargesAndCombinesSeparateToolStacks() {
+        ItemId pickaxe = ItemId.parse("minecraft:stone_pickaxe");
+        ItemId ore = ItemId.parse("test:stone_ore");
+        assertEquals(0, new ToolRequirement(Ingredient.of(pickaxe), 8, "custom harvest").wearPerOperation());
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 131)
+                .item(ore, 0)
+                .source(new GatherSource("mine:stone_ore", ore, 1, List.of(BlockId.parse("test:stone_ore")),
+                        List.of(new ToolRequirement(Ingredient.of(pickaxe), 2, "mine ore", 1))))
+                .build();
+
+        InventorySnapshot sevenUses = new InventorySnapshot(Map.of(pickaxe, 1), Set.of(), Map.of(pickaxe, 7), Map.of(),
+                Map.of(pickaxe, List.of(7)));
+        PlanResult smallBatch = planner().plan(catalog, sevenUses, ore, 6);
+        assertTrue(smallBatch.success());
+        assertEquals(6, smallBatch.steps().get(0).operationCount());
+        assertFalse(planner().plan(catalog, sevenUses, ore, 7).success());
+
+        InventorySnapshot twoWornPicks = new InventorySnapshot(Map.of(pickaxe, 2), Set.of(), Map.of(pickaxe, 2), Map.of(),
+                Map.of(pickaxe, List.of(2, 2)));
+        PlanResult twoToolBatch = planner().plan(catalog, twoWornPicks, ore, 2);
+        assertTrue(twoToolBatch.success());
+        assertFalse(planner().plan(catalog, twoWornPicks, ore, 3).success());
+
+        // A legacy max-only snapshot proves one lot, never one lot per counted tool.
+        InventorySnapshot legacyMaximum = new InventorySnapshot(Map.of(pickaxe, 2), Set.of(), Map.of(pickaxe, 2));
+        assertEquals(List.of(2), legacyMaximum.durabilityLots().get(pickaxe));
+        assertFalse(planner().plan(catalog, legacyMaximum, ore, 2).success());
+        assertThrows(IllegalArgumentException.class, () -> new InventorySnapshot(Map.of(pickaxe, 1), Set.of(),
+                Map.of(pickaxe, 2), Map.of(), Map.of(pickaxe, List.of())));
+
+        // A counts-only snapshot does not claim an unknown damageable tool is full.
+        assertFalse(planner().plan(catalog, new InventorySnapshot(Map.of(pickaxe, 1)), ore, 1).success());
+    }
+
+    @Test
+    void insufficientBatchWearPlansReplacementToolsBeforeMining() {
+        ItemId pickaxe = ItemId.parse("test:short_lived_pick");
+        ItemId material = ItemId.parse("test:pick_material");
+        ItemId ore = ItemId.parse("test:large_ore_batch");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 20)
+                .item(material, 0)
+                .item(ore, 0)
+                .source(new GatherSource("mine:large_batch", ore, 1, List.of(BlockId.parse("test:large_ore")),
+                        List.of(new ToolRequirement(Ingredient.of(pickaxe), 2, "mine batch", 1))))
+                .source(new CraftingSource("craft:short_lived_pick", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(material))), List.of()))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(pickaxe, 1, material, 4), Set.of(),
+                Map.of(pickaxe, 2), Map.of(pickaxe, 1), Map.of(pickaxe, List.of(2)));
+
+        PlanResult result = planner().plan(catalog, inventory, ore, 64);
+
+        assertTrue(result.success());
+        PlanStep craft = result.steps().stream().filter(step -> pickaxe.equals(step.output())).findFirst().orElseThrow();
+        PlanStep gather = result.steps().stream().filter(step -> ore.equals(step.output())).findFirst().orElseThrow();
+        assertEquals(4, craft.outputCount());
+        assertEquals(64, gather.operationCount());
+        assertTrue(result.steps().indexOf(craft) < result.steps().indexOf(gather));
+        assertEquals(1, inventory.protectedCounts().get(pickaxe));
+        assertEquals(List.of(2), inventory.durabilityLots().get(pickaxe));
+    }
+
+    @Test
+    void plannedWearCarriesAcrossGatherStepsAndProtectedCraftingMaterials() {
+        ItemId pickaxe = ItemId.parse("test:two_use_pick");
+        ItemId material = ItemId.parse("test:pick_wood");
+        ItemId firstOre = ItemId.parse("test:first_ore");
+        ItemId secondOre = ItemId.parse("test:second_ore");
+        ItemId output = ItemId.parse("test:combined_ore");
+        ToolRequirement pickRequirement = new ToolRequirement(Ingredient.of(pickaxe), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 2)
+                .item(material, 0)
+                .item(firstOre, 0)
+                .item(secondOre, 0)
+                .item(output, 0)
+                .source(new GatherSource("mine:first_ore", firstOre, 1, List.of(BlockId.parse("test:first_ore")), List.of(pickRequirement)))
+                .source(new GatherSource("mine:second_ore", secondOre, 1, List.of(BlockId.parse("test:second_ore")), List.of(pickRequirement)))
+                .source(new GatherSource("gather:pick_wood", material, 1, List.of(BlockId.parse("test:pick_wood"))))
+                .source(new CraftingSource("craft:two_use_pick", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(material))), List.of()))
+                .source(new CraftingSource("craft:combined_ore", output, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(firstOre)), new RecipeSlot(-1, Ingredient.of(secondOre))), List.of()))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(pickaxe, 1, material, 1), Set.of(),
+                Map.of(pickaxe, 2), Map.of(material, 1), Map.of(pickaxe, List.of(2)));
+
+        PlanResult result = planner().plan(catalog, inventory, output, 1);
+
+        assertTrue(result.success());
+        int first = indexOfSource(result, "mine:first_ore");
+        int materialGather = indexOfSource(result, "gather:pick_wood");
+        int pickCraft = indexOfSource(result, "craft:two_use_pick");
+        int second = indexOfSource(result, "mine:second_ore");
+        assertTrue(first >= 0 && first < materialGather);
+        assertTrue(materialGather < pickCraft && pickCraft < second);
+        assertEquals(1, inventory.protectedCounts().get(material));
+        assertEquals(List.of(2), inventory.durabilityLots().get(pickaxe));
+    }
+
+    private static int indexOfSource(PlanResult result, String sourceId) {
+        for (int index = 0; index < result.steps().size(); index++) {
+            if (result.steps().get(index).sourceId().equals(sourceId)) return index;
+        }
+        return -1;
+    }
+
+    @Test
     void boundedFailureReasonSurvivesMoreThanTheDiagnosticCap() {
         ItemId target = ItemId.parse("test:limited_target");
         List<ItemId> alternatives = new java.util.ArrayList<>();

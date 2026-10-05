@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.LongSupplier;
 
@@ -323,7 +324,7 @@ public final class AcquisitionPlanner {
                     int amount = multiplyCount(item.ingredient().count(), operations, null, path);
                     prepared = chooseIngredient(prepared, item.ingredient(), amount, item.consume(), item.purpose(), -1, path, depth);
                 } else if (requirement instanceof ToolRequirement tool) {
-                    prepared = chooseTool(prepared, tool, path, depth);
+                    prepared = chooseTool(prepared, tool, operations, path, depth);
                 } else if (requirement instanceof StationRequirement station) {
                     prepared = ensureStation(prepared, station, path, depth);
                 }
@@ -348,15 +349,14 @@ public final class AcquisitionPlanner {
             return trimPrepared(next);
         }
 
-        private List<Prepared> chooseTool(List<Prepared> initial, ToolRequirement requirement, Set<ItemId> path, int depth) {
+        private List<Prepared> chooseTool(List<Prepared> initial, ToolRequirement requirement, int operations,
+                                          Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : initial) {
                 List<ItemId> held = expanded(requirement.tools(), path).stream()
-                        .filter(item -> candidate.state.count(item) > 0
-                                && candidate.state.durability.getOrDefault(item, defaultDurability(item, catalog)) >= requirement.minimumDurability())
+                        .filter(item -> candidate.state.canUseTool(item, requirement, operations, catalog))
                         .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.count(item)).reversed()
-                                .thenComparing(Comparator.comparingInt((ItemId item) -> candidate.state.durability
-                                        .getOrDefault(item, defaultDurability(item, catalog))).reversed())
+                                .thenComparing(Comparator.comparingLong((ItemId item) -> candidate.state.toolCapacity(item, requirement, catalog)).reversed())
                                 .thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 List<ItemId> choices = held.isEmpty()
@@ -364,21 +364,71 @@ public final class AcquisitionPlanner {
                         : held;
                 for (ItemId item : choices) {
                     if (!visit(item, path, depth + 1)) break;
-                    for (State ready : ensureTool(item, requirement.minimumDurability(), candidate.state, path, depth + 1)) {
+                    for (State ready : ensureTool(item, requirement, operations, candidate.state, path, depth + 1)) {
+                        State forecast = ready.copy();
+                        if (requirement.wearPerOperation() > 0 && catalog.maximumDurability(item) > 0) {
+                            forecast.durabilityLots.get(item).consumeOperations(
+                                    operations, requirement.minimumDurability(), requirement.wearPerOperation());
+                        }
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedToolRequirement(item, requirement.minimumDurability(), requirement.purpose()));
-                        next.add(new Prepared(ready, List.copyOf(selected)));
+                        next.add(new Prepared(forecast, List.copyOf(selected)));
                     }
                 }
             }
             return trimPrepared(next);
         }
 
-        private List<State> ensureTool(ItemId item, int minimumDurability, State state, Set<ItemId> path, int depth) {
+        private List<State> ensureTool(ItemId item, ToolRequirement requirement, int operations,
+                                       State state, Set<ItemId> path, int depth) {
             if (!visit(item, path, depth)) return List.of();
             int currentCount = state.count(item);
-            int currentDurability = state.durability.getOrDefault(item, defaultDurability(item, catalog));
-            if (currentCount > 0 && currentDurability >= minimumDurability) return List.of(state.copy());
+            int maximumDurability = catalog.maximumDurability(item);
+            if (requirement.wearPerOperation() > 0) {
+                if (currentCount > 0 && state.canUseTool(item, requirement, operations, catalog)) return List.of(state.copy());
+                if (maximumDurability == 0) {
+                    if (currentCount > 0) return List.of(state.copy());
+                    return satisfy(item, 1, false, state, path, depth + 1, "tool", -1);
+                }
+
+                long currentCapacity = state.toolCapacity(item, requirement, catalog);
+                long missingOperations = Math.max(0L, (long) operations - currentCapacity);
+                long fullToolCapacity = ToolLots.operationsFor(maximumDurability,
+                        requirement.minimumDurability(), requirement.wearPerOperation());
+                if (fullToolCapacity <= 0) {
+                    fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item,
+                            "A new tool cannot satisfy the required wear and durability reserve", pathWith(path, item));
+                    return List.of();
+                }
+                long copiesNeeded = ceilDivLong(missingOperations, fullToolCapacity);
+                long targetToolCount = (long) currentCount + copiesNeeded;
+                if (copiesNeeded > limits.maximumRequestedCount() || targetToolCount > 1_000_000_000L) {
+                    fail(BlockedReason.Code.STEP_LIMIT, item, "Required tool copies exceed planner limits", pathWith(path, item));
+                    return List.of();
+                }
+                if (copiesNeeded == 0) return List.of(state.copy());
+
+                List<State> candidates;
+                if (currentCount > 0) {
+                    if (path.contains(item)) {
+                        fail(BlockedReason.Code.CYCLE, item, "Cannot replace a worn tool without a cycle", pathWith(path, item));
+                        return List.of();
+                    }
+                    candidates = produce(item, (int) copiesNeeded, state, with(path, item), depth + 1);
+                } else {
+                    candidates = satisfy(item, (int) copiesNeeded, false, state, path, depth + 1, "tool", -1);
+                }
+                var valid = new ArrayList<State>();
+                for (State candidate : candidates) {
+                    if (candidate.canUseTool(item, requirement, operations, catalog)) valid.add(candidate);
+                    else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item,
+                            "Available tools do not provide enough safe durability for the whole operation batch", pathWith(path, item));
+                }
+                return trim(valid);
+            }
+
+            int currentDurability = state.remainingDurability(item, catalog);
+            if (currentCount > 0 && currentDurability >= requirement.minimumDurability()) return List.of(state.copy());
             List<State> candidates;
             if (currentCount > 0) {
                 if (path.contains(item)) {
@@ -391,8 +441,8 @@ public final class AcquisitionPlanner {
             }
             var valid = new ArrayList<State>();
             for (State candidate : candidates) {
-                int durability = candidate.durability.getOrDefault(item, defaultDurability(item, catalog));
-                if (durability >= minimumDurability) valid.add(candidate);
+                int durability = candidate.remainingDurability(item, catalog);
+                if (durability >= requirement.minimumDurability()) valid.add(candidate);
                 else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item, "Available item does not meet required tool durability", pathWith(path, item));
             }
             return trim(valid);
@@ -588,11 +638,6 @@ public final class AcquisitionPlanner {
         return path;
     }
 
-    private static int defaultDurability(ItemId item, CatalogSnapshot catalog) {
-        int maximum = catalog.maximumDurability(item);
-        return maximum == 0 ? Integer.MAX_VALUE : maximum;
-    }
-
     private static final Comparator<State> STATE_ORDER = Comparator
             .comparingLong((State state) -> state.gatherOperations)
             .thenComparingLong(state -> state.operations)
@@ -605,7 +650,7 @@ public final class AcquisitionPlanner {
         private final Map<ItemId, Integer> inventory;
         private final Map<ItemId, Integer> protectedHeld;
         private final Set<StationId> stations;
-        private final Map<ItemId, Integer> durability;
+        private final Map<ItemId, ToolLots> durabilityLots;
         private final List<PlanStep> steps;
         private long operations;
         private long gatherOperations;
@@ -614,8 +659,8 @@ public final class AcquisitionPlanner {
             inventory = new HashMap<>(snapshot.counts());
             protectedHeld = new HashMap<>(snapshot.protectedCounts());
             stations = new HashSet<>(snapshot.availableStations());
-            durability = new HashMap<>(snapshot.remainingDurability());
-            for (ItemId item : inventory.keySet()) durability.putIfAbsent(item, defaultDurability(item, catalog));
+            durabilityLots = new HashMap<>();
+            snapshot.durabilityLots().forEach((item, lots) -> durabilityLots.put(item, ToolLots.from(lots)));
             steps = new ArrayList<>();
         }
 
@@ -623,7 +668,8 @@ public final class AcquisitionPlanner {
             inventory = new HashMap<>(source.inventory);
             protectedHeld = new HashMap<>(source.protectedHeld);
             stations = new HashSet<>(source.stations);
-            durability = new HashMap<>(source.durability);
+            durabilityLots = new HashMap<>();
+            source.durabilityLots.forEach((item, lots) -> durabilityLots.put(item, lots.copy()));
             steps = new ArrayList<>(source.steps);
             operations = source.operations;
             gatherOperations = source.gatherOperations;
@@ -633,24 +679,138 @@ public final class AcquisitionPlanner {
         private int count(ItemId item) { return inventory.getOrDefault(item, 0); }
         private int spendableCount(ItemId item) { return count(item) - protectedHeld.getOrDefault(item, 0); }
 
+        private int remainingDurability(ItemId item, CatalogSnapshot catalog) {
+            if (catalog.maximumDurability(item) == 0) return Integer.MAX_VALUE;
+            ToolLots lots = durabilityLots.get(item);
+            return lots == null ? -1 : lots.maximumRemaining();
+        }
+
+        private long toolCapacity(ItemId item, ToolRequirement requirement, CatalogSnapshot catalog) {
+            if (count(item) <= 0) return 0;
+            if (catalog.maximumDurability(item) == 0) return Long.MAX_VALUE;
+            ToolLots lots = durabilityLots.get(item);
+            if (lots == null) return 0;
+            if (requirement.wearPerOperation() == 0) return lots.maximumRemaining();
+            return lots.operationCapacity(requirement.minimumDurability(), requirement.wearPerOperation());
+        }
+
+        private boolean canUseTool(ItemId item, ToolRequirement requirement, int operations, CatalogSnapshot catalog) {
+            if (count(item) <= 0) return false;
+            if (requirement.wearPerOperation() == 0) {
+                return remainingDurability(item, catalog) >= requirement.minimumDurability();
+            }
+            return toolCapacity(item, requirement, catalog) >= operations;
+        }
+
         private void take(ItemId item, int amount) {
             int available = spendableCount(item);
             if (available < amount) throw new IllegalStateException("Planner inventory underflow for " + item);
             int left = count(item) - amount;
             if (left == 0) inventory.remove(item); else inventory.put(item, left);
+            ToolLots lots = durabilityLots.get(item);
+            if (lots != null) {
+                lots.removeCopies(amount);
+                if (lots.isEmpty()) durabilityLots.remove(item);
+            }
         }
 
         private void add(ItemId item, int amount, int maximumDurability) {
             long total = (long) count(item) + amount;
             if (total > 1_000_000_000) throw new IllegalStateException("Planner inventory exceeded limit");
             inventory.put(item, (int) total);
-            if (maximumDurability == 0) durability.put(item, Integer.MAX_VALUE);
-            else durability.merge(item, maximumDurability, Math::max);
+            if (maximumDurability > 0) {
+                durabilityLots.computeIfAbsent(item, ignored -> new ToolLots()).add(maximumDurability, amount);
+            }
         }
 
         private String tieKey() {
             return steps.stream().map(step -> step.sourceId() + ":" + (step.output() == null ? "" : step.output()) + ":" + step.outputCount())
                     .reduce((left, right) -> left + "|" + right).orElse("");
+        }
+    }
+
+    /** Run-length encoded durability lots: crafted batches never allocate one object per tool. */
+    private static final class ToolLots {
+        private final TreeMap<Integer, Long> counts = new TreeMap<>();
+
+        private static ToolLots from(List<Integer> values) {
+            ToolLots lots = new ToolLots();
+            for (int durability : values) lots.add(durability, 1);
+            return lots;
+        }
+
+        private ToolLots copy() {
+            ToolLots copy = new ToolLots();
+            copy.counts.putAll(counts);
+            return copy;
+        }
+
+        private boolean isEmpty() { return counts.isEmpty(); }
+
+        private int maximumRemaining() { return counts.isEmpty() ? -1 : counts.lastKey(); }
+
+        private void add(int remaining, long count) {
+            if (count > 0) counts.merge(remaining, count, Long::sum);
+        }
+
+        private long operationCapacity(int minimumDurability, int wearPerOperation) {
+            long total = 0;
+            for (Map.Entry<Integer, Long> entry : counts.entrySet()) {
+                long perTool = operationsFor(entry.getKey(), minimumDurability, wearPerOperation);
+                long copies = entry.getValue();
+                if (perTool == 0) continue;
+                if (copies > (Long.MAX_VALUE - total) / perTool) return Long.MAX_VALUE;
+                total += perTool * copies;
+            }
+            return total;
+        }
+
+        private static long operationsFor(int remaining, int minimumDurability, int wearPerOperation) {
+            if (remaining < minimumDurability || wearPerOperation <= 0) return 0;
+            return ((long) remaining - minimumDurability) / wearPerOperation + 1;
+        }
+
+        private void consumeOperations(long operations, int minimumDurability, int wearPerOperation) {
+            long remainingOperations = operations;
+            if (operationCapacity(minimumDurability, wearPerOperation) < operations) {
+                throw new IllegalStateException("Planner consumed more tool wear than its reserved durability lots");
+            }
+            for (Map.Entry<Integer, Long> entry : new ArrayList<>(counts.entrySet())) {
+                if (remainingOperations == 0) break;
+                int startingDurability = entry.getKey();
+                long copies = entry.getValue();
+                long operationsPerTool = operationsFor(startingDurability, minimumDurability, wearPerOperation);
+                if (operationsPerTool == 0) continue;
+                long lotCapacity = operationsPerTool * copies;
+                long usedOperations = Math.min(remainingOperations, lotCapacity);
+                long fullyUsedCopies = usedOperations / operationsPerTool;
+                long partialOperations = usedOperations % operationsPerTool;
+                long untouchedCopies = copies - fullyUsedCopies - (partialOperations == 0 ? 0 : 1);
+                counts.remove(startingDurability);
+                add(startingDurability, untouchedCopies);
+                if (fullyUsedCopies > 0) {
+                    int wear = Math.toIntExact(operationsPerTool * wearPerOperation);
+                    add(startingDurability - wear, fullyUsedCopies);
+                }
+                if (partialOperations > 0) {
+                    int wear = Math.toIntExact(partialOperations * wearPerOperation);
+                    add(startingDurability - wear, 1);
+                }
+                remainingOperations -= usedOperations;
+            }
+            if (remainingOperations != 0) throw new IllegalStateException("Planner could not debit reserved tool wear");
+        }
+
+        /** Removes the least durable known stacks first when a recipe consumes this item type. */
+        private void removeCopies(int copiesToRemove) {
+            long remaining = copiesToRemove;
+            for (Map.Entry<Integer, Long> entry : new ArrayList<>(counts.entrySet())) {
+                if (remaining == 0) break;
+                long removed = Math.min(remaining, entry.getValue());
+                long left = entry.getValue() - removed;
+                if (left == 0) counts.remove(entry.getKey()); else counts.put(entry.getKey(), left);
+                remaining -= removed;
+            }
         }
     }
 }

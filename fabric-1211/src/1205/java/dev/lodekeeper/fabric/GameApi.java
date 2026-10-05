@@ -6,6 +6,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
 import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.Item;
+import net.minecraft.component.type.ToolComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.AbstractCookingRecipe;
 import net.minecraft.recipe.Ingredient;
@@ -45,6 +46,12 @@ final class GameApi {
     }
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.areItemsAndComponentsEqual(first, second); }
+
+    /** Reads the effective per-block wear from this stack's tool component. */
+    static int blockBreakWear(ItemStack stack) {
+        ToolComponent tool = stack.get(DataComponentTypes.TOOL);
+        return tool == null ? 0 : tool.damagePerBlock();
+    }
 
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }
 

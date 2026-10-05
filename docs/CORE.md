@@ -18,6 +18,8 @@ Unqualified IDs use the `minecraft` namespace. `resolveItem` accepts canonical I
 
 Built-in source records are `GatherSource`, `CraftingSource`, `SmeltingSource` and `CustomSource`. Requirements are explicit records: `ItemRequirement` describes consumed or retained items, `ToolRequirement` reserves a selected tool, and `StationRequirement` names the station and its placeable item. A shaped recipe stores row-major grid indices and its dimensions; shapeless recipes use dimensions `0 x 0` and slot index `-1`. Each recipe ingredient count is per operation and `outputCount` is the recipe yield per operation.
 
+The legacy `ToolRequirement` constructor remains minimum-only. Requirements with positive `wearPerOperation` reserve wear across the whole source batch and preserve one durability point per tool stack. `InventorySnapshot` accepts actual per-stack `durabilityLots`; a max-only legacy snapshot contributes one known lot, while counts alone do not imply that an unobserved tool is undamaged.
+
 Smelting fuel alternatives are `ItemSelector`s. `ItemDefinition.fuelBurnTicks` stores the burn duration per unit, allowing the planner to compute the required fuel as `ceil(cookTicks * operations / fuelBurnTicks)` and share fuel already in inventory. Register fuel durations for every catalog item the adapter wants considered. Modded mechanics can use `CustomSource` with an adapter-owned `sourceType`, immutable attributes and common requirements.
 
 ## Plan an acquisition
