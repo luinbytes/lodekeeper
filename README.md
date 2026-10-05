@@ -1,7 +1,49 @@
-# Lodekeeper
+<p align="center"><img src="docs/assets/lodekeeper-banner.svg" alt="Lodekeeper — Give it a goal. Let it find the way." width="100%"></p>
 
-A Fabric client automation project: turn survival goals into resource acquisition, crafting and navigation, without Baritone.
+<p align="center">
+  <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-abf49b?style=flat-square&amp;labelColor=192922"></a>
+  <img alt="Fabric client mod" src="https://img.shields.io/badge/Fabric-client_mod-abf49b?style=flat-square&amp;labelColor=192922">
+  <img alt="Status: in development" src="https://img.shields.io/badge/status-in_development-eac97a?style=flat-square&amp;labelColor=192922">
+</p>
 
-**Under active development. No playable release is available yet.** This repository does not currently claim complete Minecraft coverage or version compatibility. See [the stack and delivery plan](docs/STACK.md) for the architecture, performance budgets and verification milestones.
+**Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-Planned commands include `!lk get wood 64`, `!lk get diamond_boots`, `!lk plan diamond_boots`, `!lk stop` and `!lk status`. Commands are local; resource acquisition uses normal survival interactions.
+> **Development preview:** there is no playable release yet. The commands below describe the intended experience. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
+
+### Tell it what you need
+
+```text
+!lk get wood 64
+!lk get diamond_boots
+!lk plan diamond_boots
+!lk pause
+!lk resume
+!lk stop
+```
+
+`wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. The prefix will be configurable. Commands stay on your client.
+
+### From an empty inventory to a finished goal
+
+The planned flow works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables or furnaces, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
+
+You will be able to inspect a plan, queue goals, pause or stop. Unknown recipes or unsupported mod mechanics will produce a clear blocker rather than pretend the task succeeded. Modded items using ordinary recipes and interactions are a design target; special machines need providers.
+
+### Installation and compatibility
+
+Installable artifacts and exact instructions will appear here after verification. **No Minecraft version is currently claimed as supported.** The target is every stable Java release from 1.20 through the current stable release, 26.3; each needs its own compatibility evidence. Use server automation only where the server permits it.
+
+---
+
+<details>
+<summary><strong>Development, architecture and verification</strong></summary>
+
+Source lives in `core` (acquisition and commands), `nav` (custom navigation), and `fabric` (Minecraft integration). The shared core targets Java 17. Builds run with one worker and no persistent daemon.
+
+- [Stack and delivery plan](docs/STACK.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Repository instructions](AGENTS.md)
+
+Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks; this project makes no superiority claim before those measurements exist.
+
+</details>

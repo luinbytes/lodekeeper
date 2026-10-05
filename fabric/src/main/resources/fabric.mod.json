@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "lodekeeper",
+  "version": "${version}",
+  "name": "Lodekeeper",
+  "description": "Goal-driven survival automation with independent navigation.",
+  "environment": "client",
+  "license": "MIT",
+  "entrypoints": {"client": ["dev.lodekeeper.fabric.LodekeeperClient"]},
+  "depends": {"fabricloader": ">=0.15.0", "fabric-api": "*", "minecraft": "${minecraft}", "java": ">=17"}
+}
