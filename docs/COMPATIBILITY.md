@@ -11,12 +11,12 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
 | **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
-| 1.21.2, 1.21.3 | 21 | Exact local development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
-| 1.21.4, 1.21.5 | 21 | 1.21.4 earlier exact CI passes; 1.21.5 exact local production and verification builds pass after client API/toolchain fixes | Pending |
-| 1.21.6, 1.21.7, 1.21.8 | 21 | Pending | Pending |
-| 1.21.9, 1.21.10, 1.21.11 | 21 | 1.21.11 exact local production and verification build passes after client API/toolchain fixes; 1.21.9/1.21.10 pending | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
-| 26.1, 26.1.1, 26.1.2 | 25 | Earlier 16-profile CI passes all three; current-head matrix pending | Pending |
-| 26.2 | 25 | Exact local and earlier CI development builds pass; current-head matrix pending | Pending |
+| 1.21.2, 1.21.3 | 21 | Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
+| 1.21.4, 1.21.5 | 21 | Both exact CI development builds pass after client API/toolchain fixes | Pending |
+| 1.21.6, 1.21.7, 1.21.8 | 21 | Each exact CI development build and native display regressions pass | Pending |
+| 1.21.9, 1.21.10, 1.21.11 | 21 | Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
+| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `68d2998` | Pending |
+| 26.2 | 25 | Exact local and CI development builds pass at `68d2998` | Pending |
 | 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases pass; natural-world checks pending |
 
 ## What a check proves
@@ -51,3 +51,5 @@ The [first 24-profile CI matrix](https://github.com/luinbytes/lodekeeper/actions
 Controlled 1.21.2 progression: [nine-case observations and screenshots](evidence/1.21.2-progression/run.json), with [artifact/source provenance](evidence/1.21.2-progression/artifact.json). All nine cases pass in 159,467 ms with health 20 throughout. The artifact was built from `55a0936` plus the exact archived `source.patch`; the run predates the final nested-remainder hardening and removal of redundant local recipe-book rescans. The [first failed run](evidence/1.21.2-first-run/run.json) remains available: logs passed, crafting-table acquisition failed because executable recipe IDs were malformed. Native ingredient composite displays and exact registry identifiers were fixed before the successful replay. This remains a prepared resource-pad check.
 
 Controlled 1.21.11 at `68d2998`: [nine-case observations and screenshots](evidence/1.21.11-progression/run.json), with [paired artifact/source digests](evidence/1.21.11-progression/artifact.json). All nine cases pass in 170563 ms with health 20 throughout, including native inventory/table crafting, furnace smelting, custom content and automatic eating. This also exercises the 1.21.5+ input family and 1.21.9+ client API seams. It does not establish gameplay on the intervening exact releases or ordinary-world progression.
+
+All 24 exact stable profiles pass in [CI at `68d2998`](https://github.com/luinbytes/lodekeeper/actions/runs/37292298245). [Downloaded artifact inspection](evidence/builds/68d2998.json) validates every SHA-256 against its CI digest, exact Minecraft metadata, required JVM/class versions, bundled Java 17 core, required Yarn mixin refmaps, and exclusion of verifier classes/content. This is a packaging milestone, not gameplay support across all 24 releases; it predates the bounded exploration work.
