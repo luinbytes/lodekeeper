@@ -17,3 +17,5 @@ The scenario uses `lodekeeper.verify.bulkWood=true`; add `lodekeeper.verify.wood
 ## Initial evidence
 
 A single controlled 26.3 pair passed from empty inventory: [baseline](evidence/26.3-bulk-wood-baseline/run.json) took 278,043 ms and 5,561 world ticks; [enabled](evidence/26.3-bulk-wood-tools/run.json) took 242,159 ms and 4,844 world ticks. Both finished with exactly 64 logs and full health. Enabled finished with two axes at 1 and 53 durability, showing the first was retained until its safe reserve. This is approximately 12.9% less command-to-completion time in that pair; repeatability and natural-world results remain pending.
+
+The [1.21.1 enabled check](evidence/1.21.1-bulk-wood-tools/run.json) also passed with exactly 64 logs, two axes at 1 and 53 durability and full health: 241,232 ms and 4,825 world ticks. No paired baseline was run for that version, so this verifies the behavior without a comparative timing claim.
