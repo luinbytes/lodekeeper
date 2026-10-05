@@ -1,6 +1,6 @@
 # Cooking stations
 
-Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. Runtime checks for the new smoker and blast-furnace paths are pending; compilation and source review do not establish gameplay support. Campfires still need a separate executor.
+Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. The controlled [26.3 blast-furnace batch](evidence/26.3-blast-furnace/run.json) passed; smoker execution and other exact-version runtime checks remain pending. Compilation and source review do not establish gameplay support. Campfires still need a separate executor.
 
 ## Station choice and ownership
 
@@ -38,3 +38,5 @@ On 26.3, an empty station that is already burning may retain an unknown previous
 Focused Java checks cover planning quantities and fuel arithmetic. Exact profile builds cover API compatibility. Real-client checks must additionally prove station placement, exact native menu opening, repeated output collection, cursor recovery and multi-stack input refill. The cooking verifier requests 72 native outputs from 128 supplied raw items, nine coal and one supplied station item; success requires exactly 72 outputs, 56 raw items left, zero inventory coal, full health and an idle engine. It grants no target output.
 
 Interruption recovery, outsider edits, full-inventory recovery, natural-world acquisition and remote-server behavior remain separate acceptance scenarios. Supporting the shared menu superclass alone is insufficient evidence of a working station.
+
+The [26.3 blast-furnace run](evidence/26.3-blast-furnace/run.json) passed the 72-output batch with exactly 56 raw iron left and nine coal consumed, in 361,958 ms from the command. Its [source and artifact record](evidence/26.3-blast-furnace/artifact.json) identifies the frozen development client.

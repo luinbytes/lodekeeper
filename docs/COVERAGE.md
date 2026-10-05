@@ -18,7 +18,8 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | Full recipe knowledge | Legacy synchronized catalogs; modern local-server/learned-display prototype | Local reload and remote recipe-book updates; explicit locked-recipe blocker |
 | Exploration and persistent resource knowledge | Controlled [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3 distant wood](evidence/26.3-exploration/run.json): initially unloaded resource, empty inventory, two bounded waypoints, eight server-observed logs. Source-aware acquisition recovery has Java regressions and a native-catalog replay; its multi-stage game scenario is pending | Natural forests, varied terrain, other adapter families and persistent world memory |
 | Inventory policy and storage | Owned station cleanup in development | Reserved slots, permitted containers, deposit/retrieve and full-inventory recovery |
-| Smokers, blast furnaces and campfires | Pending | Select faster suitable station and account for fuel/input/output |
+| Smokers and blast furnaces | Implemented and independently reviewed; exact 1.21.1 and 26.3 builds pass; controlled [26.3 blast-furnace batch](evidence/26.3-blast-furnace/run.json) passed exact 72 outputs with nine coal and multi-stack input refill | Smoker runtime, other adapter families, interruption and outsider edits |
+| Campfires | Pending | Separate interaction, recovery and extinguishing behavior |
 | Stonecutting and smithing | Pending | Alternate stone recipes; templates, trims and netherite upgrades |
 | Anvils, grindstones and enchanting | Pending | Repair, combine, remove enchantments and account for experience |
 | Brewing, cauldrons, looms and cartography | Pending | Multi-stage brewing, liquid contents, banners and maps |
