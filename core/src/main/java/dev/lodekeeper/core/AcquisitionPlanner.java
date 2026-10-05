@@ -62,6 +62,7 @@ public final class AcquisitionPlanner {
         private int expanded;
         private boolean truncated;
         private BlockedReason.Code limitCode;
+        private BlockedReason limitReason;
 
         private Search(CatalogSnapshot catalog, PlannerLimits limits, long started) {
             this.catalog = catalog;
@@ -75,7 +76,7 @@ public final class AcquisitionPlanner {
                 fail(BlockedReason.Code.STEP_LIMIT, item, "Required quantity exceeds planner limits", pathWith(path, item));
                 return List.of();
             }
-            int current = state.count(item);
+            int current = consume ? state.spendableCount(item) : state.count(item);
             if (current >= count) {
                 State result = state.copy();
                 if (consume) result.take(item, count);
@@ -94,7 +95,8 @@ public final class AcquisitionPlanner {
             List<State> produced = produce(item, missing, state, nextPath, depth + 1);
             var results = new ArrayList<State>();
             for (State candidate : produced) {
-                if (candidate.count(item) < count) {
+                int available = consume ? candidate.spendableCount(item) : candidate.count(item);
+                if (available < count) {
                     fail(BlockedReason.Code.INVALID_CATALOG, item, "Source did not produce its declared amount", pathWith(path, item));
                     continue;
                 }
@@ -140,7 +142,6 @@ public final class AcquisitionPlanner {
                 if (prepared.isEmpty()) continue;
                 prepared = prepareRequirements(prepared, source.requirements(), operations, path, depth);
                 for (Prepared candidate : prepared) {
-                    if (!visit(item, path, depth)) break;
                     if (candidate.state.steps.size() >= limits.maximumSteps()) {
                         fail(BlockedReason.Code.STEP_LIMIT, item, "Plan exceeds " + limits.maximumSteps() + " steps", pathWith(path, item));
                         continue;
@@ -191,12 +192,12 @@ public final class AcquisitionPlanner {
                 int ingredientCount = ingredient.count();
                 int remainingUses = total / ingredientCount;
                 var allocations = new LinkedHashMap<ItemId, Integer>();
-                List<ItemId> stocked = alternatives.stream().filter(item -> candidate.state.count(item) >= ingredientCount)
-                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.count(item)).reversed().thenComparing(Comparator.naturalOrder()))
+                List<ItemId> stocked = alternatives.stream().filter(item -> candidate.state.spendableCount(item) >= ingredientCount)
+                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.spendableCount(item)).reversed().thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 if (alternatives.size() > limits.maximumCandidatesPerBranch()) truncated = true;
                 for (ItemId item : stocked) {
-                    int availableUses = candidate.state.count(item) / ingredientCount;
+                    int availableUses = candidate.state.spendableCount(item) / ingredientCount;
                     int uses = Math.min(remainingUses, availableUses);
                     if (uses > 0) {
                         allocations.put(item, uses * ingredientCount);
@@ -222,7 +223,7 @@ public final class AcquisitionPlanner {
                         continue;
                     }
                     int remainingCount = remainingUses * ingredientCount;
-                    for (ItemId fallback : rankedAlternatives(ingredient, value.state, remainingUses * ingredientCount, path)) {
+                    for (ItemId fallback : rankedAlternatives(ingredient, value.state, remainingUses * ingredientCount, true, path)) {
                         if (!visit(fallback, path, depth + 1)) break;
                         for (State ready : satisfy(fallback, remainingCount, true, value.state, path, depth + 1, purpose, -1)) {
                             var combined = new LinkedHashMap<>(allocations);
@@ -318,7 +319,7 @@ public final class AcquisitionPlanner {
                                                 String purpose, int recipeSlot, Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : initial) {
-                for (ItemId item : rankedAlternatives(ingredient, candidate.state, amount, path)) {
+                for (ItemId item : rankedAlternatives(ingredient, candidate.state, amount, consume, path)) {
                     if (!visit(item, path, depth + 1)) break;
                     for (State ready : satisfy(item, amount, consume, candidate.state, path, depth + 1, purpose, recipeSlot)) {
                         var selected = new ArrayList<>(candidate.selected);
@@ -333,7 +334,18 @@ public final class AcquisitionPlanner {
         private List<Prepared> chooseTool(List<Prepared> initial, ToolRequirement requirement, Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : initial) {
-                for (ItemId item : rankedAlternatives(requirement.tools(), candidate.state, 1, path)) {
+                List<ItemId> held = expanded(requirement.tools(), path).stream()
+                        .filter(item -> candidate.state.count(item) > 0
+                                && candidate.state.durability.getOrDefault(item, defaultDurability(item, catalog)) >= requirement.minimumDurability())
+                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.count(item)).reversed()
+                                .thenComparing(Comparator.comparingInt((ItemId item) -> candidate.state.durability
+                                        .getOrDefault(item, defaultDurability(item, catalog))).reversed())
+                                .thenComparing(Comparator.naturalOrder()))
+                        .limit(limits.maximumCandidatesPerBranch()).toList();
+                List<ItemId> choices = held.isEmpty()
+                        ? rankedAlternatives(requirement.tools(), candidate.state, 1, false, path)
+                        : held;
+                for (ItemId item : choices) {
                     if (!visit(item, path, depth + 1)) break;
                     for (State ready : ensureTool(item, requirement.minimumDurability(), candidate.state, path, depth + 1)) {
                         var selected = new ArrayList<>(candidate.selected);
@@ -414,17 +426,21 @@ public final class AcquisitionPlanner {
             return List.copyOf(items);
         }
 
-        private List<ItemId> rankedAlternatives(Ingredient ingredient, State state, int amount, Set<ItemId> path) {
+        private List<ItemId> rankedAlternatives(Ingredient ingredient, State state, int amount, boolean consume, Set<ItemId> path) {
             List<ItemId> all = expanded(ingredient, path);
             Comparator<ItemId> order = Comparator
-                    .comparingInt((ItemId item) -> state.count(item) >= amount ? 0
-                            : state.count(item) > 0 && !catalog.sourcesFor(item).isEmpty() ? 1
+                    .comparingInt((ItemId item) -> availableCount(state, item, consume) >= amount ? 0
+                            : availableCount(state, item, consume) > 0 && !catalog.sourcesFor(item).isEmpty() ? 1
                             : !catalog.sourcesFor(item).isEmpty() ? 2 : 3)
-                    .thenComparing(Comparator.comparingInt((ItemId item) -> state.count(item)).reversed())
+                    .thenComparing(Comparator.comparingInt((ItemId item) -> availableCount(state, item, consume)).reversed())
                     .thenComparing(Comparator.naturalOrder());
             List<ItemId> ranked = all.stream().sorted(order).limit(limits.maximumCandidatesPerBranch()).toList();
             if (all.size() > ranked.size()) truncated = true;
             return ranked;
+        }
+
+        private static int availableCount(State state, ItemId item, boolean consume) {
+            return consume ? state.spendableCount(item) : state.count(item);
         }
 
         private List<ItemId> expand(ItemSelector selector, ItemId context, Set<ItemId> path) {
@@ -497,7 +513,10 @@ public final class AcquisitionPlanner {
         private void setLimit(BlockedReason.Code code, ItemId item, Set<ItemId> path) {
             truncated = true;
             if (limitCode == null || code == BlockedReason.Code.TIME_LIMIT) limitCode = code;
-            fail(code, item, code == BlockedReason.Code.TIME_LIMIT ? "Planner time budget exhausted" : "Planner node budget exhausted", pathWith(path, item));
+            String detail = code == BlockedReason.Code.TIME_LIMIT ? "Planner time budget exhausted" : "Planner node budget exhausted";
+            BlockedReason reason = new BlockedReason(code, item, detail, pathWith(path, item).stream().sorted().toList());
+            if (limitReason == null || code == BlockedReason.Code.TIME_LIMIT) limitReason = reason;
+            fail(code, item, detail, pathWith(path, item));
         }
 
         private void fail(BlockedReason.Code code, ItemId item, String detail, Iterable<ItemId> path) {
@@ -509,10 +528,13 @@ public final class AcquisitionPlanner {
         }
 
         private List<BlockedReason> reasons() {
-            return failures.stream().sorted(Comparator
+            var ordered = new ArrayList<BlockedReason>();
+            if (limitReason != null) ordered.add(limitReason);
+            ordered.addAll(failures.stream().filter(reason -> !reason.equals(limitReason)).sorted(Comparator
                     .comparing((BlockedReason reason) -> reason.code().name())
                     .thenComparing(reason -> reason.item() == null ? "" : reason.item().toString())
-                    .thenComparing(BlockedReason::detail)).limit(MAX_REASONS).toList();
+                    .thenComparing(BlockedReason::detail)).toList());
+            return ordered.stream().limit(MAX_REASONS).toList();
         }
 
         private List<State> trim(List<State> states) {
@@ -564,6 +586,7 @@ public final class AcquisitionPlanner {
 
     private static final class State {
         private final Map<ItemId, Integer> inventory;
+        private final Map<ItemId, Integer> protectedHeld;
         private final Set<StationId> stations;
         private final Map<ItemId, Integer> durability;
         private final List<PlanStep> steps;
@@ -572,6 +595,7 @@ public final class AcquisitionPlanner {
 
         private State(InventorySnapshot snapshot, CatalogSnapshot catalog) {
             inventory = new HashMap<>(snapshot.counts());
+            protectedHeld = new HashMap<>(snapshot.protectedCounts());
             stations = new HashSet<>(snapshot.availableStations());
             durability = new HashMap<>(snapshot.remainingDurability());
             for (ItemId item : inventory.keySet()) durability.putIfAbsent(item, defaultDurability(item, catalog));
@@ -580,6 +604,7 @@ public final class AcquisitionPlanner {
 
         private State(State source) {
             inventory = new HashMap<>(source.inventory);
+            protectedHeld = new HashMap<>(source.protectedHeld);
             stations = new HashSet<>(source.stations);
             durability = new HashMap<>(source.durability);
             steps = new ArrayList<>(source.steps);
@@ -589,11 +614,12 @@ public final class AcquisitionPlanner {
 
         private State copy() { return new State(this); }
         private int count(ItemId item) { return inventory.getOrDefault(item, 0); }
+        private int spendableCount(ItemId item) { return count(item) - protectedHeld.getOrDefault(item, 0); }
 
         private void take(ItemId item, int amount) {
-            int available = count(item);
+            int available = spendableCount(item);
             if (available < amount) throw new IllegalStateException("Planner inventory underflow for " + item);
-            int left = available - amount;
+            int left = count(item) - amount;
             if (left == 0) inventory.remove(item); else inventory.put(item, left);
         }
 

@@ -13,7 +13,8 @@ public final class CommandParser {
     public static final int MAX_REQUEST_COUNT = 1_000_000;
 
     public sealed interface Command permits GetCommand, StopCommand, PauseCommand, ResumeCommand,
-            StatusCommand, QueueCommand, ClearCommand, PlanCommand, ConfigCommand { }
+            StatusCommand, QueueCommand, ClearCommand, PlanCommand, ConfigCommand,
+            ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand { }
 
     public record GetCommand(String item, int count) implements Command {
         public GetCommand {
@@ -45,6 +46,27 @@ public final class CommandParser {
             if (value != null && value.length() > MAX_CONFIG_VALUE_LENGTH) throw new IllegalArgumentException("Config value is too long");
         }
     }
+    public record ProjectCommand(String name) implements Command {
+        public ProjectCommand { name = ProjectSpec.normalizeName(name); }
+    }
+    public record ProjectsCommand() implements Command { }
+    public record MaintainCommand(String item, int count) implements Command {
+        public MaintainCommand {
+            item = validateItem(item);
+            validateCount(count);
+        }
+    }
+    /** The normalized item is "all" when clearing every maintained target. */
+    public record UnmaintainCommand(String item) implements Command {
+        public UnmaintainCommand {
+            Objects.requireNonNull(item, "item");
+            item = item.trim();
+            if (item.equalsIgnoreCase("all")) item = "all";
+            else item = validateItem(item);
+        }
+        public boolean all() { return item.equals("all"); }
+    }
+    public record MaintainedCommand() implements Command { }
     public record ParseError(String message, String usage) {
         public ParseError {
             Objects.requireNonNull(message, "message");
@@ -60,7 +82,7 @@ public final class CommandParser {
         public static ParseResult error(String message) { return new ParseResult(null, new ParseError(message, USAGE)); }
     }
 
-    public static final String USAGE = "Commands: get <item> [count], stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]]";
+    public static final String USAGE = "Commands: get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]]";
 
     public ParseResult parse(String body) {
         if (body == null) return ParseResult.error("Command is empty.");
@@ -85,6 +107,11 @@ public final class CommandParser {
                 case "clear" -> noArguments(tokens, new ClearCommand(), "clear takes no arguments.");
                 case "plan" -> parsePlan(tokens);
                 case "config" -> parseConfig(tokens);
+                case "project" -> parseProject(tokens);
+                case "projects" -> noArguments(tokens, new ProjectsCommand(), "projects takes no arguments.");
+                case "maintain" -> parseMaintain(tokens);
+                case "unmaintain" -> parseUnmaintain(tokens);
+                case "maintained" -> noArguments(tokens, new MaintainedCommand(), "maintained takes no arguments.");
                 default -> ParseResult.error("Unknown command: " + tokens.get(0));
             };
         } catch (IllegalArgumentException exception) {
@@ -111,6 +138,21 @@ public final class CommandParser {
         String value = String.join(" ", tokens.subList(2, tokens.size()));
         if (value.length() > MAX_CONFIG_VALUE_LENGTH) return ParseResult.error("Config value is too long.");
         return ParseResult.command(new ConfigCommand(tokens.get(1), value));
+    }
+
+    private static ParseResult parseProject(List<String> tokens) {
+        if (tokens.size() != 2) return ParseResult.error("Usage: project <name>");
+        return ParseResult.command(new ProjectCommand(tokens.get(1)));
+    }
+
+    private static ParseResult parseMaintain(List<String> tokens) {
+        if (tokens.size() != 3) return ParseResult.error("Usage: maintain <item> <count>");
+        return ParseResult.command(new MaintainCommand(tokens.get(1), parseCount(tokens.get(2))));
+    }
+
+    private static ParseResult parseUnmaintain(List<String> tokens) {
+        if (tokens.size() != 2) return ParseResult.error("Usage: unmaintain <item|all>");
+        return ParseResult.command(new UnmaintainCommand(tokens.get(1)));
     }
 
     private static ParseResult noArguments(List<String> tokens, Command command, String error) {
