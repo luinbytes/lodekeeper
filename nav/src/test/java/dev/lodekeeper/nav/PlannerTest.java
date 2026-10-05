@@ -220,6 +220,23 @@ final class PlannerTest {
     }
 
     @Test
+    void groundedWalkKeepsDistinctFractionsAtTheSamePackedPosition() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.stance16(0, -1, 0).surfaceSupport = true;
+        terrain.stance16(1, -8, 0).surfaceSupport = true;
+        terrain.stance16(1, -1, 0).surfaceSupport = true;
+        terrain.groundedHeights(1, 0, -8, -1);
+
+        Planner planner = Planner.fromFeetY16(terrain, 0, -1, 0,
+                Goal.exact16(1, -1, 0), new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.FOUND, finish(planner));
+        assertEquals(10, planner.getPath().cost);
+        assertEquals(2, planner.getPath().length());
+        assertEquals(-1, planner.getPath().step(1).feetY16);
+    }
+
+    @Test
     void groundedWalkAddsSevenCostPerFullBlockRiseAndKeepsLegacyMediumStarts() {
         FakeTerrain stairs = new FakeTerrain();
         stairs.stance(0, 0, 0).fullSupport = true;
@@ -239,6 +256,44 @@ final class PlannerTest {
                 new Planner.Options().maxDrop(0));
         assertEquals(NavStatus.FOUND, finish(swim));
         assertEquals(Path.Movement.SWIM, swim.getPath().step(1).movement);
+    }
+
+    @Test
+    void dominatedGroundedWalksSkipSweepsAndPreserveRouteActions() {
+        FakeTerrain terrain = FakeTerrain.infiniteFloor();
+        StanceProbe obstruction = terrain.stance(0, 0, 3);
+        obstruction.fullSupport = true;
+        obstruction.bodyClear = false;
+        obstruction.breakCount = 1;
+        BreakTarget blocker = obstruction.breakTargets[0];
+        blocker.x = 0;
+        blocker.y = 1;
+        blocker.z = 3;
+        blocker.stateToken = 77;
+        blocker.cost = 1;
+        Planner planner = planner(terrain, 0, 0, 0, Goal.exact(0, 0, 5),
+                new Planner.Options().maxDrop(0).allowBreaking(true));
+
+        assertEquals(NavStatus.IN_PROGRESS, planner.advance(2, Long.MAX_VALUE));
+        assertEquals(2, planner.getExpandedNodes());
+        assertEquals(11, terrain.groundedChecks,
+                "only three successors from the second stance are new exact states");
+
+        assertEquals(NavStatus.FOUND, finish(planner));
+        Path path = planner.getPath();
+        assertEquals(51, path.cost);
+        assertEquals(6, path.length());
+        for (int i = 0; i < path.length(); i++) {
+            assertEquals(0, path.step(i).x);
+            assertEquals(i, path.step(i).z);
+            assertEquals(i == 3 ? 1 : 0, path.step(i).actionCount());
+        }
+        Action breakAction = path.step(3).action(0);
+        assertEquals(Action.Type.BREAK_BLOCK, breakAction.type);
+        assertEquals(77, breakAction.token);
+        assertEquals(0, breakAction.x);
+        assertEquals(1, breakAction.y);
+        assertEquals(3, breakAction.z);
     }
 
     @Test

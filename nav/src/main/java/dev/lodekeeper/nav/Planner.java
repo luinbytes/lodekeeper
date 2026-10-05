@@ -410,6 +410,14 @@ public final class Planner {
         if (rise16 > 16 || rise16 < -16 || !destination.hasGroundSupport()) return;
         if (!destination.bodyClear && (Math.floorMod(fromFeetY16, 16) != 0
                 || Math.floorMod(toFeetY16, 16) != 0)) return;
+        long destinationPosition = Position.pack(toX, Math.floorDiv(toFeetY16, 16), toZ);
+        int destinationFraction = Math.floorMod(toFeetY16, 16);
+        int destinationSlot = locateSlot(destinationPosition, destinationFraction,
+                placementsUsed[current], false);
+        int existingNode = hashSlots[destinationSlot] - 1;
+        // Match the relaxation key. Accepted break costs are positive, so baseCost is a lower bound.
+        if (existingNode >= 0 && costs[current] + baseCost >= costs[existingNode]) return;
+
         boolean groundedSweepClear;
         if (builtSupport[current] != 0 && rise16 == 0
                 && Math.floorMod(fromFeetY16, 16) == 0
