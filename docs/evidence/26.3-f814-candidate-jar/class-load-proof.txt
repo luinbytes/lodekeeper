@@ -1,0 +1,3 @@
+[11.296s][info][class,load] dev.lodekeeper.fabric.modern.AutomationEngine source: file:/private/tmp/lodekeeper-ci-f814670/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar
+[11.303s][info][class,load] dev.lodekeeper.core.AcquisitionPlanner source: file:/private/tmp/lodekeeper-ci-f814670/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar
+[29.989s][info][class,load] dev.lodekeeper.nav.Planner source: file:/private/tmp/lodekeeper-ci-f814670/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-dev.jar

@@ -1,0 +1,11 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-dev.jar",
+  "artifactSha256": "026b9b1059d54d03f098825264e8433342e2a38a5b84a5f5f89f4408fbf66527",
+  "sourceCommit": "f814670f0d8c33fe54cfbd7e02241cc36afe72c3",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37351738964",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false
+}
