@@ -1,0 +1,25 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.4.jar",
+  "artifactSha256": "3d8735c585a3c5d74312b58c8f68a54e1fb507e974f3ba36c8fe75260db7e792",
+  "sourceCommit": "6f1145691225bc4f6b9f613f06d0e2c32a833da7",
+  "releaseBuildCiRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37390759389",
+  "artifactOrigin": "immutable local release worktree",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.nearbyWood=true",
+    "-Dlodekeeper.verify.nearbyWoodGoal=crafting_table",
+    "-Dlodekeeper.verify.nearbyWoodTerrain=flat"
+  ],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "productionClassOrigins": {
+    "dev.lodekeeper.fabric.AutomationEngine": "file:/private/tmp/lodekeeper-preview4-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.4-64b5720b4b825f21.jar",
+    "dev.lodekeeper.core.AcquisitionPlanner": "file:/private/tmp/lodekeeper-preview4-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.4-64b5720b4b825f21.jar",
+    "dev.lodekeeper.nav.Planner": "file:/private/tmp/lodekeeper-preview4-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.4-64b5720b4b825f21.jar"
+  },
+  "publicDownloadDigestVerified": true
+}
