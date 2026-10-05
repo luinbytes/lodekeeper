@@ -92,16 +92,16 @@ public final class AcquisitionPlanner {
                 return List.of(result);
             }
             int missing = count - current;
-            if (path.contains(item)) {
-                fail(BlockedReason.Code.CYCLE, item, "Dependency cycle while obtaining " + item, pathWith(path, item));
-                return List.of();
-            }
             if (!catalog.knownItems().contains(item)) {
                 fail(BlockedReason.Code.UNKNOWN_ITEM, item, "Required item is not present in the current catalog", pathWith(path, item));
                 return List.of();
             }
             Set<ItemId> nextPath = with(path, item);
-            List<State> produced = produce(item, missing, state, nextPath, depth + 1);
+            boolean bootstrapGather = path.contains(item);
+            List<State> produced = produce(item, missing, state, nextPath, depth + 1, bootstrapGather);
+            if (bootstrapGather && produced.isEmpty()) {
+                fail(BlockedReason.Code.CYCLE, item, "Dependency cycle while obtaining " + item, pathWith(path, item));
+            }
             var results = new ArrayList<State>();
             for (State candidate : produced) {
                 int available = consume ? candidate.spendableCount(item) : candidate.count(item);
@@ -117,6 +117,10 @@ public final class AcquisitionPlanner {
         }
 
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth) {
+            return produce(item, missing, state, path, depth, false);
+        }
+
+        private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth, boolean heldGatherOnly) {
             if (!visit(item, path, depth)) return List.of();
             List<AcquisitionSource> sources = catalog.sourcesFor(item);
             if (sources.isEmpty()) {
@@ -136,6 +140,17 @@ public final class AcquisitionPlanner {
                 if (operations > limits.maximumRequestedCount()) {
                     fail(BlockedReason.Code.STEP_LIMIT, item, "Source operation count exceeds the planner limit", pathWith(path, item));
                     continue;
+                }
+                if (heldGatherOnly) {
+                    // A held tool can gather replacement materials even when the outer
+                    // request needs the same material. Never recurse to acquire bootstrap
+                    // requirements: permit only ordinary gathering with a proven held tool.
+                    if (!(source instanceof GatherSource) || source.requirements().size() > 1) continue;
+                    if (!source.requirements().isEmpty()) {
+                        if (!(source.requirements().get(0) instanceof ToolRequirement tool)
+                                || expanded(tool.tools(), path).stream().noneMatch(candidate ->
+                                    state.canUseTool(candidate, tool, operations, catalog))) continue;
+                    }
                 }
                 long outputLong = (long) operations * source.outputCount();
                 if (outputLong > limits.maximumRequestedCount()) {

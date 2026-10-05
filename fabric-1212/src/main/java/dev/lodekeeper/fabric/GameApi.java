@@ -125,8 +125,7 @@ final class GameApi {
     static dev.lodekeeper.core.Ingredient ingredient(Ingredient ingredient) {
         List<ItemId> choices = new ArrayList<>();
         ingredient.getMatchingItems().forEach(entry -> choices.add(GameCatalog.id(entry.value())));
-        choices = choices.stream().distinct().sorted().toList();
-        return dev.lodekeeper.core.Ingredient.choices(choices, 1);
+        return dev.lodekeeper.core.Ingredient.choices(choices.stream().distinct().sorted().toList(), 1);
     }
 
     static FoodInfo food(ItemStack stack) {
