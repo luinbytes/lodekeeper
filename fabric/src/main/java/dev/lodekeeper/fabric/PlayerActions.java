@@ -65,6 +65,22 @@ final class PlayerActions {
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
         if (state.isToolRequired() && bestSlot < 0) return false;
+        int heldSlot = ClientAccess.selectedSlot(client.player.getInventory());
+        if (bestSlot >= 0 && bestSlot != heldSlot) {
+            ItemStack held = client.player.getInventory().getStack(heldSlot);
+            ItemStack chosen = client.player.getInventory().getStack(bestSlot);
+            if (!held.isEmpty() && held.isOf(chosen.getItem()) && hasSafeDurability(held, 1)
+                    && !held.hasEnchantments() && !chosen.hasEnchantments()
+                    && (!state.isToolRequired() || held.isSuitableFor(state))
+                    && held.getMiningSpeedMultiplier(state) == speed) {
+                // Keep equivalent tools equipped until their safe reserve is reached.
+                // Different components remain distinct even when their raw speed ties.
+                ItemStack heldProperties = held.copyWithCount(1), chosenProperties = chosen.copyWithCount(1);
+                if (heldProperties.isDamageable()) heldProperties.setDamage(0);
+                if (chosenProperties.isDamageable()) chosenProperties.setDamage(0);
+                if (GameApi.canCombine(heldProperties, chosenProperties)) bestSlot = heldSlot;
+            }
+        }
         return bestSlot >= 0 && selectSlot(bestSlot);
     }
     void look(Vec3d point) {

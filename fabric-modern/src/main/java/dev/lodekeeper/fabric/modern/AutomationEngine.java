@@ -6,8 +6,10 @@ import dev.lodekeeper.nav.ExplorationFrontier;
 import dev.lodekeeper.core.BlockId;
 import dev.lodekeeper.core.BlockedReason;
 import dev.lodekeeper.core.CatalogSnapshot;
+import dev.lodekeeper.core.CraftingSource;
 import dev.lodekeeper.core.ExplorationRecovery;
 import dev.lodekeeper.core.GatherSource;
+import dev.lodekeeper.core.HarvestInvestment;
 import dev.lodekeeper.core.InventorySnapshot;
 import dev.lodekeeper.core.ItemId;
 import dev.lodekeeper.core.MaintainedDemandModel;
@@ -18,7 +20,9 @@ import dev.lodekeeper.core.ProjectCatalog;
 import dev.lodekeeper.core.ProjectSpec;
 import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.core.StationId;
+import dev.lodekeeper.core.StationRequirement;
 import dev.lodekeeper.core.TagId;
+import dev.lodekeeper.core.ToolRequirement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -29,8 +33,10 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.entity.EntityTypeTest;
 
@@ -58,13 +64,28 @@ final class AutomationEngine {
     private static final int MAX_PROJECT_RECONCILIATIONS = 3;
     private static final int INVENTORY_SAMPLE_INTERVAL_TICKS = 10;
     private static final int MAX_STATION_PLACEMENT_ATTEMPTS = 24;
+    private static final int MAX_LOCAL_LOG_POSITIONS = 512;
+    private static final int MIN_FREE_SLOTS_FOR_WOOD_TOOL_OFFER = 4;
+    private static final int WOOD_TOOL_CRAFT_TICKS = 100;
+    private static final int WOOD_TOOL_STATION_TICKS = 100;
+    private static final int WOOD_TOOL_MINIMUM_SAVING_TICKS = 100;
+    private static final ItemId WOODEN_AXE = ItemId.parse("minecraft:wooden_axe");
+    private static final StationId CRAFTING_TABLE = StationId.parse("minecraft:crafting_table");
+    private static final TagId LOGS_TAG = TagId.parse("minecraft:logs");
 
     private record Request(String name, ItemId item, int count, boolean anyLogs,
                            String maintenanceTaskId, ProjectRun project) {
         boolean maintained() { return maintenanceTaskId != null; }
     }
 
-    private record PlanningOutcome(PlanResult result, boolean explorationProven) { }
+    private record PlanningOutcome(PlanResult result, boolean explorationProven, boolean auxiliaryInvestment) { }
+    private record GatherLimit(ItemId output, int localPositions) { }
+    private record LocalLogEvidence(Map<String, GatherLimit> sources, Set<ItemId> outputs,
+                                    List<BlockState> states, int highestHandTicks, int leastSavingTicks) { }
+    private record HarvestOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
+                                HarvestInvestment.ToolDemand demand, Map<String, GatherLimit> localSources,
+                                Set<ItemId> localOutputs, Set<ItemId> goalLogItems, Set<String> nativeCraftSources,
+                                Set<String> allowedAxeCraftSources, HarvestInvestment.TickEstimates estimates) { }
 
     private static final class ProjectRun {
         final ProjectSpec spec;
@@ -211,6 +232,8 @@ final class AutomationEngine {
                 PlanningOutcome outcome = pendingPlan.join();
                 PlanResult result = outcome.result();
                 pendingPlan = null;
+                if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
+                if (goalCount() >= active.count) { finishGoal(); return; }
                 if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT)) {
                     requestPlan();
                     return;
@@ -222,7 +245,7 @@ final class AutomationEngine {
                     return;
                 }
                 if (result.steps().isEmpty()) { finishGoal(); return; }
-                begin(result.steps().get(0));
+                begin(result.steps().get(0), outcome.auxiliaryInvestment());
             }
             if (step == null) return;
             int observed = step.output() == null ? 0 : actions.count(GameCatalog.item(step.output()));
@@ -630,18 +653,305 @@ final class AutomationEngine {
         int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item) : active.count;
         ItemId targetItem = item;
         int targetCount = requested;
+        HarvestOffer harvestOffer = active.anyLogs && config.optimizeWoodTools
+                ? captureHarvestOffer(active.count - goalCount()) : null;
         CatalogSnapshot filteredSnapshot = snapshot;
         pendingPlan = CompletableFuture.supplyAsync(() -> {
             PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount);
+            if (filteredPlan.success() && harvestOffer != null) {
+                try {
+                    PlanResult investmentPlan = planner.planFast(harvestOffer.catalog(), harvestOffer.inventory(),
+                            WOODEN_AXE, harvestOffer.demand().targetCount());
+                    if (investmentPlan.success() && usesOnlyCapturedInvestmentSources(investmentPlan, harvestOffer)) {
+                        long adjustedBenefit = HarvestInvestment.adjustedBenefitForGoalStock(investmentPlan,
+                                harvestOffer.goalLogItems(), harvestOffer.estimates().expectedBenefitTicks(),
+                                harvestOffer.estimates().miningAndTravelTicksPerLog());
+                        if (adjustedBenefit < 1) return new PlanningOutcome(filteredPlan, false, false);
+                        HarvestInvestment.TickEstimates adjustedEstimates = new HarvestInvestment.TickEstimates(
+                                adjustedBenefit, harvestOffer.estimates().miningAndTravelTicksPerLog(),
+                                harvestOffer.estimates().craftTicksPerOperation(), harvestOffer.estimates().stationPlacementTicks(),
+                                harvestOffer.estimates().minimumNetSavingTicks());
+                        HarvestInvestment.Decision decision = HarvestInvestment.approve(filteredPlan, investmentPlan,
+                                harvestOffer.demand(), harvestOffer.localOutputs(), Set.of(CRAFTING_TABLE), adjustedEstimates);
+                        if (decision.approved()) return new PlanningOutcome(investmentPlan, false, true);
+                    }
+                } catch (RuntimeException ignored) {
+                    // Optional planning must never replace the already-complete wood plan on failure.
+                }
+                return new PlanningOutcome(filteredPlan, false, false);
+            }
             if (!explorationEnabled || excludedGatherSourceIds.isEmpty()
                     || !ExplorationRecovery.isLogicalFailure(filteredPlan)) {
-                return new PlanningOutcome(filteredPlan, false);
+                return new PlanningOutcome(filteredPlan, false, false);
             }
             // Recovery has its own default fast-planner budget (20 ms); each planner call remains independently capped.
             PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount);
             return new PlanningOutcome(filteredPlan,
-                    ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds));
+                    ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
         }, plannerWorker);
+    }
+
+    private HarvestOffer captureHarvestOffer(int remainingBlocks) {
+        if (remainingBlocks < 1 || logScan != null || logCandidates.isEmpty() || client.player == null
+                || !catalog.ready() || emptyMainInventorySlots() < MIN_FREE_SLOTS_FOR_WOOD_TOOL_OFFER) return null;
+
+        ItemStack freshAxe = new ItemStack(Items.WOODEN_AXE);
+        int freshDurability = freshAxe.getMaxDamage();
+        int wear = GameApi.blockBreakWear(freshAxe);
+        if (freshDurability < 1 || wear < 1 || wear > 1_000_000) return null;
+        int minimumBeforeBreak = Math.max(2, wear + 1);
+        if (freshDurability < minimumBeforeBreak) return null;
+
+        LocalLogEvidence logs = captureLocalLogEvidence(freshAxe);
+        if (logs == null || logs.sources().isEmpty() || logs.leastSavingTicks() < 1) return null;
+        int comparableHeldCapacity = comparableHeldToolCapacity(freshAxe, logs.states(), remainingBlocks);
+        if (comparableHeldCapacity < 0) return null;
+        int axeBlocksRemaining = remainingBlocks - comparableHeldCapacity;
+        if (axeBlocksRemaining < 1) return null;
+
+        InventorySnapshot capturedAxes = inventorySnapshot(WOODEN_AXE);
+        if (capturedAxes.protectedCounts().getOrDefault(WOODEN_AXE, 0) > 0) return null;
+        InventorySnapshot investmentInventory = inventoryWithKnownWoodenAxes(capturedAxes, freshAxe, freshDurability, wear);
+        if (investmentInventory == null) return null;
+        HarvestInvestment.ToolDemand demand = HarvestInvestment.additionalDemand(investmentInventory, WOODEN_AXE,
+                axeBlocksRemaining, freshDurability, wear, minimumBeforeBreak, 2).orElse(null);
+        if (demand == null) return null;
+
+        Set<String> allowedAxeCraftSources = validatedAxeCraftSources(freshAxe, freshDurability, wear, logs.states());
+        if (allowedAxeCraftSources.isEmpty()) return null;
+        Set<String> nativeCraftSources = eligibleNativeCraftSources(allowedAxeCraftSources);
+        CatalogSnapshot auxiliaryCatalog = auxiliaryCatalog(logs, nativeCraftSources);
+        if (!config.allowBuilding && !investmentInventory.availableStations().contains(CRAFTING_TABLE)) return null;
+
+        long uncoveredBlocks = Math.max(0L, demand.remainingBlocks() - demand.usableHeldCapacity());
+        long profitableAddedCapacity = Math.min(demand.addedSafeCapacity(), uncoveredBlocks);
+        long expectedBenefit = profitableAddedCapacity * logs.leastSavingTicks();
+        long miningAndTravel = (long) logs.highestHandTicks() + 20;
+        if (expectedBenefit > 1_000_000_000L || miningAndTravel > 1_000_000_000L) return null;
+        HarvestInvestment.TickEstimates estimates = new HarvestInvestment.TickEstimates(expectedBenefit,
+                miningAndTravel, WOOD_TOOL_CRAFT_TICKS, WOOD_TOOL_STATION_TICKS, WOOD_TOOL_MINIMUM_SAVING_TICKS);
+        Set<ItemId> goalLogItems = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
+        return new HarvestOffer(auxiliaryCatalog, investmentInventory, demand, logs.sources(), logs.outputs(), goalLogItems,
+                nativeCraftSources, allowedAxeCraftSources, estimates);
+    }
+
+    private LocalLogEvidence captureLocalLogEvidence(ItemStack freshAxe) {
+        Set<ItemId> logItems = new HashSet<>(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
+        if (logItems.isEmpty()) return null;
+        Map<String, GatherSource> nativeLogSources = new HashMap<>();
+        for (AcquisitionSource candidate : catalog.sources) {
+            if (!(candidate instanceof GatherSource gather) || !gather.sourceId().startsWith("gather:")
+                    || unavailableSources.contains(gather.sourceId()) || !logItems.contains(gather.output())
+                    || gather.requirements().stream().anyMatch(ToolRequirement.class::isInstance)) continue;
+            nativeLogSources.put(gather.sourceId(), gather);
+        }
+
+        Map<String, GatherLimit> sourceLimits = new LinkedHashMap<>();
+        Set<ItemId> outputs = new LinkedHashSet<>();
+        List<BlockState> states = new ArrayList<>();
+        int inspected = 0, highestHandTicks = 0, leastSavingTicks = Integer.MAX_VALUE;
+        long radiusSquared = (long) config.searchRadius * config.searchRadius;
+        for (Map.Entry<String, List<BlockPos>> entry : discoveredSources.entrySet()) {
+            GatherSource source = nativeLogSources.get(entry.getKey());
+            if (source == null) continue;
+            Set<Block> candidateBlocks = new HashSet<>();
+            for (BlockId id : source.blocks()) {
+                Block block = GameCatalog.block(id);
+                if (block != Blocks.AIR) candidateBlocks.add(block);
+            }
+            if (candidateBlocks.isEmpty()) continue;
+
+            List<BlockState> sourceStates = new ArrayList<>();
+            int sourceHandMax = 0, sourceSavingMin = Integer.MAX_VALUE;
+            boolean unsafeSource = false;
+            for (BlockPos position : entry.getValue()) {
+                if (inspected >= MAX_LOCAL_LOG_POSITIONS) break;
+                inspected++;
+                if (rejectedResources.contains(position)) continue;
+                long dx = (long) position.getX() - client.player.getBlockX();
+                long dz = (long) position.getZ() - client.player.getBlockZ();
+                if (dx * dx + dz * dz > radiusSquared || !client.level.hasChunkAt(position)) continue;
+                BlockState state = client.level.getBlockState(position);
+                if (!candidateBlocks.contains(state.getBlock())) continue;
+                if (state.requiresCorrectToolForDrops()) { unsafeSource = true; continue; }
+                float hardness = state.getDestroySpeed(client.level, position);
+                float axeSpeed = freshAxe.getDestroySpeed(state);
+                int handTicks = boundedBreakTicks(hardness, 1.0f);
+                int axeTicks = boundedBreakTicks(hardness, axeSpeed);
+                if (handTicks < 1 || axeTicks < 1) { unsafeSource = true; continue; }
+                sourceStates.add(state);
+                sourceHandMax = Math.max(sourceHandMax, handTicks);
+                sourceSavingMin = Math.min(sourceSavingMin, handTicks - axeTicks);
+            }
+            if (unsafeSource || sourceStates.isEmpty()) continue;
+            sourceLimits.put(entry.getKey(), new GatherLimit(source.output(), sourceStates.size()));
+            outputs.add(source.output());
+            states.addAll(sourceStates);
+            highestHandTicks = Math.max(highestHandTicks, sourceHandMax);
+            leastSavingTicks = Math.min(leastSavingTicks, sourceSavingMin);
+            if (inspected >= MAX_LOCAL_LOG_POSITIONS) break;
+        }
+        if (states.isEmpty()) return null;
+        return new LocalLogEvidence(Map.copyOf(sourceLimits), Set.copyOf(outputs), List.copyOf(states),
+                highestHandTicks, leastSavingTicks);
+    }
+
+    private static int boundedBreakTicks(float hardness, float speed) {
+        if (!Float.isFinite(hardness) || hardness <= 0 || !Float.isFinite(speed) || speed <= 0) return -1;
+        double ticks = Math.ceil(30.0 * hardness / speed);
+        return !Double.isFinite(ticks) || ticks < 1 || ticks > 1_000_000_000L ? -1 : (int) ticks;
+    }
+
+    private int comparableHeldToolCapacity(ItemStack freshAxe, List<BlockState> localStates, int remainingBlocks) {
+        long capacity = 0;
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = client.player.getInventory().getItem(slot);
+            if (stack.isEmpty() || isStandardWoodenAxe(stack, freshAxe, freshAxe.getMaxDamage(), GameApi.blockBreakWear(freshAxe))) continue;
+            boolean atLeastAsFastEverywhere = true;
+            for (BlockState state : localStates) {
+                float heldSpeed = stack.getDestroySpeed(state);
+                float axeSpeed = freshAxe.getDestroySpeed(state);
+                if (!Float.isFinite(heldSpeed) || heldSpeed <= 0) return -1;
+                if (heldSpeed < axeSpeed) { atLeastAsFastEverywhere = false; break; }
+            }
+            if (!atLeastAsFastEverywhere) continue;
+            int wear = GameApi.blockBreakWear(stack);
+            if (wear < 0 || wear > 1_000_000) return -1;
+            long perStack;
+            if (!stack.isDamageableItem()) {
+                perStack = remainingBlocks;
+            } else {
+                int remainingDurability = stack.getMaxDamage() - stack.getDamageValue();
+                if (wear == 0) perStack = remainingDurability >= 1 ? remainingBlocks : 0;
+                else {
+                    int minimumBeforeBreak = Math.max(2, wear + 1);
+                    perStack = remainingDurability < minimumBeforeBreak ? 0
+                            : (remainingDurability - (long) minimumBeforeBreak) / wear + 1;
+                }
+            }
+            capacity = Math.min(remainingBlocks, capacity + perStack * stack.getCount());
+            if (capacity >= remainingBlocks) return remainingBlocks;
+        }
+        return (int) capacity;
+    }
+
+    private static boolean isStandardWoodenAxe(ItemStack stack, ItemStack freshAxe, int freshDurability, int freshWear) {
+        if (!stack.is(Items.WOODEN_AXE) || stack.getMaxDamage() != freshDurability
+                || GameApi.blockBreakWear(stack) != freshWear) return false;
+        ItemStack normalized = stack.copy();
+        normalized.setDamageValue(0);
+        return ItemStack.matches(normalized, freshAxe);
+    }
+
+    private InventorySnapshot inventoryWithKnownWoodenAxes(InventorySnapshot captured, ItemStack freshAxe,
+                                                              int freshDurability, int freshWear) {
+        Map<ItemId, Integer> counts = new HashMap<>(captured.counts());
+        Map<ItemId, Integer> durability = new HashMap<>(captured.remainingDurability());
+        Map<ItemId, List<Integer>> lots = new HashMap<>(captured.durabilityLots());
+        Map<ItemId, Integer> protectedCounts = new HashMap<>(captured.protectedCounts());
+        counts.remove(WOODEN_AXE);
+        durability.remove(WOODEN_AXE);
+        lots.remove(WOODEN_AXE);
+        protectedCounts.remove(WOODEN_AXE);
+
+        List<Integer> knownLots = new ArrayList<>();
+        int knownCount = 0;
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = client.player.getInventory().getItem(slot);
+            if (!stack.is(Items.WOODEN_AXE)) continue;
+            int stackWear = GameApi.blockBreakWear(stack);
+            if (stackWear < 0) return null;
+            if (!isStandardWoodenAxe(stack, freshAxe, freshDurability, freshWear)) continue;
+            int remaining = freshDurability - stack.getDamageValue();
+            if (remaining < 0 || knownCount > 1_000_000_000 - stack.getCount()) return null;
+            knownCount += stack.getCount();
+            for (int index = 0; index < stack.getCount(); index++) knownLots.add(remaining);
+        }
+        if (knownCount > 0) {
+            counts.put(WOODEN_AXE, knownCount);
+            knownLots.sort(Integer::compareTo);
+            lots.put(WOODEN_AXE, List.copyOf(knownLots));
+            durability.put(WOODEN_AXE, knownLots.get(knownLots.size() - 1));
+        }
+        return new InventorySnapshot(counts, captured.availableStations(), durability, protectedCounts, lots);
+    }
+
+    private Set<String> validatedAxeCraftSources(ItemStack freshAxe, int freshDurability, int freshWear,
+                                                   List<BlockState> localStates) {
+        Set<String> candidates = new HashSet<>();
+        for (AcquisitionSource source : catalog.sources) {
+            if (source instanceof CraftingSource crafting && crafting.output().equals(WOODEN_AXE)) candidates.add(source.sourceId());
+        }
+        Set<String> valid = new HashSet<>();
+        for (String sourceId : candidates) {
+            GameCatalog.RecipeWork recipe = catalog.recipes.get(sourceId);
+            if (recipe == null || recipe.output() != Items.WOODEN_AXE || recipe.outputCount() != 1) continue;
+            ItemStack output = recipe.resultStack();
+            if (!output.is(Items.WOODEN_AXE) || output.getCount() != 1 || output.getDamageValue() != 0
+                    || output.getMaxDamage() != freshDurability || GameApi.blockBreakWear(output) != freshWear
+                    || !ItemStack.matches(output, freshAxe)) continue;
+            boolean sameSpeed = true;
+            for (BlockState state : localStates) {
+                float outputSpeed = output.getDestroySpeed(state);
+                float freshSpeed = freshAxe.getDestroySpeed(state);
+                if (!Float.isFinite(outputSpeed) || outputSpeed <= 0 || Float.compare(outputSpeed, freshSpeed) != 0) {
+                    sameSpeed = false;
+                    break;
+                }
+            }
+            if (sameSpeed) valid.add(sourceId);
+        }
+        return Set.copyOf(valid);
+    }
+
+    private Set<String> eligibleNativeCraftSources(Set<String> allowedAxeCraftSources) {
+        Set<String> result = new HashSet<>();
+        for (AcquisitionSource source : catalog.sources) {
+            if (!(source instanceof CraftingSource crafting) || !catalog.recipes.containsKey(source.sourceId())) continue;
+            if (crafting.output().equals(WOODEN_AXE) && !allowedAxeCraftSources.contains(source.sourceId())) continue;
+            if (crafting.requirements().stream().anyMatch(requirement -> !(requirement instanceof StationRequirement station)
+                    || !station.station().equals(CRAFTING_TABLE))) continue;
+            result.add(source.sourceId());
+        }
+        return Set.copyOf(result);
+    }
+
+    private CatalogSnapshot auxiliaryCatalog(LocalLogEvidence logs, Set<String> nativeCraftSources) {
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+        catalog.snapshot().itemDefinitions().values().forEach(builder::item);
+        catalog.tags.forEach(builder::tag);
+        for (AcquisitionSource source : catalog.sources) {
+            if ((source instanceof GatherSource && logs.sources().containsKey(source.sourceId()))
+                    || (source instanceof CraftingSource && nativeCraftSources.contains(source.sourceId()))) builder.source(source);
+        }
+        return builder.build();
+    }
+
+    private static boolean usesOnlyCapturedInvestmentSources(PlanResult plan, HarvestOffer offer) {
+        Map<String, Long> gathered = new HashMap<>();
+        for (PlanStep step : plan.steps()) {
+            switch (step.kind()) {
+                case GATHER -> {
+                    GatherLimit limit = offer.localSources().get(step.sourceId());
+                    if (limit == null || !limit.output().equals(step.output())) return false;
+                    long used = gathered.merge(step.sourceId(), (long) step.operationCount(), Long::sum);
+                    if (used > limit.localPositions()) return false;
+                }
+                case CRAFT -> {
+                    if (!offer.nativeCraftSources().contains(step.sourceId())) return false;
+                    if (WOODEN_AXE.equals(step.output()) && !offer.allowedAxeCraftSources().contains(step.sourceId())) return false;
+                }
+                case PLACE_STATION -> { if (!CRAFTING_TABLE.equals(step.station())) return false; }
+                case SMELT, CUSTOM -> { return false; }
+            }
+        }
+        return true;
+    }
+
+    private int emptyMainInventorySlots() {
+        int empty = 0;
+        for (int slot = 0; slot < 36; slot++) if (client.player.getInventory().getItem(slot).isEmpty()) empty++;
+        return empty;
     }
 
     private ItemId chooseLogs() {
@@ -823,14 +1133,14 @@ final class AutomationEngine {
         pause(reason + sourceDiagnostic());
     }
 
-    private void begin(PlanStep next) {
+    private void begin(PlanStep next, boolean auxiliaryInvestment) {
         resetAction();
         rejectedStationSites.clear();
         stationPlacementFailures = 0;
         stationDiscoveryDone = false;
         step = next;
         actionTicks = 0;
-        status = next.kind() + " " + next.sourceId();
+        status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline;
         lastSmeltProgress = 0;

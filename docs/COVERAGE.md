@@ -6,6 +6,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 | --- | --- | --- |
 | Client commands, configurable prefix, plan preview, queues | Implemented; parser regression checks, inventory-refreshed previews with one request in flight | Remote-server command interception and bounded preview spam |
 | Quantity planning, ingredient alternatives, tool and fuel reservations | Java regression checks; controlled single-command boots from empty inventory on [1.21.1](evidence/1.21.1-diamond-boots/run.json) and [26.3](evidence/26.3-diamond-boots/run.json) | Long acquisition chains with interruptions and inventory changes |
+| Optional bulk-wood tool investment | Focused Java checks; controlled [26.3 baseline](evidence/26.3-bulk-wood-baseline/run.json) and [enabled](evidence/26.3-bulk-wood-tools/run.json), exact 64 logs from empty inventory, server-confirmed two axes and safe durability | Repeated equivalent pairs, worn incumbent tools, interruptions and natural forests |
 | Walking and mining reachable resources | Controlled 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 logs and stone | Natural forest, cave and underground ore discovery |
 | Jumping, drops, swimming, climbing, parkour | Navigation model and hazard regressions; physical behavior pending | Separate obstacle courses, submerged exits and safe fall limits |
 | Breaking obstacles and building paths | Navigation model; physical behavior pending | Reversible bridge and tunnel with material limits |

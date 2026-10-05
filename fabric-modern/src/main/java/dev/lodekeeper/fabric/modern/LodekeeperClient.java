@@ -77,13 +77,13 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (command.key() == null) {
             engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
-                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", allowExploration=" + config.allowExploration
+                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", optimizeWoodTools=" + config.optimizeWoodTools + ", allowExploration=" + config.allowExploration
                     + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance);
             return;
         }
         String key = command.key(), value = command.value();
         if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, allowExploration, explorationAttempts, explorationDistance");
+            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance");
             return;
         }
         switch (key) {
@@ -102,6 +102,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "allowParkour" -> config.allowParkour = bool(value);
             case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
             case "autoEat" -> config.autoEat = bool(value);
+            case "optimizeWoodTools" -> config.optimizeWoodTools = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save();

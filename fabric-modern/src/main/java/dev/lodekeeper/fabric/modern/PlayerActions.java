@@ -93,6 +93,21 @@ final class PlayerActions {
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
         if (state.requiresCorrectToolForDrops() && bestSlot < 0) return false;
+        int heldSlot = inventory.getSelectedSlot();
+        if (bestSlot >= 0 && bestSlot != heldSlot) {
+            ItemStack held = inventory.getItem(heldSlot), chosen = inventory.getItem(bestSlot);
+            if (!held.isEmpty() && held.is(chosen.getItem()) && hasSafeDurability(held, 1)
+                    && !held.isEnchanted() && !chosen.isEnchanted()
+                    && (!state.requiresCorrectToolForDrops() || held.isCorrectToolForDrops(state))
+                    && held.getDestroySpeed(state) == speed) {
+                // Keep equivalent tools equipped until their safe reserve is reached.
+                // Different components remain distinct even when their raw speed ties.
+                ItemStack heldProperties = held.copyWithCount(1), chosenProperties = chosen.copyWithCount(1);
+                if (heldProperties.isDamageableItem()) heldProperties.setDamageValue(0);
+                if (chosenProperties.isDamageableItem()) chosenProperties.setDamageValue(0);
+                if (ItemStack.isSameItemSameComponents(heldProperties, chosenProperties)) bestSlot = heldSlot;
+            }
+        }
         return bestSlot >= 0 && selectSlot(bestSlot);
     }
 
