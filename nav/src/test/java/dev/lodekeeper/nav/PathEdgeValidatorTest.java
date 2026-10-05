@@ -114,6 +114,26 @@ final class PathEdgeValidatorTest {
     }
 
     @Test
+    void routeCorridorUsesCapturedFractionalStartWithoutWideningCorrectionBounds() {
+        Path.Step source = step(12, 64, 1, Path.Movement.START);
+        Path.Step destination = step(12, 64, 2, Path.Movement.WALK);
+        double startX = 12.270697567;
+        double startY = 64.0;
+        double startZ = 1.285615921;
+
+        assertFalse(PathEdgeValidator.isWithinEdgeCorridor(source, destination, startX, startY, startZ),
+                "the compatibility overload remains centered on the source block");
+        assertTrue(PathEdgeValidator.isWithinEdgeCorridor(source, destination,
+                startX, startY, startZ, startX, startY, startZ),
+                "the newly captured actual start is progress zero even when it is off the block center");
+        assertTrue(PathEdgeValidator.isWithinEdgeCorridor(source, destination,
+                startX, startY, startZ, startX, startY, 1.6));
+        assertFalse(PathEdgeValidator.isWithinEdgeCorridor(source, destination,
+                startX, startY, startZ, startX + 0.8, startY, startZ),
+                "a real lateral correction still exceeds the existing corridor bound");
+    }
+
+    @Test
     void pointProbeRejectsAdjacentHazardAfterSmallCorrectionWithoutTerrainRevision() {
         VolumeTerrain terrain = new VolumeTerrain();
         Path.Step source = step(0, 0, 0, Path.Movement.START);

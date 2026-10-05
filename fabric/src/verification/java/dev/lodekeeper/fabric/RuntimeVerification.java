@@ -155,6 +155,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         try {
             if (state == State.OPENING_WORLD) {
+                // Startup and resource-reload overlays must finish on ordinary client frames.
+                if (client.getOverlay() != null) return;
                 if (client.world != null) throw new IllegalStateException("start from the title screen; an existing world is active");
                 CreateWorldScreen.create(client, client.currentScreen);
                 state = State.WAITING_FOR_WORLD;
@@ -168,9 +170,25 @@ public final class RuntimeVerification implements ClientModInitializer {
                     beginFixtureSetup();
                     return;
                 }
-                if (!worldLaunchStarted && client.currentScreen instanceof CreateWorldScreen createScreen) {
+                if (!worldLaunchStarted && client.getOverlay() == null
+                        && client.currentScreen instanceof CreateWorldScreen createScreen) {
                     worldLaunchStarted = true;
-                    startIsolatedFlatWorld(createScreen.getWorldCreator());
+                    WorldCreator creator = createScreen.getWorldCreator();
+                    // Server startup renders a loading loop. Run it outside the enclosing client tick.
+                    client.send(() -> {
+                        try {
+                            if (client.getOverlay() != null) {
+                                worldLaunchStarted = false;
+                                return;
+                            }
+                            if (client.world != null || client.currentScreen != createScreen) {
+                                throw new IllegalStateException("world creation screen changed before verifier startup");
+                            }
+                            startIsolatedFlatWorld(creator);
+                        } catch (Exception exception) {
+                            fail("isolated world startup failed: " + exception);
+                        }
+                    });
                 }
                 return;
             }

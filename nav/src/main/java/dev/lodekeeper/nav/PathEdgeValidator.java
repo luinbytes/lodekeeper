@@ -130,12 +130,26 @@ public final class PathEdgeValidator {
     /** Cheap per-tick guard against corrections or knockback outside the active path envelope. */
     public static boolean isWithinEdgeCorridor(Path.Step source, Path.Step destination,
                                                double feetX, double feetY, double feetZ) {
+        if (source == null) return false;
+        return isWithinEdgeCorridor(source, destination,
+                source.x + 0.5, source.y, source.z + 0.5, feetX, feetY, feetZ);
+    }
+
+    /**
+     * Corridor variant anchored to the actual feet position captured when this edge was validated.
+     * This keeps ordinary fractional within-block start positions from appearing behind the edge.
+     */
+    public static boolean isWithinEdgeCorridor(Path.Step source, Path.Step destination,
+                                               double edgeStartX, double edgeStartFeetY, double edgeStartZ,
+                                               double feetX, double feetY, double feetZ) {
         if (source == null || destination == null || !Double.isFinite(feetX)
                 || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || !Double.isFinite(edgeStartX) || !Double.isFinite(edgeStartFeetY)
+                || !Double.isFinite(edgeStartZ)
                 || destination.movement == Path.Movement.START) return false;
-        double startX = source.x + 0.5;
-        double startY = source.y;
-        double startZ = source.z + 0.5;
+        double startX = edgeStartX;
+        double startY = edgeStartFeetY;
+        double startZ = edgeStartZ;
         double endX = destination.x + 0.5;
         double endY = destination.y;
         double endZ = destination.z + 0.5;

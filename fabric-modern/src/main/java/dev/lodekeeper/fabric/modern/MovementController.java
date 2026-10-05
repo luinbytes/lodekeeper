@@ -177,7 +177,7 @@ final class MovementController {
         double currentFeetY = client.player.getY();
         double currentFeetZ = client.player.getZ();
         if (!PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
-                currentFeetX, currentFeetY, currentFeetZ)) {
+                edgeStartX, edgeStartY, edgeStartZ, currentFeetX, currentFeetY, currentFeetZ)) {
             retry("Player left the safe route corridor"); return false;
         }
         if (!PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
