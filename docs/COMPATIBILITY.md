@@ -10,14 +10,14 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.3, 1.20.4 | 17 | Each exact CI development build passes | Pending |
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
-| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases and initially unloaded distant wood pass; natural-world checks pending** |
+| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases, initially unloaded distant wood and single-command diamond boots pass; natural-world checks pending** |
 | 1.21.2, 1.21.3 | 21 | Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
 | 1.21.4, 1.21.5 | 21 | Both exact CI development builds pass after client API/toolchain fixes | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Each exact CI development build and native display regressions pass | Pending |
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
-| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `9bb4712` | Pending |
-| 26.2 | 25 | Exact local and CI development builds pass at `9bb4712` | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases and initially unloaded distant wood pass; natural-world checks pending |
+| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `d8543e0` | Pending |
+| 26.2 | 25 | Exact local and CI development builds pass at `d8543e0` | Pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases, initially unloaded distant wood and single-command diamond boots pass; natural-world checks pending |
 
 ## What a check proves
 
@@ -56,4 +56,4 @@ All 24 exact stable profiles pass in [CI at `68d2998`](https://github.com/luinby
 
 Bounded exploration at `9bb4712`: [1.21.1](evidence/1.21.1-exploration/run.json) and [26.3](evidence/26.3-exploration/run.json) controlled single-goal checks passed from empty inventory to eight logs in an initially unloaded resource chunk. The archived source patches identify the exact development clients. [All24 exact builds pass](https://github.com/luinbytes/lodekeeper/actions/runs/37296721624); [downloaded artifact inspection](evidence/builds/9bb4712.json) verifies their digests, exact metadata, JVM versions, bundled Java17 navigation/core and verifier exclusion. This predates the dependency-union and fast-bootstrap planner changes.
 
-Single-command diamond-boots bootstrapping at `d8543e0`: controlled [1.21.1](evidence/1.21.1-diamond-boots/run.json) and [26.3](evidence/26.3-diamond-boots/run.json) runs passed from empty inventory using ordinary gathering, table crafting, furnace smelting, tool upgrades and diamond mining. Server evidence includes one pair of boots, full health, a retained iron pickaxe and both station menus. Archived source patches identify the exact development clients. The [earlier failed 1.21.1 run](evidence/1.21.1-diamond-boots-failed/run.json) remains available. Local exact builds pass for both adapters; [the new 24-profile CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37304192574) is a separate gate, currently in progress. Natural-world acquisition and the remaining mechanics are still pending.
+Single-command diamond-boots bootstrapping at `d8543e0`: controlled [1.21.1](evidence/1.21.1-diamond-boots/run.json) and [26.3](evidence/26.3-diamond-boots/run.json) runs passed from empty inventory using ordinary gathering, table crafting, furnace smelting, tool upgrades and diamond mining. Server evidence includes one pair of boots, full health, a retained iron pickaxe and both station menus. Archived source patches identify the exact development clients. The [earlier failed 1.21.1 run](evidence/1.21.1-diamond-boots-failed/run.json) remains available. Local exact builds pass for both adapters; [the new 24-profile CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37304192574) passed all 24 exact builds; [downloaded artifact inspection](evidence/builds/d8543e0.json) verifies every digest, exact version, adapter JVM, Java17 core/navigation, Yarn refmap and verifier exclusion. Natural-world acquisition and the remaining mechanics are still pending.

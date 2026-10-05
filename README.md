@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Development preview:** there is no playable release yet. Nine controlled checks each on 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 passed gathering, inventory/table crafting, tool and furnace progression, iron smelting, custom-content crafting, and eating while gathering. Single-command diamond-boots bootstraps on 1.21.1 and 26.3 also passed from empty inventory. Separate distant-wood checks on 1.21.1 and 26.3 passed travel into initially unloaded resource terrain; natural-world progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
+> **Development preview:** experimental builds are available below. Full mechanic coverage and natural-world progression are still in development. Nine controlled checks each on 1.20.1, 1.21.1, 1.21.2, 1.21.11 and 26.3 passed gathering, inventory/table crafting, tool and furnace progression, iron smelting, custom-content crafting, and eating while gathering. Single-command diamond-boots bootstraps on 1.21.1 and 26.3 also passed from empty inventory. Separate distant-wood checks on 1.21.1 and 26.3 passed travel into initially unloaded resource terrain; natural-world progression remains in development. Version compatibility and features will be marked verified only when their builds and gameplay checks pass.
 
 ### Tell it what you need
 
@@ -31,7 +31,13 @@ You will be able to inspect a plan, queue goals, pause or stop. Unknown recipes 
 
 ### Installation and compatibility
 
-Installable artifacts and exact instructions will appear here after verification. **No Minecraft version is currently claimed as supported.** The target is every stable Java release from 1.20 through the current stable release, 26.3, including an explicit 1.21.1 build; each needs its own compatibility evidence. Use server automation only where the server permits it.
+Experimental jars are available in the **Artifacts** section of the [verified 24-version build](https://github.com/luinbytes/lodekeeper/actions/runs/37304192574). Single-command diamond-boots checks currently cover **1.21.1** and **26.3**.
+
+1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
+2. Download the matching `lodekeeper-<version>-development` artifact, unzip it, and place its jar plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
+
+Each jar targets one exact release. Every stable Java release from 1.20 through the current stable release, 26.3, has a passing development build, including 1.21.1. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.
 
 ---
 
