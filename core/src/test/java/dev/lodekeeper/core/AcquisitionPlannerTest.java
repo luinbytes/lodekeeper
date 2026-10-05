@@ -176,6 +176,34 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void stonecuttingRoundsOutputBatchesAndPreservesProtectedMaterials() {
+        ItemId stone = ItemId.parse("minecraft:stone"), slabs = ItemId.parse("minecraft:stone_slab");
+        ItemId cutter = ItemId.parse("minecraft:stonecutter");
+        StationId station = StationId.parse("minecraft:stonecutter");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(stone, 0).item(slabs, 0).item(cutter, 0)
+                .source(new CraftingSource("stonecutting:slabs", slabs, 2, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(stone))),
+                        List.of(new StationRequirement(station, cutter, "use station")))).build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(stone, 40, slabs, 2, cutter, 1),
+                Set.of(), Map.of(), Map.of(stone, 4));
+        PlanResult result = planner().planFast(catalog, inventory, slabs, 73);
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of(PlanKind.PLACE_STATION, PlanKind.CRAFT), result.steps().stream().map(PlanStep::kind).toList());
+        PlanStep craft = result.steps().get(1);
+        assertEquals(station, craft.station());
+        assertEquals(36, craft.operationCount());
+        assertEquals(72, craft.outputCount());
+        List<SelectedItemRequirement> materials = craft.requirements().stream()
+                .filter(SelectedItemRequirement.class::isInstance).map(SelectedItemRequirement.class::cast).toList();
+        assertEquals(1, materials.size());
+        assertEquals(stone, materials.get(0).item());
+        assertEquals(36, materials.get(0).count());
+        assertEquals(0, materials.get(0).recipeSlot());
+        assertTrue(materials.get(0).consumed());
+        assertFalse(planner().planFast(catalog, inventory, slabs, 75).success());
+    }
+
+    @Test
     void reservesHeldItemsForLessFlexibleShapelessIngredientsAcrossCraftCycles() {
         ItemId a = ItemId.parse("test:a");
         ItemId b = ItemId.parse("test:b");
