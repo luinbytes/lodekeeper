@@ -1,0 +1,2380 @@
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+index 5a0c61b..66ff25f 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java
+@@ -140,6 +140,7 @@ final class AutomationEngine {
+     private boolean exploring, explorationMoving;
+     private int explorationTicks;
+     private final Set<BlockPos> rejectedResources = new HashSet<>();
++    private String lastResourceFailure;
+     private BlockPos target;
+     private BlockPos gatherMineTarget;
+     private Block gatherMineBlock;
+@@ -296,7 +297,7 @@ final class AutomationEngine {
+             }
+             if (++actionTicks > config.actionTimeoutTicks) {
+                 if (shouldRejectTimedOutGather()) {
+-                    rejectResource();
++                    rejectResource("Gathering made no confirmed progress before its timeout");
+                     return;
+                 }
+                 throw new IllegalStateException("Action timeout: " + step.sourceId()
+@@ -315,7 +316,7 @@ final class AutomationEngine {
+                 catch (MovementController.NavigationFailure blocked) {
+                     if (movingPickup) throw new IllegalStateException("Unable to collect dropped " + step.output() + ": " + blocked.getMessage());
+                     if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
+-                    rejectResource();
++                    rejectResource(blocked.getMessage());
+                 }
+                 return;
+             }
+@@ -514,7 +515,7 @@ final class AutomationEngine {
+                 return;
+             }
+             unavailableSources.clear();
+-            frontier = null; rejectedResources.clear(); logCandidates.clear();
++            frontier = null; rejectedResources.clear(); lastResourceFailure = null; logCandidates.clear();
+             planningRetries = 0;
+             requestPlan();
+         }
+@@ -1221,9 +1222,16 @@ final class AutomationEngine {
+         BlockPos feet = client.player.blockPosition();
+         if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),
+             config.explorationAttempts, config.explorationDistance);
+-        terrain.beginSearch(); frontier.beginAt(feet.getX(), feet.getY(), feet.getZ());
++        beginFrontierAtPlayer(feet);
+         exploring = true; status = "finding a safe exploration route";
+     }
++    private void beginFrontierAtPlayer(BlockPos feet) {
++        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
++        if (feetY16 == GameTerrain.INVALID_FEET_Y16) {
++            throw new MovementController.NavigationFailure("Exploration requires a modeled sixteenth-block feet height");
++        }
++        terrain.beginSearch(); frontier.beginAt16(feet.getX(), feetY16, feet.getZ());
++    }
+     private void explore() {
+         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
+         if (goalCount() >= active.count) { finishGoal(); return; }
+@@ -1242,7 +1250,9 @@ final class AutomationEngine {
+                 if (movement.tick()) {
+                     var waypoint = frontier.waypoint();
+                     BlockPos feet = client.player.blockPosition();
+-                    if (feet.getX() != waypoint.x() || feet.getY() != waypoint.y() || feet.getZ() != waypoint.z()) {
++                    int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
++                    if (feet.getX() != waypoint.x() || feet.getZ() != waypoint.z()
++                            || feetY16 == GameTerrain.INVALID_FEET_Y16 || feetY16 != waypoint.feetY16()) {
+                         throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
+                     }
+                     movement.stop(); unavailableSources.clear(); resetAction(); planningRetries = 0; requestPlan();
+@@ -1253,11 +1263,12 @@ final class AutomationEngine {
+         var state = frontier.advance(terrain,32,1_000_000);
+         if (state == ExplorationFrontier.Status.EXHAUSTED) {
+             throw new IllegalStateException("No safe unexplored waypoint remains within the exploration bounds after "
+-                + frontier.attempts() + " attempts; move to another area or adjust exploration limits");
++                + frontier.attempts() + " attempts; move to another area or adjust exploration limits"
++                + (lastResourceFailure == null ? "" : " · Last resource attempt: " + lastResourceFailure));
+         }
+         if (state == ExplorationFrontier.Status.READY) {
+             var point = frontier.waypoint();
+-            movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
++            movement.startExploration(point);
+             lastMovementProgressToken = movement.progressToken();
+             explorationMoving = true;
+         }
+@@ -1266,10 +1277,13 @@ final class AutomationEngine {
+         movement.stop(); explorationMoving = false; explorationTicks = 0;
+         lastMovementProgressToken = movement.progressToken();
+         BlockPos feet = client.player.blockPosition();
+-        terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
++        beginFrontierAtPlayer(feet);
+         status = "trying another safe exploration waypoint";
+     }
+-    private void rejectResource() {
++    private void rejectResource(String reason) {
++        lastResourceFailure = target.getX() + "," + target.getY() + "," + target.getZ() + ": " + reason;
++        System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
++            "Rejected resource " + lastResourceFailure);
+         movement.stop(); actions.cancel(); moving = false;
+         if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
+         rejectedResources.add(target.immutable()); target = null; scan = null; clearGatherAttempt(); actionTicks = 0;
+@@ -1372,7 +1386,7 @@ final class AutomationEngine {
+             gatherMineBlock = sourceBlock;
+         } else {
+             try { movement.startInteraction(target); moving = true; }
+-            catch (MovementController.NavigationFailure blocked) { rejectResource(); }
++            catch (MovementController.NavigationFailure blocked) { rejectResource(blocked.getMessage()); }
+         }
+     }
+ 
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java
+index 65bf768..cc592ef 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java
+@@ -1,90 +1,382 @@
+ package dev.lodekeeper.fabric.modern;
+ 
+-import dev.lodekeeper.nav.StanceProbe;
+-import dev.lodekeeper.nav.Terrain;
+-import dev.lodekeeper.nav.BreakTarget;
++import dev.lodekeeper.nav.*;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.core.Direction;
++import net.minecraft.world.entity.Pose;
++import net.minecraft.world.item.ItemStack;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.tags.FluidTags;
+-import net.minecraft.world.entity.player.Inventory;
+-import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.level.ClipContext;
+-import net.minecraft.world.level.block.Block;
+-import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.chunk.status.ChunkStatus;
++import net.minecraft.core.BlockPos;
+ import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.shapes.VoxelShape;
++import net.minecraft.world.phys.shapes.Shapes;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
+ 
+-/** Conservative full-block geometry; unknown or unloaded terrain is blocked. */
++/** Native voxel-shape adapter for exact grounded player stances and bounded sweeps. */
+ final class GameTerrain implements Terrain {
++    static final int INVALID_FEET_Y16 = Integer.MIN_VALUE;
++    private static final double PLAYER_WIDTH_FALLBACK = 0.6;
++    private static final double PLAYER_HEIGHT_FALLBACK = 1.8;
++    private static final int MAX_SHAPE_BOXES = 256;
++    private static final int MAX_WALK_EVENTS = 256;
++    private static final int MAX_WALK_PROOFS = 256;
++    // The trailing part of the footprint can cover a stair's lower half while the
++    // leading part climbs the next half-step. Support depth is separate from the
++    // live rise limit: every height change still obeys liveStepLimit16() (at most 9).
++    private static final int SUPPORT_DEPTH16 = 16;
++    private static final double MAX_STANDING_WIDTH = 1.25;
++    private static final double MAX_STANDING_HEIGHT = 3.0;
++    private static final double HEIGHT_EPSILON = 1.0e-6;
++    private static final double GEOMETRY_EPSILON = 1.0e-7;
++
++    private static final int MODE_NONE = 0;
++    private static final int MODE_BODY = 1;
++    private static final int MODE_SUPPORT_CANDIDATES = 2;
++    private static final int MODE_SUPPORT_PROFILE = 3;
++    private static final int MODE_WALK_EVENTS = 4;
++
+     private final Minecraft client;
+     private final LodekeeperConfig config;
+     private final BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+-    private long revision;
++    private final FootprintCoverage exactCoverage = new FootprintCoverage();
++    private final FootprintCoverage allCoverage = new FootprintCoverage();
++    private final GroundedStanceBuffer stanceBuffer = new GroundedStanceBuffer();
+     private final double[] trajectoryPoint = new double[3];
++    private final MotionEventBuffer walkEvents = new MotionEventBuffer(MAX_WALK_EVENTS);
++    private final Shapes.DoubleLineConsumer shapeConsumer = this::visitShapeBox;
++
++    private long revision;
++    private double standingWidth = PLAYER_WIDTH_FALLBACK;
++    private double standingHeight = PLAYER_HEIGHT_FALLBACK;
++    private boolean standingDimensionsValid = true;
++    private double observedStandingWidth = PLAYER_WIDTH_FALLBACK;
++    private double observedStandingHeight = PLAYER_HEIGHT_FALLBACK;
++    private long observedPlayerContext;
++    private boolean hasObservedPlayerContext;
++    private CollisionContext shapeContext;
++    private int shapeMode;
++    private int shapeBoxCount;
++    private boolean shapeIncomplete;
++    private int shapeBlockX, shapeBlockY, shapeBlockZ;
++    private double bodyMinX, bodyMinY, bodyMinZ, bodyMaxX, bodyMaxY, bodyMaxZ;
++    private boolean bodyCollision;
++    private boolean shapeBlockHazard;
++    private boolean supportHazardSeen;
++    private double footprintMinX, footprintMinZ, footprintMaxX, footprintMaxZ;
++    private int candidateFeetY16, candidateMinimumFeetY16, candidateMaximumFeetY16;
++    private GroundedStanceBuffer candidateBuffer;
++    private int supportDepth16;
++    private double walkFromX, walkFromZ, walkDeltaX, walkDeltaZ;
++
++    GameTerrain(Minecraft client, LodekeeperConfig config) {
++        this.client = client;
++        this.config = config;
++        refreshStandingDimensions();
++    }
+ 
+-    GameTerrain(Minecraft client, LodekeeperConfig config) { this.client = client; this.config = config; }
+     void changed() { revision++; }
+-    void beginSearch() { WorldRevision.beginSearch(); }
++    void beginSearch() { WorldRevision.beginSearch(); refreshStandingDimensions(); }
++    void refreshStandingDimensions() {
++        if (client.player == null) return;
++        AABB box = client.player.getDimensions(Pose.STANDING).makeBoundingBox(0.0, 0.0, 0.0);
++        double width = box.maxX - box.minX;
++        double height = box.maxY - box.minY;
++        if (!Double.isFinite(width) || !Double.isFinite(height)) {
++            if (standingDimensionsValid) revision++;
++            standingDimensionsValid = false;
++            return;
++        }
++        boolean valid = Double.isFinite(width) && Double.isFinite(height)
++                && width >= 0.1 && width <= MAX_STANDING_WIDTH
++                && height >= 0.5 && height <= MAX_STANDING_HEIGHT;
++        long contextSignature = playerContextSignature();
++        if (Math.abs(width - observedStandingWidth) > HEIGHT_EPSILON
++                || Math.abs(height - observedStandingHeight) > HEIGHT_EPSILON
++                || valid != standingDimensionsValid
++                || !hasObservedPlayerContext || contextSignature != observedPlayerContext) {
++            revision++;
++            shapeContext = CollisionContext.of(client.player);
++        }
++        observedStandingWidth = width;
++        observedStandingHeight = height;
++        observedPlayerContext = contextSignature;
++        hasObservedPlayerContext = true;
++        standingDimensionsValid = valid;
++        if (valid) { standingWidth = width; standingHeight = height; }
++    }
++
++    private long playerContextSignature() {
++        var player = client.player;
++        ItemStack main = player.getMainHandItem();
++        ItemStack off = player.getOffhandItem();
++        long signature = System.identityHashCode(player);
++        signature = signature * 31 + player.getPose().ordinal();
++        signature = signature * 31 + (player.isShiftKeyDown() ? 1 : 0);
++        signature = signature * 31 + (player.onGround() ? 1 : 0);
++        signature = signature * 31 + System.identityHashCode(main.getItem());
++        signature = signature * 31 + main.getCount();
++        signature = signature * 31 + (main.isDamageableItem() ? main.getDamageValue() : 0);
++        signature = signature * 31 + System.identityHashCode(off.getItem());
++        signature = signature * 31 + off.getCount();
++        return signature * 31 + (off.isDamageableItem() ? off.getDamageValue() : 0);
++    }
++    static int quantizedFeetY16(double feetY) {
++        if (!Double.isFinite(feetY)) return INVALID_FEET_Y16;
++        double scaled = feetY * 16.0;
++        double nearest = Math.rint(scaled);
++        if (!Double.isFinite(nearest) || nearest <= Integer.MIN_VALUE || nearest > Integer.MAX_VALUE
++                || Math.abs(feetY - nearest / 16.0) > 1.0e-4) return INVALID_FEET_Y16;
++        return (int) nearest;
++    }
+     void changedChunk(int chunkX, int chunkZ) { WorldRevision.changedChunk(chunkX, chunkZ); }
+     @Override public long revision() { return revision + WorldRevision.value(); }
+ 
+     private boolean loaded(int x, int y, int z) {
+-        if (client.level == null || y < client.level.getMinY() || y >= client.level.getMaxY()) return false;
++        if (client.level == null || (y < client.level.getMinY() || y >= client.level.getMaxY())) return false;
+         WorldRevision.watch(x >> 4, z >> 4);
+         return client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
+     }
+ 
+     private boolean hazardous(BlockState state) {
+-        return state.getFluidState().is(FluidTags.LAVA) || state.is(Blocks.FIRE) || state.is(Blocks.SOUL_FIRE)
+-                || state.is(Blocks.CACTUS) || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE)
++        return state.getFluidState().is(FluidTags.LAVA) || state.is(Blocks.FIRE)
++                || state.is(Blocks.SOUL_FIRE) || state.is(Blocks.CACTUS)
++                || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE)
+                 || state.is(Blocks.SOUL_CAMPFIRE) || state.is(Blocks.POWDER_SNOW)
+                 || state.is(Blocks.SWEET_BERRY_BUSH) || state.is(Blocks.WITHER_ROSE);
+     }
+ 
+     @Override public void probeStance(int x, int y, int z, StanceProbe out) {
++        if (y < -2_048 || y > 2_047) { out.clear(); return; }
++        probeAt(x + 0.5, Math.multiplyExact(y, 16), z + 0.5, true, out);
++    }
++
++    @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
++        probeAt(x + 0.5, feetY16, z + 0.5, true, out);
++        return out.loaded;
++    }
++
++    @Override public boolean probeCurrentStance(double feetX, int feetY16, double feetZ, StanceProbe out) {
++        if (!Double.isFinite(feetX) || !Double.isFinite(feetZ)) { out.clear(); return false; }
++        probeAt(feetX, feetY16, feetZ, false, out);
++        return out.loaded;
++    }
++
++    private void probeAt(double feetX, int feetY16, double feetZ, boolean centered, StanceProbe out) {
+         out.clear();
+-        if (client.player == null || !loaded(x, y - 1, z) || !loaded(x, y + 1, z)) return;
+-        out.loaded = true;
+-        BlockState floor = client.level.getBlockState(position.set(x, y - 1, z));
+-        out.fullSupport = Block.isShapeFullBlock(floor.getCollisionShape(client.level, position));
+-        out.hazard = hazardous(floor);
++        if (client.player == null || client.level == null || !standingDimensionsValid
++                || !Double.isFinite(feetX) || !Double.isFinite(feetZ)) return;
++        if (Math.abs(feetX) > 33_554_432.0 || Math.abs(feetZ) > 33_554_432.0) return;
++        double feetY = feetY16 / 16.0;
++        setFootprint(feetX, feetZ);
++        setBodyBounds(feetX, feetY, feetZ);
++        out.hazard = false;
+         out.bodyClear = true;
+-        for (int dy = 0; dy <= 1; dy++) {
+-            BlockState state = client.level.getBlockState(position.set(x, y + dy, z));
+-            out.hazard |= hazardous(state);
+-            out.water |= state.getFluidState().is(FluidTags.WATER);
+-            out.climbable |= state.is(BlockTags.CLIMBABLE);
+-            var shape = state.getCollisionShape(client.level, position);
+-            AABB body = new AABB(.2, 0, .2, .8, dy == 0 ? 1 : .8, .8);
+-            if (shape.toAabbs().stream().noneMatch(body::intersects)) continue;
++
++        int tightMinX = blockMin(bodyMinX), tightMaxX = blockMax(bodyMaxX);
++        int tightMinY = blockMin(bodyMinY), tightMaxY = blockMax(bodyMaxY);
++        int tightMinZ = blockMin(bodyMinZ), tightMaxZ = blockMax(bodyMaxZ);
++        int minX = tightMinX - 1, maxX = tightMaxX + 1;
++        int minZ = tightMinZ - 1, maxZ = tightMaxZ + 1;
++        int minY = tightMinY - 1, maxY = tightMaxY + 1;
++        shapeBoxCount = 0;
++        shapeIncomplete = false;
++        shapeMode = MODE_BODY;
++        for (int bx = minX; bx <= maxX; bx++) for (int by = minY; by <= maxY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
++            if (!loaded(bx, by, bz)) { out.clear(); shapeMode = MODE_NONE; return; }
++            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
++            if (unsupportedContextShape(state)) { out.clear(); shapeMode = MODE_NONE; return; }
++            boolean cellTouchesBody = bx >= tightMinX && bx <= tightMaxX
++                    && by >= tightMinY && by <= tightMaxY && bz >= tightMinZ && bz <= tightMaxZ;
++            if (cellTouchesBody) {
++                out.hazard |= hazardous(state);
++                out.water |= state.getFluidState().is(FluidTags.WATER);
++                out.climbable |= state.is(BlockTags.CLIMBABLE);
++            }
++            shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
++            bodyCollision = false;
++            VoxelShape shape = collisionShape(state);
++            shape.forAllBoxes(shapeConsumer);
++            if (shapeIncomplete) { out.clear(); shapeMode = MODE_NONE; return; }
++            if (!bodyCollision) continue;
+             out.bodyClear = false;
+-            if (!config.allowBreaking || !canMine(state, x, y + dy, z)) {
+-                out.breakCount = StanceProbe.MAX_BREAK_TARGETS + 1;
++            addBreakTarget(out, state, bx, by, bz);
++        }
++        shapeMode = MODE_NONE;
++
++        supportDepth16 = SUPPORT_DEPTH16;
++        if (!supportProfile(feetX, feetZ, feetY16, exactCoverage, allCoverage, out)) {
++            out.clear();
++            return;
++        }
++        out.surfaceSupport = !out.hazard && exactCoverage.coversFraction(centered ? 0.5 : 0.0)
++                && (centered || exactCoverage.coveredArea() > GEOMETRY_EPSILON)
++                && allCoverage.coversAll();
++        if (Math.floorMod(feetY16, 16) == 0) {
++            int floorY = Math.floorDiv(feetY16, 16) - 1;
++            int floorX = (int) Math.floor(feetX), floorZ = (int) Math.floor(feetZ);
++            if (!loaded(floorX, floorY, floorZ)) { out.clear(); return; }
++            BlockState floor = client.level.getBlockState(position.set(floorX, floorY, floorZ));
++            out.fullSupport = !out.hazard && exactCoverage.coversAll() && allCoverage.coversAll()
++                    && Block.isShapeFullBlock(collisionShape(floor));
++        }
++        if (out.breakCount > 0) verifyBreakNeighborhood(out);
++        out.loaded = true;
++    }
++
++    @Override public boolean collectGroundedStances(int x, int referenceFeetY16, int z,
++                                                    GroundedStanceBuffer out) {
++        out.clear();
++        return collectSupportHeights(x + 0.5, z + 0.5, referenceFeetY16, 16, out);
++    }
++
++    private boolean collectSupportHeights(double feetX, double feetZ, int referenceFeetY16,
++                                          int range16, GroundedStanceBuffer out) {
++        out.clear();
++        if (client.level == null || client.player == null || !standingDimensionsValid
++                || range16 < 0 || !Double.isFinite(feetX) || !Double.isFinite(feetZ)) return false;
++        setFootprint(feetX, feetZ);
++        candidateBuffer = out;
++        long minimum = (long) referenceFeetY16 - range16;
++        long maximum = (long) referenceFeetY16 + range16;
++        if (minimum < Integer.MIN_VALUE + 32L || maximum > Integer.MAX_VALUE - 32L) return false;
++        candidateMinimumFeetY16 = (int) minimum;
++        candidateMaximumFeetY16 = (int) maximum;
++        long lowBlock = Math.floorDiv(minimum, 16L) - 2L;
++        long highBlock = Math.floorDiv(maximum, 16L) + 1L;
++        if (lowBlock < Integer.MIN_VALUE || highBlock > Integer.MAX_VALUE) return false;
++        int minBlockY = (int) lowBlock, maxBlockY = (int) highBlock;
++        int minX = blockMin(footprintMinX) - 1, maxX = blockMax(footprintMaxX) + 1;
++        int minZ = blockMin(footprintMinZ) - 1, maxZ = blockMax(footprintMaxZ) + 1;
++        shapeBoxCount = 0;
++        shapeIncomplete = false;
++        shapeMode = MODE_SUPPORT_CANDIDATES;
++        for (int bx = minX; bx <= maxX; bx++) for (int by = minBlockY; by <= maxBlockY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
++            if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return false; }
++            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
++            if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return false; }
++            shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
++            collisionShape(state).forAllBoxes(shapeConsumer);
++            if (shapeIncomplete || !out.isComplete()) { shapeMode = MODE_NONE; return false; }
++        }
++        shapeMode = MODE_NONE;
++        return out.isComplete();
++    }
++
++    private boolean supportProfile(double feetX, double feetZ, int feetY16,
++                                   FootprintCoverage exact, FootprintCoverage all, StanceProbe out) {
++        exact.clear(footprintMinX, footprintMinZ, footprintMaxX, footprintMaxZ);
++        all.clear(footprintMinX, footprintMinZ, footprintMaxX, footprintMaxZ);
++        long lowBlock = Math.floorDiv((long) feetY16 - SUPPORT_DEPTH16, 16L) - 2L;
++        long highBlock = Math.floorDiv((long) feetY16, 16L) + 1L;
++        if (lowBlock < Integer.MIN_VALUE || highBlock > Integer.MAX_VALUE) return false;
++        int minBlockY = (int) lowBlock, maxBlockY = (int) highBlock;
++        int minX = blockMin(footprintMinX) - 1, maxX = blockMax(footprintMaxX) + 1;
++        int minZ = blockMin(footprintMinZ) - 1, maxZ = blockMax(footprintMaxZ) + 1;
++        shapeBoxCount = 0;
++        shapeIncomplete = false;
++        supportHazardSeen = false;
++        shapeMode = MODE_SUPPORT_PROFILE;
++        candidateFeetY16 = feetY16;
++        supportDepth16 = SUPPORT_DEPTH16;
++        for (int bx = minX; bx <= maxX; bx++) for (int by = minBlockY; by <= maxBlockY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
++            if (!loaded(bx, by, bz)) {
++                shapeMode = MODE_NONE;
++                out.loaded = false;
++                return false;
++            }
++            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
++            if (unsupportedContextShape(state)) {
++                shapeMode = MODE_NONE;
++                out.loaded = false;
++                return false;
++            }
++            shapeBlockHazard = hazardous(state);
++            shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
++            collisionShape(state).forAllBoxes(shapeConsumer);
++            if (shapeIncomplete) {
++                shapeMode = MODE_NONE;
++                out.loaded = false;
++                return false;
++            }
++        }
++        shapeMode = MODE_NONE;
++        if (supportHazardSeen) out.hazard = true;
++        return !shapeIncomplete && exact.isComplete() && all.isComplete();
++    }
++
++    private boolean highestSupportedFeetY(double feetX, double feetZ, int referenceFeetY16,
++                                          int maxStep16, StanceProbe out, int[] result) {
++        if (maxStep16 < 0 || !collectSupportHeights(feetX, feetZ, referenceFeetY16, maxStep16, stanceBuffer)) return false;
++        setFootprint(feetX, feetZ);
++        for (int i = stanceBuffer.size() - 1; i >= 0; i--) {
++            int candidate = stanceBuffer.get(i);
++            exactCoverage.clear(footprintMinX, footprintMinZ, footprintMaxX, footprintMaxZ);
++            allCoverage.clear(footprintMinX, footprintMinZ, footprintMaxX, footprintMaxZ);
++            // Transit permits a small first contact on the upper face while lower terrain remains continuous.
++            StanceProbe profile = sweepProfileProbe;
++            profile.clear(); profile.loaded = true; profile.hazard = false;
++            if (!supportProfile(feetX, feetZ, candidate, exactCoverage, allCoverage, profile)) {
++                if (!profile.loaded) return false;
+                 continue;
+             }
+-            if (out.breakCount >= StanceProbe.MAX_BREAK_TARGETS) continue;
+-            BreakTarget target = out.breakTargets[out.breakCount++];
+-            target.x = x; target.y = y + dy; target.z = z;
+-            target.stateToken = Block.getId(state);
+-            target.cost = Math.max(30, (int) (state.getDestroySpeed(client.level, position) * 100));
++            if (profile.hazard || exactCoverage.coveredArea() <= GEOMETRY_EPSILON || !allCoverage.coversAll()) continue;
++            result[0] = candidate;
++            return true;
++        }
++        return false;
++    }
++
++    private final StanceProbe sweepProfileProbe = new StanceProbe();
++
++    private void addBreakTarget(StanceProbe out, BlockState state, int x, int y, int z) {
++        if (!config.allowBreaking || !canMine(state, x, y, z)) {
++            out.breakCount = StanceProbe.MAX_BREAK_TARGETS + 1;
++            return;
+         }
+-        if (out.breakCount > 0) for (Direction direction : Direction.values()) {
+-            BlockPos adjacent = new BlockPos(x, y, z).relative(direction);
+-            if (!loaded(adjacent.getX(), adjacent.getY(), adjacent.getZ())
+-                    || client.level.getFluidState(adjacent).is(FluidTags.LAVA)) out.hazard = true;
++        if (out.breakCount >= StanceProbe.MAX_BREAK_TARGETS) {
++            out.breakCount = StanceProbe.MAX_BREAK_TARGETS + 1;
++            return;
++        }
++        var target = out.breakTargets[out.breakCount++];
++        target.x = x; target.y = y; target.z = z;
++        target.stateToken = Block.getId(state);
++        position.set(x, y, z);
++        target.cost = Math.max(30, (int) (state.getDestroySpeed(client.level, position) * 100));
++    }
++
++    private void verifyBreakNeighborhood(StanceProbe out) {
++        if (out.breakCount < 1 || out.breakCount > StanceProbe.MAX_BREAK_TARGETS) return;
++        for (int i = 0; i < out.breakCount; i++) {
++            var target = out.breakTargets[i];
++            BlockPos targetPos = new BlockPos(target.x, target.y, target.z);
++            for (var direction : net.minecraft.core.Direction.values()) {
++                BlockPos adjacent = targetPos.relative(direction);
++                if (!loaded(adjacent.getX(), adjacent.getY(), adjacent.getZ())
++                        || client.level.getFluidState(adjacent).is(FluidTags.LAVA)) out.hazard = true;
++            }
+         }
+     }
+ 
++    private VoxelShape collisionShape(BlockState state) {
++        if (shapeContext == null && client.player != null) shapeContext = CollisionContext.of(client.player);
++        return state.getCollisionShape(client.level, position, shapeContext);
++    }
++
++    private static boolean unsupportedContextShape(BlockState state) {
++        // 1.20.1 exposes the live entity context but cannot evaluate it at a hypothetical stance.
++        return state.is(Blocks.SCAFFOLDING);
++    }
++
+     private boolean canMine(BlockState state, int x, int y, int z) {
+         position.set(x, y, z);
+         if (state.getDestroySpeed(client.level, position) < 0 || state.hasBlockEntity() || hazardous(state)) return false;
+         if (!state.requiresCorrectToolForDrops()) return true;
+-        Inventory inventory = client.player.getInventory();
+-        for (int i = 0; i < 36; i++) {
+-            ItemStack tool = inventory.getItem(i);
++        for (int slot = 0; slot < 36; slot++) {
++            ItemStack tool = client.player.getInventory().getItem(slot);
+             if (!tool.isEmpty() && tool.isCorrectToolForDrops(state)
+                     && (!tool.isDamageableItem() || tool.getMaxDamage() - tool.getDamageValue() > 2)) return true;
+         }
+@@ -92,49 +384,275 @@ final class GameTerrain implements Terrain {
+     }
+ 
+     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz,
+-                                          double arc, StanceProbe destination) {
++                                           double arc, StanceProbe destination) {
+         return isMotionClear(fx, fy, fz, tx, ty, tz, arc, null, destination);
+     }
+ 
+     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz,
+-                                          double arc, StanceProbe source, StanceProbe destination) {
+-        int samples = Math.max(2, (int) Math.ceil(Math.sqrt(Math.pow(tx - fx, 2) + Math.pow(ty - fy, 2)
+-                + Math.pow(tz - fz, 2)) / .2));
++                                           double arc, StanceProbe source, StanceProbe destination) {
++        if (!Double.isFinite(fx) || !Double.isFinite(fy) || !Double.isFinite(fz)
++                || !Double.isFinite(tx) || !Double.isFinite(ty) || !Double.isFinite(tz)
++                || !Double.isFinite(arc)) return false;
++        double distance = Math.sqrt(square(tx - fx) + square(ty - fy) + square(tz - fz));
++        int samples = Math.max(2, (int) Math.ceil(distance / 0.2));
++        if (samples > MAX_WALK_PROOFS) return false;
++        double previousX = fx, previousY = fy, previousZ = fz;
+         for (int i = 0; i <= samples; i++) {
+             double t = (double) i / samples;
+             MovementTrajectory.sample(fx, fy, fz, tx, ty, tz, arc, t, trajectoryPoint);
+             double x = trajectoryPoint[0], y = trajectoryPoint[1], z = trajectoryPoint[2];
+-            AABB body = new AABB(x - .3, y + .001, z - .3, x + .3, y + 1.8, z + .3);
+-            for (int bx = (int) Math.floor(body.minX); bx <= (int) Math.floor(body.maxX); bx++)
+-                for (int by = (int) Math.floor(body.minY); by <= (int) Math.floor(body.maxY); by++)
+-                    for (int bz = (int) Math.floor(body.minZ); bz <= (int) Math.floor(body.maxZ); bz++) {
+-                        if (!loaded(bx, by, bz)) return false;
+-                        BlockState state = client.level.getBlockState(position.set(bx, by, bz));
+-                        if (hazardous(state)) return false;
+-                        if (isBreakTarget(destination, bx, by, bz) || isBreakTarget(source, bx, by, bz)) continue;
+-                        for (AABB box : state.getCollisionShape(client.level, position).toAabbs()) {
+-                            if (box.move(bx, by, bz).intersects(body)) return false;
+-                        }
+-                    }
++            if (i > 0 && !clearSweptSegment(previousX, previousY, previousZ, x, y, z, source, destination)) return false;
++            if (i == 0 && !clearBodyAt(x, y, z, source, destination)) return false;
++            previousX = x; previousY = y; previousZ = z;
++        }
++        return true;
++    }
++
++    @Override public boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
++                                                 double toX, int toFeetY16, double toZ,
++                                                 StanceProbe source, StanceProbe destination) {
++        if (!Double.isFinite(fromX) || !Double.isFinite(fromZ) || !Double.isFinite(toX) || !Double.isFinite(toZ)
++                || Math.abs(fromX) > 33_554_430.0 || Math.abs(fromZ) > 33_554_430.0
++                || Math.abs(toX) > 33_554_430.0 || Math.abs(toZ) > 33_554_430.0) return false;
++        long riseLong = (long) toFeetY16 - fromFeetY16;
++        if (Math.abs(riseLong) > 16L) return false;
++        int rise = (int) riseLong;
++        double dx = toX - fromX, dz = toZ - fromZ;
++        double minorDelta = Math.min(Math.abs(dx), Math.abs(dz));
++        // Planned height-changing WALK edges remain cardinal. Permit only the small off-axis
++        // correction from the live player's actual position to the centered destination node.
++        if (rise != 0 && minorDelta > 0.75) return false;
++        int stepLimit16 = liveStepLimit16();
++        if (stepLimit16 < 1) return false;
++        if (Math.abs(rise) == 16 && stepLimit16 >= 16) return false;
++        if (Math.abs(dx) > 1.75 || Math.abs(dz) > 1.75) return false;
++
++        if (rise == 0 && source != null && destination != null
++                && source.fullSupport && destination.fullSupport
++                && Math.floorMod(fromFeetY16, 16) == 0
++                && standingWidth <= 1.0
++                && fullCubeSweepSupport(fromX, fromZ, toX, toZ, fromFeetY16)
++                && clearSweptSegment(fromX, fromFeetY16 / 16.0, fromZ,
++                toX, toFeetY16 / 16.0, toZ, source, destination)) return true;
++
++        long minimumFeetY16 = (long) Math.min(fromFeetY16, toFeetY16) - 16L;
++        long maximumFeetY16 = (long) Math.max(fromFeetY16, toFeetY16) + 16L;
++        if (minimumFeetY16 < Integer.MIN_VALUE || maximumFeetY16 > Integer.MAX_VALUE) return false;
++        int eventCount = buildWalkEvents(fromX, fromZ, toX, toZ,
++                (int) minimumFeetY16, (int) maximumFeetY16);
++        if (eventCount < 2) return false;
++        if (eventCount > walkResolvedHeights.length) return false;
++        double previousX = fromX, previousZ = fromZ;
++        int previousY = fromFeetY16;
++        StanceProbe profile = sweepProfileProbe;
++        int proofCount = 0;
++        for (int i = 0; i < eventCount; i++) {
++            if (++proofCount > MAX_WALK_PROOFS) return false;
++            double t = walkEvents.get(i);
++            double x = fromX + dx * t, z = fromZ + dz * t;
++            int[] candidate = walkCandidateY;
++            if (!highestSupportedFeetY(x, z, previousY, stepLimit16, profile, candidate)) return false;
++            int feetY16 = candidate[0];
++            if (Math.abs(feetY16 - previousY) > stepLimit16) return false;
++            if (i == 0 && feetY16 != fromFeetY16) return false;
++            if (i == eventCount - 1 && feetY16 != toFeetY16) return false;
++            walkResolvedHeights[i] = feetY16;
++
++            if (i > 0) {
++                if (feetY16 > previousY) {
++                    // Vanilla first reaches the stair face at the old height, lifts at contact, then walks across.
++                    if (!clearSweptSegment(previousX, previousY / 16.0, previousZ,
++                            previousX, feetY16 / 16.0, previousZ, source, destination)
++                            || !clearSweptSegment(previousX, feetY16 / 16.0, previousZ,
++                            x, feetY16 / 16.0, z, source, destination)) return false;
++                } else if (feetY16 < previousY) {
++                    if (!clearSweptSegment(previousX, previousY / 16.0, previousZ,
++                            x, previousY / 16.0, z, source, destination)
++                            || !clearSweptSegment(x, previousY / 16.0, z,
++                            x, feetY16 / 16.0, z, source, destination)) return false;
++                } else if (!clearSweptSegment(previousX, previousY / 16.0, previousZ,
++                        x, feetY16 / 16.0, z, source, destination)) return false;
++            } else if (!clearBodyAt(x, feetY16 / 16.0, z, source, destination)) return false;
++            previousX = x; previousZ = z; previousY = feetY16;
++        }
++        return true;
++    }
++
++    private final int[] walkResolvedHeights = new int[MAX_WALK_EVENTS];
++    private final int[] walkCandidateY = new int[1];
++
++    private int liveStepLimit16() {
++        if (client.player == null) return 0;
++        double step = client.player.maxUpStep();
++        if (!Double.isFinite(step) || step <= 0.0) return 0;
++        return Math.min(9, (int) Math.floor(step * 16.0 + 1.0e-8));
++    }
++
++    private boolean fullCubeSweepSupport(double fromX, double fromZ, double toX, double toZ,
++                                         int feetY16) {
++        int floorY = Math.floorDiv(feetY16, 16) - 1;
++        int minX = blockMin(Math.min(fromX, toX) - standingWidth * 0.5);
++        int maxX = blockMax(Math.max(fromX, toX) + standingWidth * 0.5);
++        int minZ = blockMin(Math.min(fromZ, toZ) - standingWidth * 0.5);
++        int maxZ = blockMax(Math.max(fromZ, toZ) + standingWidth * 0.5);
++        for (int bx = minX; bx <= maxX; bx++) for (int bz = minZ; bz <= maxZ; bz++) {
++            if (!loaded(bx, floorY, bz)) return false;
++            BlockState state = client.level.getBlockState(position.set(bx, floorY, bz));
++            if (hazardous(state) || !Block.isShapeFullBlock(collisionShape(state))) return false;
+         }
+         return true;
+     }
+ 
+-    private static boolean isBreakTarget(StanceProbe probe, int x, int y, int z) {
+-        if (probe == null) return false;
+-        for (int i = 0; i < Math.min(probe.breakCount, 2); i++) {
++    private int buildWalkEvents(double fromX, double fromZ, double toX, double toZ,
++                                int minFeetY16, int maxFeetY16) {
++        walkFromX = fromX; walkFromZ = fromZ;
++        walkDeltaX = toX - fromX; walkDeltaZ = toZ - fromZ;
++        double distance = Math.hypot(walkDeltaX, walkDeltaZ);
++        walkEvents.clear(GEOMETRY_EPSILON / Math.max(1.0, distance));
++        int intervals = Math.max(1, (int) Math.ceil(distance / 0.2));
++        if (intervals + 1 > MAX_WALK_EVENTS) return -1;
++        for (int i = 0; i <= intervals; i++) {
++            if (!addWalkEvent((double) i / intervals, false)) return -1;
++        }
++
++        double minX = Math.min(fromX, toX) - standingWidth * 0.5;
++        double maxX = Math.max(fromX, toX) + standingWidth * 0.5;
++        double minZ = Math.min(fromZ, toZ) - standingWidth * 0.5;
++        double maxZ = Math.max(fromZ, toZ) + standingWidth * 0.5;
++        footprintMinX = minX; footprintMaxX = maxX;
++        footprintMinZ = minZ; footprintMaxZ = maxZ;
++        int cellMinX = blockMin(minX) - 1, cellMaxX = blockMax(maxX) + 1;
++        int cellMinZ = blockMin(minZ) - 1, cellMaxZ = blockMax(maxZ) + 1;
++        int cellMinY = Math.floorDiv(minFeetY16, 16) - 2;
++        int cellMaxY = Math.floorDiv(maxFeetY16, 16) + 1;
++        shapeBoxCount = 0; shapeIncomplete = false; shapeMode = MODE_WALK_EVENTS;
++        for (int bx = cellMinX; bx <= cellMaxX; bx++) for (int by = cellMinY; by <= cellMaxY; by++) for (int bz = cellMinZ; bz <= cellMaxZ; bz++) {
++            if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return -1; }
++            shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
++            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
++            if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return -1; }
++            collisionShape(state).forAllBoxes(shapeConsumer);
++            if (shapeIncomplete) { shapeMode = MODE_NONE; return -1; }
++        }
++        shapeMode = MODE_NONE;
++
++        // Include voxel faces even when a native shape omits a zero-width box boundary.
++        if (Math.abs(walkDeltaX) > GEOMETRY_EPSILON) {
++            for (int face = (int) Math.floor(minX) - 1; face <= (int) Math.ceil(maxX) + 1; face++) {
++                if (!addWalkFaceEvents(face, true)) return -1;
++            }
++        }
++        if (Math.abs(walkDeltaZ) > GEOMETRY_EPSILON) {
++            for (int face = (int) Math.floor(minZ) - 1; face <= (int) Math.ceil(maxZ) + 1; face++) {
++                if (!addWalkFaceEvents(face, false)) return -1;
++            }
++        }
++        walkEvents.sort();
++        return walkEvents.isComplete() ? walkEvents.size() : -1;
++    }
++
++    private boolean addWalkFaceEvents(double face, boolean alongX) {
++        double half = standingWidth * 0.5;
++        return addWalkCenterEvent(face - half, alongX) && addWalkCenterEvent(face + half, alongX);
++    }
++
++    private boolean addWalkCenterEvent(double centerCoordinate, boolean alongX) {
++        double start = alongX ? walkFromX : walkFromZ;
++        double delta = alongX ? walkDeltaX : walkDeltaZ;
++        if (Math.abs(delta) <= GEOMETRY_EPSILON) return true;
++        double t = (centerCoordinate - start) / delta;
++        if (t < -GEOMETRY_EPSILON || t > 1.0 + GEOMETRY_EPSILON) return true;
++        t = Math.max(0.0, Math.min(1.0, t));
++        double epsilon = 1.0e-4 / Math.max(0.001, Math.abs(delta));
++        return addWalkEvent(t, true) && addWalkEvent(Math.max(0.0, t - epsilon), true)
++                && addWalkEvent(Math.min(1.0, t + epsilon), true);
++    }
++
++    private boolean addWalkEvent(double t, boolean critical) {
++        // Preserve exact native shape contacts over nearby regular samples. This also
++        // prevents repeated wall faces from consuming the bounded unique-event budget.
++        return walkEvents.add(t, critical);
++    }
++
++    private boolean clearSweptSegment(double fromX, double fromY, double fromZ,
++                                      double toX, double toY, double toZ,
++                                      StanceProbe source, StanceProbe destination) {
++        double distance = Math.sqrt(square(toX - fromX) + square(toY - fromY) + square(toZ - fromZ));
++        int samples = Math.max(1, (int) Math.ceil(distance / 0.2));
++        if (samples > MAX_WALK_PROOFS) return false;
++        double oldX = fromX, oldY = fromY, oldZ = fromZ;
++        if (!clearBodyAt(fromX, fromY, fromZ, source, destination)) return false;
++        for (int i = 1; i <= samples; i++) {
++            double t = (double) i / samples;
++            double x = fromX + (toX - fromX) * t;
++            double y = fromY + (toY - fromY) * t;
++            double z = fromZ + (toZ - fromZ) * t;
++            if (!clearBodyAt(x, y, z, source, destination)
++                    || !clearSweptChord(oldX, oldY, oldZ, x, y, z, source, destination)) return false;
++            oldX = x; oldY = y; oldZ = z;
++        }
++        return true;
++    }
++
++    private boolean clearSweptChord(double fromX, double fromY, double fromZ,
++                                    double toX, double toY, double toZ,
++                                    StanceProbe source, StanceProbe destination) {
++        setBodyUnion(fromX, fromY, fromZ, toX, toY, toZ);
++        return clearBodyBounds(source, destination);
++    }
++
++    private boolean clearBodyAt(double feetX, double feetY, double feetZ,
++                                StanceProbe source, StanceProbe destination) {
++        setBodyBounds(feetX, feetY, feetZ);
++        return clearBodyBounds(source, destination);
++    }
++
++    private boolean clearBodyBounds(StanceProbe source, StanceProbe destination) {
++        int tightMinX = blockMin(bodyMinX), tightMaxX = blockMax(bodyMaxX);
++        int tightMinY = blockMin(bodyMinY), tightMaxY = blockMax(bodyMaxY);
++        int tightMinZ = blockMin(bodyMinZ), tightMaxZ = blockMax(bodyMaxZ);
++        int minX = tightMinX - 1, maxX = tightMaxX + 1;
++        int minY = tightMinY - 1, maxY = tightMaxY + 1;
++        int minZ = tightMinZ - 1, maxZ = tightMaxZ + 1;
++        shapeBoxCount = 0; shapeIncomplete = false; shapeMode = MODE_BODY;
++        for (int bx = minX; bx <= maxX; bx++) for (int by = minY; by <= maxY; by++) for (int bz = minZ; bz <= maxZ; bz++) {
++            if (!loaded(bx, by, bz)) { shapeMode = MODE_NONE; return false; }
++            BlockState state = client.level.getBlockState(position.set(bx, by, bz));
++            if (unsupportedContextShape(state)) { shapeMode = MODE_NONE; return false; }
++            if (bx >= tightMinX && bx <= tightMaxX && by >= tightMinY && by <= tightMaxY
++                    && bz >= tightMinZ && bz <= tightMaxZ && hazardous(state)) {
++                shapeMode = MODE_NONE; return false;
++            }
++            if (isVerifiedBreakTarget(source, bx, by, bz, state)
++                    || isVerifiedBreakTarget(destination, bx, by, bz, state)) continue;
++            shapeBlockX = bx; shapeBlockY = by; shapeBlockZ = bz;
++            bodyCollision = false;
++            collisionShape(state).forAllBoxes(shapeConsumer);
++            if (shapeIncomplete || bodyCollision) { shapeMode = MODE_NONE; return false; }
++        }
++        shapeMode = MODE_NONE;
++        return true;
++    }
++
++    private boolean isVerifiedBreakTarget(StanceProbe probe, int x, int y, int z, BlockState state) {
++        if (probe == null || probe.breakCount < 1 || probe.breakCount > StanceProbe.MAX_BREAK_TARGETS) return false;
++        int token = Block.getId(state);
++        for (int i = 0; i < probe.breakCount; i++) {
+             var target = probe.breakTargets[i];
+-            if (target.x == x && target.y == y && target.z == z) return true;
++            if (target.x == x && target.y == y && target.z == z && target.stateToken == token) return true;
+         }
+         return false;
+     }
+ 
+     @Override public boolean canBreakFrom(int x, int y, int z, StanceProbe destination, int index) {
+-        if (index >= destination.breakCount || index >= 2) return false;
++        if (index < 0 || index >= destination.breakCount || index >= StanceProbe.MAX_BREAK_TARGETS) return false;
+         var target = destination.breakTargets[index];
+-        double distance = Math.pow(target.x - x, 2) + Math.pow(target.y + .5 - y - 1.62, 2)
+-                + Math.pow(target.z - z, 2);
+-        return distance <= 16;
++        double feetY = y;
++        double eyeY = feetY + standingHeight * 0.9;
++        double distance = square(target.x + 0.5 - (x + 0.5))
++                + square(target.y + 0.5 - eyeY)
++                + square(target.z + 0.5 - (z + 0.5));
++        return distance <= 16.0;
+     }
+ 
+     @Override public boolean canPlaceBridgeFrom(int x, int y, int z, int bx, int by, int bz,
+@@ -142,7 +660,95 @@ final class GameTerrain implements Terrain {
+         if (!config.allowBuilding || !loaded(bx, by, bz)
+                 || !client.level.getBlockState(position.set(bx, by, bz)).canBeReplaced()) return false;
+         if (Math.abs(bx - x) + Math.abs(bz - z) != 1 || by != y - 1) return false;
+-        return plannedSupport || Block.isShapeFullBlock(
+-                client.level.getBlockState(position.set(x, y - 1, z)).getCollisionShape(client.level, position));
++        if (plannedSupport) return true;
++        if (!loaded(x, y - 1, z)) return false;
++        BlockState support = client.level.getBlockState(position.set(x, y - 1, z));
++        return !unsupportedContextShape(support) && !hazardous(support)
++                && Block.isShapeFullBlock(collisionShape(support));
++    }
++
++    private void visitShapeBox(double localMinX, double localMinY, double localMinZ,
++                               double localMaxX, double localMaxY, double localMaxZ) {
++        if (++shapeBoxCount > MAX_SHAPE_BOXES) { shapeIncomplete = true; return; }
++        if (!Double.isFinite(localMinX) || !Double.isFinite(localMinY) || !Double.isFinite(localMinZ)
++                || !Double.isFinite(localMaxX) || !Double.isFinite(localMaxY) || !Double.isFinite(localMaxZ)
++                || localMinX < -1.0 || localMinY < -1.0 || localMinZ < -1.0
++                || localMaxX > 2.0 || localMaxY > 2.0 || localMaxZ > 2.0
++                || localMinX > localMaxX || localMinY > localMaxY || localMinZ > localMaxZ) {
++            shapeIncomplete = true;
++            return;
++        }
++        if (localMinX == localMaxX || localMinY == localMaxY || localMinZ == localMaxZ) return;
++        double minX = shapeBlockX + localMinX, minY = shapeBlockY + localMinY, minZ = shapeBlockZ + localMinZ;
++        double maxX = shapeBlockX + localMaxX, maxY = shapeBlockY + localMaxY, maxZ = shapeBlockZ + localMaxZ;
++        if (shapeMode == MODE_BODY) {
++            if (minX < bodyMaxX && maxX > bodyMinX && minY < bodyMaxY && maxY > bodyMinY
++                    && minZ < bodyMaxZ && maxZ > bodyMinZ) bodyCollision = true;
++            return;
++        }
++        if (maxX <= footprintMinX || minX >= footprintMaxX || maxZ <= footprintMinZ || minZ >= footprintMaxZ) return;
++        if (shapeMode == MODE_SUPPORT_CANDIDATES) {
++            if (maxY < candidateMinimumFeetY16 / 16.0 - HEIGHT_EPSILON
++                    || maxY > candidateMaximumFeetY16 / 16.0 + HEIGHT_EPSILON) return;
++            int feetY16 = quantizeTop(maxY);
++            if (feetY16 == Integer.MIN_VALUE) { shapeIncomplete = true; return; }
++            if (feetY16 >= candidateMinimumFeetY16 && feetY16 <= candidateMaximumFeetY16) candidateBuffer.add(feetY16);
++            return;
++        }
++        if (shapeMode == MODE_SUPPORT_PROFILE) {
++            double feetY = candidateFeetY16 / 16.0;
++            if (maxY < feetY - supportDepth16 / 16.0 - HEIGHT_EPSILON || maxY > feetY + HEIGHT_EPSILON) return;
++            int feetY16 = quantizeTop(maxY);
++            if (feetY16 == Integer.MIN_VALUE) { shapeIncomplete = true; return; }
++            if (feetY16 < candidateFeetY16 - supportDepth16 || feetY16 > candidateFeetY16) return;
++            if (shapeBlockHazard) {
++                if (feetY16 == candidateFeetY16) supportHazardSeen = true;
++                return;
++            }
++            allCoverage.add(minX, minZ, maxX, maxZ);
++            if (feetY16 == candidateFeetY16) exactCoverage.add(minX, minZ, maxX, maxZ);
++            if (!allCoverage.isComplete() || !exactCoverage.isComplete()) shapeIncomplete = true;
++            return;
++        }
++        if (shapeMode == MODE_WALK_EVENTS) {
++            if (Math.abs(walkDeltaX) > GEOMETRY_EPSILON) {
++                if (!addWalkFaceEvents(minX, true) || !addWalkFaceEvents(maxX, true)) shapeIncomplete = true;
++            }
++            if (Math.abs(walkDeltaZ) > GEOMETRY_EPSILON) {
++                if (!addWalkFaceEvents(minZ, false) || !addWalkFaceEvents(maxZ, false)) shapeIncomplete = true;
++            }
++        }
++    }
++
++    private void setFootprint(double feetX, double feetZ) {
++        double half = standingWidth * 0.5;
++        footprintMinX = feetX - half; footprintMaxX = feetX + half;
++        footprintMinZ = feetZ - half; footprintMaxZ = feetZ + half;
++    }
++
++    private void setBodyBounds(double feetX, double feetY, double feetZ) {
++        double half = standingWidth * 0.5;
++        bodyMinX = feetX - half; bodyMaxX = feetX + half;
++        bodyMinY = feetY + 0.001; bodyMaxY = feetY + standingHeight;
++        bodyMinZ = feetZ - half; bodyMaxZ = feetZ + half;
++    }
++
++    private void setBodyUnion(double fromX, double fromY, double fromZ,
++                              double toX, double toY, double toZ) {
++        double half = standingWidth * 0.5;
++        bodyMinX = Math.min(fromX, toX) - half; bodyMaxX = Math.max(fromX, toX) + half;
++        bodyMinY = Math.min(fromY, toY) + 0.001; bodyMaxY = Math.max(fromY, toY) + standingHeight;
++        bodyMinZ = Math.min(fromZ, toZ) - half; bodyMaxZ = Math.max(fromZ, toZ) + half;
++    }
++
++    private static int blockMin(double coordinate) { return (int) Math.floor(coordinate + GEOMETRY_EPSILON); }
++    private static int blockMax(double coordinate) { return (int) Math.floor(coordinate - GEOMETRY_EPSILON); }
++    private static int quantizeTop(double y) {
++        double scaled = y * 16.0;
++        if (!Double.isFinite(scaled) || scaled < Integer.MIN_VALUE || scaled > Integer.MAX_VALUE) return Integer.MIN_VALUE;
++        long nearest = Math.round(scaled);
++        if (Math.abs(y - nearest / 16.0) > HEIGHT_EPSILON) return Integer.MIN_VALUE;
++        return (int) nearest;
+     }
++    private static double square(double value) { return value * value; }
+ }
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+index b7ca773..92afcf1 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java
+@@ -3,15 +3,16 @@ package dev.lodekeeper.fabric.modern;
+ import dev.lodekeeper.nav.*;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.chunk.status.ChunkStatus;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.core.BlockPos;
+-import net.minecraft.world.level.ClipContext;
++import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+-import net.minecraft.world.phys.HitResult;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++import net.minecraft.world.entity.Pose;
++
++import java.util.Arrays;
+ 
+ /** One route at a time; every destructive action and next stance is revalidated live. */
+ final class MovementController {
+@@ -24,6 +25,10 @@ final class MovementController {
+     private final StanceProbe probe = new StanceProbe();
+     private final StanceProbe sourceProbe = new StanceProbe();
+     private final StanceProbe emptyProbe = new StanceProbe();
++    private final GroundedStanceBuffer candidateHeights = new GroundedStanceBuffer();
++    private final long[] goalPositions = new long[128];
++    private final byte[] goalFractions = new byte[128];
++    private int goalCandidateCount;
+     private Planner planner;
+     private Path path;
+     private Goal goal;
+@@ -36,56 +41,154 @@ final class MovementController {
+     private Block pendingPlacementBlock;
+     private double edgeStartX, edgeStartY, edgeStartZ;
+     private double lastDistance = Double.POSITIVE_INFINITY;
+-    private int replans;
++    private int replans, settlingTicks;
++    private int jumpEdgeIndex = -1;
++    private boolean jumpWasAirborne;
+     private boolean explorationRoute;
+     static final class NavigationFailure extends IllegalStateException {
+         NavigationFailure(String reason) { super(reason); }
+     }
+-    void startExploration(BlockPos waypoint) {
++    void startExploration(ExplorationFrontier.Waypoint waypoint) {
+         stop(); explorationRoute = true;
+-        goal = Goal.exact(waypoint.getX(), waypoint.getY(), waypoint.getZ()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
++        int feetY16 = Math.toIntExact(waypoint.feetY16());
++        goal = Goal.exact16(waypoint.x(), feetY16, waypoint.z()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+     }
+     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
+         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
+         this.surfaceRecovery = new SurfaceRecovery(client, terrain, input);
+     }
+     void start(BlockPos target, int radius) {
+-        stop(); goal = Goal.near(target.getX(), target.getY(), target.getZ(), radius); replans = 0; ticksWithoutProgress = 0;
++        stop(); goal = Goal.near16(target.getX(), Math.multiplyExact(target.getY(), 16), target.getZ(), Math.multiplyExact(radius, 16)); replans = 0; ticksWithoutProgress = 0;
+         prepareRoute();
+     }
+     void startInteraction(BlockPos target) {
+-        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
++        if (client.player == null || client.level == null) throw new NavigationFailure("World unavailable");
++        resetGoalCandidates();
++        int targetFeetY16 = Math.multiplyExact(target.getY(), 16);
++        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
++            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
++            for (int band = 0; band < 2; band++) {
++                long reference = (long) targetFeetY16 + (band == 0 ? -16L : 16L);
++                if (reference < Integer.MIN_VALUE || reference > Integer.MAX_VALUE) continue;
++                if (!terrain.collectGroundedStances(stanceX, (int) reference, stanceZ, candidateHeights)
++                        || !candidateHeights.isComplete()) continue;
++                for (int i = 0; i < candidateHeights.size(); i++) {
++                    int feetY16 = candidateHeights.get(i);
++                    if (band == 0 ? feetY16 > targetFeetY16
++                            : feetY16 <= targetFeetY16 || feetY16 > (long) targetFeetY16 + 16L) continue;
++                    terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
++                    if (!safeGroundedCandidate(probe, feetY16)) continue;
++                    if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
++                    if (!includeInteractionCandidate(target, stanceX, feetY16, stanceZ)) {
++                        throw new NavigationFailure("Too many safe interaction stances");
++                    }
++                }
++            }
++        }
+         for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+-            BlockPos stance = target.offset(dx, dy, dz);
+-            if (stance.below().equals(target)) continue;
+-            terrain.probeStance(stance.getX(), stance.getY(), stance.getZ(), probe);
+-            if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)) continue;
+-            Vec3 eye = new Vec3(stance.getX() + .5, stance.getY() + client.player.getEyeHeight(), stance.getZ() + .5);
+-            Vec3 aim = Vec3.atCenterOf(target);
+-            double reach = client.player.blockInteractionRange();
+-            if (eye.distanceToSqr(aim) > reach * reach) continue;
+-            var hit = client.level.clip(new ClipContext(eye, aim, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
+-            if (hit.getType() != HitResult.Type.BLOCK || !hit.getBlockPos().equals(target)) continue;
+-            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
++            int feetY16 = Math.multiplyExact(Math.addExact(target.getY(), dy), 16);
++            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
++            if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
++            terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
++            if (!(probe.water || probe.climbable) || !safeGroundedCandidate(probe, feetY16)) continue;
++            if (!includeInteractionCandidate(target, stanceX, feetY16, stanceZ)) {
++                throw new NavigationFailure("Too many safe interaction stances");
++            }
+         }
+-        if (stances.isEmpty()) { start(target, 1); return; }
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
++        if (goalCandidateCount == 0) { start(target, 1); return; }
++        stop(); goal = candidateGoal(); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+     }
+     void startPickup(net.minecraft.world.entity.item.ItemEntity item) {
+-        java.util.ArrayList<Long> stances = new java.util.ArrayList<>();
++        if (client.player == null || client.level == null) throw new NavigationFailure("World unavailable");
++        resetGoalCandidates();
+         BlockPos target = item.blockPosition();
++        int targetFeetY16 = Math.multiplyExact(target.getY(), 16);
++        AABB standingBox = client.player.getDimensions(Pose.STANDING).makeBoundingBox(0, 0, 0);
++        double standingHeight = standingBox.maxY - standingBox.minY;
++        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
++            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
++            for (int band = 0; band < 2; band++) {
++                long reference = (long) targetFeetY16 + (band == 0 ? -16L : 16L);
++                if (reference < Integer.MIN_VALUE || reference > Integer.MAX_VALUE) continue;
++                if (!terrain.collectGroundedStances(stanceX, (int) reference, stanceZ, candidateHeights)
++                        || !candidateHeights.isComplete()) continue;
++                for (int i = 0; i < candidateHeights.size(); i++) {
++                    int feetY16 = candidateHeights.get(i);
++                    if (band == 0 ? feetY16 > targetFeetY16
++                            : feetY16 <= targetFeetY16 || feetY16 > (long) targetFeetY16 + 16L) continue;
++                    terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
++                    if (!safeGroundedCandidate(probe, feetY16)) continue;
++                    double feetY = feetY16 / 16.0;
++                    if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
++                    if (!includePickupCandidate(item, stanceX, feetY16, stanceZ, standingHeight)) {
++                        throw new NavigationFailure("Too many safe collection stances");
++                    }
++                }
++            }
++        }
+         for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+-            BlockPos stance = target.offset(dx, dy, dz);
+-            terrain.probeStance(stance.getX(), stance.getY(), stance.getZ(), probe);
+-            if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)) continue;
+-            // Reserve .25 blocks for the navigator's arrival tolerance.
+-            var contact = new net.minecraft.world.phys.AABB(stance.getX() - .55, stance.getY(), stance.getZ() - .55,
+-                stance.getX() + 1.55, stance.getY() + 1.8, stance.getZ() + 1.55);
+-            if (!contact.intersects(item.getBoundingBox())) continue;
+-            stances.add(Position.pack(stance.getX(), stance.getY(), stance.getZ()));
++            int feetY16 = Math.multiplyExact(Math.addExact(target.getY(), dy), 16);
++            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
++            if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
++            terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
++            if (!(probe.water || probe.climbable) || !safeGroundedCandidate(probe, feetY16)) continue;
++            if (!includePickupCandidate(item, stanceX, feetY16, stanceZ, standingHeight)) {
++                throw new NavigationFailure("Too many safe collection stances");
++            }
++        }
++        if (goalCandidateCount == 0) throw new NavigationFailure("No safe collection stance for dropped item");
++        stop(); goal = candidateGoal(); replans = 0; ticksWithoutProgress = 0; prepareRoute();
++    }
++
++    private void resetGoalCandidates() { goalCandidateCount = 0; }
++    private boolean containsGoalCandidate(int x, int feetY16, int z) {
++        long packed = Position.pack(x, Math.floorDiv(feetY16, 16), z);
++        byte fraction = (byte) Math.floorMod(feetY16, 16);
++        for (int i = 0; i < goalCandidateCount; i++) {
++            if (goalPositions[i] == packed && goalFractions[i] == fraction) return true;
++        }
++        return false;
++    }
++    private boolean includeInteractionCandidate(BlockPos target, int x, int feetY16, int z) {
++        int supportY = Math.floorDiv(feetY16, 16) - (Math.floorMod(feetY16, 16) == 0 ? 1 : 0);
++        if (target.getX() == x && target.getZ() == z && target.getY() == supportY) return true;
++        Vec3 eye = new Vec3(x + .5, feetY16 / 16.0 + client.player.getEyeHeight(), z + .5);
++        Vec3 aim = Vec3.atCenterOf(target);
++        double reach = client.player.blockInteractionRange();
++        if (eye.distanceToSqr(aim) > reach * reach) return true;
++        var hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, aim,
++                net.minecraft.world.level.ClipContext.Block.OUTLINE,
++                net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
++        return hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK || !hit.getBlockPos().equals(target)
++                || addGoalCandidate(x, feetY16, z);
++    }
++    private boolean includePickupCandidate(net.minecraft.world.entity.item.ItemEntity item, int x, int feetY16,
++                                           int z, double standingHeight) {
++        double feetY = feetY16 / 16.0;
++        // Preserve the existing item-contact margin while testing the exact stance height.
++        var contact = new AABB(x - .55, feetY, z - .55, x + 1.55, feetY + standingHeight, z + 1.55);
++        return !contact.intersects(item.getBoundingBox()) || addGoalCandidate(x, feetY16, z);
++    }
++    private boolean addGoalCandidate(int x, int feetY16, int z) {
++        int y = Math.floorDiv(feetY16, 16), fraction = Math.floorMod(feetY16, 16);
++        long packed = Position.pack(x, y, z);
++        for (int i = 0; i < goalCandidateCount; i++) {
++            if (goalPositions[i] == packed && goalFractions[i] == (byte) fraction) return true;
+         }
+-        if (stances.isEmpty()) throw new NavigationFailure("No safe collection stance for dropped item");
+-        stop(); goal = Goal.anyOf(stances.stream().mapToLong(Long::longValue).toArray()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
++        if (goalCandidateCount == goalPositions.length) return false;
++        goalPositions[goalCandidateCount] = packed;
++        goalFractions[goalCandidateCount] = (byte) fraction;
++        goalCandidateCount++;
++        return true;
++    }
++    private Goal candidateGoal() {
++        return Goal.anyOf16(Arrays.copyOf(goalPositions, goalCandidateCount),
++                Arrays.copyOf(goalFractions, goalCandidateCount));
++    }
++    private static boolean safeGroundedCandidate(StanceProbe stance, int feetY16) {
++        return stance.loaded && !stance.hazard && stance.bodyClear && stance.breakCount == 0
++                && (stance.hasGroundSupport() || Math.floorMod(feetY16, 16) == 0
++                && (stance.water || stance.climbable));
+     }
+ 
+     private void prepareRoute() {
+@@ -93,21 +196,58 @@ final class MovementController {
+         planner = null;
+         path = null;
+         clearPendingWorldAction();
+-        if (!surfaceRecovery.begin()) search();
++        terrain.refreshStandingDimensions();
++        if (canPlanFromCurrentStance()) {
++            surfaceRecovery.stop();
++            search();
++        } else if (!surfaceRecovery.begin()) {
++            search();
++        }
++    }
++
++    private boolean canPlanFromCurrentStance() {
++        if (client.player == null || client.level == null) return false;
++        int feetY16 = planStartFeetY16();
++        if (feetY16 == GameTerrain.INVALID_FEET_Y16) return false;
++        BlockPos feet = client.player.blockPosition();
++        terrain.probeStance16(feet.getX(), feetY16, feet.getZ(), probe);
++        return probe.loaded && !probe.hazard && probe.bodyClear && probe.breakCount == 0
++                && (probe.hasGroundSupport() || Math.floorMod(feetY16, 16) == 0 && (probe.water || probe.climbable));
++    }
++
++    private int planStartFeetY16() {
++        int exactFeetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
++        BlockPos feet = client.player.blockPosition();
++        if (exactFeetY16 != GameTerrain.INVALID_FEET_Y16) {
++            terrain.probeStance16(feet.getX(), exactFeetY16, feet.getZ(), probe);
++            if (probe.loaded && !probe.hazard && probe.bodyClear && probe.hasGroundSupport()) return exactFeetY16;
++            if (Math.floorMod(exactFeetY16, 16) == 0) return exactFeetY16;
++        }
++        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
++        if (!terrain.isMotionClear(x, y, z, x, y, z, 0.0, emptyProbe)) return GameTerrain.INVALID_FEET_Y16;
++        int mediumFeetY16 = Math.multiplyExact(feet.getY(), 16);
++        terrain.probeStance16(feet.getX(), mediumFeetY16, feet.getZ(), probe);
++        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.water || probe.climbable)) {
++            return GameTerrain.INVALID_FEET_Y16;
++        }
++        return mediumFeetY16;
+     }
+ 
+     private void search() {
+         clearPendingWorldAction();
+         terrain.beginSearch();
+         BlockPos start = client.player.blockPosition();
++        int startFeetY16 = planStartFeetY16();
++        if (startFeetY16 == GameTerrain.INVALID_FEET_Y16) throw new NavigationFailure("Player feet are not on a modeled sixteenth-block height");
+         Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
+         int spare = Math.max(0, actions.count(scaffold.asItem()) - 16); // Preserve a conservative supply reserve.
+         Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(explorationRoute ? 1 : 3)
+             .allowBreaking(!explorationRoute && config.allowBreaking).allowBuilding(!explorationRoute && config.allowBuilding && spare > 0)
+             .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
+             .placements(Math.min(32, spare), BuiltInRegistries.ITEM.getId(scaffold.asItem()));
+-        planner = new Planner(terrain, start.getX(), start.getY(), start.getZ(), goal, options);
++        planner = Planner.fromFeetY16(terrain, start.getX(), startFeetY16, start.getZ(), goal, options);
+         path = null; pathIndex = 1; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
++        jumpEdgeIndex = -1; jumpWasAirborne = false;
+         validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
+     }
+     long progressToken() { return progressToken; }
+@@ -115,7 +255,7 @@ final class MovementController {
+     void observeConfirmedProgress() {
+         if (client.level == null) return;
+         if (pendingBreakPosition != null && hasLoadedChunk(pendingBreakPosition)) {
+-            BlockState state = client.level.getBlockState(pendingBreakPosition);
++            var state = client.level.getBlockState(pendingBreakPosition);
+             if (state.isAir() || Block.getId(state) != pendingBreakStateId
+                     && state.getCollisionShape(client.level, pendingBreakPosition).isEmpty()) {
+                 recordProgress();
+@@ -145,6 +285,7 @@ final class MovementController {
+     boolean tick() {
+         input.acquire(client); input.idle();
+         if (client.player == null || client.level == null) throw new IllegalStateException("World unavailable");
++        terrain.refreshStandingDimensions();
+         if (surfaceRecovery.active()) {
+             if (surfaceRecovery.tick()) {
+                 recordProgress();
+@@ -156,28 +297,29 @@ final class MovementController {
+             NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
+             if (status == NavStatus.IN_PROGRESS) return false;
+             if (status == NavStatus.STALE) { retry("Terrain changed during search"); return false; }
+-            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status
+-                    + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
++            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
+             path = planner.getPath();
+             validatedPathIndex = -1;
+             validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
+             if (path == null || path.length() < 2) {
+-                BlockPos player = client.player.blockPosition();
+-                if (goal.matches(player.getX(), player.getY(), player.getZ())) return finishArrival();
++                if (goalMatchesPlayer()) return finishArrival();
+                 throw new NavigationFailure("No useful route in loaded terrain");
+             }
+         }
+         if (pathIndex == path.length()) {
+-            BlockPos player = client.player.blockPosition();
+-            if (goal.matches(player.getX(), player.getY(), player.getZ())) { input.idle(); return finishArrival(); }
++            if (goalMatchesPlayer()) { input.idle(); return finishArrival(); }
+             retry("Route segment ended before goal"); return false;
+         }
+         Path.Step next = path.step(pathIndex);
+         if (actionIndex < next.actionCount()) {
+             Action action = next.action(actionIndex);
+             BlockPos position = new BlockPos(action.x, action.y, action.z);
+-            BlockState state = client.level.getBlockState(position);
++            var state = client.level.getBlockState(position);
+             Path.Step source = path.step(pathIndex - 1);
++            if (action.type == Action.Type.PLACE_BLOCK && (!client.player.onGround()
++                    || GameTerrain.quantizedFeetY16(client.player.getY()) != source.feetY16)) {
++                retry("Bridge placement requires its grounded source height"); return false;
++            }
+             if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
+                     client.player.getX(), client.player.getY(), client.player.getZ(), sourceProbe, emptyProbe)) {
+                 retry("Current stance became unsafe before world action"); return false;
+@@ -197,7 +339,7 @@ final class MovementController {
+                 pendingBreakPosition = position.immutable();
+                 pendingBreakStateId = action.token;
+             } else {
+-                Item item = Item.byId(action.token);
++                Item item = BuiltInRegistries.ITEM.byId(action.token);
+                 Block block = Block.byItem(item);
+                 if (state.is(block)) {
+                     observeConfirmedProgress();
+@@ -214,7 +356,7 @@ final class MovementController {
+                     // A side face below the player cannot be seen from the center of its support.
+                     // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
+                     Path.Step previous = path.step(pathIndex - 1);
+-                    Vec3 edge = new Vec3(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
++                    Vec3 edge = new Vec3(previous.x + .5 + (next.x - previous.x) * .7, previous.feetY(), previous.z + .5 + (next.z - previous.z) * .7);
+                     Vec3 delta = edge.subtract(client.player.position());
+                     if (Math.hypot(delta.x, delta.z) > .08) {
+                         if (!PathEdgeValidator.isSweepClear(terrain,
+@@ -238,6 +380,21 @@ final class MovementController {
+         if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
+             retry("Parkour was disabled while following the route"); return false;
+         }
++        if (next.movement == Path.Movement.WALK && validatedPathIndex == pathIndex
++                && client.player.onGround()
++                && !PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
++                    client.player.getX(), client.player.getY(), client.player.getZ(),
++                    true, sourceProbe, emptyProbe)
++                && PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
++                    edgeStartX, edgeStartY, edgeStartZ,
++                    client.player.getX(), client.player.getY(), client.player.getZ())
++                && PathEdgeValidator.isSafeWalkSettlement(terrain,
++                    client.player.getX(), client.player.getY(), client.player.getZ(), probe, emptyProbe)) {
++            input.idle(); client.player.setSprinting(false);
++            if (++settlingTicks > 4) retry("Player did not settle onto the safe walk surface");
++            return false;
++        }
++        settlingTicks = 0;
+         long currentRevision = terrain.revision();
+         boolean newEdge = validatedPathIndex != pathIndex;
+         if (newEdge || currentRevision != validatedRevision) {
+@@ -256,9 +413,12 @@ final class MovementController {
+             }
+             if (newEdge) { edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ; }
+             validatedPathIndex = pathIndex;
+-            validatedRevision = terrain.revision();
++            // A lift-only continuation does not prove the horizontal remainder. Keep it
++            // uncached until feet clear the ledge, forcing that proof before forward input.
++            validatedRevision = next.movement == Path.Movement.JUMP && feetY < next.feetY()
++                    ? Long.MIN_VALUE : terrain.revision();
+         }
+-        Vec3 destination = new Vec3(next.x + .5, next.y, next.z + .5);
++        Vec3 destination = new Vec3(next.x + .5, next.feetY(), next.z + .5);
+         Vec3 delta = destination.subtract(client.player.position());
+         double horizontal = Math.hypot(delta.x, delta.z);
+         double currentFeetX = client.player.getX();
+@@ -268,12 +428,24 @@ final class MovementController {
+                 edgeStartX, edgeStartY, edgeStartZ, currentFeetX, currentFeetY, currentFeetZ)) {
+             retry("Player left the safe route corridor"); return false;
+         }
+-        if (!PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
++        Path.Movement pointMovement = next.movement == Path.Movement.JUMP
++                && currentFeetY >= next.feetY() ? Path.Movement.WALK : next.movement;
++        if (!PathEdgeValidator.isCurrentMotionSafe(terrain, pointMovement,
+                 currentFeetX, currentFeetY, currentFeetZ,
+                 client.player.onGround(), sourceProbe, emptyProbe)) {
+             retry("Current player volume or support became unsafe"); return false;
+         }
+-        if (horizontal < .22 && Math.abs(delta.y) < .35 && (client.player.onGround() || probe.water || probe.climbable)) {
++        int currentFeetY16 = GameTerrain.quantizedFeetY16(currentFeetY);
++        boolean mediumArrival = (next.movement == Path.Movement.SWIM || next.movement == Path.Movement.CLIMB)
++                && Math.abs(delta.y) < .35 && currentMediumSafe(next.movement);
++        boolean centeredLaunchRequired = pathIndex + 1 < path.length()
++                && switch (path.step(pathIndex + 1).movement) {
++                    case JUMP, DROP, PARKOUR, BRIDGE -> true;
++                    default -> false;
++                };
++        double arrivalRadius = centeredLaunchRequired ? .10 : .22;
++        if (horizontal < arrivalRadius && (currentFeetY16 == next.feetY16 || mediumArrival)
++                && (client.player.onGround() || probe.water || probe.climbable)) {
+             client.player.setSprinting(false);
+             pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY; recordProgress(); return false;
+         }
+@@ -282,22 +454,47 @@ final class MovementController {
+         else if (++ticksWithoutProgress > 80) { retry("Movement stalled"); return false; }
+         client.player.setYRot((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
+         client.player.setXRot(0);
+-        boolean jump = next.movement == Path.Movement.JUMP || next.movement == Path.Movement.PARKOUR || next.movement == Path.Movement.CLIMB || next.movement == Path.Movement.SWIM && delta.y > 0;
++        if (next.movement == Path.Movement.JUMP) {
++            if (jumpEdgeIndex != pathIndex) { jumpEdgeIndex = pathIndex; jumpWasAirborne = false; }
++            if (!client.player.onGround()) jumpWasAirborne = true;
++            if (jumpWasAirborne && client.player.onGround() && currentFeetY < next.feetY()) {
++                retry("Jump landed before clearing the ledge"); return false;
++            }
++        }
++        boolean jump = next.movement == Path.Movement.JUMP && !jumpWasAirborne || next.movement == Path.Movement.PARKOUR || next.movement == Path.Movement.CLIMB || next.movement == Path.Movement.SWIM && delta.y > 0;
+         boolean sneak = next.movement == Path.Movement.BRIDGE;
+-        input.drive(horizontal > .12 ? 1 : 0, 0, jump, sneak);
++        boolean risingBeforeLedge = next.movement == Path.Movement.JUMP
++                && currentFeetY < next.feetY();
++        input.drive(!risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0,
++                0, jump, sneak);
+         client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
+         return false;
+     }
++    private boolean goalMatchesPlayer() {
++        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
++        if (feetY16 != GameTerrain.INVALID_FEET_Y16 && goal.matches16(client.player.blockPosition().getX(), feetY16, client.player.blockPosition().getZ())) return true;
++        return goal.matches(client.player.blockPosition().getX(), client.player.blockPosition().getY(), client.player.blockPosition().getZ()) && currentMediumSafe(Path.Movement.START);
++    }
++    private boolean currentMediumSafe(Path.Movement movement) {
++        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
++        terrain.probeStance16(client.player.blockPosition().getX(), Math.multiplyExact(client.player.blockPosition().getY(), 16), client.player.blockPosition().getZ(), probe);
++        boolean matchingMedium = movement == Path.Movement.SWIM ? probe.water
++                : movement == Path.Movement.CLIMB ? probe.climbable : probe.water || probe.climbable;
++        return probe.loaded && !probe.hazard && probe.bodyClear && probe.breakCount == 0
++                && matchingMedium && terrain.isMotionClear(x, y, z, x, y, z, 0.0, emptyProbe);
++    }
+     private boolean finishArrival() {
+         if (goal.kind != Goal.Kind.ANY || path.length() != 1) return true;
+         BlockPos feet = client.player.blockPosition();
++        int feetY16 = planStartFeetY16();
++        if (feetY16 == GameTerrain.INVALID_FEET_Y16) throw new NavigationFailure("Player feet left the modeled sixteenth-block stance");
+         double dx = feet.getX() + .5 - client.player.getX();
+         double dz = feet.getZ() + .5 - client.player.getZ();
+         if (Math.hypot(dx, dz) < .12) return true;
+-        terrain.probeStance(feet.getX(), feet.getY(), feet.getZ(), probe);
+-        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.fullSupport || probe.water || probe.climbable)
++        terrain.probeStance16(feet.getX(), feetY16, feet.getZ(), probe);
++        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.hasGroundSupport() || probe.water || probe.climbable)
+                 || !terrain.isMotionClear(client.player.getX(), client.player.getY(), client.player.getZ(),
+-                feet.getX() + .5, feet.getY(), feet.getZ() + .5, 0, probe)) {
++                feet.getX() + .5, feetY16 / 16.0, feet.getZ() + .5, 0, probe)) {
+             throw new NavigationFailure("Cannot safely center at the interaction stance");
+         }
+         if (++ticksWithoutProgress > 80) throw new NavigationFailure("Interaction stance centering stalled");
+@@ -308,19 +505,23 @@ final class MovementController {
+         return false;
+     }
+     private void retry(String reason) {
++        if (replans == 0 || replans == 8) System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
++            "Navigation retry " + (replans + 1) + ": " + reason + " at "
++                + (client.player == null ? "unknown position" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ()));
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+         if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
+         prepareRoute();
+     }
+     void stop() {
+-        explorationRoute = false;
++        explorationRoute = false; settlingTicks = 0; jumpEdgeIndex = -1; jumpWasAirborne = false;
+         surfaceRecovery.stop();
+         clearPendingWorldAction();
+         if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
+         input.idle(); actions.cancel();
+         if (client.player != null) client.player.setSprinting(false);
+     }
++
+     String status() { return surfaceRecovery.active() ? "recovering from fractional surface"
+             : path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
+ }
+diff --git a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementTrajectory.java b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementTrajectory.java
+index f7a17a0..07c6618 100644
+--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementTrajectory.java
++++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementTrajectory.java
+@@ -5,7 +5,11 @@ final class MovementTrajectory {
+     static void sample(double fx, double fy, double fz, double tx, double ty, double tz, double arc, double t, double[] out) {
+         if (t < 0 || t > 1 || out.length < 3) throw new IllegalArgumentException("Invalid trajectory sample");
+         boolean dropping = ty < fy && arc <= 0;
+-        double horizontalTime = dropping ? Math.min(1, t / .75) : t;
++        // A one-block ascent needs upward clearance before forward contact with its face.
++        // Model the same early lift used by the executor, keeping the launch stationary.
++        boolean ascendingJump = ty > fy && arc > 1.0e-9;
++        double horizontalTime = dropping ? Math.min(1, t / .75)
++                : ascendingJump ? Math.max(0, (t - .40) / .60) : t;
+         double verticalTime = dropping ? Math.max(0, (t - .75) / .25) : t;
+         out[0] = fx + (tx - fx) * horizontalTime;
+         out[1] = fy + (ty - fy) * verticalTime + Math.sin(Math.PI * t) * Math.max(0, arc);
+diff --git a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+index 6fddbf8..dc66744 100644
+--- a/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
++++ b/fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java
+@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+ import net.minecraft.util.Util;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.resources.Identifier;
+ import net.minecraft.server.MinecraftServer;
+@@ -33,9 +34,17 @@ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.FarmlandBlock;
++import net.minecraft.world.level.block.SlabBlock;
++import net.minecraft.world.level.block.SnowLayerBlock;
++import net.minecraft.world.level.block.StairBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.Half;
++import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.level.storage.LevelStorageSource;
+ 
+ import java.io.IOException;
++import java.lang.reflect.Field;
+ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.LinkOption;
+@@ -66,6 +75,8 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final boolean IRON_PICKAXE_MODE = Boolean.getBoolean("lodekeeper.verify.ironPickaxe");
+     private static final boolean COAL_RECOVERY_MODE = Boolean.getBoolean("lodekeeper.verify.coalRecovery");
+     private static final String COAL_START_SURFACE = System.getProperty("lodekeeper.verify.coalStartSurface", "full");
++    private static final String NAVIGATION_COURSE = System.getProperty("lodekeeper.verify.navigationCourse");
++    private static final boolean MIXED_NAVIGATION_COURSE = "mixed".equals(NAVIGATION_COURSE);
+     private double coalInitialServerFeetY = Double.NaN;
+     private static final boolean BULK_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.bulkWood");
+     private static final boolean WOOD_TOOLS_MODE = Boolean.getBoolean("lodekeeper.verify.woodTools");
+@@ -78,11 +89,24 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private static final String IRON_INGOT_ID = "minecraft:iron_ingot";
+     private static final int IRON_PICKAXE_PROBE_TIMEOUT_TICKS = 200;
+     private static final int IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT = 4;
++    private static final Field ENGINE_MOVEMENT_FIELD = findField(AutomationEngine.class, "movement");
++    private static final Field MOVEMENT_PATH_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "path");
++    private static final Field MOVEMENT_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "pathIndex");
++    private static final Field MOVEMENT_VALIDATED_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "validatedPathIndex");
+     private boolean resourceInitiallyLoaded;
+     private static final int FLOOR_Y = 63;
+     private static final int PLAYER_Y = FLOOR_Y + 1;
+     private static final BlockPos COAL_RECOVERY_ENCASED_ORE = new BlockPos(6, PLAYER_Y, 2);
+     private static final BlockPos COAL_RECOVERY_ACCESSIBLE_ORE = new BlockPos(16, PLAYER_Y, 2);
++    private static final List<CoalNavigationCheckpoint> COAL_NAVIGATION_CHECKPOINTS = List.of(
++        new CoalNavigationCheckpoint(1, 64 * 16 + 8), new CoalNavigationCheckpoint(2, 65 * 16),
++        new CoalNavigationCheckpoint(4, 64 * 16 + 15), new CoalNavigationCheckpoint(5, 64 * 16 + 15),
++        new CoalNavigationCheckpoint(6, 64 * 16 + 8), new CoalNavigationCheckpoint(7, 65 * 16),
++        new CoalNavigationCheckpoint(8, 65 * 16 + 2), new CoalNavigationCheckpoint(9, 65 * 16 + 6),
++        new CoalNavigationCheckpoint(10, 65 * 16 + 14), new CoalNavigationCheckpoint(11, 66 * 16),
++        new CoalNavigationCheckpoint(12, 67 * 16), new CoalNavigationCheckpoint(13, 67 * 16),
++        new CoalNavigationCheckpoint(14, 66 * 16 + 15), new CoalNavigationCheckpoint(15, 67 * 16),
++        new CoalNavigationCheckpoint(16, 68 * 16));
+ 
+     private enum State {
+         DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
+@@ -114,6 +138,20 @@ public final class RuntimeVerification implements ClientModInitializer {
+     private CompletableFuture<Long> setupFuture;
+     private CompletableFuture<ServerSnapshot> observationFuture;
+     private ServerSnapshot latestSnapshot;
++    private volatile boolean coalNavigationCourseCommandStarted;
++    private volatile float coalNavigationCourseMinimumHealth = 20.0F;
++    private int coalNavigationCourseObservedMask;
++    private final int[] coalNavigationCourseCheckpointServerTicks = newCoalNavigationCheckpointTicks();
++    private Map<BlockPos, BlockState> coalNavigationExpectedStates = Map.of();
++    private JsonObject coalNavigationFenceGeometryEvidence;
++    private JsonArray coalNavigationRouteDiagnostics;
++    private double coalNavigationInitialServerFeetX = Double.NaN, coalNavigationInitialServerFeetZ = Double.NaN;
++    private boolean coalNavigationStairEdgeCompleted;
++    private String coalNavigationStairEdgeMovement = "unobserved";
++    private int coalNavigationStairEdgePathIndex = -1;
++    private boolean coalNavigationLedgeEdgeCompleted;
++    private String coalNavigationLedgeEdgeMovement = "unobserved";
++    private int coalNavigationLedgeEdgePathIndex = -1;
+     private final List<CaseResult> results = new ArrayList<>();
+     private String activeCase;
+     private String activeItem;
+@@ -182,6 +220,38 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 client.stop();
+                 return;
+             }
++            if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) {
++                state = State.FAILED;
++                failure = "navigationCourse must be exactly mixed when specified";
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.stop();
++                return;
++            }
++            if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) {
++                state = State.FAILED;
++                failure = "navigationCourse=mixed requires coalRecovery=true";
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.stop();
++                return;
++            }
++            if (MIXED_NAVIGATION_COURSE && !COAL_START_SURFACE.equals("full")) {
++                state = State.FAILED;
++                failure = "navigationCourse=mixed requires coalStartSurface=full";
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.stop();
++                return;
++            }
++            if (MIXED_NAVIGATION_COURSE && !navigationMovementReflectionAvailable()) {
++                state = State.FAILED;
++                failure = "navigation course cannot inspect active validated route movement (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex)";
++                writeEvidence("failed");
++                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
++                client.stop();
++                return;
++            }
+             if (selectedFixtureModes() > 1) {
+                 state = State.FAILED;
+                 failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+@@ -201,6 +271,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+         }
+         state = State.OPENING_WORLD;
+         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
++        ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
+         ServerTickEvents.END_SERVER_TICK.register(this::observeServerMenu);
+         System.out.println("[Lodekeeper verification] Enabled; isolated run directory=" + client.gameDirectory
+             + ", world root=" + worldsDirectory + ", evidence=" + evidenceDirectory);
+@@ -334,6 +405,10 @@ public final class RuntimeVerification implements ClientModInitializer {
+                         && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+                         && latestSnapshot.coalRecoveryAccessibleOreRemaining == 1
+                         && latestSnapshot.coalStartSurfaceRemaining == 9
++                        && (!MIXED_NAVIGATION_COURSE || (Math.abs(latestSnapshot.x - 0.25) < 0.0001
++                            && Math.abs(latestSnapshot.z - 0.75) < 0.0001))
++                        && (!MIXED_NAVIGATION_COURSE || (latestSnapshot.coalNavigationCourseMismatchCount == 0
++                            && latestSnapshot.coalNavigationCourseObservedMask == 0))
+                         && Math.abs(latestSnapshot.y - (COAL_START_SURFACE.equals("full") ? PLAYER_Y : PLAYER_Y - 0.0625)) < 0.0001;
+                     if (startingStockObserved) {
+                         if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
+@@ -432,7 +507,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+         engine.config.actionTimeoutTicks = 1_200;
+         engine.config.pauseBelowHealth = 6.0F;
+         engine.config.allowBreaking = true;
+-        engine.config.allowBuilding = true;
++        engine.config.allowBuilding = !MIXED_NAVIGATION_COURSE;
+         engine.config.allowParkour = false;
+         engine.config.autoEat = true;
+         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
+@@ -451,11 +526,22 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
+                 }
+                 if (COAL_RECOVERY_MODE) {
+-                    if (COAL_START_SURFACE.equals("farmland")) {
+-                        world.setBlockAndUpdate(new BlockPos(-3, FLOOR_Y, 0), Blocks.WATER.defaultBlockState());
++                    coalNavigationCourseCommandStarted = false;
++                    coalNavigationCourseObservedMask = 0;
++                    coalNavigationExpectedStates = Map.of();
++                    for (int index = 0; index < coalNavigationCourseCheckpointServerTicks.length; index++) {
++                        coalNavigationCourseCheckpointServerTicks[index] = -1;
+                     }
+-                    for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+-                        world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), coalStartFloor().defaultBlockState());
++                    Map<BlockPos, BlockState> mixedCourseStates = null;
++                    if (MIXED_NAVIGATION_COURSE) {
++                        mixedCourseStates = setupMixedCoalNavigationCourse(world);
++                    } else {
++                        if (COAL_START_SURFACE.equals("farmland")) {
++                            world.setBlockAndUpdate(new BlockPos(-3, FLOOR_Y, 0), Blocks.WATER.defaultBlockState());
++                        }
++                        for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
++                            world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), coalStartFloor().defaultBlockState());
++                        }
+                     }
+                     for (int dx = -1; dx <= 1; dx++) {
+                         for (int dy = -1; dy <= 1; dy++) {
+@@ -465,7 +551,9 @@ public final class RuntimeVerification implements ClientModInitializer {
+                         }
+                     }
+                     world.setBlockAndUpdate(COAL_RECOVERY_ENCASED_ORE, Blocks.COAL_ORE.defaultBlockState());
+-                    world.setBlockAndUpdate(COAL_RECOVERY_ACCESSIBLE_ORE, Blocks.COAL_ORE.defaultBlockState());
++                    world.setBlockAndUpdate(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.defaultBlockState());
++                    coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
++                        ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
+                 } else if (!PROCESSING_MODE) {
+                     for (int index = 0; index < (BULK_WOOD_MODE ? 80 : 8); index++) {
+                         world.setBlockAndUpdate(new BlockPos((BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : 6) + index, PLAYER_Y, 0), Blocks.OAK_LOG.defaultBlockState());
+@@ -515,7 +603,7 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 }
+                 player.setHealth(player.getMaxHealth());
+                 player.getFoodData().setFoodLevel(20);
+-                player.teleportTo(0.5, PLAYER_Y, 0.5);
++                player.teleportTo(MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, PLAYER_Y, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5);
+                 player.containerMenu.broadcastChanges();
+                 scheduled.complete((long) server.getTickCount());
+             } catch (Throwable throwable) {
+@@ -836,6 +924,154 @@ public final class RuntimeVerification implements ClientModInitializer {
+             }
+             lastServerMenu = menu;
+         }
++        observeCoalNavigationCheckpoint(player, server.getTickCount());
++    }
++
++    private void observeCoalNavigationCheckpoint(ServerPlayer player, int serverTick) {
++        if (!MIXED_NAVIGATION_COURSE || !coalNavigationCourseCommandStarted) return;
++        coalNavigationCourseMinimumHealth = Math.min(coalNavigationCourseMinimumHealth, player.getHealth());
++        if (!player.onGround()) return;
++        int xCell = (int) Math.floor(player.getX());
++        int zCell = (int) Math.floor(player.getZ());
++        int feetY16 = (int) Math.round(player.getY() * 16.0);
++        if (zCell != 0) return;
++        for (int index = 0; index < COAL_NAVIGATION_CHECKPOINTS.size(); index++) {
++            CoalNavigationCheckpoint checkpoint = COAL_NAVIGATION_CHECKPOINTS.get(index);
++            if (xCell == checkpoint.xCell && feetY16 == checkpoint.feetY16) {
++                coalNavigationCourseObservedMask |= 1 << index;
++                if (coalNavigationCourseCheckpointServerTicks[index] < 0) {
++                    coalNavigationCourseCheckpointServerTicks[index] = serverTick;
++                }
++            }
++        }
++    }
++
++    private void observeCoalNavigationMovementAfterEngineTick() {
++        if (state == State.FAILED || state == State.COMPLETE
++                || !MIXED_NAVIGATION_COURSE || !coalNavigationCourseCommandStarted || client.player == null) return;
++        try {
++            Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
++            dev.lodekeeper.nav.Path path = (dev.lodekeeper.nav.Path) MOVEMENT_PATH_FIELD.get(movement);
++            if (path == null) return;
++            int pathIndex = MOVEMENT_PATH_INDEX_FIELD.getInt(movement);
++            int completedIndex = pathIndex - 1;
++            int validatedPathIndex = MOVEMENT_VALIDATED_PATH_INDEX_FIELD.getInt(movement);
++            if (completedIndex < 1 || completedIndex >= path.length() || validatedPathIndex != completedIndex
++                    || !client.player.onGround()) return;
++
++            dev.lodekeeper.nav.Path.Step source = path.step(completedIndex - 1);
++            dev.lodekeeper.nav.Path.Step destination = path.step(completedIndex);
++            int xCell = client.player.getBlockX();
++            int zCell = client.player.getBlockZ();
++            int feetY16 = (int) Math.round(client.player.getY() * 16.0);
++            if (xCell != destination.x || zCell != 0 || feetY16 != destination.feetY16) return;
++
++            if (source.x == 11 && source.z == 0 && source.feetY16 == 66 * 16
++                    && destination.x == 12 && destination.z == 0 && destination.feetY16 == 67 * 16) {
++                coalNavigationStairEdgeCompleted = true;
++                coalNavigationStairEdgeMovement = destination.movement.name();
++                coalNavigationStairEdgePathIndex = completedIndex;
++            }
++            if (source.x == 15 && source.z == 0 && source.feetY16 == 67 * 16
++                    && destination.x == 16 && destination.z == 0 && destination.feetY16 == 68 * 16) {
++                coalNavigationLedgeEdgeCompleted = true;
++                coalNavigationLedgeEdgeMovement = destination.movement.name();
++                coalNavigationLedgeEdgePathIndex = completedIndex;
++            }
++        } catch (ReflectiveOperationException | RuntimeException exception) {
++            fail("could not inspect completed active navigation edge: " + exception.getMessage());
++        }
++    }
++
++    private static BlockPos coalRecoveryAccessibleOrePosition() {
++        // Interaction candidates extend two cells: x18 forces the earliest valid stance
++        // onto x16 at height 68, beyond the jump ledge. x17 could be mined from x15.
++        return MIXED_NAVIGATION_COURSE ? new BlockPos(18, PLAYER_Y + 4, 0) : COAL_RECOVERY_ACCESSIBLE_ORE;
++    }
++
++    private Map<BlockPos, BlockState> setupMixedCoalNavigationCourse(ServerLevel world) {
++        Map<BlockPos, BlockState> expected = new HashMap<>();
++        for (int x = -12; x <= 18; x++) {
++            for (int z = -6; z <= 6; z++) {
++                boolean solidFloor = (x >= -1 && x <= 1 && z >= -1 && z <= 1)
++                    || (x >= 1 && x <= 18 && z == 0) || (x == 5 && z == -2);
++                setCourseBlock(world, expected, new BlockPos(x, FLOOR_Y, z),
++                    solidFloor ? Blocks.BEDROCK.defaultBlockState() : Blocks.AIR.defaultBlockState());
++            }
++        }
++        for (int x = 1; x <= 16; x++) {
++            for (int y = 64; y <= 70; y++) {
++                for (int z : new int[]{-1, 1}) {
++                    setCourseBlock(world, expected, new BlockPos(x, y, z), Blocks.BEDROCK.defaultBlockState());
++                }
++            }
++        }
++        setCourseBlock(world, expected, new BlockPos(1, 64, 0),
++            Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM));
++        setCourseBlock(world, expected, new BlockPos(2, 64, 0), bottomEastStairs());
++        setCourseBlock(world, expected, new BlockPos(3, 64, 0), Blocks.BEDROCK.defaultBlockState());
++        setCourseBlock(world, expected, new BlockPos(4, 64, 0), Blocks.DIRT_PATH.defaultBlockState());
++        setCourseBlock(world, expected, new BlockPos(5, 64, 0), Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE, 7));
++        setCourseBlock(world, expected, new BlockPos(6, 64, 0),
++            Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM));
++        setCourseBlock(world, expected, new BlockPos(7, 64, 0), bottomEastStairs());
++        for (int x = 8; x <= 10; x++) {
++            setCourseBlock(world, expected, new BlockPos(x, 64, 0), Blocks.BEDROCK.defaultBlockState());
++        }
++        setCourseBlock(world, expected, new BlockPos(8, 65, 0), Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, 2));
++        setCourseBlock(world, expected, new BlockPos(9, 65, 0), Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, 4));
++        setCourseBlock(world, expected, new BlockPos(10, 65, 0), Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, 8));
++        setCourseBlock(world, expected, new BlockPos(11, 65, 0), bottomEastStairs());
++        setCourseBlock(world, expected, new BlockPos(12, 66, 0), bottomEastStairs());
++        setCourseBlock(world, expected, new BlockPos(13, 66, 0),
++            Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.TOP));
++        setCourseBlock(world, expected, new BlockPos(14, 66, 0), Blocks.DIRT_PATH.defaultBlockState());
++        for (int x = 15; x <= 18; x++) {
++            setCourseBlock(world, expected, new BlockPos(x, 66, 0), Blocks.BEDROCK.defaultBlockState());
++        }
++        for (int x = 16; x <= 18; x++) {
++            setCourseBlock(world, expected, new BlockPos(x, 67, 0), Blocks.BEDROCK.defaultBlockState());
++        }
++
++        BlockPos water = new BlockPos(5, 64, -2);
++        setCourseBlock(world, expected, water, Blocks.WATER.defaultBlockState());
++        for (BlockPos surround : List.of(water.above(), water.below(), water.north(), water.south(), water.east(), water.west())) {
++            setCourseBlock(world, expected, surround, Blocks.BEDROCK.defaultBlockState());
++        }
++        setCourseBlock(world, expected, new BlockPos(-8, 64, 0), Blocks.OAK_FENCE.defaultBlockState());
++        return expected;
++    }
++
++    private static BlockState bottomEastStairs() {
++        return Blocks.STONE_BRICK_STAIRS.defaultBlockState()
++            .setValue(StairBlock.FACING, Direction.EAST)
++            .setValue(StairBlock.HALF, Half.BOTTOM);
++    }
++
++    private static void setCourseBlock(ServerLevel world, Map<BlockPos, BlockState> expected, BlockPos position, BlockState state) {
++        world.setBlockAndUpdate(position, state);
++        expected.put(position, state);
++    }
++
++    private Map<BlockPos, BlockState> mixedCoalNavigationExpectedStates(Map<BlockPos, BlockState> course) {
++        Map<BlockPos, BlockState> expected = new HashMap<>(course);
++        for (int dx = -1; dx <= 1; dx++) {
++            for (int dy = -1; dy <= 1; dy++) {
++                for (int dz = -1; dz <= 1; dz++) {
++                    expected.put(COAL_RECOVERY_ENCASED_ORE.offset(dx, dy, dz), Blocks.BEDROCK.defaultBlockState());
++                }
++            }
++        }
++        expected.put(COAL_RECOVERY_ENCASED_ORE, Blocks.COAL_ORE.defaultBlockState());
++        return Map.copyOf(expected);
++    }
++
++    private int coalNavigationCourseMismatchCount(ServerLevel world) {
++        int mismatches = 0;
++        for (Map.Entry<BlockPos, BlockState> entry : coalNavigationExpectedStates.entrySet()) {
++            if (!world.getBlockState(entry.getKey()).equals(entry.getValue())) mismatches++;
++        }
++        return mismatches;
+     }
+ 
+     private void startGatherCommand() {
+@@ -877,14 +1113,117 @@ public final class RuntimeVerification implements ClientModInitializer {
+         state = State.GATHERING_WOOD;
+     }
+ 
++    private boolean verifyFenceGeometry() {
++        GameTerrain terrain = new GameTerrain(client, requireEngine().config);
++        terrain.beginSearch();
++        dev.lodekeeper.nav.StanceProbe probe = new dev.lodekeeper.nav.StanceProbe();
++        dev.lodekeeper.nav.StanceProbe empty = new dev.lodekeeper.nav.StanceProbe().clear();
++        BlockPos fence = new BlockPos(-8, 64, 0);
++        terrain.probeStance(-8, 65, 0, probe);
++        boolean loadedFence = probe.loaded && client.level.getBlockState(fence).is(Blocks.OAK_FENCE);
++        boolean bodyBlocked = loadedFence && !probe.bodyClear;
++        boolean pointBlocked = !terrain.isMotionClear(-7.5, 65, 0.5, -7.5, 65, 0.5, 0.0, empty);
++        boolean sweepBlocked = !terrain.isMotionClear(-6.5, 65, 0.5, -7.5, 65, 0.5, 0.0, empty);
++        coalNavigationFenceGeometryEvidence = new JsonObject();
++        coalNavigationFenceGeometryEvidence.addProperty("block", "minecraft:oak_fence");
++        coalNavigationFenceGeometryEvidence.addProperty("position", "-8,64,0");
++        coalNavigationFenceGeometryEvidence.addProperty("queryFeetY", 65);
++        coalNavigationFenceGeometryEvidence.addProperty("loadedFenceObserved", loadedFence);
++        coalNavigationFenceGeometryEvidence.addProperty("belowFeetCollisionBlockedStanceBody", bodyBlocked);
++        coalNavigationFenceGeometryEvidence.addProperty("belowFeetCollisionBlockedPoint", pointBlocked);
++        coalNavigationFenceGeometryEvidence.addProperty("belowFeetCollisionBlockedSweep", sweepBlocked);
++        boolean verified = loadedFence && bodyBlocked && pointBlocked && sweepBlocked;
++        coalNavigationFenceGeometryEvidence.addProperty("verified", verified);
++        if (!verified) fail("Native below-feet fence geometry preflight failed: " + coalNavigationFenceGeometryEvidence);
++        return verified;
++    }
++
++    private static Object readTerrainDiagnosticField(GameTerrain terrain, String name) {
++        try {
++            Field field = GameTerrain.class.getDeclaredField(name);
++            field.setAccessible(true);
++            return field.get(terrain);
++        } catch (ReflectiveOperationException failure) {
++            throw new IllegalStateException("Cannot inspect native navigation diagnostic " + name, failure);
++        }
++    }
++
++    private void recordMixedNavigationDiagnostics() {
++        GameTerrain terrain = new GameTerrain(client, requireEngine().config);
++        terrain.beginSearch();
++        int[] heights = {1024, 1032, 1040, 1040, 1039, 1039, 1032, 1040,
++            1042, 1046, 1054, 1056, 1072, 1072, 1071, 1072, 1088};
++        dev.lodekeeper.nav.StanceProbe previous = new dev.lodekeeper.nav.StanceProbe();
++        dev.lodekeeper.nav.StanceProbe current = new dev.lodekeeper.nav.StanceProbe();
++        dev.lodekeeper.nav.GroundedStanceBuffer candidates = new dev.lodekeeper.nav.GroundedStanceBuffer();
++        coalNavigationRouteDiagnostics = new JsonArray();
++        for (int x = 0; x < heights.length; x++) {
++            terrain.probeStance16(x, heights[x], 0, current);
++            JsonObject row = new JsonObject();
++            row.addProperty("x", x);
++            row.addProperty("feetY16", heights[x]);
++            row.addProperty("loaded", current.loaded);
++            row.addProperty("bodyClear", current.bodyClear);
++            row.addProperty("supported", current.hasGroundSupport());
++            row.addProperty("hazard", current.hazard);
++            row.addProperty("breakCount", current.breakCount);
++            terrain.collectGroundedStances(x, heights[x], 0, candidates);
++            JsonArray candidateArray = new JsonArray();
++            for (int i = 0; i < candidates.size(); i++) candidateArray.add(candidates.get(i));
++            row.add("candidateFeetY16", candidateArray);
++            row.addProperty("candidatesComplete", candidates.isComplete());
++            if (x > 0) {
++                int[] resolved = (int[]) readTerrainDiagnosticField(terrain, "walkResolvedHeights");
++                java.util.Arrays.fill(resolved, Integer.MIN_VALUE);
++                boolean clear = terrain.isGroundedWalkClear(x - 0.5, heights[x - 1], 0.5,
++                    x + 0.5, heights[x], 0.5, previous, current);
++                row.addProperty("incomingGroundedWalkClear", clear);
++                if (!clear) {
++                    dev.lodekeeper.nav.MotionEventBuffer events =
++                        (dev.lodekeeper.nav.MotionEventBuffer) readTerrainDiagnosticField(terrain, "walkEvents");
++                    int count = events.size();
++                    JsonArray profile = new JsonArray();
++                    for (int i = 0; i < count; i++) {
++                        JsonObject point = new JsonObject();
++                        point.addProperty("t", events.get(i));
++                        point.addProperty("resolvedY16", resolved[i]);
++                        profile.add(point);
++                    }
++                    row.add("failedWalkProfile", profile);
++                    row.addProperty("shapeIncomplete", (Boolean) readTerrainDiagnosticField(terrain, "shapeIncomplete"));
++                }
++            }
++            if (x == 1) row.addProperty("actualStartGroundedWalkClear",
++                terrain.isGroundedWalkClear(client.player.getX(), heights[0], client.player.getZ(),
++                    1.5, heights[1], 0.5, previous, current));
++            coalNavigationRouteDiagnostics.add(row);
++            terrain.probeStance16(x, heights[x], 0, previous);
++        }
++        System.out.println("[Lodekeeper verification] Native mixed route diagnostics: " + coalNavigationRouteDiagnostics);
++    }
++
+     private void startCoalRecoveryCommand() {
++        if (MIXED_NAVIGATION_COURSE && !verifyFenceGeometry()) return;
++        if (MIXED_NAVIGATION_COURSE) recordMixedNavigationDiagnostics();
+         coalInitialServerFeetY = latestSnapshot.y;
+-        activeCase = "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
++        coalNavigationInitialServerFeetX = latestSnapshot.x;
++        coalNavigationInitialServerFeetZ = latestSnapshot.z;
++        coalNavigationCourseMinimumHealth = latestSnapshot.health;
++        coalNavigationCourseObservedMask = 0;
++        coalNavigationStairEdgeCompleted = false;
++        coalNavigationStairEdgeMovement = "unobserved";
++        coalNavigationStairEdgePathIndex = -1;
++        coalNavigationLedgeEdgeCompleted = false;
++        coalNavigationLedgeEdgeMovement = "unobserved";
++        coalNavigationLedgeEdgePathIndex = -1;
++        activeCase = MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation_course"
++            : "coal_recovery_" + COAL_START_SURFACE + "_reject_encased_nearer_resource";
+         activeItem = "minecraft:coal";
+         activeCount = 1;
+         activeRequiresEmpty = false;
+         activeStartedEmpty = false;
+         beginCaseClock();
++        coalNavigationCourseCommandStarted = MIXED_NAVIGATION_COURSE;
+         sendCommand("!lk get coal");
+         state = State.GATHERING_COAL_RECOVERY;
+     }
+@@ -916,10 +1255,33 @@ public final class RuntimeVerification implements ClientModInitializer {
+             && latestSnapshot.coalRecoveryEncasedOreRemaining == 1
+             && latestSnapshot.coalRecoveryAccessibleOreRemaining == 0
+             && latestSnapshot.coalStartSurfaceRemaining == 9
++            && (!MIXED_NAVIGATION_COURSE || (coalNavigationFenceGeometryEvidence != null
++                && coalNavigationFenceGeometryEvidence.get("verified").getAsBoolean()
++                && latestSnapshot.coalNavigationCourseMismatchCount == 0
++                && latestSnapshot.coalNavigationCourseObservedMask == coalNavigationExpectedMask()
++                && latestSnapshot.coalNavigationCourseMinimumHealth == 20.0F
++                && coalNavigationStairEdgeCompleted && "WALK".equals(coalNavigationStairEdgeMovement)
++                && coalNavigationLedgeEdgeCompleted && "JUMP".equals(coalNavigationLedgeEdgeMovement)))
+             && coalRecoveryTargetRejected()
+             && requireEngine().status().startsWith("idle");
+     }
+ 
++    private static int coalNavigationExpectedMask() {
++        return (1 << COAL_NAVIGATION_CHECKPOINTS.size()) - 1;
++    }
++
++    private static int[] newCoalNavigationCheckpointTicks() {
++        int[] ticks = new int[COAL_NAVIGATION_CHECKPOINTS.size()];
++        java.util.Arrays.fill(ticks, -1);
++        return ticks;
++    }
++
++    private List<Integer> coalNavigationCheckpointServerTicksSnapshot() {
++        List<Integer> ticks = new ArrayList<>(coalNavigationCourseCheckpointServerTicks.length);
++        for (int tick : coalNavigationCourseCheckpointServerTicks) ticks.add(tick);
++        return List.copyOf(ticks);
++    }
++
+     private void evaluateCurrentCase() {
+         if (activeCase == null || state == State.CAPTURING || latestSnapshot == null) return;
+         if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
+@@ -1155,8 +1517,12 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     inventory.woodenAxeRemainingDurability(),
+                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
+                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+-                    COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ACCESSIBLE_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
++                    COAL_RECOVERY_MODE && world.getBlockState(coalRecoveryAccessibleOrePosition()).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
+                     COAL_RECOVERY_MODE ? countCoalStartSurface(world) : -1,
++                    MIXED_NAVIGATION_COURSE ? coalNavigationCourseMismatchCount(world) : -1,
++                    MIXED_NAVIGATION_COURSE ? coalNavigationCourseObservedMask : -1,
++                    MIXED_NAVIGATION_COURSE ? coalNavigationCourseMinimumHealth : -1.0F,
++                    MIXED_NAVIGATION_COURSE ? coalNavigationCheckpointServerTicksSnapshot() : List.of(),
+                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
+                     player.getX(), player.getY(), player.getZ()));
+             } catch (Throwable throwable) {
+@@ -1324,13 +1690,14 @@ public final class RuntimeVerification implements ClientModInitializer {
+                 root.addProperty("coalStartSurfaceRemainingBlockCount", latestSnapshot == null ? -1 : latestSnapshot.coalStartSurfaceRemaining);
+             }
+             if (COAL_RECOVERY_MODE) {
++                BlockPos accessibleCoal = coalRecoveryAccessibleOrePosition();
+                 JsonObject initialStock = new JsonObject();
+                 initialStock.addProperty("minecraft:stone_pickaxe", 1);
+                 root.add("coalRecoveryFixtureProvidedStock", initialStock);
+                 root.addProperty("coalRecoveryGoalCommand", "!lk get coal");
+                 root.addProperty("coalRecoveryExpectedOutput", 1);
+                 root.addProperty("coalRecoveryEncasedOrePosition", "6," + PLAYER_Y + ",2");
+-                root.addProperty("coalRecoveryAccessibleOrePosition", "16," + PLAYER_Y + ",2");
++                root.addProperty("coalRecoveryAccessibleOrePosition", blockPosition(accessibleCoal));
+                 root.addProperty("coalRecoveryEncasedOreInitialBlockCount", 1);
+                 root.addProperty("coalRecoveryEncasedOreRemainingBlockCount",
+                     latestSnapshot == null ? -1 : latestSnapshot.coalRecoveryEncasedOreRemaining);
+@@ -1346,6 +1713,72 @@ public final class RuntimeVerification implements ClientModInitializer {
+                     .forEach(entry -> completionInventory.addProperty(entry.getKey(), entry.getValue()));
+                 root.add("coalRecoveryCompletionInventory", completionInventory);
+                 root.addProperty("coalRecoveryOutcomeVerified", coalRecoveryOutcomeObserved());
++                if (MIXED_NAVIGATION_COURSE) {
++                    int observedMask = latestSnapshot == null ? coalNavigationCourseObservedMask
++                        : latestSnapshot.coalNavigationCourseObservedMask;
++                    int mismatchCount = latestSnapshot == null ? -1 : latestSnapshot.coalNavigationCourseMismatchCount;
++                    root.addProperty("navigationCourse", "mixed");
++                    if (Double.isFinite(coalNavigationInitialServerFeetX)) root.addProperty("coalNavigationCourseInitialServerFeetX", coalNavigationInitialServerFeetX);
++                    if (Double.isFinite(coalNavigationInitialServerFeetZ)) root.addProperty("coalNavigationCourseInitialServerFeetZ", coalNavigationInitialServerFeetZ);
++                    if (coalNavigationFenceGeometryEvidence != null) root.add("coalNavigationFenceGeometry", coalNavigationFenceGeometryEvidence);
++                    if (coalNavigationRouteDiagnostics != null) root.add("coalNavigationRouteDiagnostics", coalNavigationRouteDiagnostics);
++                    root.addProperty("coalNavigationCourseAccessibleOrePosition", blockPosition(accessibleCoal));
++                    root.addProperty("coalNavigationCourseCheckpointExpectedMask", coalNavigationExpectedMask());
++                    root.addProperty("coalNavigationCourseCheckpointObservedMask", observedMask);
++                    root.addProperty("coalNavigationCourseAllCheckpointsVisited", observedMask == coalNavigationExpectedMask());
++                    root.addProperty("coalNavigationCourseProtectedStateCount", coalNavigationExpectedStates.size());
++                    root.addProperty("coalNavigationCourseProtectedStatesPreserved",
++                        mismatchCount < 0 ? -1 : coalNavigationExpectedStates.size() - mismatchCount);
++                    root.addProperty("coalNavigationCourseStateMismatches", mismatchCount);
++                    root.addProperty("coalNavigationCourseMinimumServerHealth",
++                        latestSnapshot == null ? coalNavigationCourseMinimumHealth : latestSnapshot.coalNavigationCourseMinimumHealth);
++                    root.addProperty("coalNavigationCourseAllowBreaking", true);
++                    root.addProperty("coalNavigationCourseAllowBuilding", false);
++                    root.addProperty("coalNavigationCourseAllowParkour", false);
++                    root.addProperty("coalNavigationCourseStairEdgeCompleted", coalNavigationStairEdgeCompleted);
++                    root.addProperty("coalNavigationCourseStairEdgeMovement", coalNavigationStairEdgeMovement);
++                    root.addProperty("coalNavigationCourseStairEdgeCompletedPathIndex", coalNavigationStairEdgePathIndex);
++                    root.addProperty("coalNavigationCourseStairEdgeTraversalCount", coalNavigationStairEdgeCompleted ? 1 : 0);
++                    root.addProperty("coalNavigationCourseLedgeEdgeCompleted", coalNavigationLedgeEdgeCompleted);
++                    root.addProperty("coalNavigationCourseLedgeEdgeMovement", coalNavigationLedgeEdgeMovement);
++                    root.addProperty("coalNavigationCourseLedgeEdgeCompletedPathIndex", coalNavigationLedgeEdgePathIndex);
++                    root.addProperty("coalNavigationCourseLedgeEdgeTraversalCount", coalNavigationLedgeEdgeCompleted ? 1 : 0);
++                    JsonArray checkpoints = new JsonArray();
++                    for (int checkpointIndex = 0; checkpointIndex < COAL_NAVIGATION_CHECKPOINTS.size(); checkpointIndex++) {
++                        CoalNavigationCheckpoint checkpoint = COAL_NAVIGATION_CHECKPOINTS.get(checkpointIndex);
++                        JsonObject cell = new JsonObject();
++                        cell.addProperty("xCell", checkpoint.xCell);
++                        cell.addProperty("zCell", 0);
++                        cell.addProperty("feetY16", checkpoint.feetY16);
++                        cell.addProperty("feetY", checkpoint.feetY16 / 16.0);
++                        cell.addProperty("firstServerTick", latestSnapshot == null
++                            || latestSnapshot.coalNavigationCourseCheckpointServerTicks.size() <= checkpointIndex
++                                ? -1 : latestSnapshot.coalNavigationCourseCheckpointServerTicks.get(checkpointIndex));
++                        checkpoints.add(cell);
++                    }
++                    root.add("coalNavigationCourseCheckpoints", checkpoints);
++                    JsonObject stairFlight = new JsonObject();
++                    stairFlight.addProperty("lower", "11,65,0;feet=66");
++                    stairFlight.addProperty("upper", "12,66,0;feet=67");
++                    stairFlight.addProperty("expectedMethod", "walk_up_stairs");
++                    root.add("coalNavigationCourseStairFlight", stairFlight);
++                    JsonObject ledge = new JsonObject();
++                    ledge.addProperty("kind", "one_block_full_cube_jump_ledge");
++                    ledge.addProperty("approach", "15,66,0;feet=67");
++                    ledge.addProperty("landing", "16,67,0;feet=68");
++                    JsonArray upperBlocks = new JsonArray();
++                    upperBlocks.add("16,67,0");
++                    upperBlocks.add("17,67,0");
++                    upperBlocks.add("18,67,0");
++                    ledge.add("upperBlocks", upperBlocks);
++                    root.add("coalNavigationCourseOneBlockJumpLedge", ledge);
++                    root.addProperty("coalNavigationCourseHydrationWater", "5,64,-2");
++                    JsonArray waterShell = new JsonArray();
++                    for (String position : List.of("5,65,-2", "5,63,-2", "5,64,-3", "5,64,-1", "6,64,-2", "4,64,-2")) {
++                        waterShell.add(position);
++                    }
++                    root.add("coalNavigationCourseWaterBedrockShell", waterShell);
++                }
+             }
+             if (PROCESSING_MODE) {
+                 root.addProperty("serverSmokerOpened", serverSmokerOpened);
+@@ -1468,13 +1901,43 @@ public final class RuntimeVerification implements ClientModInitializer {
+         }
+     }
+ 
++    private static String blockPosition(BlockPos position) {
++        return position.getX() + "," + position.getY() + "," + position.getZ();
++    }
++
++    private static Field findField(Class<?> owner, String name) {
++        try {
++            Field field = owner.getDeclaredField(name);
++            field.setAccessible(true);
++            return field;
++        } catch (ReflectiveOperationException | RuntimeException ignored) {
++            return null;
++        }
++    }
++
++    private static Field findField(String ownerName, String name) {
++        try {
++            return findField(Class.forName(ownerName), name);
++        } catch (ClassNotFoundException | LinkageError ignored) {
++            return null;
++        }
++    }
++
++    private static boolean navigationMovementReflectionAvailable() {
++        return ENGINE_MOVEMENT_FIELD != null && MOVEMENT_PATH_FIELD != null
++            && MOVEMENT_PATH_INDEX_FIELD != null && MOVEMENT_VALIDATED_PATH_INDEX_FIELD != null;
++    }
++
+     private static String verificationMode() {
+         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
++        if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
++        if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";
++        if (MIXED_NAVIGATION_COURSE && !COAL_START_SURFACE.equals("full")) return "invalid_navigation_course_requires_full_surface";
+         if (COOKING_MODE && !isSupportedCookingStationMode()) return "invalid_cooking_station";
+         if (STONECUTTING_DRAIN_MODE && !STONECUTTING_MODE) return "invalid_stonecutting_drain";
+         if (STONECUTTING_DRAIN_MODE) return "stonecutting_drain";
+         if (IRON_PICKAXE_MODE) return "iron_pickaxe";
+-        if (COAL_RECOVERY_MODE) return "coal_recovery";
++        if (COAL_RECOVERY_MODE) return MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation" : "coal_recovery";
+         if (STONECUTTING_MODE) return "stonecutting";
+         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
+         if (BULK_WOOD_MODE) return "bulk_wood";
+@@ -1495,14 +1958,20 @@ public final class RuntimeVerification implements ClientModInitializer {
+         }
+     }
+ 
++    private record CoalNavigationCheckpoint(int xCell, int feetY16) { }
++
+     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
+                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,
+                                   int coalRecoveryEncasedOreRemaining, int coalRecoveryAccessibleOreRemaining, int coalStartSurfaceRemaining,
++                                  int coalNavigationCourseMismatchCount, int coalNavigationCourseObservedMask,
++                                  float coalNavigationCourseMinimumHealth,
++                                  List<Integer> coalNavigationCourseCheckpointServerTicks,
+                                   float health, int foodLevel,
+                                   String difficulty, double x, double y, double z) {
+         private ServerSnapshot {
+             inventory = Map.copyOf(inventory);
+             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
++            coalNavigationCourseCheckpointServerTicks = List.copyOf(coalNavigationCourseCheckpointServerTicks);
+         }
+         int count(String id) { return inventory.getOrDefault(id, 0); }
+         boolean inventoryEmpty() { return inventory.isEmpty(); }
+diff --git a/gradle.properties b/gradle.properties
+index e7f1ac0..3ece089 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -6,4 +6,4 @@ minecraft_version=1.20.1
+ yarn_mappings=1.20.1+build.10
+ loader_version=0.19.5
+ fabric_version=0.92.12+1.20.1
+-mod_version=0.1.0-dev
++mod_version=0.1.0-preview.3
+diff --git a/nav/src/main/java/dev/lodekeeper/nav/MotionEventBuffer.java b/nav/src/main/java/dev/lodekeeper/nav/MotionEventBuffer.java
+new file mode 100644
+index 0000000..9929b1e
+--- /dev/null
++++ b/nav/src/main/java/dev/lodekeeper/nav/MotionEventBuffer.java
+@@ -0,0 +1,119 @@
++package dev.lodekeeper.nav;
++
++/** Reusable, bounded collection of normalized motion-event times. */
++public final class MotionEventBuffer {
++    public static final int MAX_CAPACITY = 256;
++
++    private final double[] times;
++    private final boolean[] critical;
++    private int size;
++    private double timeTolerance;
++    private boolean complete = true;
++
++    public MotionEventBuffer(int capacity) {
++        if (capacity < 1 || capacity > MAX_CAPACITY) {
++            throw new IllegalArgumentException("capacity must be between 1 and " + MAX_CAPACITY);
++        }
++        times = new double[capacity];
++        critical = new boolean[capacity];
++    }
++
++    /** Resets this buffer and sets the inclusive normalized-time merge tolerance. */
++    public MotionEventBuffer clear(double timeTolerance) {
++        if (!Double.isFinite(timeTolerance) || timeTolerance < 0.0 || timeTolerance > 1.0) {
++            throw new IllegalArgumentException("timeTolerance must be finite and in [0, 1]");
++        }
++        size = 0;
++        this.timeTolerance = timeTolerance;
++        complete = true;
++        return this;
++    }
++
++    /** Adds or merges an event; invalid input and capacity overflow make this collection incomplete. */
++    public boolean add(double time, boolean isCritical) {
++        if (!complete) return false;
++        if (!Double.isFinite(time) || time < 0.0 || time > 1.0) {
++            complete = false;
++            return false;
++        }
++
++        int firstMatch = -1;
++        int firstCriticalMatch = -1;
++        for (int index = 0; index < size; index++) {
++            if (matches(times[index], time)) {
++                if (firstMatch < 0) firstMatch = index;
++                if (critical[index] && firstCriticalMatch < 0) firstCriticalMatch = index;
++            }
++        }
++
++        if (firstMatch >= 0) {
++            if (!isCritical && firstCriticalMatch >= 0) return true;
++
++            int keepIndex = firstCriticalMatch >= 0 ? firstCriticalMatch : firstMatch;
++            double keepTime = firstCriticalMatch >= 0 ? times[firstCriticalMatch]
++                    : isCritical ? time : times[firstMatch];
++            boolean keepCritical = firstCriticalMatch >= 0 || isCritical;
++            int writeIndex = 0;
++            for (int readIndex = 0; readIndex < size; readIndex++) {
++                if (readIndex == keepIndex) {
++                    times[writeIndex] = keepTime;
++                    critical[writeIndex] = keepCritical;
++                    writeIndex++;
++                } else if (firstCriticalMatch >= 0) {
++                    if (critical[readIndex] || !matches(times[readIndex], keepTime)) {
++                        times[writeIndex] = times[readIndex];
++                        critical[writeIndex] = critical[readIndex];
++                        writeIndex++;
++                    }
++                } else if (!matches(times[readIndex], time)) {
++                    times[writeIndex] = times[readIndex];
++                    critical[writeIndex] = critical[readIndex];
++                    writeIndex++;
++                } else {
++                    // A new critical event replaces all matching regular events. A regular event
++                    // keeps the first existing regular timestamp and absorbs its close duplicates.
++                }
++            }
++            size = writeIndex;
++            return true;
++        }
++
++        if (size == times.length) {
++            complete = false;
++            return false;
++        }
++        times[size] = time;
++        critical[size] = isCritical;
++        size++;
++        return true;
++    }
++
++    /** Sorts the collected event times in ascending order without allocating. */
++    public void sort() {
++        for (int index = 1; index < size; index++) {
++            double time = times[index];
++            boolean isCritical = critical[index];
++            int insertAt = index;
++            while (insertAt > 0 && times[insertAt - 1] > time) {
++                times[insertAt] = times[insertAt - 1];
++                critical[insertAt] = critical[insertAt - 1];
++                insertAt--;
++            }
++            times[insertAt] = time;
++            critical[insertAt] = isCritical;
++        }
++    }
++
++    public int size() { return size; }
++
++    public double get(int index) {
++        if (index < 0 || index >= size) throw new IndexOutOfBoundsException(index);
++        return times[index];
++    }
++
++    public boolean isComplete() { return complete; }
++
++    private boolean matches(double first, double second) {
++        return Math.abs(first - second) <= timeTolerance;
++    }
++}
+diff --git a/nav/src/main/java/dev/lodekeeper/nav/PathEdgeValidator.java b/nav/src/main/java/dev/lodekeeper/nav/PathEdgeValidator.java
+index 02119f5..805e3a8 100644
+--- a/nav/src/main/java/dev/lodekeeper/nav/PathEdgeValidator.java
++++ b/nav/src/main/java/dev/lodekeeper/nav/PathEdgeValidator.java
+@@ -3,6 +3,8 @@ package dev.lodekeeper.nav;
+ /** Live, allocation-free validation for one edge immediately before its executor sends input. */
+ public final class PathEdgeValidator {
+     private static final double JUMP_ARC = 0.85;
++    /** Conservative vanilla jump apex; boosted jumps require their own movement model. */
++    private static final double JUMP_MAX_RISE = 1.35;
+     private static final double PARKOUR_ARC = 1.35;
+     private static final double MAX_ARC_CHORD_ERROR = 0.0005;
+     private static final double STRAIGHT_ARC = 1.0e-12;
+@@ -71,10 +73,12 @@ public final class PathEdgeValidator {
+     }
+ 
+     /**
+-     * Revalidates only the remaining portion of an active jump/parkour curve. The original edge
+-     * origin prevents restarting its full arc at the player's elevated midair feet. A point sweep
+-     * checks the player's actual box; short, vertically bounded chords then cover the remaining
+-     * original curve without querying terrain behind the player's projected progress.
++     * Revalidates the remaining movement from the actual airborne position. A jump below landing
++     * height proves only its vertical lift; executors must validate again before releasing forward
++     * input, even when terrain revision is unchanged. Above that height overlapping constant-height
++     * sweeps cover the whole landing-to-apex envelope. Parkour follows the remaining original curve
++     * using bounded chords,
++     * without restarting a full arc at the elevated feet or querying terrain behind the player.
+      */
+     public static boolean isSafeContinuation(Terrain terrain, Path.Step source, Path.Step destination,
+                                              double edgeStartX, double edgeStartFeetY, double edgeStartZ,
+@@ -92,7 +96,9 @@ public final class PathEdgeValidator {
+             if (!probeCurrentStance(terrain, currentFeetX, currentFeetY, currentFeetZ,
+                     source.movement, sourceProbe)) return false;
+             if (!safeStance(sourceProbe, source.movement, false)) return false;
+-            if (requiresFullLaunchSupport(destination.movement) && !sourceProbe.fullSupport) return false;
++            boolean landedJump = destination.movement == Path.Movement.JUMP
++                    && currentFeetY >= destination.feetY();
++            if (requiresFullLaunchSupport(destination.movement) && !landedJump && !sourceProbe.fullSupport) return false;
+         }
+ 
+         terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
+@@ -113,6 +119,31 @@ public final class PathEdgeValidator {
+                     sourceProbe, destinationProbe);
+         }
+ 
++        if (destination.movement == Path.Movement.JUMP) {
++            double apex = source.feetY() + JUMP_MAX_RISE;
++            if (currentFeetY > apex || currentFeetY < source.feetY() - 0.05) return false;
++            if (currentFeetY < destination.feetY()) {
++                // The executor holds forward input until the feet clear the landing height.
++                // Revalidate the remaining vertical lift, without restarting a forward arc.
++                return terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
++                        currentFeetX, apex, currentFeetZ, STRAIGHT_ARC, sourceProbe, destinationProbe);
++            }
++            // Cover the entire landing-height-to-apex band at every remaining XZ position.
++            // Native adapters reject bodies shorter than .5; .25-spaced body sweeps overlap,
++            // so this envelope cannot omit a low obstacle or an ahead-only ceiling near apex.
++            // It deliberately avoids assuming where horizontal progress reaches jump apex.
++            double envelopeHeight = apex - destination.feetY();
++            if (envelopeHeight < 0 || envelopeHeight > JUMP_MAX_RISE) return false;
++            int bands = Math.max(1, (int) Math.ceil(envelopeHeight / .25));
++            for (int band = 0; band <= bands; band++) {
++                double feetY = destination.feetY() + envelopeHeight * band / bands;
++                if (!terrain.isMotionClear(currentFeetX, feetY, currentFeetZ,
++                        destination.x + .5, feetY, destination.z + .5,
++                        STRAIGHT_ARC, sourceProbe, destinationProbe)) return false;
++            }
++            return true;
++        }
++
+         double arc = arcFor(destination.movement);
+         if (arc <= 0.0) {
+             return terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
+@@ -235,15 +266,43 @@ public final class PathEdgeValidator {
+         return safeStance(stanceProbe, movement, true);
+     }
+ 
++    /**
++     * Proves a short vertical settlement after a validated WALK left its upper support.
++     * This permits an idle physics wait, never forward movement or a world action.
++     * The native on-ground flag can retain its preceding value for one tick at a ledge.
++     */
++    public static boolean isSafeWalkSettlement(Terrain terrain, double feetX, double feetY,
++                                                double feetZ, StanceProbe lowerProbe,
++                                                StanceProbe emptyProbe) {
++        if (terrain == null || lowerProbe == null || emptyProbe == null
++                || !Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
++                || feetY < -2048.0 || feetY >= 2048.0
++                || !terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ, 0.0, emptyProbe)) return false;
++        int top = (int) Math.ceil(feetY * 16.0) - 1;
++        int bottom = (int) Math.ceil(feetY * 16.0 - 9.0);
++        for (int lowerY16 = top; lowerY16 >= bottom; lowerY16--) {
++            if (!terrain.probeCurrentStance(feetX, lowerY16, feetZ, lowerProbe)
++                    || !lowerProbe.loaded || lowerProbe.hazard || !lowerProbe.bodyClear
++                    || lowerProbe.breakCount != 0) return false;
++            if (!lowerProbe.hasGroundSupport()) continue;
++            return terrain.isMotionClear(feetX, feetY, feetZ,
++                    feetX, lowerY16 / 16.0, feetZ, 0.0, emptyProbe);
++        }
++        return false;
++    }
++
+     /** Checks the live source stance and actual player-sized volume before a break/place action. */
+     public static boolean isCurrentStanceSafe(Terrain terrain, Path.Step stance,
+                                               double feetX, double feetY, double feetZ,
+                                               StanceProbe stanceProbe, StanceProbe emptyProbe) {
+         if (terrain == null || stance == null || stanceProbe == null || emptyProbe == null
+                 || !nearSource(stance, feetX, feetY, feetZ)
+-                || quantizedFeetY16(feetY) != stance.feetY16
+                 || !probeCurrentStance(terrain, feetX, feetY, feetZ,
+                 stance.movement, stanceProbe)) return false;
++        boolean mediumSource = stance.movement == Path.Movement.SWIM && stanceProbe.water
++                || stance.movement == Path.Movement.CLIMB && stanceProbe.climbable
++                || stance.movement == Path.Movement.START && (stanceProbe.water || stanceProbe.climbable);
++        if (!mediumSource && quantizedFeetY16(feetY) != stance.feetY16) return false;
+         if (!safeStance(stanceProbe, stance.movement, false)) return false;
+         return terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ,
+                 0.0, emptyProbe);

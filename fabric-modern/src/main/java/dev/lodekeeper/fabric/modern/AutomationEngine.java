@@ -140,6 +140,7 @@ final class AutomationEngine {
     private boolean exploring, explorationMoving;
     private int explorationTicks;
     private final Set<BlockPos> rejectedResources = new HashSet<>();
+    private String lastResourceFailure;
     private BlockPos target;
     private BlockPos gatherMineTarget;
     private Block gatherMineBlock;
@@ -296,7 +297,7 @@ final class AutomationEngine {
             }
             if (++actionTicks > config.actionTimeoutTicks) {
                 if (shouldRejectTimedOutGather()) {
-                    rejectResource();
+                    rejectResource("Gathering made no confirmed progress before its timeout");
                     return;
                 }
                 throw new IllegalStateException("Action timeout: " + step.sourceId()
@@ -315,7 +316,7 @@ final class AutomationEngine {
                 catch (MovementController.NavigationFailure blocked) {
                     if (movingPickup) throw new IllegalStateException("Unable to collect dropped " + step.output() + ": " + blocked.getMessage());
                     if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
-                    rejectResource();
+                    rejectResource(blocked.getMessage());
                 }
                 return;
             }
@@ -514,7 +515,7 @@ final class AutomationEngine {
                 return;
             }
             unavailableSources.clear();
-            frontier = null; rejectedResources.clear(); logCandidates.clear();
+            frontier = null; rejectedResources.clear(); lastResourceFailure = null; logCandidates.clear();
             planningRetries = 0;
             requestPlan();
         }
@@ -1221,8 +1222,15 @@ final class AutomationEngine {
         BlockPos feet = client.player.blockPosition();
         if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),
             config.explorationAttempts, config.explorationDistance);
-        terrain.beginSearch(); frontier.beginAt(feet.getX(), feet.getY(), feet.getZ());
+        beginFrontierAtPlayer(feet);
         exploring = true; status = "finding a safe exploration route";
+    }
+    private void beginFrontierAtPlayer(BlockPos feet) {
+        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
+        if (feetY16 == GameTerrain.INVALID_FEET_Y16) {
+            throw new MovementController.NavigationFailure("Exploration requires a modeled sixteenth-block feet height");
+        }
+        terrain.beginSearch(); frontier.beginAt16(feet.getX(), feetY16, feet.getZ());
     }
     private void explore() {
         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
@@ -1242,7 +1250,9 @@ final class AutomationEngine {
                 if (movement.tick()) {
                     var waypoint = frontier.waypoint();
                     BlockPos feet = client.player.blockPosition();
-                    if (feet.getX() != waypoint.x() || feet.getY() != waypoint.y() || feet.getZ() != waypoint.z()) {
+                    int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
+                    if (feet.getX() != waypoint.x() || feet.getZ() != waypoint.z()
+                            || feetY16 == GameTerrain.INVALID_FEET_Y16 || feetY16 != waypoint.feetY16()) {
                         throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
                     }
                     movement.stop(); unavailableSources.clear(); resetAction(); planningRetries = 0; requestPlan();
@@ -1253,11 +1263,12 @@ final class AutomationEngine {
         var state = frontier.advance(terrain,32,1_000_000);
         if (state == ExplorationFrontier.Status.EXHAUSTED) {
             throw new IllegalStateException("No safe unexplored waypoint remains within the exploration bounds after "
-                + frontier.attempts() + " attempts; move to another area or adjust exploration limits");
+                + frontier.attempts() + " attempts; move to another area or adjust exploration limits"
+                + (lastResourceFailure == null ? "" : " · Last resource attempt: " + lastResourceFailure));
         }
         if (state == ExplorationFrontier.Status.READY) {
             var point = frontier.waypoint();
-            movement.startExploration(new BlockPos(point.x(),point.y(),point.z()));
+            movement.startExploration(point);
             lastMovementProgressToken = movement.progressToken();
             explorationMoving = true;
         }
@@ -1266,10 +1277,13 @@ final class AutomationEngine {
         movement.stop(); explorationMoving = false; explorationTicks = 0;
         lastMovementProgressToken = movement.progressToken();
         BlockPos feet = client.player.blockPosition();
-        terrain.beginSearch(); frontier.beginAt(feet.getX(),feet.getY(),feet.getZ());
+        beginFrontierAtPlayer(feet);
         status = "trying another safe exploration waypoint";
     }
-    private void rejectResource() {
+    private void rejectResource(String reason) {
+        lastResourceFailure = target.getX() + "," + target.getY() + "," + target.getZ() + ": " + reason;
+        System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
+            "Rejected resource " + lastResourceFailure);
         movement.stop(); actions.cancel(); moving = false;
         if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
         rejectedResources.add(target.immutable()); target = null; scan = null; clearGatherAttempt(); actionTicks = 0;
@@ -1372,7 +1386,7 @@ final class AutomationEngine {
             gatherMineBlock = sourceBlock;
         } else {
             try { movement.startInteraction(target); moving = true; }
-            catch (MovementController.NavigationFailure blocked) { rejectResource(); }
+            catch (MovementController.NavigationFailure blocked) { rejectResource(blocked.getMessage()); }
         }
     }
 

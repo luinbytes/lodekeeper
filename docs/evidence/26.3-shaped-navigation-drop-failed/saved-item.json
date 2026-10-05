@@ -1,0 +1,42 @@
+{
+  "entity": {
+    "Motion": [
+      3.038739314890176e-14,
+      -0.12,
+      -2.0979405504081464e-14
+    ],
+    "Health": 5,
+    "Invulnerable": 0,
+    "fall_distance": 0.0,
+    "Air": 300,
+    "OnGround": 1,
+    "PortalCooldown": 0,
+    "Rotation": [
+      1.5526127815246582,
+      0.0
+    ],
+    "Item": {
+      "count": 1,
+      "id": "minecraft:coal"
+    },
+    "Pos": [
+      21.258903288389824,
+      -60.0,
+      -1.1081190693492002
+    ],
+    "PickupDelay": 0,
+    "Fire": 0,
+    "id": "minecraft:item",
+    "UUID": [
+      -1190588811,
+      -307409015,
+      -1126692015,
+      611928081
+    ],
+    "Age": 305
+  },
+  "evidenceType": "saved native server entity NBT after owned client exit",
+  "nativeRegionFile": "saved-entities.mca",
+  "nativeRegionSha256": "86b12da2184562970e76d9ce75e70ec78f4a44540925042054052b097f5c2610",
+  "explanation": "coal fell from the one-cell elevated landing pad to superflat ground, outside the client gather query vertical radius"
+}

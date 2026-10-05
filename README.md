@@ -28,6 +28,8 @@ Preview 2 adds native stonecutting with server-confirmed inventory accounting an
 
 A bounded recovery can leave nearby dirt-path or farmland starts and try another resource when the first is unreachable. The exact [1.21.1 coal check](docs/evidence/1.21.1-preview2-coal-path/run.json) preserves the starting path and collects reachable coal; full slab/stair/path traversal remains in development.
 
+The next preview adds grounded traversal across slabs, stairs, snow, paths and farmland. Its mixed-terrain development checks pass on [1.21.1](docs/evidence/1.21.1-shaped-navigation/README.md) and [26.3](docs/evidence/26.3-shaped-navigation/README.md), including a one-block jump without damaging the course. Exact release-jar checks are still pending; this feature is not in Preview 2.
+
 For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
 `wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.

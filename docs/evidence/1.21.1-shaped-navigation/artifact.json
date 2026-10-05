@@ -1,0 +1,28 @@
+{
+  "minecraftVersion": "1.21.1",
+  "sourceCommit": "d3e59be25fbbbf69774df995a18a4b467d290968",
+  "workingTreePatch": "source.patch",
+  "workingTreePatchSha256": "432eae9fd4a5d5bd33136065ab4af3a9435ef3cb0bddee4ab0c5e1dfe5fdcfbf",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.3.jar",
+  "artifactSha256": "0d0e896b2d7eb39247cb54cc909863e19a54d473048d2b04868e08d755c80099",
+  "sourceTreeSha256": "f0ae2a3cd6142d067f66a47871137d5700ea33943b4b6062104d4ce4e3222e2c",
+  "sourceTreeDigestFormat": "sorted relative path, NUL, content, NUL",
+  "sourceRoots": [
+    "gradle.properties",
+    "build.gradle",
+    "settings.gradle",
+    "core/src/main",
+    "nav/src/main",
+    "fabric/src/main",
+    "fabric/src/verification",
+    "fabric-1211/src/main",
+    "fabric-1211/src/verification"
+  ],
+  "verificationCodeExcludedFromProductionJar": true,
+  "runtimeMode": "fabric_development_classes",
+  "artifactRole": "paired production build; gameplay used development classes built from sourceCommit plus exact archived workingTreePatch",
+  "ownedClientExitCode": 0,
+  "ownedClientExitReceipt": "Popen.wait observed by wrapper session 68413",
+  "runtimeStatus": "passed",
+  "runId": "2026-10-05T21-15-52-520903Z-b1d53bb2"
+}

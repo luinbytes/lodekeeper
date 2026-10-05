@@ -3,6 +3,8 @@ package dev.lodekeeper.nav;
 /** Live, allocation-free validation for one edge immediately before its executor sends input. */
 public final class PathEdgeValidator {
     private static final double JUMP_ARC = 0.85;
+    /** Conservative vanilla jump apex; boosted jumps require their own movement model. */
+    private static final double JUMP_MAX_RISE = 1.35;
     private static final double PARKOUR_ARC = 1.35;
     private static final double MAX_ARC_CHORD_ERROR = 0.0005;
     private static final double STRAIGHT_ARC = 1.0e-12;
@@ -71,10 +73,12 @@ public final class PathEdgeValidator {
     }
 
     /**
-     * Revalidates only the remaining portion of an active jump/parkour curve. The original edge
-     * origin prevents restarting its full arc at the player's elevated midair feet. A point sweep
-     * checks the player's actual box; short, vertically bounded chords then cover the remaining
-     * original curve without querying terrain behind the player's projected progress.
+     * Revalidates the remaining movement from the actual airborne position. A jump below landing
+     * height proves only its vertical lift; executors must validate again before releasing forward
+     * input, even when terrain revision is unchanged. Above that height overlapping constant-height
+     * sweeps cover the whole landing-to-apex envelope. Parkour follows the remaining original curve
+     * using bounded chords,
+     * without restarting a full arc at the elevated feet or querying terrain behind the player.
      */
     public static boolean isSafeContinuation(Terrain terrain, Path.Step source, Path.Step destination,
                                              double edgeStartX, double edgeStartFeetY, double edgeStartZ,
@@ -92,7 +96,9 @@ public final class PathEdgeValidator {
             if (!probeCurrentStance(terrain, currentFeetX, currentFeetY, currentFeetZ,
                     source.movement, sourceProbe)) return false;
             if (!safeStance(sourceProbe, source.movement, false)) return false;
-            if (requiresFullLaunchSupport(destination.movement) && !sourceProbe.fullSupport) return false;
+            boolean landedJump = destination.movement == Path.Movement.JUMP
+                    && currentFeetY >= destination.feetY();
+            if (requiresFullLaunchSupport(destination.movement) && !landedJump && !sourceProbe.fullSupport) return false;
         }
 
         terrain.probeStance16(destination.x, destination.feetY16, destination.z, destinationProbe);
@@ -111,6 +117,31 @@ public final class PathEdgeValidator {
                     && terrain.isGroundedWalkClear(currentFeetX, currentFeetY16, currentFeetZ,
                     destination.x + 0.5, destination.feetY16, destination.z + 0.5,
                     sourceProbe, destinationProbe);
+        }
+
+        if (destination.movement == Path.Movement.JUMP) {
+            double apex = source.feetY() + JUMP_MAX_RISE;
+            if (currentFeetY > apex || currentFeetY < source.feetY() - 0.05) return false;
+            if (currentFeetY < destination.feetY()) {
+                // The executor holds forward input until the feet clear the landing height.
+                // Revalidate the remaining vertical lift, without restarting a forward arc.
+                return terrain.isMotionClear(currentFeetX, currentFeetY, currentFeetZ,
+                        currentFeetX, apex, currentFeetZ, STRAIGHT_ARC, sourceProbe, destinationProbe);
+            }
+            // Cover the entire landing-height-to-apex band at every remaining XZ position.
+            // Native adapters reject bodies shorter than .5; .25-spaced body sweeps overlap,
+            // so this envelope cannot omit a low obstacle or an ahead-only ceiling near apex.
+            // It deliberately avoids assuming where horizontal progress reaches jump apex.
+            double envelopeHeight = apex - destination.feetY();
+            if (envelopeHeight < 0 || envelopeHeight > JUMP_MAX_RISE) return false;
+            int bands = Math.max(1, (int) Math.ceil(envelopeHeight / .25));
+            for (int band = 0; band <= bands; band++) {
+                double feetY = destination.feetY() + envelopeHeight * band / bands;
+                if (!terrain.isMotionClear(currentFeetX, feetY, currentFeetZ,
+                        destination.x + .5, feetY, destination.z + .5,
+                        STRAIGHT_ARC, sourceProbe, destinationProbe)) return false;
+            }
+            return true;
         }
 
         double arc = arcFor(destination.movement);
@@ -235,15 +266,43 @@ public final class PathEdgeValidator {
         return safeStance(stanceProbe, movement, true);
     }
 
+    /**
+     * Proves a short vertical settlement after a validated WALK left its upper support.
+     * This permits an idle physics wait, never forward movement or a world action.
+     * The native on-ground flag can retain its preceding value for one tick at a ledge.
+     */
+    public static boolean isSafeWalkSettlement(Terrain terrain, double feetX, double feetY,
+                                                double feetZ, StanceProbe lowerProbe,
+                                                StanceProbe emptyProbe) {
+        if (terrain == null || lowerProbe == null || emptyProbe == null
+                || !Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || feetY < -2048.0 || feetY >= 2048.0
+                || !terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ, 0.0, emptyProbe)) return false;
+        int top = (int) Math.ceil(feetY * 16.0) - 1;
+        int bottom = (int) Math.ceil(feetY * 16.0 - 9.0);
+        for (int lowerY16 = top; lowerY16 >= bottom; lowerY16--) {
+            if (!terrain.probeCurrentStance(feetX, lowerY16, feetZ, lowerProbe)
+                    || !lowerProbe.loaded || lowerProbe.hazard || !lowerProbe.bodyClear
+                    || lowerProbe.breakCount != 0) return false;
+            if (!lowerProbe.hasGroundSupport()) continue;
+            return terrain.isMotionClear(feetX, feetY, feetZ,
+                    feetX, lowerY16 / 16.0, feetZ, 0.0, emptyProbe);
+        }
+        return false;
+    }
+
     /** Checks the live source stance and actual player-sized volume before a break/place action. */
     public static boolean isCurrentStanceSafe(Terrain terrain, Path.Step stance,
                                               double feetX, double feetY, double feetZ,
                                               StanceProbe stanceProbe, StanceProbe emptyProbe) {
         if (terrain == null || stance == null || stanceProbe == null || emptyProbe == null
                 || !nearSource(stance, feetX, feetY, feetZ)
-                || quantizedFeetY16(feetY) != stance.feetY16
                 || !probeCurrentStance(terrain, feetX, feetY, feetZ,
                 stance.movement, stanceProbe)) return false;
+        boolean mediumSource = stance.movement == Path.Movement.SWIM && stanceProbe.water
+                || stance.movement == Path.Movement.CLIMB && stanceProbe.climbable
+                || stance.movement == Path.Movement.START && (stanceProbe.water || stanceProbe.climbable);
+        if (!mediumSource && quantizedFeetY16(feetY) != stance.feetY16) return false;
         if (!safeStance(stanceProbe, stance.movement, false)) return false;
         return terrain.isMotionClear(feetX, feetY, feetZ, feetX, feetY, feetZ,
                 0.0, emptyProbe);
