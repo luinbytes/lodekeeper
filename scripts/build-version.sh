@@ -44,7 +44,7 @@ case "$target" in
       1.21.2) mappings=1.21.2+build.1; api=0.106.1+1.21.2 ;;
       1.21.3) mappings=1.21.3+build.2; api=0.114.1+1.21.3 ;;
     esac
-    exec ./gradlew -Padapter=1212 -Pinput_api_family=1212 "-Pminecraft_version=$target" \
+    exec ./gradlew-modern -Padapter=1212 -Pinput_api_family=1212 "-Pminecraft_version=$target" \
       "-Pyarn_mappings=$mappings" -Ploader_version=0.19.5 \
       "-Pfabric_version=$api" :core:test :nav:test :fabric-1212:build "$@"
     ;;
@@ -59,7 +59,7 @@ case "$target" in
       1.21.10) mappings=1.21.10+build.3; api=0.138.4+1.21.10; family=1215 ;;
       1.21.11) mappings=1.21.11+build.6; api=0.141.6+1.21.11; family=1215 ;;
     esac
-    exec ./gradlew -Padapter=1212 "-Pinput_api_family=$family" "-Pminecraft_version=$target" \
+    exec ./gradlew-modern -Padapter=1212 "-Pinput_api_family=$family" "-Pminecraft_version=$target" \
       "-Pyarn_mappings=$mappings" -Ploader_version=0.19.5 \
       "-Pfabric_version=$api" :core:test :nav:test :fabric-1212:build "$@"
     ;;

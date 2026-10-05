@@ -506,7 +506,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         server.execute(() -> {
             try {
                 ServerPlayerEntity player = requireServerPlayer(server);
-                Map<String, Integer> inventory = inventoryCounts(player.getInventory());
+                Map<String, Integer> inventory = inventoryCounts(player);
                 ServerWorld world = server.getOverworld();
                 ServerSnapshot snapshot = new ServerSnapshot(server.getTicks(), world.getTime(), inventory,
                     player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
@@ -527,11 +527,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         }));
     }
 
-    private static Map<String, Integer> inventoryCounts(PlayerInventory inventory) {
+    private static Map<String, Integer> inventoryCounts(ServerPlayerEntity player) {
+        PlayerInventory inventory = player.getInventory();
         Map<String, Integer> result = new HashMap<>();
-        countStacks(inventory.main, result);
-        countStacks(inventory.armor, result);
-        countStacks(inventory.offHand, result);
+        countStacks(ClientAccess.main(inventory), result);
+        countStacks(List.of(player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD),
+            player.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST),
+            player.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS),
+            player.getEquippedStack(net.minecraft.entity.EquipmentSlot.FEET),
+            player.getEquippedStack(net.minecraft.entity.EquipmentSlot.OFFHAND)), result);
         return Map.copyOf(result);
     }
 
@@ -579,7 +583,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         String fileName = "lodekeeper-" + runId + "-" + name + ".png";
         try {
             screenshotWritesPending++;
-            ScreenshotRecorder.saveScreenshot(evidenceDirectory.toFile(), fileName, client.getFramebuffer(), text -> {
+            VerificationApi.screenshot(evidenceDirectory.toFile(), fileName, client, text -> {
                 System.out.println("[Lodekeeper verification] " + text.getString());
                 client.execute(() -> screenshotWritesPending = Math.max(0, screenshotWritesPending - 1));
             });

@@ -122,7 +122,7 @@ final class MovementController {
                     // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
                     Path.Step previous = path.step(pathIndex - 1);
                     Vec3d edge = new Vec3d(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
-                    Vec3d delta = edge.subtract(client.player.getPos());
+                    Vec3d delta = edge.subtract(ClientAccess.position(client.player));
                     if (Math.hypot(delta.x, delta.z) > .08) {
                         if (!PathEdgeValidator.isSweepClear(terrain,
                                 client.player.getX(), client.player.getY(), client.player.getZ(),
@@ -164,7 +164,7 @@ final class MovementController {
             validatedRevision = terrain.revision();
         }
         Vec3d destination = new Vec3d(next.x + .5, next.y, next.z + .5);
-        Vec3d delta = destination.subtract(client.player.getPos());
+        Vec3d delta = destination.subtract(ClientAccess.position(client.player));
         double horizontal = Math.hypot(delta.x, delta.z);
         double currentFeetX = client.player.getX();
         double currentFeetY = client.player.getY();

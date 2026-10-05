@@ -12,9 +12,9 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.21 | 21 | Exact CI development build passes | Pending |
 | **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases pass; natural-world checks pending** |
 | 1.21.2, 1.21.3 | 21 | Exact local development builds pass; 1.21.2 verification source set also compiles | Pending |
-| 1.21.4, 1.21.5 | 21 | Pending | Pending |
+| 1.21.4, 1.21.5 | 21 | 1.21.4 earlier exact CI passes; 1.21.5 exact local production and verification builds pass after client API/toolchain fixes | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Pending | Pending |
-| 1.21.9, 1.21.10, 1.21.11 | 21 | Pending | Pending |
+| 1.21.9, 1.21.10, 1.21.11 | 21 | 1.21.11 exact local production and verification build passes after client API/toolchain fixes; 1.21.9/1.21.10 pending | Pending |
 | 26.1, 26.1.1, 26.1.2 | 25 | Earlier 16-profile CI passes all three; current-head matrix pending | Pending |
 | 26.2 | 25 | Exact local and earlier CI development builds pass; current-head matrix pending | Pending |
 | 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases pass; natural-world checks pending |
@@ -46,4 +46,4 @@ Exact build evidence: the [ten-version CI run](https://github.com/luinbytes/lode
 
 Updated exact build evidence: [all ten profiles pass at `c9b1825`](https://github.com/luinbytes/lodekeeper/actions/runs/37279029560). The [downloaded artifact inspection](evidence/builds/c9b1825.json) repeats those checks after normalized recipes, navigation safety changes and modern automatic eating, including the separate 1.20.5–1.20.6 crafting API overlay.
 
-The [24-profile current-source CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37287589333) is running. Earlier [16-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37285757052) passed 14 exact builds; its 1.21.2/1.21.3 verification compilation failed at API seams fixed in subsequent local builds. Neither partial CI nor source overlays establish gameplay compatibility.
+The [first 24-profile CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37287589333) passed 17 exact builds and failed the seven 1.21.5–1.21.11 builds. Updated remapping tools and small inventory, position, keybinding and verifier seams address those failures; exact local 1.21.5/1.21.11 builds pass, and the new full matrix remains a separate gate. Earlier [16-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37285757052) passed 14 exact builds; its 1.21.2/1.21.3 verification compilation failed at API seams fixed in subsequent local builds. Neither partial CI nor source overlays establish gameplay compatibility.

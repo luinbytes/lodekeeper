@@ -22,6 +22,11 @@ import net.minecraft.world.gen.WorldPresets;
 final class VerificationApi {
     private VerificationApi() {}
 
+    static void screenshot(java.io.File directory, String name, MinecraftClient client,
+                           java.util.function.Consumer<net.minecraft.text.Text> complete) {
+        net.minecraft.client.util.ScreenshotRecorder.saveScreenshot(directory, name, client.getFramebuffer(), complete);
+    }
+
     static String minecraftVersion() {
         return net.minecraft.SharedConstants.getGameVersion().getName();
     }

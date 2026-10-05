@@ -325,7 +325,7 @@ final class AutomationEngine {
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(observedInventory), durability = new HashMap<>();
         Map<ItemId, List<Integer>> durabilityLots = new HashMap<>();
-        for (ItemStack stack : client.player.getInventory().main) if (!stack.isEmpty() && stack.isDamageable()) {
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (!stack.isEmpty() && stack.isDamageable()) {
             ItemId item = GameCatalog.id(stack.getItem());
             int remaining = stack.getMaxDamage() - stack.getDamage();
             durability.merge(item, remaining, Math::max);
@@ -453,7 +453,7 @@ final class AutomationEngine {
 
     private long inventoryFingerprint() {
         long hash = 0xcbf29ce484222325L;
-        var main = client.player.getInventory().main;
+        var main = ClientAccess.main(client.player.getInventory());
         for (int slot = 0; slot < 36; slot++) {
             ItemStack stack = main.get(slot);
             long value = stack.isEmpty() ? 0 : ((long) System.identityHashCode(stack.getItem()) << 32) ^ stack.getCount();
@@ -518,7 +518,7 @@ final class AutomationEngine {
     private int goalCount() {
         if (!active.anyLogs) return actions.count(GameCatalog.item(active.item));
         int count = 0;
-        for (ItemStack stack : client.player.getInventory().main) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
         return count;
     }
     private void begin(PlanStep next, long plannedGeneration) {
@@ -548,7 +548,7 @@ final class AutomationEngine {
             if (known != null) {
                 known.removeIf(pos -> !blocks.contains(client.world.getBlockState(pos).getBlock()));
                 target = known.stream().filter(pos -> Math.pow(pos.getX() - client.player.getX(), 2) + Math.pow(pos.getZ() - client.player.getZ(), 2) <= config.searchRadius * config.searchRadius)
-                    .min(Comparator.comparingDouble(pos -> pos.getSquaredDistance(client.player.getPos()))).orElse(null);
+                    .min(Comparator.comparingDouble(pos -> pos.getSquaredDistance(ClientAccess.position(client.player)))).orElse(null);
             }
         }
         if (target == null) {

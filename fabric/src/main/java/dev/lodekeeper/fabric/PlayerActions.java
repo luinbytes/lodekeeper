@@ -27,7 +27,7 @@ final class PlayerActions {
         Map<String, Integer> result = new HashMap<>();
         if (client.player == null) return result;
         // Storage slots only: equipment and crafting slots are not consumable ingredients.
-        for (ItemStack stack : client.player.getInventory().main) {
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) {
             if (!stack.isEmpty()) result.merge(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount(), Integer::sum);
         }
         return result;
@@ -35,7 +35,7 @@ final class PlayerActions {
     int count(Item item) {
         if (client.player == null) return 0;
         int count = 0;
-        for (ItemStack stack : client.player.getInventory().main) if (stack.isOf(item)) count += stack.getCount();
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isOf(item)) count += stack.getCount();
         return count;
     }
     boolean select(Item item) {
@@ -47,11 +47,11 @@ final class PlayerActions {
         if (client.player == null || client.interactionManager == null || slot < 0 || slot >= 36
                 || !client.player.currentScreenHandler.getCursorStack().isEmpty()) return false;
         var inventory = client.player.getInventory();
-        if (slot < 9) { inventory.selectedSlot = slot; return true; }
+        if (slot < 9) { ClientAccess.selectedSlot(inventory, slot); return true; }
         if (client.player.currentScreenHandler != client.player.playerScreenHandler) return false;
         ItemStack chosen = inventory.getStack(slot).copy();
-        client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, inventory.selectedSlot, SlotActionType.SWAP, client.player);
-        return ItemStack.areEqual(inventory.getMainHandStack(), chosen);
+        client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, ClientAccess.selectedSlot(inventory), SlotActionType.SWAP, client.player);
+        return ItemStack.areEqual(client.player.getMainHandStack(), chosen);
     }
     boolean bestTool(BlockState state) {
         if (client.player == null) return false;
@@ -104,7 +104,7 @@ final class PlayerActions {
     }
     boolean hasTool(SelectedToolRequirement tool) {
         if (client.player == null) return false;
-        for (ItemStack stack : client.player.getInventory().main)
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory()))
             if (!stack.isEmpty() && stack.isOf(GameCatalog.item(tool.item())) && hasSafeDurability(stack, tool.minimumDurability())) return true;
         return false;
     }

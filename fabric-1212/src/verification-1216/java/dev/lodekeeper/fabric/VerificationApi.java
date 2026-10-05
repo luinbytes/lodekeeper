@@ -24,12 +24,18 @@ import net.minecraft.world.level.LevelInfo;
 import java.util.Optional;
 import java.util.Set;
 
-/** Minecraft 1.21.2–1.21.3 verifier registration and world-start API. */
+/** Minecraft 1.21.6–1.21.8 verifier registration and world-start API. */
 final class VerificationApi {
     private VerificationApi() {}
 
+    static void screenshot(java.io.File directory, String name, MinecraftClient client,
+                           java.util.function.Consumer<net.minecraft.text.Text> complete) {
+        net.minecraft.client.util.ScreenshotRecorder.saveScreenshot(directory, name, client.getFramebuffer(), 1, complete);
+    }
+
     static String minecraftVersion() {
-        return net.minecraft.SharedConstants.getGameVersion().getName();
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("minecraft").orElseThrow()
+            .getMetadata().getVersion().getFriendlyString();
     }
 
     static Block rubyOre(Identifier blockId, Identifier lootTableId) {

@@ -125,7 +125,7 @@ final class VerifiedQuickMove {
     private int countMatchingInventory() {
         if (client.player == null || expectedStack == null) return 0;
         int count = 0;
-        for (ItemStack stack : client.player.getInventory().main) {
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) {
             if (!stack.isEmpty() && GameApi.canCombine(stack, expectedStack)) count += stack.getCount();
         }
         return count;
@@ -135,7 +135,7 @@ final class VerifiedQuickMove {
         if (client.player == null || expectedStack == null) return 0;
         int capacity = 0;
         int max = expectedStack.getMaxCount();
-        for (ItemStack stack : client.player.getInventory().main) {
+        for (ItemStack stack : ClientAccess.main(client.player.getInventory())) {
             if (stack.isEmpty()) capacity += max;
             else if (GameApi.canCombine(stack, expectedStack)) capacity += Math.max(0, max - stack.getCount());
         }

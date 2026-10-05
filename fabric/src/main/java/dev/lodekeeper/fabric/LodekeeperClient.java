@@ -21,7 +21,7 @@ public final class LodekeeperClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         MinecraftClient client = MinecraftClient.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());
-        KeyBinding stop = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.lodekeeper.stop", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, "category.lodekeeper"));
+        KeyBinding stop = KeyBindingHelper.registerKeyBinding(ClientAccess.stopKey());
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             if (!message.startsWith(engine.config.prefix)) return true;
             String body = message.substring(engine.config.prefix.length());

@@ -3,6 +3,7 @@ pluginManagement {
     plugins {
         id 'fabric-loom' version '1.6.12'
         id 'net.fabricmc.fabric-loom' version '1.17.21'
+        id 'net.fabricmc.fabric-loom-remap' version '1.17.21'
     }
 }
 rootProject.name = 'lodekeeper'

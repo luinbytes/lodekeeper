@@ -67,7 +67,7 @@ final class GameTerrain implements Terrain {
         position.set(x, y, z);
         if (state.getHardness(client.world, position) < 0 || state.hasBlockEntity() || hazardous(state)) return false;
         if (!state.isToolRequired()) return true;
-        for (ItemStack tool : client.player.getInventory().main) if (!tool.isEmpty() && tool.isSuitableFor(state) && (!tool.isDamageable() || tool.getMaxDamage() - tool.getDamage() > 2)) return true;
+        for (ItemStack tool : ClientAccess.main(client.player.getInventory())) if (!tool.isEmpty() && tool.isSuitableFor(state) && (!tool.isDamageable() || tool.getMaxDamage() - tool.getDamage() > 2)) return true;
         return false;
     }
     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz, double arc, StanceProbe destination) {
