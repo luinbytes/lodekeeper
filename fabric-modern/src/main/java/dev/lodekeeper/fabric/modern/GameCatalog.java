@@ -17,7 +17,6 @@ import dev.lodekeeper.core.TagId;
 import dev.lodekeeper.core.ToolRequirement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -25,7 +24,6 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CookingFuel;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
@@ -152,9 +150,9 @@ final class GameCatalog {
             items.add(itemId);
             String displayName = new ItemStack(item).getHoverName().getString();
             List<String> aliases = displayName.isBlank() ? List.of() : List.of(displayName);
-            long fuelTicks = constantFuelTicks(item);
             var stack = new ItemStack(item);
-            // Fuel entries are derived from this registry-visible item's data components.
+            long fuelTicks = GameApi.fuelTicks(client.level, stack);
+            // Fuel entries come from the active version's authoritative world fuel API.
             pendingDefinitions.put(itemId, new ItemDefinitionCompat(stack.getMaxDamage(), fuelTicks, aliases));
             item.builtInRegistryHolder().tags().forEach(tag ->
                     tags.computeIfAbsent(TagId.parse(tag.location().toString()), ignored -> new ArrayList<>()).add(itemId));
@@ -164,18 +162,6 @@ final class GameCatalog {
 
     private record ItemDefinitionCompat(int durability, long fuelTicks, List<String> aliases) {}
     private final Map<ItemId, ItemDefinitionCompat> pendingDefinitions = new TreeMap<>();
-
-    private long constantFuelTicks(Item item) {
-        CookingFuel fuel = new ItemStack(item).get(DataComponents.COOKING_FUEL);
-        if (fuel == null) return 0;
-        try {
-            // Constant providers work without context. Context-dependent providers are left unknown.
-            int ticks = fuel.burnTime().get(null, 0);
-            return Math.max(0, Math.min(10_000_000, ticks));
-        } catch (RuntimeException ignored) {
-            return 0;
-        }
-    }
 
     private void loadConservativeGatherSources() {
         Map<String, String> dropOverrides = Map.ofEntries(

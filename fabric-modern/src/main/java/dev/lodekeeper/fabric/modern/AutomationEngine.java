@@ -153,7 +153,7 @@ final class AutomationEngine {
                 return;
             }
             if (!stopAfterStep && client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
-            if (!stopAfterStep && config.pauseOnScreen && client.gui.screen() != null && crafting == null && smelting == null && !openingStation) {
+            if (!stopAfterStep && config.pauseOnScreen && GameApi.screen(client) != null && crafting == null && smelting == null && !openingStation) {
                 food.stop();
                 input.release();
                 return;
@@ -166,7 +166,7 @@ final class AutomationEngine {
             if (food.active()) {
                 input.release();
                 status = "eating before continuing " + active.name();
-                if (!config.autoEat || client.gui.screen() != null) {
+                if (!config.autoEat || GameApi.screen(client) != null) {
                     food.stop();
                     requestPlan();
                 } else if (food.tick()) {

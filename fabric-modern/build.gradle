@@ -2,6 +2,16 @@ plugins { id 'net.fabricmc.fabric-loom' }
 
 base { archivesName = "lodekeeper-${rootProject.minecraft_version}" }
 
+def modernApiFamily = providers.gradleProperty('modern_api_family').getOrElse('26.3')
+def expectedModernApiFamily
+if (['26.1', '26.1.1', '26.1.2'].contains(rootProject.minecraft_version)) expectedModernApiFamily = '26.1'
+else if (rootProject.minecraft_version == '26.2') expectedModernApiFamily = '26.2'
+else if (rootProject.minecraft_version == '26.3') expectedModernApiFamily = '26.3'
+else throw new GradleException("No modern API family for Minecraft ${rootProject.minecraft_version}")
+if (modernApiFamily != expectedModernApiFamily) {
+    throw new GradleException("Minecraft ${rootProject.minecraft_version} requires modern API family ${expectedModernApiFamily}, not ${modernApiFamily}")
+}
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
     sourceCompatibility = JavaVersion.VERSION_25
@@ -22,6 +32,7 @@ dependencies {
 }
 
 sourceSets {
+    main.java.srcDir("src/${modernApiFamily}/java")
     verification {
         compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
         runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
@@ -39,6 +50,13 @@ processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') {
         expand version: project.version, minecraft: rootProject.minecraft_version
+    }
+}
+
+processVerificationResources {
+    inputs.property 'minecraft', rootProject.minecraft_version
+    filesMatching('fabric.mod.json') {
+        expand minecraft: rootProject.minecraft_version
     }
 }
 

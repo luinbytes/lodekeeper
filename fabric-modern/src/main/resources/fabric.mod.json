@@ -8,5 +8,5 @@
   "license": "MIT",
   "mixins": ["lodekeeper-modern.mixins.json"],
   "entrypoints": {"client": ["dev.lodekeeper.fabric.modern.LodekeeperClient"]},
-  "depends": {"fabricloader": ">=0.19.5", "fabric-api": "*", "minecraft": "26.3", "java": ">=25"}
+  "depends": {"fabricloader": ">=0.19.5", "fabric-api": "*", "minecraft": "${minecraft}", "java": ">=25"}
 }

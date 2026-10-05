@@ -48,7 +48,7 @@ final class VerificationApi {
             }
         });
 
-        Screen current = client.gui.screen();
+        Screen current = GameApi.screen(client);
         if (!(current instanceof CreateWorldScreen createScreen)) {
             throw new IllegalStateException("vanilla world creation screen did not open");
         }

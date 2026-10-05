@@ -39,8 +39,23 @@ case "$target" in
       -Pyarn_mappings=1.21.1+build.3 -Ploader_version=0.19.5 \
       -Pfabric_version=0.110.0+1.21.1 :core:test :nav:test :fabric-1211:build "$@"
     ;;
+  26.1|26.1.1|26.1.2)
+    case "$target" in
+      26.1) api=0.145.1+26.1 ;;
+      26.1.1) api=0.145.4+26.1.1 ;;
+      26.1.2) api=0.155.3+26.1.2 ;;
+    esac
+    exec ./gradlew-modern -Padapter=modern -Pmodern_api_family=26.1 \
+      "-Pminecraft_version=$target" -Ploader_version=0.19.5 \
+      "-Pfabric_version=$api" :core:test :nav:test :fabric-modern:build "$@"
+    ;;
+  26.2)
+    exec ./gradlew-modern -Padapter=modern -Pmodern_api_family=26.2 -Pminecraft_version=26.2 \
+      -Ploader_version=0.19.5 -Pfabric_version=0.161.0+26.2 \
+      :core:test :nav:test :fabric-modern:build "$@"
+    ;;
   26.3)
-    exec ./gradlew-modern -Padapter=modern -Pminecraft_version=26.3 \
+    exec ./gradlew-modern -Padapter=modern -Pmodern_api_family=26.3 -Pminecraft_version=26.3 \
       -Ploader_version=0.19.5 -Pfabric_version=0.161.0+26.3 \
       :core:test :nav:test :fabric-modern:build "$@"
     ;;

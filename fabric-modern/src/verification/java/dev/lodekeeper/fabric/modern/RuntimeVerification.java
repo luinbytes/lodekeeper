@@ -180,11 +180,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         try {
             if (state == State.OPENING_WORLD) {
                 if (client.level != null) throw new IllegalStateException("start from the title screen; an existing world is active");
-                if (!worldLaunchQueued && client.gui.screen() != null) queueWorldLaunch();
+                if (!worldLaunchQueued && GameApi.screen(client) != null) queueWorldLaunch();
                 return;
             }
             if (state == State.WAITING_FOR_WORLD) {
-                if (client.level != null && client.player != null && client.gui.screen() == null) {
+                if (client.level != null && client.player != null && GameApi.screen(client) == null) {
                     if (++readyTicks < 40) return;
                     playerId = client.player.getUUID();
                     configureAutomation();

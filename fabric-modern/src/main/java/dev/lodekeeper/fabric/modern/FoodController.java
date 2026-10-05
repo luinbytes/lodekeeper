@@ -25,7 +25,7 @@ public final class FoodController {
     private static FoodController owner;
 
     public static boolean isHoldingUse() {
-        return owner != null && owner.ownsUse() && owner.client.gui.screen() == null
+        return owner != null && owner.ownsUse() && GameApi.screen(owner.client) == null
                 && owner.client.player.containerMenu == owner.client.player.inventoryMenu
                 && owner.client.player.containerMenu.getCarried().isEmpty();
     }
@@ -47,7 +47,7 @@ public final class FoodController {
 
     private int selectFood() {
         if (client.player == null || client.level == null || client.gameMode == null || !client.player.isAlive()
-                || client.player.isUsingItem() || client.gui.screen() != null
+                || client.player.isUsingItem() || GameApi.screen(client) != null
                 || client.player.containerMenu != client.player.inventoryMenu
                 || !client.player.containerMenu.getCarried().isEmpty()
                 || !client.player.onGround() && !client.player.isInWater()) return -1;
