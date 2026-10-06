@@ -1,0 +1,40 @@
+{
+  "sourceCommit": "852b72f177befc1b55771cee86076544f39c9f9b",
+  "candidateSha256": "6adcfd50dc77f077695c94e4d635e1a447ab7045a78e25227f82ed3b0f75370f",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37478984017",
+  "minecraftVersion": "1.21.1",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "passed",
+  "commandElapsedMillis": 719372,
+  "firstServerMovementElapsedMillis": 1638,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots"
+  ],
+  "minimumHealth": 9.333332,
+  "deathsObserved": 0,
+  "failure": "",
+  "seed": 483920105,
+  "commandStartPosition": {
+    "x": -7.5,
+    "y": 74.0,
+    "z": 39.5
+  },
+  "naturalReceipt": "checkpoint-14-natural.json",
+  "artifactReceipt": "checkpoint-14-artifact.json",
+  "scope": "One seeded world with no grants or post-spawn teleports; not a time guarantee for every seed, ordinary-launcher acceptance or universal mechanic coverage.",
+  "finalHealth": 20.0,
+  "finalHunger": 12,
+  "armorEquipped": true,
+  "screenshotInspected": true,
+  "visualObservation": "Final screenshot shows the project-complete chat message, full armor bar and full hearts.",
+  "remainingEfficiencyIssue": "Iron smelting selected two whole birch logs; a late oak-log resupply required an underground-to-surface route.",
+  "huntingTimeoutCoverage": "All observed hunts succeeded; this run does not exercise the new failed-animal cooldown."
+}

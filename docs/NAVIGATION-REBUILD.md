@@ -171,3 +171,10 @@ The next fresh-world repeat was stopped after a food hunt spent sixty seconds pu
 The [user's cobblestone trace](evidence/navigation-rebuild/user-cobblestone-stall-2026-10-06/assessment.json) records 125,745 ms to acquire one block. The old custom navigator searched for an oak log until its first 61-second gathering timeout, then repeatedly restarted the stone approach. The excerpt omits the installed jar version. Its `search_cpu_ms` and sixteenth-height fields identify the custom navigator; the current production backend emits `backend=baritone` events.
 
 Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact CI builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. The frozen local 1.21.1 and 26.3 jars match their downloaded CI jars byte for byte. The current native full-project run still selected two whole logs for iron fuel, despite the focused conversion test passing. The full-catalog fuel choice remains an efficiency defect; the release does not claim that it eliminates the late wood resupply.
+
+
+## Exact Preview 10, 1.21.1
+
+[Checkpoint 14](evidence/navigation-rebuild/checkpoint-14.json) passes the full project in 719,372 ms (11 minutes 59 seconds) on source `852b72f177befc1b55771cee86076544f39c9f9b`. The tested jar is byte-identical to the 1.21.1 CI artifact. The integrated server confirms all nine items, all four equipped armor pieces, final health 20, no deaths and stopped navigation. First server movement occurred after 1,638 ms. Minimum health was 9.33, so this run includes damage and recovery.
+
+The world was generated normally with seed 483920105, an empty inventory, normal survival, no cheats and no bonus chest. Its spawn differed from the earlier full pass. These runs do not establish a paired speed improvement or timing across other seeds. All observed cow hunts succeeded, leaving the new timeout cooldown unexercised in this run. The final screenshot was inspected. The exact 26.3 full-project repeat is running separately.

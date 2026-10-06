@@ -2,6 +2,14 @@
 
 The target covers all stable Java releases from 1.20 through 26.3. This is a target, not a supported-version declaration. A successful compile is separate from a successful gameplay scenario. Never install a jar for a different game release. The exact 24-release dependency ledger and adapter boundaries are in [VERSION-MATRIX.md](VERSION-MATRIX.md).
 
+## Preview 10 release candidate
+
+Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. Exact metadata, JVM levels, nested Baritone pins, licences, refmaps and verifier exclusion were checked for every downloaded jar.
+
+The exact [1.21.1 jar passes a fresh normal-survival full diamond project](evidence/navigation-rebuild/checkpoint-14.json) in 719,372 ms (11 minutes 59 seconds), with all five tools and all four equipped armor pieces. The world starts empty without grants, cheats or a bonus chest. Final health is 20, minimum health 9.33 and no deaths occurred. First server movement is at 1,638 ms. The exact 26.3 full-project repeat is in progress.
+
+Prepared reachable and blocked workbench checks pass on both versions at the earlier `7ba8d375` source. Their source-specific receipts remain below. Full-catalog fuel selection still chose whole logs in the current 1.21.1 run. Other seeds, ordinary launchers, remote servers and all Minecraft mechanics remain separate acceptance gates. Historical rows describe their original artifacts.
+
 | Versions | JVM | Adapter build | Gameplay |
 | --- | --- | --- | --- |
 | 1.20 | 17 | Exact CI development build passes | Pending |
@@ -10,7 +18,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 1.20.3, 1.20.4 | 17 | Each exact CI development build passes | Pending |
 | 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
 | 1.21 | 21 | Exact CI development build passes | Pending |
-| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Nine controlled progression cases, initially unloaded distant wood and single-command diamond boots pass; natural-world checks pending** |
+| **1.21.1** | **21** | **Development jar compiles, remaps and passes adapter tests** | **Exact Preview 10 full diamond project passes one fresh survival world in 11:59; older controlled progression cases retain their source scope** |
 | 1.21.2, 1.21.3 | 21 | Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
 | 1.21.4, 1.21.5 | 21 | Both exact CI development builds pass after client API/toolchain fixes | Pending |
 | 1.21.6, 1.21.7, 1.21.8 | 21 | Each exact CI development build and native display regressions pass | Pending |
@@ -40,7 +48,7 @@ Current development jars pass prepared native moving-animal pursuit and the repa
 
 ## Known implementation limits
 
-The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Held-food eating is verified in the controlled 1.20.1, 1.21.1 and 26.3 fixtures. It now has collision-shape grounded navigation in sixteenths. Mixed slab/stair/path/farmland/snow courses with an integral one-block jump pass in controlled development-source runs on 1.21.1 and 26.3; other orientations, airborne fractional moves, vehicles, dimensions and specialty stations still require their own acceptance. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
+The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Held-food eating is verified in the controlled 1.20.1, 1.21.1 and 26.3 fixtures. The historical custom navigator has collision-shape grounded stances in sixteenths; current releases use version-matched Baritone. Mixed slab/stair/path/farmland/snow courses with an integral one-block jump pass in controlled development-source runs on 1.21.1 and 26.3; other orientations, airborne fractional moves, vehicles, dimensions and specialty stations still require their own acceptance. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.
 
