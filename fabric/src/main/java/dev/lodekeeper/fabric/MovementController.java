@@ -48,6 +48,10 @@ final class MovementController {
     private static final int AIR_RECOVERY_MAX_GOALS = 16;
     private static final int AIR_SWIM_MAX_VISITED = 4_096;
     private static final int AIR_SWIM_MAX_PATH = 64;
+    private static final int DEFENSE_HOP_MAX_TICKS = 30;
+    private static final double DEFENSE_HOP_LAUNCH_TOLERANCE = 0.125;
+    private static final double DEFENSE_HOP_MAX_HORIZONTAL_DISPLACEMENT = 1.25;
+    private static final double DEFENSE_HOP_MAX_HORIZONTAL_SPEED = 0.02;
     private static final int[][] AIR_SWIM_STEPS = {
             {0, 1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}
     };
@@ -101,6 +105,24 @@ final class MovementController {
                     .thenComparingInt(candidate -> candidate.position().getZ());
 
     record RetreatThreat(double x, double z) { }
+    record DefenseHop(double x, double y, double z, double maxRise) { }
+
+    private static final class DefenseHopState {
+        final DefenseHop plan;
+        final Object world, player, camera;
+        final int feetY16;
+        int ticks = 1;
+        boolean airborneObserved;
+
+        DefenseHopState(DefenseHop plan, Object world, Object player, Object camera, int feetY16) {
+            this.plan = plan;
+            this.world = world;
+            this.player = player;
+            this.camera = camera;
+            this.feetY16 = feetY16;
+        }
+    }
+
     private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
@@ -143,6 +165,7 @@ final class MovementController {
     private Item lastLoggedBreakTool;
     private List<Item> scaffoldItems = List.of();
     private NavigationSnapshot observation = NavigationSnapshot.EMPTY;
+    private DefenseHopState defenseHop;
 
     enum RequestLimitCause { DISTANCE, TICKS, WALL_TIME }
     record MiningRequestLimit(RequestLimitCause cause, int requestTicks, int maximumTicks,
@@ -1068,6 +1091,7 @@ final class MovementController {
     }
 
     void suspend() {
+        stopDefenseHop();
         if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
@@ -1078,12 +1102,144 @@ final class MovementController {
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
 
+    DefenseHop planDefenseHop() {
+        checkAirRecoveryOwnership();
+        if (defenseHop != null || !defenseHopNativeDrained() || !defenseHopCameraReady()
+                || !client.player.isOnGround()) return null;
+        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        double maxRise = terrain.defenseHopMaxRise(x, y, z);
+        return Double.isFinite(maxRise) && maxRise > 0.0 ? new DefenseHop(x, y, z, maxRise) : null;
+    }
+
+    boolean startDefenseHop(DefenseHop plan) {
+        checkAirRecoveryOwnership();
+        if (defenseHopManualInput())
+            throw new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST, "Manual input has priority over defense hop");
+        if (plan == null || defenseHop != null || !defenseHopNativeDrained() || !defenseHopCameraReady()
+                || !client.player.isOnGround() || !defenseHopPhysicalStartReady()) return false;
+        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        double dx = x - plan.x(), dy = y - plan.y(), dz = z - plan.z();
+        int feetY16 = GameTerrain.quantizedFeetY16(plan.y());
+        if (!Double.isFinite(plan.x()) || !Double.isFinite(plan.y()) || !Double.isFinite(plan.z())
+                || !Double.isFinite(plan.maxRise()) || plan.maxRise() <= 0.0
+                || feetY16 == GameTerrain.INVALID_FEET_Y16 || Math.floorMod(feetY16, 16) != 0
+                || Math.sqrt(dx * dx + dy * dy + dz * dz) > DEFENSE_HOP_LAUNCH_TOLERANCE
+                || !terrain.defenseHopPoseSafe(plan.x(), plan.y(), plan.z(), plan.maxRise(), x, y, z)
+                || !terrain.defenseHopLandingSafe(x, y, z, feetY16)) return false;
+
+        input.acquire();
+        if (client.player.input != input) {
+            input.release();
+            return false;
+        }
+        defenseHop = new DefenseHopState(plan, client.world, client.player, client.getCameraEntity(), feetY16);
+        input.drive(0.0f, 0.0f, true, false);
+        return true;
+    }
+
+    boolean tickDefenseHop() {
+        DefenseHopState active = defenseHop;
+        if (active == null) throw new NavigationFailure("Defense hop tick without an active hop");
+        try {
+            checkAirRecoveryOwnership();
+        } catch (NavigationFailure failure) {
+            stopDefenseHop();
+            throw failure;
+        }
+        if (client.player != active.player || client.world != active.world
+                || client.getCameraEntity() != active.camera || client.getCameraEntity() != client.player)
+            throw abortDefenseHop(NavigationFailure.Kind.OWNERSHIP_LOST, "Defense hop player, world, or camera changed");
+        if (client.player.input != input)
+            throw abortDefenseHop(NavigationFailure.Kind.OWNERSHIP_LOST, "Defense hop input ownership changed");
+        if (!defenseHopNativeDrained())
+            throw abortDefenseHop(NavigationFailure.Kind.OWNERSHIP_LOST, "Native work resumed during defense hop");
+
+        if (defenseHopManualInput())
+            throw abortDefenseHop(NavigationFailure.Kind.OWNERSHIP_LOST, "Manual input has priority over defense hop");
+        input.idle();
+        if (++active.ticks > DEFENSE_HOP_MAX_TICKS)
+            throw abortDefenseHop(NavigationFailure.Kind.OTHER, "Defense hop exceeded its 30-tick bound");
+        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        double dx = x - active.plan.x(), dz = z - active.plan.z();
+        double rise = y - active.plan.y();
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+                || Math.hypot(dx, dz) > DEFENSE_HOP_MAX_HORIZONTAL_DISPLACEMENT
+                || rise < -DEFENSE_HOP_LAUNCH_TOLERANCE
+                || rise > active.plan.maxRise() + DEFENSE_HOP_LAUNCH_TOLERANCE)
+            throw abortDefenseHop(NavigationFailure.Kind.OTHER, "Defense hop left its bounded motion envelope");
+        if (!terrain.defenseHopPoseSafe(active.plan.x(), active.plan.y(), active.plan.z(), active.plan.maxRise(), x, y, z))
+            throw abortDefenseHop(NavigationFailure.Kind.OTHER, "Defense hop native terrain or actual pose proof failed");
+        if (!client.player.isOnGround()) {
+            active.airborneObserved = true;
+            return false;
+        }
+        if (!active.airborneObserved) return false;
+        if (!terrain.defenseHopLandingSafe(x, y, z, active.feetY16))
+            throw abortDefenseHop(NavigationFailure.Kind.OTHER, "Defense hop landing support proof failed");
+        stopDefenseHop();
+        return true;
+    }
+
+    void stopDefenseHop() {
+        if (defenseHop == null) return;
+        input.release();
+        defenseHop = null;
+    }
+
+    private NavigationFailure abortDefenseHop(NavigationFailure.Kind kind, String reason) {
+        stopDefenseHop();
+        return new NavigationFailure(kind, reason);
+    }
+
+    private boolean defenseHopManualInput() {
+        var options = client.options;
+        return options.attackKey.isPressed()
+                || options.useKey.isPressed()
+                || options.forwardKey.isPressed()
+                || options.backKey.isPressed()
+                || options.leftKey.isPressed()
+                || options.rightKey.isPressed()
+                || options.jumpKey.isPressed()
+                || options.sneakKey.isPressed()
+                || options.sprintKey.isPressed();
+    }
+
+    private boolean defenseHopCameraReady() {
+        return client.player != null && client.world != null && client.getCameraEntity() == client.player;
+    }
+
+    private boolean defenseHopPhysicalStartReady() {
+        var velocity = client.player.getVelocity();
+        double horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+        return Double.isFinite(velocity.x) && Double.isFinite(velocity.z)
+                && horizontalSpeed <= DEFENSE_HOP_MAX_HORIZONTAL_SPEED;
+    }
+
+    private boolean defenseHopNativeDrained() {
+        if (!defenseHopCameraReady() || mode != Mode.IDLE || resumeMode != Mode.IDLE || cancelling
+                || cancellationProcess != null || followCancellationPending || airRecoveryCancellationPending
+                || lease != null) return false;
+        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        var pathing = activeBot.getPathingBehavior();
+        if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) return false;
+        IBaritoneProcess[] processes = {
+                activeBot.getCustomGoalProcess(), activeBot.getMineProcess(), activeBot.getFollowProcess(),
+                activeBot.getBuilderProcess(), activeBot.getExploreProcess(), activeBot.getFarmProcess(),
+                activeBot.getGetToBlockProcess(), activeBot.getElytraProcess()
+        };
+        for (IBaritoneProcess process : processes) if (process.isActive()) return false;
+        for (baritone.api.utils.input.Input key : baritone.api.utils.input.Input.values())
+            if (activeBot.getInputOverrideHandler().isInputForcedDown(key)) return false;
+        return true;
+    }
+
     void stopForDefense() {
         checkAirRecoveryOwnership();
         stop();
     }
 
     void stop() {
+        stopDefenseHop();
         boolean stoppingAirRecovery = mode == Mode.AIR || mode == Mode.SUSPENDED && resumeMode == Mode.AIR;
         if (retreatRequest || stoppingAirRecovery || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
@@ -1162,6 +1318,7 @@ final class MovementController {
     }
 
     private NavigationFailure releaseLostAirRecoveryOwnership() {
+        stopDefenseHop();
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] AIR event=ownership-lost mode={} destination={}", mode, lastAirRecoveryDestination);
         followFilter = null;
@@ -1190,6 +1347,7 @@ final class MovementController {
     }
 
     private NavigationFailure releaseLostFollowOwnership() {
+        stopDefenseHop();
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] FOOD_PURSUIT event=ownership-lost target={}", followTargetId);
         followFilter = null;
@@ -1284,6 +1442,7 @@ final class MovementController {
     }
 
     void shutdownUpstream() {
+        stopDefenseHop();
         IBaritone primary = BaritoneAPI.getProvider().getPrimaryBaritone();
         primary.getPathingBehavior().cancelEverything();
         primary.getInputOverrideHandler().clearAllKeys();

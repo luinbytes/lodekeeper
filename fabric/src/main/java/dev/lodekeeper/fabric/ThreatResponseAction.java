@@ -18,8 +18,8 @@ import java.util.HashSet;
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
     private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
-    private record AttackChoice(MobEntity target, int slot, double damage) { }
-    private enum Phase { IDLE, STOPPING, MELEE, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
+    private record AttackChoice(MobEntity target, int slot, double damage, MovementController.DefenseHop hop) { }
+    private enum Phase { IDLE, STOPPING, MELEE, HOP_ASCENT, HOP_LANDING, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
     private static final long MAX_NANOS = 15_000_000_000L;
     private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREATS = 2, MAX_THREATS = 16;
     private final MinecraftClient client;
@@ -32,10 +32,11 @@ final class ThreatResponseAction {
     private Object ownerPlayer, ownerWorld;
     private double originX, originY, originZ;
     private long startedAt;
-    private int ticks, attacks, retreats, lastContactTick;
+    private int ticks, attacks, retreats, lastContactTick, hopLaunchWaitTicks;
     private boolean retreatBlocked;
     private int originalSlot = -1, selectedSlot = -1;
     private AttackChoice plannedChoice;
+    private double hopPeakY;
     private RetreatRoute retreatRoute;
     private final Set<BlockPos> rejectedRetreatGoals = new HashSet<>();
     private double retreatProgressX, retreatProgressZ;
@@ -68,7 +69,7 @@ final class ThreatResponseAction {
         originZ = client.player.getZ();
         originalSlot = ClientAccess.selectedSlot(client.player.getInventory());
         selectedSlot = -1;
-        ticks = attacks = retreats = lastContactTick = 0;
+        ticks = attacks = retreats = lastContactTick = hopLaunchWaitTicks = 0;
         retreatBlocked = false;
         startedAt = System.nanoTime();
         tracked.clear();
@@ -85,7 +86,7 @@ final class ThreatResponseAction {
     }
 
     boolean active() {
-        return phase == Phase.STOPPING || phase == Phase.MELEE || phase == Phase.CONTACT_WAIT || phase == Phase.RETREAT || phase == Phase.FINISHING;
+        return phase == Phase.STOPPING || phase == Phase.MELEE || phase == Phase.HOP_ASCENT || phase == Phase.HOP_LANDING || phase == Phase.CONTACT_WAIT || phase == Phase.RETREAT || phase == Phase.FINISHING;
     }
 
     boolean tick() {
@@ -137,6 +138,23 @@ final class ThreatResponseAction {
                     }
                     // The native attribute and attack cooldown tick must observe the selected hand first.
                     if (!(client.player.getAttackCooldownProgress(0.0f) >= 1.0f)) return false;
+                    if (choice.hop() != null) {
+                        MovementController.DefenseHop launch = movement.planDefenseHop();
+                        if (launch != null && movement.startDefenseHop(launch)) {
+                            plannedChoice = new AttackChoice(choice.target(), choice.slot(), choice.damage(), launch);
+                            hopPeakY = client.player.getY();
+                            hopLaunchWaitTicks = 0;
+                            phase = Phase.HOP_ASCENT;
+                            status = "timing a safe airborne defense attack";
+                            log("hop-started");
+                        } else if (++hopLaunchWaitTicks >= 4) {
+                            plannedChoice = chooseAttackChoice(threats, false);
+                            hopLaunchWaitTicks = 0;
+                            status = "using grounded defense after jump launch rejection";
+                            log("hop-launch-fallback");
+                        }
+                        return false;
+                    }
                     actions.look(choice.target().getBoundingBox().getCenter());
                     if (ClientAccess.selectedSlot(client.player.getInventory()) != choice.slot()
                             || selectedSlot != choice.slot())
@@ -159,6 +177,40 @@ final class ThreatResponseAction {
                             logAttackDecision("select", nextSlot);
                         }
                     }
+                }
+                case HOP_ASCENT, HOP_LANDING -> {
+                    if (threats.stream().anyMatch(ThreatResponseAction::creeper)) {
+                        movement.stopDefenseHop();
+                        stopForRetreat();
+                        return false;
+                    }
+                    if (movement.tickDefenseHop()) {
+                        plannedChoice = null;
+                        phase = Phase.MELEE;
+                        status = "safe defense landing complete";
+                        log("hop-landed");
+                        return false;
+                    }
+                    double observedY = client.player.getY();
+                    hopPeakY = Math.max(hopPeakY, observedY);
+                    if (phase != Phase.HOP_ASCENT || client.player.isOnGround()
+                            || !(observedY < hopPeakY - 1.0e-5)
+                            || !(client.player.getAttackCooldownProgress(0.0f) >= 1.0f)) return false;
+                    ItemStack weapon = client.player.getMainHandStack();
+                    MobEntity contact = canAttackTarget(plannedChoice.target(), weapon)
+                            ? plannedChoice.target() : chooseTargetForSlot(threats, weapon, null);
+                    if (contact == null) return false;
+                    plannedChoice = new AttackChoice(contact, plannedChoice.slot(), plannedChoice.damage(), plannedChoice.hop());
+                    actions.look(contact.getBoundingBox().getCenter());
+                    movement.checkAirRecoveryOwnership();
+                    if (client.player.isOnGround() || ClientAccess.selectedSlot(client.player.getInventory()) != plannedChoice.slot()
+                            || selectedSlot != plannedChoice.slot() || !canAttackTarget(contact, client.player.getMainHandStack())) return false;
+                    logAttackDecision("airborne-attack", plannedChoice.slot());
+                    client.interactionManager.attackEntity(client.player, contact);
+                    client.player.swingHand(Hand.MAIN_HAND);
+                    attacks++;
+                    phase = Phase.HOP_LANDING;
+                    status = "landing after native defense attack " + attacks;
                 }
                 case CONTACT_WAIT -> {
                     movement.stopForDefense();
@@ -253,10 +305,11 @@ final class ThreatResponseAction {
             AttackChoice previous = plannedChoice;
             ItemStack weapon = client.player.getInventory().getStack(previous.slot());
             if (safeStack(weapon)) {
-                MobEntity nextTarget = canAttackTarget(previous.target(), weapon)
-                        ? previous.target() : chooseTargetForSlot(threats, weapon);
+                MovementController.DefenseHop hop = previous.hop() == null ? null : movement.planDefenseHop();
+                MobEntity nextTarget = canChooseTarget(previous.target(), weapon, hop)
+                        ? previous.target() : chooseTargetForSlot(threats, weapon, hop);
                 if (nextTarget != null) {
-                    plannedChoice = new AttackChoice(nextTarget, previous.slot(), previous.damage());
+                    plannedChoice = new AttackChoice(nextTarget, previous.slot(), previous.damage(), hop);
                     return true;
                 }
             }
@@ -362,11 +415,16 @@ final class ThreatResponseAction {
     }
 
     private boolean safeWeaponForTarget(MobEntity mob, ItemStack weapon) {
-        return !GameApi.isSword(weapon) || !GameApi.defenseHasSweepCollateral(client.world, client.player, mob);
+        return !GameApi.isSword(weapon) || !GameApi.defenseHasSweepCollateral(client.world, client.player, mob)
+                || (phase == Phase.HOP_ASCENT || phase == Phase.HOP_LANDING) && !client.player.isOnGround();
     }
 
-    private MobEntity chooseTargetForSlot(List<MobEntity> threats, ItemStack weapon) {
-        return threats.stream().filter(this::canHit).filter(mob -> safeWeaponForTarget(mob, weapon))
+    private boolean canChooseTarget(MobEntity mob, ItemStack weapon, MovementController.DefenseHop hop) {
+        return canHit(mob) && (safeWeaponForTarget(mob, weapon) || hop != null && GameApi.isSword(weapon));
+    }
+
+    private MobEntity chooseTargetForSlot(List<MobEntity> threats, ItemStack weapon, MovementController.DefenseHop hop) {
+        return threats.stream().filter(mob -> canChooseTarget(mob, weapon, hop))
                 .min(Comparator.comparingDouble(MobEntity::getHealth)
                         .thenComparingDouble(client.player::squaredDistanceTo)
                         .thenComparingInt(MobEntity::getId))
@@ -374,6 +432,10 @@ final class ThreatResponseAction {
     }
 
     private AttackChoice chooseAttackChoice(List<MobEntity> threats) {
+        return chooseAttackChoice(threats, true);
+    }
+
+    private AttackChoice chooseAttackChoice(List<MobEntity> threats, boolean allowHop) {
         double[] damageBySlot = new double[9];
         boolean[] usable = new boolean[9], swords = new boolean[9];
         boolean swordAvailable = false;
@@ -387,6 +449,8 @@ final class ThreatResponseAction {
             swords[slot] = GameApi.isSword(weapon);
             swordAvailable |= swords[slot];
         }
+        MovementController.DefenseHop hop = allowHop && swordAvailable && (tracked.size() > 1 || client.player.getHealth() <= 6.0f)
+                ? movement.planDefenseHop() : null;
         int currentSlot = ClientAccess.selectedSlot(client.player.getInventory());
         List<AttackChoice> choices = new ArrayList<>(MAX_THREATS * 9);
         for (MobEntity mob : threats) {
@@ -394,8 +458,10 @@ final class ThreatResponseAction {
             boolean sweepCollateral = swordAvailable
                     && GameApi.defenseHasSweepCollateral(client.world, client.player, mob);
             for (int slot = 0; slot < 9; slot++) {
-                if (usable[slot] && !(sweepCollateral && swords[slot]))
-                    choices.add(new AttackChoice(mob, slot, damageBySlot[slot]));
+                if (!usable[slot]) continue;
+                boolean airborneOnly = sweepCollateral && swords[slot];
+                if (!airborneOnly || hop != null)
+                    choices.add(new AttackChoice(mob, slot, damageBySlot[slot], airborneOnly ? hop : null));
             }
         }
         return choices.stream().min(Comparator.comparingDouble(AttackChoice::damage).reversed()
@@ -468,10 +534,10 @@ final class ThreatResponseAction {
     private void logAttackDecision(String outcome, int slot) {
         if (!movement.debugLogging()) return;
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetHealth={} sweepCollateral={} playerHealth={}",
+                "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetHealth={} sweepCollateral={} playerHealth={} grounded={} y={}",
                 outcome, ticks, slot, GameCatalog.id(client.player.getMainHandStack().getItem()),
                 client.player.getAttackCooldownProgress(0.0f), plannedChoice.target().getId(), plannedChoice.target().getHealth(),
-                GameApi.defenseHasSweepCollateral(client.world, client.player, plannedChoice.target()), client.player.getHealth());
+                GameApi.defenseHasSweepCollateral(client.world, client.player, plannedChoice.target()), client.player.getHealth(), client.player.isOnGround(), client.player.getY());
     }
 
     private void log(String outcome) {

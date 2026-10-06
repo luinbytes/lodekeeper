@@ -4,6 +4,7 @@ import dev.lodekeeper.nav.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.EntityPose;
@@ -28,6 +29,8 @@ final class GameTerrain implements Terrain {
     private static final int MAX_SHAPE_BOXES = 256;
     private static final int MAX_WALK_EVENTS = 256;
     private static final int MAX_WALK_PROOFS = 256;
+    private static final int DEFENSE_HOP_MAX_RISE16 = 22;
+    private static final double DEFENSE_HOP_LANDING_MARGIN = 1.25;
     // The trailing part of the footprint can cover a stair's lower half while the
     // leading part climbs the next half-step. Support depth is separate from the
     // live rise limit: every height change still obeys liveStepLimit16() (at most 9).
@@ -50,12 +53,15 @@ final class GameTerrain implements Terrain {
     private static final int MODE_SUPPORT_PROFILE = 3;
     private static final int MODE_WALK_EVENTS = 4;
 
+    private enum DefenseHopBody { CLEAR, COLLISION, UNSAFE }
+
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final BlockPos.Mutable position = new BlockPos.Mutable();
     private final FootprintCoverage exactCoverage = new FootprintCoverage();
     private final FootprintCoverage allCoverage = new FootprintCoverage();
     private final GroundedStanceBuffer stanceBuffer = new GroundedStanceBuffer();
+    private final StanceProbe defenseHopProbe = new StanceProbe();
     private final double[] trajectoryPoint = new double[3];
     private final MotionEventBuffer walkEvents = new MotionEventBuffer(MAX_WALK_EVENTS);
     private final VoxelShapes.BoxConsumer shapeConsumer = this::visitShapeBox;
@@ -726,6 +732,121 @@ final class GameTerrain implements Terrain {
                     && (!tool.isDamageable() || tool.getMaxDamage() - tool.getDamage() > 2)) return true;
         }
         return false;
+    }
+
+    double defenseHopMaxRise(double feetX, double feetY, double feetZ) {
+        syncReadCacheEpoch();
+        int feetY16 = quantizedFeetY16(feetY);
+        if (feetY16 == INVALID_FEET_Y16 || Math.floorMod(feetY16, 16) != 0
+                || !Double.isFinite(feetX) || !Double.isFinite(feetZ)
+                || Math.abs(feetX) > 33_554_432.0 || Math.abs(feetZ) > 33_554_432.0) return Double.NaN;
+        if (!probeCurrentStance(feetX, feetY16, feetZ, defenseHopProbe)
+                || !defenseHopProbe.loaded || !defenseHopProbe.fullSupport || !defenseHopProbe.bodyClear
+                || defenseHopProbe.hazard || defenseHopProbe.water || defenseHopProbe.climbable
+                || defenseHopProbe.breakCount != 0
+                || !defenseHopLandingMarginSafe(feetX, feetZ, feetY16)) return Double.NaN;
+
+        for (int rise16 = 1; rise16 <= DEFENSE_HOP_MAX_RISE16; rise16++) {
+            DefenseHopBody body = defenseHopBodyAt(feetX, feetY16 / 16.0 + rise16 / 16.0, feetZ);
+            if (body == DefenseHopBody.UNSAFE) return Double.NaN;
+            if (body == DefenseHopBody.COLLISION) {
+                int clearRise16 = rise16 - 1;
+                if (clearRise16 < 1) return Double.NaN;
+                double clearRise = clearRise16 / 16.0;
+                return isMotionClear(feetX, feetY16 / 16.0, feetZ,
+                        feetX, feetY16 / 16.0 + clearRise, feetZ, 0.0, null, null)
+                        ? clearRise : Double.NaN;
+            }
+        }
+        return Double.NaN;
+    }
+
+    boolean defenseHopPoseSafe(double originX, double originY, double originZ, double maxRise,
+                               double feetX, double feetY, double feetZ) {
+        if (!Double.isFinite(maxRise) || maxRise <= 0.0
+                || Double.compare(defenseHopMaxRise(originX, originY, originZ), maxRise) != 0
+                || !Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || Math.hypot(feetX - originX, feetZ - originZ) > DEFENSE_HOP_LANDING_MARGIN + HEIGHT_EPSILON
+                || feetY < originY - 0.125 || feetY > originY + maxRise + 0.125) return false;
+        return defenseHopBodyAt(feetX, feetY, feetZ) == DefenseHopBody.CLEAR;
+    }
+
+    boolean defenseHopLandingSafe(double feetX, double feetY, double feetZ, int expectedFeetY16) {
+        int feetY16 = quantizedFeetY16(feetY);
+        return feetY16 == expectedFeetY16
+                && probeCurrentStance(feetX, feetY16, feetZ, defenseHopProbe)
+                && defenseHopProbe.loaded && defenseHopProbe.fullSupport && defenseHopProbe.bodyClear
+                && !defenseHopProbe.hazard && !defenseHopProbe.water && !defenseHopProbe.climbable
+                && defenseHopProbe.breakCount == 0;
+    }
+
+    private boolean defenseHopLandingMarginSafe(double feetX, double feetZ, int feetY16) {
+        setFootprint(feetX, feetZ);
+        footprintMinX -= DEFENSE_HOP_LANDING_MARGIN;
+        footprintMaxX += DEFENSE_HOP_LANDING_MARGIN;
+        footprintMinZ -= DEFENSE_HOP_LANDING_MARGIN;
+        footprintMaxZ += DEFENSE_HOP_LANDING_MARGIN;
+        defenseHopProbe.clear();
+        defenseHopProbe.hazard = false;
+        if (!supportProfile(feetX, feetZ, feetY16, exactCoverage, allCoverage, defenseHopProbe)
+                || defenseHopProbe.hazard || !exactCoverage.coversAll() || !allCoverage.coversAll()) return false;
+
+        int minX = blockMin(footprintMinX), maxX = blockMax(footprintMaxX);
+        int minZ = blockMin(footprintMinZ), maxZ = blockMax(footprintMaxZ);
+        int minY = Math.floorDiv(feetY16, 16) - 1;
+        int maxY = blockMax(feetY16 / 16.0 + standingHeight + DEFENSE_HOP_MAX_RISE16 / 16.0);
+        for (int x = minX; x <= maxX; x++) for (int y = minY; y <= maxY; y++) for (int z = minZ; z <= maxZ; z++) {
+            if (!loaded(x, y, z)) return false;
+            BlockState state = blockState(x, y, z);
+            if (unsupportedContextShape(state) || !state.getFluidState().isEmpty()
+                    || hazardous(state) || state.isIn(BlockTags.CLIMBABLE)
+                    || state.getBlock() instanceof FallingBlock) return false;
+        }
+        return !dynamicShapeWatchSaturated;
+    }
+
+    private DefenseHopBody defenseHopBodyAt(double feetX, double feetY, double feetZ) {
+        if (dynamicShapeWatchSaturated || !standingDimensionsValid
+                || !Double.isFinite(feetX) || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || Math.abs(feetX) > 33_554_432.0 || Math.abs(feetZ) > 33_554_432.0)
+            return DefenseHopBody.UNSAFE;
+        setBodyBounds(feetX, feetY, feetZ);
+        int tightMinX = blockMin(bodyMinX), tightMaxX = blockMax(bodyMaxX);
+        int tightMinY = blockMin(bodyMinY), tightMaxY = blockMax(bodyMaxY);
+        int tightMinZ = blockMin(bodyMinZ), tightMaxZ = blockMax(bodyMaxZ);
+        shapeBoxCount = 0;
+        shapeIncomplete = false;
+        shapeMode = MODE_BODY;
+        boolean collision = false;
+        try {
+            for (int bx = tightMinX - 1; bx <= tightMaxX + 1; bx++)
+                for (int by = tightMinY - 1; by <= tightMaxY + 1; by++)
+                    for (int bz = tightMinZ - 1; bz <= tightMaxZ + 1; bz++) {
+                        if (!loaded(bx, by, bz)) return DefenseHopBody.UNSAFE;
+                        BlockState state = blockState(bx, by, bz);
+                        if (unsupportedContextShape(state)) return DefenseHopBody.UNSAFE;
+                        boolean cellTouchesBody = bx >= tightMinX && bx <= tightMaxX
+                                && by >= tightMinY && by <= tightMaxY
+                                && bz >= tightMinZ && bz <= tightMaxZ;
+                        if (cellTouchesBody && (!state.getFluidState().isEmpty() || hazardous(state)
+                                || state.isIn(BlockTags.CLIMBABLE))) return DefenseHopBody.UNSAFE;
+                        shapeBlockX = bx;
+                        shapeBlockY = by;
+                        shapeBlockZ = bz;
+                        bodyCollision = false;
+                        collisionShape(state).forEachBox(shapeConsumer);
+                        if (shapeIncomplete || dynamicShapeWatchSaturated) return DefenseHopBody.UNSAFE;
+                        if (bodyCollision) {
+                            if (!state.getFluidState().isEmpty() || hazardous(state)
+                                    || state.isIn(BlockTags.CLIMBABLE)
+                                    || state.getBlock() instanceof FallingBlock) return DefenseHopBody.UNSAFE;
+                            collision = true;
+                        }
+                    }
+        } finally {
+            shapeMode = MODE_NONE;
+        }
+        return collision ? DefenseHopBody.COLLISION : DefenseHopBody.CLEAR;
     }
 
     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz,
