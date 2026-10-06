@@ -715,8 +715,7 @@ final class VerificationApi {
             }
             return true;
         });
-        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damage, blocked) ->
-                confirmSwordDamage.accept(entity, source));
+        VerificationDamageEvents.registerAfterDamage(confirmSwordDamage);
         ServerLivingEntityEvents.AFTER_DEATH.register(confirmSwordDamage::accept);
         return fixture;
     }

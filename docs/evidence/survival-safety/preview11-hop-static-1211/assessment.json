@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "case": "prepared_threat_sweep_guard_bucket",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "commandElapsedMillis": 6912,
+  "nativeReceipt": {
+    "cowAlive": "true",
+    "cowHealth": "10.0",
+    "cowInitialHealth": "10.0",
+    "cowUuid": "b7c58605-3b49-446d-be6f-3f62326738af",
+    "diamondSwordDamage": "0",
+    "preparedThreatsCleared": "true",
+    "woodenPickaxeDamage": "6",
+    "zombieAlive": "false",
+    "zombieHealth": "0.0",
+    "zombieRemoved": "true",
+    "zombieUuid": "87407f05-3fad-42fd-b2dc-cc98a6d2879b"
+  },
+  "serverHealth": 20.0,
+  "serverCursorEmpty": true,
+  "navigationStopped": true,
+  "screenshotInspected": true,
+  "observation": "the integrated server killed the prepared zombie with native wooden-pickaxe hits, left the diamond sword untouched and cow at full health, then completed the bucket goal with an empty cursor and idle engine; measured pickaxe wear=6 (3 hits at two wear each)"
+}

@@ -67,11 +67,32 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java')
 ]
 def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
+def generateVerificationDamageEvents = tasks.register('generateVerificationDamageEvents') {
+    inputs.property('minecraftVersion', rootProject.minecraft_version)
+    outputs.file(generatedVerifierDir.map { it.file('dev/lodekeeper/fabric/VerificationDamageEvents.java') })
+    doLast {
+        def available = rootProject.minecraft_version == '1.21.1'
+        def body = available
+            ? 'net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damage, blocked) -> listener.accept(entity, source));'
+            : 'throw new IllegalStateException("Server-confirmed contact verification requires Minecraft 1.21.1 and its AFTER_DAMAGE event");'
+        def output = generatedVerifierDir.get().file('dev/lodekeeper/fabric/VerificationDamageEvents.java').asFile
+        output.parentFile.mkdirs()
+        output.setText("""package dev.lodekeeper.fabric;
+
+final class VerificationDamageEvents {
+    private VerificationDamageEvents() {}
+    static void registerAfterDamage(java.util.function.BiConsumer<net.minecraft.entity.LivingEntity, net.minecraft.entity.damage.DamageSource> listener) {
+        ${body}
+    }
+}
+""", 'UTF-8')
+    }
+}
 def copySharedVerifier = tasks.register('copySharedVerifier', Copy) {
     from(sharedVerificationSources) { into 'dev/lodekeeper/fabric' }
     into(generatedVerifierDir)
 }
-tasks.named('compileVerificationJava').configure { dependsOn copySharedVerifier }
+tasks.named('compileVerificationJava').configure { dependsOn copySharedVerifier, generateVerificationDamageEvents }
 
 def prepareVerificationOptions = tasks.register('prepareVerificationOptions') {
     def optionsFile = layout.projectDirectory.file('run/options.txt')
