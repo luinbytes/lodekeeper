@@ -1,0 +1,14 @@
+{
+  "minecraft": "26.3",
+  "sourceCommit": "26b5d9b7128da1e29bcfc64c19174af342247079",
+  "modVersion": "0.1.0-preview.6",
+  "runtimeMode": "isolated_development_classes",
+  "ordinaryLauncherAcceptance": false,
+  "ciJarAcceptance": false,
+  "sourceHashes": {
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "b61601f0f77e300343dd6c01b1a15d7b88445df2e0886e9e7eb1afb0965adc0e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "6a030963064d41e6cb627deb1594a5f5d13a8130ccc1cd44d53bb70f04dd53ea",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "7b6a47b40ea1d461720776914269c820e6862ea2b741fc11cd63e0393d4b3f24",
+    "nav/src/main/java/dev/lodekeeper/nav/LaunchApproach.java": "469c8a4feadaa304a6516da861c7eed6a6bf2689586f76c40352dc3d8eef88e1"
+  }
+}

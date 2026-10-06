@@ -1,0 +1,13 @@
+{
+  "minecraft": "1.21.1",
+  "sourceCommit": "26b5d9b7128da1e29bcfc64c19174af342247079",
+  "modVersion": "0.1.0-preview.6",
+  "runtimeMode": "isolated_development_classes",
+  "ordinaryLauncherAcceptance": false,
+  "ciJarAcceptance": false,
+  "sourceHashes": {
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "e07ccf5fd3edb1f901eefd9e05a6d92713325aeade53e6344aff114c93ebc901",
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "691d627da296bff3de47cc68ad043f4b77838505ac92e7f8ba388d27a0190c27",
+    "nav/src/main/java/dev/lodekeeper/nav/LaunchApproach.java": "469c8a4feadaa304a6516da861c7eed6a6bf2689586f76c40352dc3d8eef88e1"
+  }
+}
