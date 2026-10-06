@@ -19,9 +19,9 @@ import java.util.HashSet;
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
     private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
-    private enum Phase { IDLE, STOPPING, MELEE, RETREAT, FINISHING, COMPLETE, STOPPED }
+    private enum Phase { IDLE, STOPPING, MELEE, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
     private static final long MAX_NANOS = 15_000_000_000L;
-    private static final int MAX_TICKS = 300, MAX_ATTACKS = 12, MAX_RETREATS = 2, MAX_THREATS = 16;
+    private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREATS = 2, MAX_THREATS = 16;
     private final Minecraft client;
     private final PlayerActions actions;
     private final MovementController movement;
@@ -32,8 +32,8 @@ final class ThreatResponseAction {
     private Object ownerPlayer, ownerWorld;
     private double originX, originY, originZ;
     private long startedAt;
-    private int ticks, attacks, retreats;
-    private boolean retreatRequired;
+    private int ticks, attacks, retreats, lastContactTick;
+    private boolean retreatBlocked;
     private int originalSlot = -1, selectedSlot = -1;
     private Mob target;
     private RetreatRoute retreatRoute;
@@ -68,15 +68,15 @@ final class ThreatResponseAction {
         originZ = client.player.getZ();
         originalSlot = client.player.getInventory().getSelectedSlot();
         selectedSlot = -1;
-        ticks = attacks = retreats = 0;
-        retreatRequired = false;
+        ticks = attacks = retreats = lastContactTick = 0;
+        retreatBlocked = false;
         startedAt = System.nanoTime();
         tracked.clear();
         tracked.addAll(nearbyThreats());
         phase = Phase.STOPPING;
         status = "stopping movement before defense";
         try {
-            movement.stop();
+            movement.stopForDefense();
             log("started");
             return true;
         } catch (RuntimeException failure) {
@@ -85,7 +85,7 @@ final class ThreatResponseAction {
     }
 
     boolean active() {
-        return phase == Phase.STOPPING || phase == Phase.MELEE || phase == Phase.RETREAT || phase == Phase.FINISHING;
+        return phase == Phase.STOPPING || phase == Phase.MELEE || phase == Phase.CONTACT_WAIT || phase == Phase.RETREAT || phase == Phase.FINISHING;
     }
 
     boolean tick() {
@@ -101,32 +101,32 @@ final class ThreatResponseAction {
             double dx = client.player.getX() - originX, dy = client.player.getY() - originY, dz = client.player.getZ() - originZ;
             if (!(dx * dx + dy * dy + dz * dz <= 32.0 * 32.0))
                 throw new IllegalStateException("defense exceeded 32 blocks from its start");
+            if (selectedSlot >= 0 && client.player.getInventory().getSelectedSlot() != selectedSlot)
+                throw new IllegalStateException("player changed the defense selection");
             List<Mob> threats = remainingThreats();
             switch (phase) {
                 case STOPPING -> {
-                    movement.stop();
-                    if (!movement.finishCancellation()) return false;
-                    if (threats.isEmpty()) return complete();
-                    target = threats.get(0);
-                    if (retreatRequired || client.player.getHealth() <= 10.0f || threats.size() > 1 || creeper(target)
-                            || attacks >= MAX_ATTACKS || !canHit(target) || chooseWeaponSlot() < 0) {
-                        startRetreat(threats);
-                    } else {
-                        phase = Phase.MELEE;
-                        status = "native melee defense";
-                        log("melee");
-                    }
+                    movement.stopForDefense();
+                    if (!movement.finishCancellationForDefense()) return false;
+                    return chooseResponse(threats);
                 }
                 case MELEE -> {
-                    if (selectedSlot >= 0 && client.player.getInventory().getSelectedSlot() != selectedSlot)
-                        throw new IllegalStateException("player changed the defense selection");
-                    if (threats.isEmpty()) return complete();
-                    target = threats.get(0);
-                    if (retreatRequired || client.player.getHealth() <= 10.0f || threats.size() > 1 || creeper(target)
-                            || attacks >= MAX_ATTACKS || !canHit(target)) {
-                        stopForRetreat();
+                    movement.stopForDefense();
+                    if (!movement.finishCancellationForDefense()) return false;
+                    if (threats.isEmpty()) {
+                        if (!movement.finishCancellation()) return false;
+                        return complete();
+                    }
+                    if (!selectContactTarget(threats)) {
+                        if (threats.stream().anyMatch(ThreatResponseAction::creeper)) stopForRetreat();
+                        else {
+                            phase = Phase.CONTACT_WAIT;
+                            status = "waiting for live contact after knockback";
+                            log("contact-wait");
+                        }
                         return false;
                     }
+                    lastContactTick = ticks;
                     int slot = chooseWeaponSlot();
                     if (slot < 0) { stopForRetreat(); return false; }
                     if (selectedSlot != slot || client.player.getInventory().getSelectedSlot() != slot) {
@@ -146,9 +146,22 @@ final class ThreatResponseAction {
                     attacks++;
                     status = "native defense attack " + attacks;
                 }
+                case CONTACT_WAIT -> {
+                    movement.stopForDefense();
+                    if (!movement.finishCancellationForDefense()) return false;
+                    if (threats.isEmpty() || selectContactTarget(threats)) return chooseResponse(threats);
+                    if (threats.stream().anyMatch(ThreatResponseAction::creeper)) stopForRetreat();
+                    else if (!retreatBlocked && ticks - lastContactTick >= 20 && movement.finishCancellation())
+                        startRetreat(threats);
+                }
                 case RETREAT -> {
-                    if (threats.isEmpty() || movement.tick()) {
-                        movement.stop();
+                    if (selectContactTarget(threats)) {
+                        movement.stopForDefense();
+                        phase = Phase.STOPPING;
+                        status = "stopping retreat before contact defense";
+                        log("contact");
+                    } else if (threats.isEmpty() || movement.tick()) {
+                        movement.stopForDefense();
                         phase = Phase.FINISHING;
                         status = "verifying current threat clearance";
                     } else {
@@ -168,16 +181,15 @@ final class ThreatResponseAction {
                                 rejectedRetreatGoals.add(destination);
                             status = drifted ? "refreshing moved threat positions" : "replanning stalled retreat";
                             log(drifted ? "repath-moving-threat" : "repath-stalled");
-                            movement.stop();
+                            movement.stopForDefense();
                             phase = Phase.FINISHING;
                         }
                     }
                 }
                 case FINISHING -> {
-                    movement.stop();
-                    if (!movement.finishCancellation()) return false;
-                    if (remainingThreats().isEmpty()) return complete();
-                    startRetreat(remainingThreats());
+                    movement.stopForDefense();
+                    if (!movement.finishCancellationForDefense()) return false;
+                    return chooseResponse(threats);
                 }
                 default -> { }
             }
@@ -199,12 +211,41 @@ final class ThreatResponseAction {
 
     String status() { return status; }
 
+    private boolean chooseResponse(List<Mob> threats) {
+        if (threats.isEmpty()) {
+            if (!movement.finishCancellation()) return false;
+            return complete();
+        }
+        if (selectContactTarget(threats)) {
+            phase = Phase.MELEE;
+            lastContactTick = ticks;
+            status = "native melee defense";
+            log("melee");
+        } else if (retreatBlocked && threats.stream().noneMatch(ThreatResponseAction::creeper)) {
+            phase = Phase.CONTACT_WAIT;
+            status = "waiting for live contact without an open retreat";
+        } else if (movement.finishCancellation()) {
+            startRetreat(threats);
+        }
+        return false;
+    }
+
+    private boolean selectContactTarget(List<Mob> threats) {
+        if (attacks >= MAX_ATTACKS || threats.stream().anyMatch(ThreatResponseAction::creeper)) return false;
+        for (Mob mob : threats) {
+            if (!canHit(mob)) continue;
+            target = mob;
+            if (chooseWeaponSlot() >= 0) return true;
+        }
+        target = null;
+        return false;
+    }
+
     private void stopForRetreat() {
-        movement.stop();
+        movement.stopForDefense();
         restoreSelection();
         selectedSlot = -1;
         phase = Phase.STOPPING;
-        retreatRequired = true;
         status = "stopping before retreat";
     }
 
@@ -216,8 +257,19 @@ final class ThreatResponseAction {
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
         List<MovementController.RetreatThreat> capturedThreats = threats.stream()
                 .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ())).toList();
-        List<BlockPos> goals = movement.startRetreat(capturedThreats, distance, rejectedRetreatGoals,
-                new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
+        List<BlockPos> goals;
+        try {
+            goals = movement.startRetreat(capturedThreats, distance, rejectedRetreatGoals,
+                    new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
+        } catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
+                    || threats.stream().anyMatch(ThreatResponseAction::creeper)) throw failure;
+            retreatBlocked = true;
+            phase = Phase.CONTACT_WAIT;
+            status = "waiting for live contact without an open retreat";
+            log("no-open-retreat");
+            return;
+        }
         retreatRoute = new RetreatRoute(positions, goals);
         retreatProgressX = client.player.getX();
         retreatProgressZ = client.player.getZ();
@@ -325,7 +377,7 @@ final class ThreatResponseAction {
     }
 
     private boolean cancelMovement() {
-        try { movement.stop(); return movement.finishCancellation(); }
+        try { movement.stopForDefense(); return movement.finishCancellation(); }
         catch (RuntimeException ignored) { return false; }
     }
 

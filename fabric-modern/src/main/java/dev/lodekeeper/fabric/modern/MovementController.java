@@ -110,7 +110,7 @@ final class MovementController {
     private IBaritone bot;
     private IBaritoneProcess cancellationProcess;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
-    private boolean cancelling, followCancellationPending;
+    private boolean cancelling, followCancellationPending, retreatRequest, defenseSettlingPending;
     private baritone.api.pathing.goals.Goal routeGoal;
     private baritone.api.pathing.goals.Goal airRecoveryGoal;
     private BlockPos lastAirRecoveryDestination;
@@ -127,7 +127,7 @@ final class MovementController {
     private UUID followTargetId;
     private Object followOwnerWorld, followOwnerPlayer;
     private Predicate<Entity> followFilter;
-    private long progressToken, startedNanos;
+    private long progressToken, startedNanos, lastDefenseCancellationLog;
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
@@ -152,7 +152,7 @@ final class MovementController {
     }
 
     static final class NavigationFailure extends IllegalStateException {
-        enum Kind { TOOL, PROCESS_ENDED, OWNERSHIP_LOST, REQUEST_LIMIT, PROTECTED_BLOCK, OTHER }
+        enum Kind { TOOL, PROCESS_ENDED, OWNERSHIP_LOST, REQUEST_LIMIT, PROTECTED_BLOCK, NO_RETREAT_STANCE, OTHER }
         final Kind kind;
         final MiningRequestLimit requestLimit;
         NavigationFailure(String reason) { this(Kind.OTHER, reason); }
@@ -203,43 +203,36 @@ final class MovementController {
         long searchStarted = System.nanoTime();
         int candidates = 0, probes = 0;
         int[] heights = {0, 1, -1, 2, -2};
-        for (int pass = 0; pass < 2 && goals.isEmpty(); pass++) {
-            boolean digging = pass == 1;
-            if (digging && !config.allowBreaking) break;
-            long budgetNanos = digging ? 12_000_000L : 8_000_000L;
-            search: for (BlockPos offset : offsets) {
-                int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
-                if (retreatThreatClearance(x, z, threats) < (distance + 3.0) * (distance + 3.0)) continue;
-                for (int dy : heights) {
-                    if (++candidates > 4_096 || probes >= (digging ? 256 : 192)
-                            || System.nanoTime() - searchStarted >= budgetNanos) break search;
-                    BlockPos candidate = new BlockPos(x, center.getY() + dy, z);
-                    if (rejectedGoals.contains(candidate)) continue;
-                    double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
-                    if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) continue;
-                    if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null
-                            || !actions.safePlacementSupport(candidate.below())
-                            || client.level.getBlockState(candidate.above(2)).getBlock() instanceof FallingBlock) continue;
-                    var feetShape = client.level.getBlockState(candidate).getCollisionShape(client.level, candidate);
-                    var headShape = client.level.getBlockState(candidate.above()).getCollisionShape(client.level, candidate.above());
-                    if (digging ? feetShape.isEmpty() && headShape.isEmpty()
-                            : Block.isShapeFullBlock(feetShape) || Block.isShapeFullBlock(headShape)) continue;
-                    probes++;
-                    terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
-                    if (!stance.loaded || !stance.fullSupport || stance.hazard || stance.water || stance.climbable) continue;
-                    if (digging) {
-                        if (stance.bodyClear || stance.breakCount < 1 || stance.breakCount > StanceProbe.MAX_BREAK_TARGETS
-                                || !safeRetreatBreakTargets(stance)) continue;
-                    } else if (!stance.bodyClear || stance.breakCount != 0) continue;
-                    goals.add(candidate);
-                    if (goals.size() == 16) break search;
-                }
+        search: for (BlockPos offset : offsets) {
+            int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
+            if (retreatThreatClearance(x, z, threats) < (distance + 3.0) * (distance + 3.0)) continue;
+            for (int dy : heights) {
+                if (++candidates > 4_096 || probes >= 192
+                        || System.nanoTime() - searchStarted >= 8_000_000L) break search;
+                BlockPos candidate = new BlockPos(x, center.getY() + dy, z);
+                if (rejectedGoals.contains(candidate)) continue;
+                double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
+                if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) continue;
+                if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null
+                        || !actions.safePlacementSupport(candidate.below())
+                        || client.level.getBlockState(candidate.above(2)).getBlock() instanceof FallingBlock) continue;
+                var feetShape = client.level.getBlockState(candidate).getCollisionShape(client.level, candidate);
+                var headShape = client.level.getBlockState(candidate.above()).getCollisionShape(client.level, candidate.above());
+                if (Block.isShapeFullBlock(feetShape) || Block.isShapeFullBlock(headShape)) continue;
+                probes++;
+                terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
+                if (!stance.loaded || !stance.fullSupport || stance.hazard || stance.water || stance.climbable) continue;
+                if (!stance.bodyClear || stance.breakCount != 0) continue;
+                goals.add(candidate);
+                if (goals.size() == 16) break search;
             }
         }
-        if (goals.isEmpty()) throw new NavigationFailure("No safe dry retreat stance remains within the bounded search");
+        if (goals.isEmpty()) throw new NavigationFailure(NavigationFailure.Kind.NO_RETREAT_STANCE,
+                "No safe dry retreat stance remains within the bounded search");
         routeGoal = new GoalComposite(goals.stream().map(GoalBlock::new).toArray(baritone.api.pathing.goals.Goal[]::new));
         diagnosticGoal = null;
         mode = Mode.MOVE;
+        retreatRequest = true;
         launch();
         return List.copyOf(goals);
     }
@@ -251,26 +244,6 @@ final class MovementController {
             minimum = Math.min(minimum, dx * dx + dz * dz);
         }
         return minimum;
-    }
-
-    private boolean safeRetreatBreakTargets(StanceProbe stance) {
-        for (int index = 0; index < stance.breakCount; index++) {
-            var target = stance.breakTargets[index];
-            BlockPos position = new BlockPos(target.x, target.y, target.z);
-            BlockState state = client.level.getBlockState(position);
-            if (Block.getId(state) != target.stateToken || state.hasBlockEntity()
-                    || protectedBlocks.contains(state.getBlock()) || state.getBlock() instanceof FallingBlock
-                    || !state.getFluidState().isEmpty()) return false;
-            for (var direction : net.minecraft.core.Direction.values()) {
-                BlockPos adjacent = position.relative(direction);
-                if (client.level.isOutsideBuildHeight(adjacent)
-                        || client.level.getChunk(adjacent.getX() >> 4, adjacent.getZ() >> 4, ChunkStatus.FULL, false) == null) return false;
-                BlockState neighbor = client.level.getBlockState(adjacent);
-                if (!neighbor.getFluidState().isEmpty()
-                        || direction == net.minecraft.core.Direction.UP && neighbor.getBlock() instanceof FallingBlock) return false;
-            }
-        }
-        return true;
     }
 
     enum AirExitPreference { DRY, SURFACE }
@@ -684,6 +657,7 @@ final class MovementController {
             });
         }
         input.release(); actions.cancel();
+        retreatRequest = false;
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
         lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
         phaseStartedTick = 0; miningY = Integer.MIN_VALUE; miningDepthPolicy = null;
@@ -708,11 +682,11 @@ final class MovementController {
         lease = new SettingsLease();
         Settings settings = BaritoneAPI.getSettings();
         boolean airRecovery = mode == Mode.AIR;
-        lease.set(settings.allowBreak, !airRecovery && config.allowBreaking);
-        lease.set(settings.allowPlace, !airRecovery && config.allowBuilding);
+        lease.set(settings.allowBreak, !airRecovery && !retreatRequest && config.allowBreaking);
+        lease.set(settings.allowPlace, !airRecovery && !retreatRequest && config.allowBuilding);
         lease.set(settings.allowInventory, false);
         lease.set(settings.allowParkour, !airRecovery && config.allowParkour);
-        lease.set(settings.allowParkourPlace, !airRecovery && config.allowParkour && config.allowBuilding);
+        lease.set(settings.allowParkourPlace, !airRecovery && !retreatRequest && config.allowParkour && config.allowBuilding);
         lease.set(settings.allowSprint, true);
         lease.set(settings.allowWaterBucketFall, false);
         if (airRecovery) lease.set(settings.assumeWalkOnWater, false);
@@ -733,7 +707,7 @@ final class MovementController {
         lease.set(settings.primaryTimeoutMS, 500L); lease.set(settings.failureTimeoutMS, 2000L);
         lease.set(settings.planAheadPrimaryTimeoutMS, 4000L); lease.set(settings.planAheadFailureTimeoutMS, 5000L);
         applyProtection();
-        if (!airRecovery) actions.prepareScaffoldHotbar(scaffoldItems);
+        if (!airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
             case MOVE, AIR -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
             case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.is(output));
@@ -772,7 +746,7 @@ final class MovementController {
     }
 
     boolean tick() {
-        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+        if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
         if (mode == Mode.IDLE && !cancelling) return true;
@@ -838,7 +812,7 @@ final class MovementController {
         input.release();
         observeConfirmedProgress();
         if (requestTicks % 4 == 0) samplePath();
-        if (mode != Mode.AIR) actions.prepareScaffoldHotbar(scaffoldItems);
+        if (mode != Mode.AIR && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         boolean satisfied = mode == Mode.MOVE || mode == Mode.AIR
                 ? routeGoal.isInGoal(client.player.blockPosition())
                 : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
@@ -1061,7 +1035,7 @@ final class MovementController {
         if (pendingOwnershipFailure != null) return true;
         if (lease == null || bot == null
                 || !bot.getInputOverrideHandler().isInputForcedDown(baritone.api.utils.input.Input.CLICK_LEFT)) return true;
-        if (cancelling || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
+        if (cancelling || retreatRequest || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
         if (client.level == null || client.player == null) return false;
         if (config.pauseOnScreen && GameApi.screen(client) != null) return false;
         var state = client.level.getBlockState(position);
@@ -1093,7 +1067,7 @@ final class MovementController {
     }
 
     void suspend() {
-        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+        if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
         if (mode == Mode.IDLE || mode == Mode.SUSPENDED) return;
@@ -1103,9 +1077,14 @@ final class MovementController {
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
 
+    void stopForDefense() {
+        checkAirRecoveryOwnership();
+        stop();
+    }
+
     void stop() {
         boolean stoppingAirRecovery = mode == Mode.AIR || mode == Mode.SUSPENDED && resumeMode == Mode.AIR;
-        if (stoppingAirRecovery || airRecoveryCancellationPending) checkAirRecoveryOwnership();
+        if (retreatRequest || stoppingAirRecovery || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
         if (bot != null && cancellationProcess == null) cancellationProcess = expectedProcessForMode(bot, mode);
         if (stoppingAirRecovery) airRecoveryCancellationPending = true;
@@ -1229,20 +1208,46 @@ final class MovementController {
     }
 
     boolean finishCancellation() {
-        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+        if (!finishCancellation(false) || defenseSettlingPending && !physicalCancellationReady()) return false;
+        defenseSettlingPending = false;
+        return true;
+    }
+
+    boolean finishCancellationForDefense() {
+        boolean ready = finishCancellation(true);
+        defenseSettlingPending |= ready;
+        return ready;
+    }
+
+    private boolean finishCancellation(boolean defenseOnly) {
+        if (defenseOnly || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
-        if (!cancelling) return true;
+        if (!cancelling) {
+            if (defenseOnly) {
+                var activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+                var pathing = activeBot.getPathingBehavior();
+                if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) {
+                    logDefenseCancellation("native-work");
+                    return false;
+                }
+                if (!physicalCancellationReady()) logDefenseCancellation("physical-settling");
+            }
+            return true;
+        }
         var pathing = bot.getPathingBehavior();
         boolean hasWork = pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent();
         boolean cancelled = !hasWork || pathing.cancelEverything();
         if (client.player != null && client.level != null) {
             if (!cancelled || bot.getPathingBehavior().hasPath() || bot.getPathingBehavior().isPathing()
-                    || bot.getPathingBehavior().getInProgress().isPresent()) return false;
-            var velocity = client.player.getDeltaMovement();
-            boolean carriedByFluidOrClimb = client.player.isInWater() || client.player.onClimbable();
-            if (!carriedByFluidOrClimb && (!client.player.onGround()
-                    || velocity.x * velocity.x + velocity.z * velocity.z > .0004)) return false;
+                    || bot.getPathingBehavior().getInProgress().isPresent()) {
+                if (defenseOnly) logDefenseCancellation("native-work");
+                return false;
+            }
+            if (!physicalCancellationReady()) {
+                if (defenseOnly) logDefenseCancellation("physical-settling");
+                return defenseOnly;
+            }
         }
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = followCancellationPending = false; observation = NavigationSnapshot.EMPTY;
@@ -1255,6 +1260,27 @@ final class MovementController {
             diagnosticGoal = null;
         }
         return true;
+    }
+
+    private boolean physicalCancellationReady() {
+        if (client.player == null || client.level == null) return true;
+        var velocity = client.player.getDeltaMovement();
+        boolean carriedByFluidOrClimb = client.player.isInWater() || client.player.onClimbable();
+        return carriedByFluidOrClimb || client.player.onGround()
+                && !(velocity.x * velocity.x + velocity.z * velocity.z > .0004);
+    }
+
+    private void logDefenseCancellation(String blockedBy) {
+        long now = System.nanoTime();
+        if (!config.debugLogging || now - lastDefenseCancellationLog < 1_000_000_000L) return;
+        lastDefenseCancellationLog = now;
+        var activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        var pathing = activeBot.getPathingBehavior();
+        var velocity = client.player.getDeltaMovement();
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] DEFENSE_DRAIN blockedBy={} hasPath={} pathing={} calculating={} ground={} horizontalSpeed={}",
+                blockedBy, pathing.hasPath(), pathing.isPathing(), pathing.getInProgress().isPresent(),
+                client.player.onGround(), Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z));
     }
 
     void shutdownUpstream() {
