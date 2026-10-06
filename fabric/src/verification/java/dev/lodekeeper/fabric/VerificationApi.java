@@ -347,14 +347,22 @@ final class VerificationApi {
     }
     static PreparedSafetyStationRoomFixture seedPreparedSafetyStationRoomFixture(ServerPlayerEntity player, ServerWorld world) {
         boolean tunnel = "true".equals(System.getProperty("lodekeeper.verify.stationRoomTunnel"));
+        boolean approach = "approach".equals(System.getProperty("lodekeeper.verify.stationRoomTunnel"));
         for (int x = -9; x <= 9; x++) for (int z = -9; z <= 9; z++) {
             world.setBlockState(new BlockPos(x, 63, z), Blocks.BEDROCK.getDefaultState(), 3);
-            for (int y = 64; y <= 70; y++) {
-                world.setBlockState(new BlockPos(x, y, z), (tunnel ? Blocks.DEEPSLATE : Blocks.STONE).getDefaultState(), 3);
+            for (int y = approach ? 58 : 64; y <= 70; y++) {
+                world.setBlockState(new BlockPos(x, y, z), (approach ? Blocks.BEDROCK : tunnel ? Blocks.DEEPSLATE : Blocks.STONE).getDefaultState(), 3);
             }
         }
-        world.setBlockState(new BlockPos(0, 64, 0), Blocks.AIR.getDefaultState(), 3);
-        world.setBlockState(new BlockPos(0, 65, 0), Blocks.AIR.getDefaultState(), 3);
+        if (approach) {
+            for (BlockPos position : stationApproachAirCells()) world.setBlockState(position, Blocks.AIR.getDefaultState(), 3);
+            for (BlockPos position : new BlockPos[]{new BlockPos(1, 63, 1), new BlockPos(0, 63, 1)}) {
+                world.setBlockState(position, Blocks.CRAFTING_TABLE.getDefaultState(), 3);
+            }
+        } else {
+            world.setBlockState(new BlockPos(0, 64, 0), Blocks.AIR.getDefaultState(), 3);
+            world.setBlockState(new BlockPos(0, 65, 0), Blocks.AIR.getDefaultState(), 3);
+        }
         if (tunnel) {
             for (int x = -2; x <= 0; x++) for (int y = 64; y <= 66; y++) {
                 world.setBlockState(new BlockPos(x, y, 0), Blocks.AIR.getDefaultState(), 3);
@@ -368,14 +376,14 @@ final class VerificationApi {
             throw new IllegalStateException("could not seed the prepared station-room pickaxe, furnace, coal, and raw iron");
         }
         ClientAccess.selectedSlot(player.getInventory(), 0);
-        BlockPos[] nearbyStoneCells = new BlockPos[tunnel ? 66 : 73];
+        BlockPos[] nearbyStoneCells = new BlockPos[approach ? 0 : tunnel ? 66 : 73];
         int index = 0;
-        for (int x = -2; x <= 2; x++) for (int y = 64; y <= 66; y++) for (int z = -2; z <= 2; z++) {
+        if (!approach) for (int x = -2; x <= 2; x++) for (int y = 64; y <= 66; y++) for (int z = -2; z <= 2; z++) {
             if (tunnel ? x <= 0 && z == 0 : x == 0 && z == 0 && (y == 64 || y == 65)) continue;
             nearbyStoneCells[index++] = new BlockPos(x, y, z);
         }
         if (index != nearbyStoneCells.length) throw new IllegalStateException("station-room receipt cell count differs");
-        return new PreparedSafetyStationRoomFixture(nearbyStoneCells, tunnel);
+        return new PreparedSafetyStationRoomFixture(nearbyStoneCells, tunnel, approach);
     }
 
     static Map<String, String> preparedSafetyStationRoomReceipt(ServerPlayerEntity player, ServerWorld world,
@@ -404,7 +412,7 @@ final class VerificationApi {
             if (nearbyFurnaces++ > 0) furnacePositions.append(';');
             furnacePositions.append(x).append(',').append(y).append(',').append(z);
             allFurnaceFloorsBedrock &= world.getBlockState(position.down()).isOf(Blocks.BEDROCK);
-            if (fixture.tunnel) {
+            if (fixture.tunnel || fixture.approach) {
                 if (!(world.getBlockEntity(position) instanceof net.minecraft.inventory.Inventory inventory)) {
                     throw new IllegalStateException("native station-room furnace has no inventory");
                 }
@@ -422,7 +430,16 @@ final class VerificationApi {
         result.put("nearbyFurnacePositions", furnacePositions.toString());
         result.put("playerSupportBedrock", Boolean.toString(world.getBlockState(new BlockPos(0, 63, 0)).isOf(Blocks.BEDROCK)));
         result.put("stationFloorBedrock", Boolean.toString(nearbyFurnaces > 0 && allFurnaceFloorsBedrock));
-        result.put("preparedRoomStartPosition", fixture.tunnel ? "0.367555,64,0.505802" : "0.5,64,0.5");
+        result.put("preparedRoomStartPosition", fixture.approach ? "1.5,65,0.5" : fixture.tunnel ? "0.367555,64,0.505802" : "0.5,64,0.5");
+        if (fixture.tunnel || fixture.approach) {
+            result.put("playerPosition", player.getX() + "," + player.getY() + "," + player.getZ());
+            result.put("playerYaw", Float.toString(player.getYaw()));
+            result.put("playerPitch", Float.toString(player.getPitch()));
+            result.put("stonePickaxeHeld", Boolean.toString(player.getMainHandStack().isOf(Items.STONE_PICKAXE)));
+            result.put("furnaceInputCount", Integer.toString(furnaceInput));
+            result.put("furnaceFuelCount", Integer.toString(furnaceFuel));
+            result.put("furnaceOutputCount", Integer.toString(furnaceOutput));
+        }
         if (fixture.tunnel) {
             int floorCells = 0, airCells = 0;
             StringBuilder airPositions = new StringBuilder();
@@ -437,29 +454,69 @@ final class VerificationApi {
                 }
             }
             result.put("stationRoomSubmode", "tunnel");
-            result.put("playerPosition", player.getX() + "," + player.getY() + "," + player.getZ());
-            result.put("playerYaw", Float.toString(player.getYaw()));
-            result.put("playerPitch", Float.toString(player.getPitch()));
-            result.put("stonePickaxeHeld", Boolean.toString(player.getMainHandStack().isOf(Items.STONE_PICKAXE)));
             result.put("craftingTablePresent", Boolean.toString(world.getBlockState(new BlockPos(-1, 64, 0)).isOf(Blocks.CRAFTING_TABLE)));
             result.put("tunnelAirCellCount", Integer.toString(airCells));
             result.put("tunnelAirPositions", airPositions.toString());
             result.put("roomFloorBedrockCellCount", Integer.toString(floorCells));
             result.put("roomFloorBedrock", Boolean.toString(floorCells == 361));
-            result.put("furnaceInputCount", Integer.toString(furnaceInput));
-            result.put("furnaceFuelCount", Integer.toString(furnaceFuel));
-            result.put("furnaceOutputCount", Integer.toString(furnaceOutput));
+        }
+        if (fixture.approach) {
+            int shellChanged = 0, airCells = 0, floorCells = 0;
+            StringBuilder airPositions = new StringBuilder();
+            for (BlockPos position : fixture.bedrockShellCells) {
+                if (!world.getBlockState(position).isOf(Blocks.BEDROCK)) shellChanged++;
+            }
+            for (BlockPos position : stationApproachAirCells()) {
+                if (world.getBlockState(position).isOf(Blocks.AIR)) {
+                    if (airCells++ > 0) airPositions.append(';');
+                    airPositions.append(position.getX()).append(',').append(position.getY()).append(',').append(position.getZ());
+                }
+            }
+            for (int x = -9; x <= 9; x++) for (int z = -9; z <= 9; z++) {
+                if (world.getBlockState(new BlockPos(x, 63, z)).isOf(Blocks.BEDROCK)) floorCells++;
+            }
+            result.put("stationRoomSubmode", "approach");
+            result.put("approachStartStance", "1,65,0");
+            result.put("approachValidStance", "0,64,1");
+            result.put("playerBlockPosition", (int) Math.floor(player.getX()) + "," + (int) Math.floor(player.getY()) + "," + (int) Math.floor(player.getZ()));
+            result.put("approachAirCellCount", Integer.toString(airCells));
+            result.put("approachAirPositions", airPositions.toString());
+            result.put("bedrockShellCellCount", Integer.toString(fixture.bedrockShellCells.length));
+            result.put("bedrockShellCellsChangedCount", Integer.toString(shellChanged));
+            result.put("roomFloorBedrockCellCount", Integer.toString(floorCells));
+            result.put("approachFloorTablesPresent", Boolean.toString(world.getBlockState(new BlockPos(1, 63, 1)).isOf(Blocks.CRAFTING_TABLE)
+                && world.getBlockState(new BlockPos(0, 63, 1)).isOf(Blocks.CRAFTING_TABLE)));
+            result.put("approachCeilingPresent", Boolean.toString(world.getBlockState(new BlockPos(0, 65, 0)).isOf(Blocks.BEDROCK)));
         }
         return Map.copyOf(result);
+    }
+
+    private static BlockPos[] stationApproachAirCells() {
+        return new BlockPos[]{new BlockPos(0, 64, 0), new BlockPos(1, 65, 0), new BlockPos(1, 66, 0),
+            new BlockPos(1, 64, 1), new BlockPos(1, 65, 1), new BlockPos(1, 66, 1), new BlockPos(0, 64, 1), new BlockPos(0, 65, 1)};
     }
 
     static final class PreparedSafetyStationRoomFixture {
         private final BlockPos[] nearbyStoneCells;
         private final boolean tunnel;
+        private final boolean approach;
+        private final BlockPos[] bedrockShellCells;
 
-        private PreparedSafetyStationRoomFixture(BlockPos[] nearbyStoneCells, boolean tunnel) {
+        private PreparedSafetyStationRoomFixture(BlockPos[] nearbyStoneCells, boolean tunnel, boolean approach) {
             this.nearbyStoneCells = nearbyStoneCells.clone();
             this.tunnel = tunnel;
+            this.approach = approach;
+            java.util.List<BlockPos> shell = new java.util.ArrayList<>();
+            if (approach) {
+                java.util.Set<BlockPos> mutableCells = new java.util.HashSet<>(java.util.List.of(stationApproachAirCells()));
+                mutableCells.add(new BlockPos(1, 63, 1));
+                mutableCells.add(new BlockPos(0, 63, 1));
+                for (int x = -9; x <= 9; x++) for (int y = 58; y <= 70; y++) for (int z = -9; z <= 9; z++) {
+                    BlockPos position = new BlockPos(x, y, z);
+                    if (!mutableCells.contains(position)) shell.add(position);
+                }
+            }
+            this.bedrockShellCells = shell.toArray(BlockPos[]::new);
         }
     }
 

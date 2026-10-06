@@ -81,6 +81,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String PREPARED_SAFETY_MODE = System.getProperty("lodekeeper.verify.preparedSafety");
     private static final String STATION_ROOM_TUNNEL_PROPERTY = System.getProperty("lodekeeper.verify.stationRoomTunnel");
     private static final boolean STATION_ROOM_TUNNEL_MODE = "true".equals(STATION_ROOM_TUNNEL_PROPERTY);
+    private static final boolean STATION_ROOM_APPROACH_MODE = "approach".equals(STATION_ROOM_TUNNEL_PROPERTY);
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
@@ -316,7 +317,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (invalidStationRoomTunnelMode()) {
-                failure = "stationRoomTunnel must be exactly true or false and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                failure = "stationRoomTunnel must be exactly false, true, or approach and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -619,6 +620,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                     if (STATION_ROOM_TUNNEL_MODE) {
                         client.player.setYRot(98.886902F);
                         client.player.setXRot(-38.467983F);
+                    } else if (STATION_ROOM_APPROACH_MODE) {
+                        client.player.setYRot(0.0F);
+                        client.player.setXRot(0.0F);
                     }
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (preparedSafetyFixtureReady()) {
@@ -776,6 +780,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
         if (THREAT_WATER_RETREAT_MODE) engine.config.debugLogging = true;
+        if (STATION_ROOM_APPROACH_MODE) engine.config.debugLogging = true;
         if (MINING_REQUEST_LIMIT_MODE) {
             engine.config.actionTimeoutTicks = 200;
             engine.config.explorationAttempts = 1;
@@ -926,8 +931,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                     player.setYRot(98.886902F);
                     player.setXRot(-38.467983F);
                 }
-                player.teleportTo(STATION_ROOM_TUNNEL_MODE ? 0.367555 : MIXED_NAVIGATION_COURSE ? 0.25 : 0.5,
-                    PLAYER_Y, STATION_ROOM_TUNNEL_MODE ? 0.505802 : MIXED_NAVIGATION_COURSE ? 0.75 : 0.5);
+                player.teleportTo(STATION_ROOM_APPROACH_MODE ? 1.5 : STATION_ROOM_TUNNEL_MODE ? 0.367555 : MIXED_NAVIGATION_COURSE ? 0.25 : 0.5,
+                    STATION_ROOM_APPROACH_MODE ? 65.0 : PLAYER_Y, STATION_ROOM_TUNNEL_MODE ? 0.505802 : MIXED_NAVIGATION_COURSE ? 0.75 : 0.5);
                 if (preparedSafetyAirFixture != null) {
                     VerificationApi.initializePreparedSafetyAirFixture(preparedSafetyAirFixture, player, server.getTickCount());
                 }
@@ -1927,14 +1932,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
                 && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
                 && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
-                && Math.abs(latestSnapshot.x - (STATION_ROOM_TUNNEL_MODE ? 0.367555 : 0.5)) < 0.001 && Math.abs(latestSnapshot.y - 64.0) < 0.001
+                && Math.abs(latestSnapshot.x - (STATION_ROOM_APPROACH_MODE ? 1.5 : STATION_ROOM_TUNNEL_MODE ? 0.367555 : 0.5)) < 0.001 && Math.abs(latestSnapshot.y - (STATION_ROOM_APPROACH_MODE ? 65.0 : 64.0)) < 0.001
                 && Math.abs(latestSnapshot.z - (STATION_ROOM_TUNNEL_MODE ? 0.505802 : 0.5)) < 0.001
-                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellCandidateCount"))
-                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsStillStone"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"))
-                && (!STATION_ROOM_TUNNEL_MODE || stationRoomTunnelSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt));
+                && (!STATION_ROOM_TUNNEL_MODE || stationRoomTunnelSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt))
+                && (!STATION_ROOM_APPROACH_MODE || (stationRoomApproachSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt)
+                    && Math.abs(client.player.getX() - 1.5) < 0.001 && Math.abs(client.player.getY() - 65.0) < 0.001
+                    && Math.abs(client.player.getZ() - 0.5) < 0.001));
             case AIR -> {
                 Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
                 int airSupply = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
@@ -2322,7 +2330,8 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private static boolean invalidStationRoomTunnelMode() {
         return STATION_ROOM_TUNNEL_PROPERTY != null
-            && ((!"true".equals(STATION_ROOM_TUNNEL_PROPERTY) && !"false".equals(STATION_ROOM_TUNNEL_PROPERTY))
+            && ((!"true".equals(STATION_ROOM_TUNNEL_PROPERTY) && !"false".equals(STATION_ROOM_TUNNEL_PROPERTY)
+                    && !"approach".equals(STATION_ROOM_TUNNEL_PROPERTY))
                 || !BARITONE_MODE || !"station_room".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null);
@@ -2341,13 +2350,35 @@ public final class RuntimeVerification implements ClientModInitializer {
             && "true".equals(receipt.get("roomFloorBedrock"));
     }
 
+    private static boolean stationRoomApproachGeometryPreserved(Map<String, String> receipt) {
+        return "approach".equals(receipt.get("stationRoomSubmode"))
+            && "4683".equals(receipt.get("bedrockShellCellCount"))
+            && "0".equals(receipt.get("bedrockShellCellsChangedCount"))
+            && "359".equals(receipt.get("roomFloorBedrockCellCount"))
+            && "true".equals(receipt.get("approachFloorTablesPresent"))
+            && "true".equals(receipt.get("approachCeilingPresent"))
+            && "1,65,0".equals(receipt.get("approachStartStance"))
+            && "0,64,1".equals(receipt.get("approachValidStance"));
+    }
+
+    private static boolean stationRoomApproachSetupReady(Map<String, String> receipt) {
+        return stationRoomApproachGeometryPreserved(receipt)
+            && "1.5,65.0,0.5".equals(receipt.get("playerPosition"))
+            && "1,65,0".equals(receipt.get("playerBlockPosition"))
+            && "0.0".equals(receipt.get("playerYaw")) && "0.0".equals(receipt.get("playerPitch"))
+            && "true".equals(receipt.get("stonePickaxeHeld"))
+            && "8".equals(receipt.get("approachAirCellCount"))
+            && "0,64,0;1,65,0;1,66,0;1,64,1;1,65,1;1,66,1;0,64,1;0,65,1".equals(receipt.get("approachAirPositions"));
+    }
+
     private void startPreparedSafetyStationRoomCase() {
         String engineStatus = requireEngine().status();
         if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
             fail("prepared station-room command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = STATION_ROOM_TUNNEL_MODE ? "prepared_station_room_tunnel_iron_ingot" : "prepared_station_room_iron_ingot";
+        activeCase = STATION_ROOM_APPROACH_MODE ? "prepared_station_room_approach_iron_ingot"
+            : STATION_ROOM_TUNNEL_MODE ? "prepared_station_room_tunnel_iron_ingot" : "prepared_station_room_iron_ingot";
         activeItem = IRON_INGOT_ID;
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -2356,7 +2387,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
         activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
         activeInitialStationRoomReceipt = Map.copyOf(latestSnapshot.preparedSafetyStationRoomReceipt);
-        if (STATION_ROOM_TUNNEL_MODE) stationRoomSetupScreenshot = capture("prepared-safety-station-room-tunnel-setup");
+        if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) stationRoomSetupScreenshot = capture(
+            STATION_ROOM_APPROACH_MODE ? "prepared-safety-station-room-approach-setup" : "prepared-safety-station-room-tunnel-setup");
         preparedSafetyForegroundStarted = true;
         preparedMaintenanceQueueEmptyBeforeForeground = true;
         preparedMaintenanceReservationObservedBeforeForeground = false;
@@ -2647,17 +2679,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
                 && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
                 && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
-                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellCandidateCount"))
-                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellsStillStone"))
                 && "0".equals(activeInitialStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(activeInitialStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(activeInitialStationRoomReceipt.get("playerSupportBedrock"))
                 && "true".equals(receipt.get("playerSupportBedrock"))
                 && "true".equals(receipt.get("stationFloorBedrock"))
-                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(receipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(receipt.get("roomStoneCellCandidateCount"))
                 && Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1
-                && (STATION_ROOM_TUNNEL_MODE ? "0.367555,64,0.505802" : "0.5,64,0.5").equals(receipt.get("preparedRoomStartPosition"))
-                && (STATION_ROOM_TUNNEL_MODE ? changedStoneCells == 0 : changedStoneCells >= 1 && changedStoneCells <= 2)
+                && (STATION_ROOM_APPROACH_MODE ? "1.5,65,0.5" : STATION_ROOM_TUNNEL_MODE ? "0.367555,64,0.505802" : "0.5,64,0.5").equals(receipt.get("preparedRoomStartPosition"))
+                && (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE ? changedStoneCells == 0 : changedStoneCells >= 1 && changedStoneCells <= 2)
                 && (!STATION_ROOM_TUNNEL_MODE || (stationRoomTunnelSetupReady(activeInitialStationRoomReceipt)
                     && latestSnapshot.storageCount(IRON_INGOT_ID) == 1
                     && "true".equals(receipt.get("craftingTablePresent"))
@@ -2665,6 +2697,15 @@ public final class RuntimeVerification implements ClientModInitializer {
                     && "1".equals(receipt.get("nearbyFurnaceCount"))
                     && "0".equals(receipt.get("furnaceInputCount"))
                     && "0".equals(receipt.get("furnaceFuelCount"))
+                    && "0".equals(receipt.get("furnaceOutputCount"))))
+                && (!STATION_ROOM_APPROACH_MODE || (stationRoomApproachSetupReady(activeInitialStationRoomReceipt)
+                    && stationRoomApproachGeometryPreserved(receipt)
+                    && "0,64,1".equals(receipt.get("playerBlockPosition"))
+                    && "7".equals(receipt.get("approachAirCellCount"))
+                    && "1,65,0;1,66,0;1,64,1;1,65,1;1,66,1;0,64,1;0,65,1".equals(receipt.get("approachAirPositions"))
+                    && "1".equals(receipt.get("nearbyFurnaceCount")) && "0,64,0".equals(receipt.get("nearbyFurnacePositions"))
+                    && latestSnapshot.storageCount(IRON_INGOT_ID) == 1
+                    && "0".equals(receipt.get("furnaceInputCount")) && "0".equals(receipt.get("furnaceFuelCount"))
                     && "0".equals(receipt.get("furnaceOutputCount"))));
             detail = passed
                 ? "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded " + changedStoneCells
@@ -3240,16 +3281,16 @@ public final class RuntimeVerification implements ClientModInitializer {
     private record MovementClock(long startedAtNanos, double x, double z) { }
 
     private void finishRun() {
-        if (STATION_ROOM_TUNNEL_MODE) {
+        if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) {
             try {
                 if (stationRoomSetupScreenshot == null || screenshotWritesPending > 0
                         || !Files.isRegularFile(evidenceDirectory.resolve(stationRoomSetupScreenshot))
                         || javax.imageio.ImageIO.read(evidenceDirectory.resolve(stationRoomSetupScreenshot).toFile()) == null) {
-                    fail("Station-room tunnel setup screenshot was not saved as a readable image");
+                    fail("Station-room setup screenshot was not saved as a readable image");
                     return;
                 }
             } catch (java.io.IOException exception) {
-                fail("Cannot verify station-room tunnel setup screenshot: " + exception.getMessage());
+                fail("Cannot verify station-room setup screenshot: " + exception.getMessage());
                 return;
             }
         }
@@ -3419,7 +3460,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("preparedWorld", PREPARED_SAFETY_MODE != null);
             root.addProperty("threatWaterRetreat", THREAT_WATER_RETREAT_MODE);
             root.addProperty("stationRoomTunnel", STATION_ROOM_TUNNEL_MODE);
-            if (STATION_ROOM_TUNNEL_MODE) root.addProperty("stationRoomSetupScreenshot", stationRoomSetupScreenshot);
+            root.addProperty("stationRoomTunnelProperty", STATION_ROOM_TUNNEL_PROPERTY);
+            if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) root.addProperty("stationRoomSetupScreenshot", stationRoomSetupScreenshot);
             if (THREAT_WATER_RETREAT_MODE) root.addProperty("fixtureGrants",
                 "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs");
             if (PREPARED_SAFETY_MODE != null) root.addProperty("preparedSafetyProperty", PREPARED_SAFETY_MODE);
@@ -3942,6 +3984,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (COAL_RECOVERY_MODE) return MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation" : "coal_recovery";
         if (STONECUTTING_MODE) return "stonecutting";
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
+        if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
         if (PREPARED_SAFETY_MODE != null) return THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;

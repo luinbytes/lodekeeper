@@ -39,7 +39,12 @@
     "command": "!lk get iron_ingot 1",
     "completion": "server iron and native furnace slots, bounded terrain changes, preserved table and floor, health, empty cursor, idle and cancelled navigation",
     "baselineReceipt": "../survival-safety/preview11-tunnel-baseline-263/assessment.json",
-    "tightenedCriterion": "Preserve all 66 deepslate candidates and use an existing air site instead of mining another room."
+    "tightenedCriterion": "Preserve all 66 deepslate candidates and use an existing air site instead of mining another room.",
+    "afterFixReceipts": [
+      "../survival-safety/preview11-tunnel-fixed-1211/assessment.json",
+      "../survival-safety/preview11-tunnel-fixed-263/assessment.json"
+    ],
+    "afterFixStatus": "Both exact candidate primary jars place the held furnace in the existing empty cell without moving or changing any deepslate candidate. The original translated tunnel verifies the visible support-face fix. A separate approach fixture will verify route rejection and remaining-stance retry."
   },
   "review": {
     "materialFindings": 1,
@@ -66,5 +71,14 @@
     "fixed": "An invalid native arrival now retries the remaining stance set instead of rejecting the entire placement site. Ownership is checked before relaunch; all twelve invalid arrivals exhaust the original set.",
     "followUpVerdict": "No material findings",
     "nativeScope": "Source review passed. Native placement, retry behavior and full fresh-world completion remain separate checks."
+  },
+  "approachRegression": {
+    "mode": "preparedSafety=station_room, stationRoomTunnel=approach, baritone=true",
+    "command": "!lk get iron_ingot 1",
+    "geometry": "A sealed 4683-cell bedrock shell with eight air cells, two preserved crafting-table floors, one valid furnace site at 0,64,0, an unusable starting approach at 1,65,0, and a usable stance at 0,64,1. One extra head-clearance cell permits the physical descent.",
+    "completion": "One drained native furnace, server iron1, exact air cells, preserved bedrock and tables, health20, empty cursor, idle engine and stopped navigation.",
+    "branchProof": "Native STATION_ROUTE start, rejection of the initial stance with eleven remaining, and arrival at the usable stance must appear in the causal log. A game result alone is insufficient proof of this branch.",
+    "review": "All ten QA files independently inspected, no material findings; no production code changes.",
+    "nativeStatus": "Pending exact-jar execution"
   }
 }

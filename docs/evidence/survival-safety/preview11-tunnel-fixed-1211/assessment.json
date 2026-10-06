@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "case": "translated narrow tunnel with one preserved crafting table",
+  "sourceCommit": "de36158c7942d1b6ffe6c1fda8203d9e691f1ad9",
+  "artifactSha256": "d87b8bdc82e6f478d92bf1d376817938dc8cbff8cf50e0b309eb4315af315280",
+  "nativeReceipt": "native-result.json",
+  "scope": "Declared pre-command geometry and inventory grants; no post-command fixture stock or block mutations. Isolated development client using the exact candidate jar.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "elapsedMillisFromCommand": 12967,
+  "changedNativeStoneCells": "0",
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "observation": "The held furnace used an existing empty cell. All 66 deepslate candidates and the original crafting table and full floor were preserved. The server received one smelted iron ingot and native furnace slots drained."
+}
