@@ -2,11 +2,16 @@ package dev.lodekeeper.fabric;
 
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.world.CreateWorldScreen;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.loot.LootTable;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.registry.RegistryKey;
@@ -14,7 +19,12 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.rule.GameRules;
 import net.minecraft.client.gui.screen.world.WorldCreator;
 import net.minecraft.world.gen.GeneratorOptions;
@@ -49,6 +59,13 @@ final class VerificationApi {
         return new Block(settings);
     }
 
+    static Block dynamicCollisionBlock(Identifier blockId) {
+        AbstractBlock.Settings settings = AbstractBlock.Settings.create()
+            .registryKey(RegistryKey.of(RegistryKeys.BLOCK, blockId))
+            .dynamicBounds();
+        return new DynamicCollisionBlock(settings);
+    }
+
     static Item rubyOreItem(Block rubyOre, Identifier itemId) {
         return new BlockItem(rubyOre, new Item.Settings().registryKey(RegistryKey.of(RegistryKeys.ITEM, itemId)));
     }
@@ -59,6 +76,12 @@ final class VerificationApi {
 
     static Item rubyGear(Identifier itemId) {
         return new Item(new Item.Settings().maxCount(1).registryKey(RegistryKey.of(RegistryKeys.ITEM, itemId)));
+    }
+
+    static ItemStack namedGeometryStack(String name) {
+        ItemStack stack = new ItemStack(Items.STICK);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name));
+        return stack;
     }
 
     static void openCreateWorldScreen(MinecraftClient client, Screen parent) {
@@ -81,5 +104,16 @@ final class VerificationApi {
         loader.createAndStart(saveName, levelInfo, options,
             registry -> registry.getOrThrow(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).value()
                 .createDimensionsRegistryHolder(), (Screen) null);
+    }
+
+    private static final class DynamicCollisionBlock extends Block {
+        private DynamicCollisionBlock(AbstractBlock.Settings settings) {
+            super(settings);
+        }
+
+        @Override
+        protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+            return VerificationContentInitializer.geometryBlockFull ? VoxelShapes.fullCube() : VoxelShapes.empty();
+        }
     }
 }

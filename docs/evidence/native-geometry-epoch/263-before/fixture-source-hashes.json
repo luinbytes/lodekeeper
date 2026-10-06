@@ -1,0 +1,6 @@
+{
+  "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "ea49b28ca6bf486cd2f6ee366bf2a7e9d533c0dceb8dde4dd8e69f48d3b4f692",
+  "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationContentInitializer.java": "de60abeae9ce25a529fdf9a52a2876058c1b794d86780df8bfe03f72de495984",
+  "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/GeometryEpochVerification.java": "52368df2b15cb15d85c4633b500396adf1b18485a7eb57aee183ec6502a064a3",
+  "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": "8d57f5268fb2c9d92eb580d4b61ea9a3f18bb9dead559e83861b720a162870cc"
+}

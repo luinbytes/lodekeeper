@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 import java.util.Arrays;
@@ -38,6 +39,9 @@ final class GameTerrain implements Terrain {
     private static final int VOXEL_READ_CACHE_SIZE = 16_384;
     private static final int CHUNK_READ_CACHE_LIMIT = 256;
     private static final int CHUNK_READ_CACHE_SIZE = 512;
+    // Dynamic shapes stay live; overflow makes this search's geometry proofs fail closed.
+    private static final int DYNAMIC_SHAPE_WATCH_LIMIT = 512;
+    private static final int DYNAMIC_SHAPE_WATCH_SIZE = 1_024;
 
     private static final int MODE_NONE = 0;
     private static final int MODE_BODY = 1;
@@ -59,10 +63,7 @@ final class GameTerrain implements Terrain {
     private double standingWidth = PLAYER_WIDTH_FALLBACK;
     private double standingHeight = PLAYER_HEIGHT_FALLBACK;
     private boolean standingDimensionsValid = true;
-    private double observedStandingWidth = PLAYER_WIDTH_FALLBACK;
-    private double observedStandingHeight = PLAYER_HEIGHT_FALLBACK;
-    private long observedPlayerContext;
-    private boolean hasObservedPlayerContext;
+    private final PlayerContext observedContext = new PlayerContext();
     private CollisionContext shapeContext;
     private int shapeMode;
     private int shapeBoxCount;
@@ -91,11 +92,24 @@ final class GameTerrain implements Terrain {
     private final int[] chunkCacheX = new int[CHUNK_READ_CACHE_SIZE];
     private final int[] chunkCacheZ = new int[CHUNK_READ_CACHE_SIZE];
     private final byte[] chunkCacheLoaded = new byte[CHUNK_READ_CACHE_SIZE];
+    private final int[] dynamicShapeWatchGeneration = new int[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final int[] dynamicShapeWatchX = new int[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final int[] dynamicShapeWatchY = new int[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final int[] dynamicShapeWatchZ = new int[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final byte[] dynamicShapeWatchLoaded = new byte[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final BlockState[] dynamicShapeWatchState = new BlockState[DYNAMIC_SHAPE_WATCH_SIZE];
+    private final VoxelShape[] dynamicShapeWatchShape = new VoxelShape[DYNAMIC_SHAPE_WATCH_SIZE];
     private int readCacheGeneration = 1;
     private int voxelCacheEntries, chunkCacheEntries;
     private boolean readCacheEpochValid;
     private Object readCacheWorld;
-    private long readCacheRevision, readCacheContext;
+    private long readCacheRevision, readCacheTick;
+    private int dynamicShapeWatchEpoch = 1;
+    private int dynamicShapeWatchEntries;
+    private Object dynamicShapeWatchWorld;
+    private Object dynamicShapePollWorld;
+    private long dynamicShapePollTick = Long.MIN_VALUE;
+    private boolean dynamicShapeWatchSaturated;
 
     // Package-visible for bounded native benchmarks; reset between measured searches if needed.
     long voxelQueries, readMisses, shapeMisses, chunkQueries, chunkMisses;
@@ -103,55 +117,113 @@ final class GameTerrain implements Terrain {
     GameTerrain(Minecraft client, LodekeeperConfig config) {
         this.client = client;
         this.config = config;
+        clearDynamicShapeWatch(client.level);
         refreshStandingDimensions();
     }
 
     void changed() { revision++; }
-    void beginSearch() { WorldRevision.beginSearch(); refreshStandingDimensions(); }
-    void refreshStandingDimensions() {
-        invalidateReadCache();
-        if (client.player == null) return;
-        AABB box = client.player.getDimensions(Pose.STANDING).makeBoundingBox(0.0, 0.0, 0.0);
-        double width = box.maxX - box.minX;
-        double height = box.maxY - box.minY;
-        if (!Double.isFinite(width) || !Double.isFinite(height)) {
-            if (standingDimensionsValid) revision++;
-            standingDimensionsValid = false;
-            return;
+    void beginSearch() {
+        WorldRevision.beginSearch();
+        observeContext();
+        clearDynamicShapeWatch(client.level);
+    }
+    void refreshStandingDimensions() { observeContext(); }
+
+    private void observeContext() {
+        Object world = client.level;
+        var player = client.player;
+        double width = PLAYER_WIDTH_FALLBACK;
+        double height = PLAYER_HEIGHT_FALLBACK;
+        boolean valid = false;
+        Pose pose = null;
+        boolean sneaking = false;
+        boolean onGround = false;
+        boolean descending = false;
+        double feetY = Double.NaN;
+        ItemStack mainHand = ItemStack.EMPTY;
+        ItemStack offHand = ItemStack.EMPTY;
+        if (player != null) {
+            AABB box = player.getDimensions(Pose.STANDING).makeBoundingBox(0.0, 0.0, 0.0);
+            width = box.maxX - box.minX;
+            height = box.maxY - box.minY;
+            valid = Double.isFinite(width) && Double.isFinite(height)
+                    && width >= 0.1 && width <= MAX_STANDING_WIDTH
+                    && height >= 0.5 && height <= MAX_STANDING_HEIGHT;
+            pose = player.getPose();
+            sneaking = player.isShiftKeyDown();
+            onGround = player.onGround();
+            descending = player.isDescending();
+            feetY = player.getY();
+            mainHand = player.getMainHandItem();
+            offHand = player.getOffhandItem();
         }
-        boolean valid = Double.isFinite(width) && Double.isFinite(height)
-                && width >= 0.1 && width <= MAX_STANDING_WIDTH
-                && height >= 0.5 && height <= MAX_STANDING_HEIGHT;
-        long contextSignature = playerContextSignature();
-        if (Math.abs(width - observedStandingWidth) > HEIGHT_EPSILON
-                || Math.abs(height - observedStandingHeight) > HEIGHT_EPSILON
-                || valid != standingDimensionsValid
-                || !hasObservedPlayerContext || contextSignature != observedPlayerContext) {
-            revision++;
-            shapeContext = CollisionContext.of(client.player);
-        }
-        observedStandingWidth = width;
-        observedStandingHeight = height;
-        observedPlayerContext = contextSignature;
-        hasObservedPlayerContext = true;
+
+        boolean worldChanged = observedContext.worldChanged(world);
+        boolean changed = observedContext.update(world, player, width, height, valid, pose,
+                sneaking, onGround, descending, feetY, mainHand, offHand);
         standingDimensionsValid = valid;
-        if (valid) { standingWidth = width; standingHeight = height; }
+        if (valid) {
+            standingWidth = width;
+            standingHeight = height;
+        }
+        if (!changed) return;
+        if (worldChanged) clearDynamicShapeWatch(world);
+        revision++;
+        shapeContext = player == null ? null : CollisionContext.of(player);
     }
 
-    private long playerContextSignature() {
-        var player = client.player;
-        ItemStack main = player.getMainHandItem();
-        ItemStack off = player.getOffhandItem();
-        long signature = System.identityHashCode(player);
-        signature = signature * 31 + player.getPose().ordinal();
-        signature = signature * 31 + (player.isShiftKeyDown() ? 1 : 0);
-        signature = signature * 31 + (player.onGround() ? 1 : 0);
-        signature = signature * 31 + System.identityHashCode(main.getItem());
-        signature = signature * 31 + main.getCount();
-        signature = signature * 31 + (main.isDamageableItem() ? main.getDamageValue() : 0);
-        signature = signature * 31 + System.identityHashCode(off.getItem());
-        signature = signature * 31 + off.getCount();
-        return signature * 31 + (off.isDamageableItem() ? off.getDamageValue() : 0);
+    private static final class PlayerContext {
+        private Object world;
+        private Object player;
+        private long standingWidthBits;
+        private long standingHeightBits;
+        private long feetYBits;
+        private Pose pose;
+        private ItemStack mainHand = ItemStack.EMPTY;
+        private ItemStack offHand = ItemStack.EMPTY;
+        private boolean dimensionsValid;
+        private boolean sneaking;
+        private boolean onGround;
+        private boolean descending;
+        private boolean observed;
+
+        boolean worldChanged(Object currentWorld) { return observed && world != currentWorld; }
+
+        boolean update(Object currentWorld, Object currentPlayer, double width, double height,
+                       boolean valid, Pose currentPose, boolean currentSneaking,
+                       boolean currentOnGround, boolean currentDescending, double currentFeetY,
+                       ItemStack currentMainHand, ItemStack currentOffHand) {
+            long currentWidthBits = Double.doubleToLongBits(width);
+            long currentHeightBits = Double.doubleToLongBits(height);
+            long currentFeetYBits = Double.doubleToLongBits(currentFeetY);
+            boolean changed = !observed || world != currentWorld || player != currentPlayer
+                    || standingWidthBits != currentWidthBits || standingHeightBits != currentHeightBits
+                    || dimensionsValid != valid || pose != currentPose || sneaking != currentSneaking
+                    || onGround != currentOnGround || descending != currentDescending
+                    || feetYBits != currentFeetYBits || !sameStack(mainHand, currentMainHand)
+                    || !sameStack(offHand, currentOffHand);
+            if (!changed) return false;
+            world = currentWorld;
+            player = currentPlayer;
+            standingWidthBits = currentWidthBits;
+            standingHeightBits = currentHeightBits;
+            dimensionsValid = valid;
+            pose = currentPose;
+            sneaking = currentSneaking;
+            onGround = currentOnGround;
+            descending = currentDescending;
+            feetYBits = currentFeetYBits;
+            mainHand = currentMainHand.copy();
+            offHand = currentOffHand.copy();
+            observed = true;
+            return true;
+        }
+
+        private static boolean sameStack(ItemStack snapshot, ItemStack current) {
+            return snapshot.getCount() == current.getCount()
+                    && (snapshot.isEmpty() && current.isEmpty()
+                    || ItemStack.isSameItemSameComponents(snapshot, current));
+        }
     }
     static int quantizedFeetY16(double feetY) {
         if (!Double.isFinite(feetY)) return INVALID_FEET_Y16;
@@ -162,11 +234,18 @@ final class GameTerrain implements Terrain {
         return (int) nearest;
     }
     void changedChunk(int chunkX, int chunkZ) { WorldRevision.changedChunk(chunkX, chunkZ); }
-    @Override public long revision() { return revision + WorldRevision.value(); }
+    @Override public long revision() {
+        observeContext();
+        observeDynamicShapes();
+        return currentRevisionValue();
+    }
+
+    private long currentRevisionValue() { return revision + WorldRevision.value(); }
 
     private boolean loaded(int x, int y, int z) {
         chunkQueries++;
-        if (client.level == null || (y < client.level.getMinY() || y >= client.level.getMaxY())) return false;
+        if (dynamicShapeWatchSaturated || client.level == null
+                || (y < client.level.getMinY() || y >= client.level.getMaxY())) return false;
         WorldRevision.watch(x >> 4, z >> 4);
         int chunkX = x >> 4, chunkZ = z >> 4;
         int slot = findChunkCacheSlot(chunkX, chunkZ);
@@ -251,21 +330,127 @@ final class GameTerrain implements Terrain {
     }
 
     private void syncReadCacheEpoch() {
-        long context = client.player == null ? 0L : playerContextSignature();
-        if (client.player != null && (!hasObservedPlayerContext || context != observedPlayerContext)) {
-            refreshStandingDimensions();
-            context = observedPlayerContext;
-        }
+        observeContext();
+        observeDynamicShapes();
         Object world = client.level;
-        long currentRevision = revision();
+        long currentRevision = currentRevisionValue();
+        long tick = world == null ? Long.MIN_VALUE : client.level.getGameTime();
         if (!readCacheEpochValid || readCacheWorld != world
-                || readCacheRevision != currentRevision || readCacheContext != context) {
+                || readCacheRevision != currentRevision || readCacheTick != tick) {
             invalidateReadCache();
             readCacheWorld = world;
             readCacheRevision = currentRevision;
-            readCacheContext = context;
+            readCacheTick = tick;
             readCacheEpochValid = true;
         }
+    }
+
+    private void observeDynamicShapes() {
+        Object worldObject = client.level;
+        if (worldObject == null || client.player == null || dynamicShapeWatchEntries == 0
+                || dynamicShapeWatchSaturated) return;
+        if (dynamicShapeWatchWorld != worldObject) {
+            clearDynamicShapeWatch(worldObject);
+            return;
+        }
+        var world = client.level;
+        long tick = world.getGameTime();
+        if (dynamicShapePollWorld == worldObject && dynamicShapePollTick == tick) return;
+        dynamicShapePollWorld = worldObject;
+        dynamicShapePollTick = tick;
+
+        boolean changed = false;
+        int oldX = position.getX(), oldY = position.getY(), oldZ = position.getZ();
+        try {
+            for (int slot = 0; slot < DYNAMIC_SHAPE_WATCH_SIZE; slot++) {
+                if (dynamicShapeWatchGeneration[slot] != dynamicShapeWatchEpoch) continue;
+                int x = dynamicShapeWatchX[slot];
+                int y = dynamicShapeWatchY[slot];
+                int z = dynamicShapeWatchZ[slot];
+                boolean available = world.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
+                BlockState state = null;
+                VoxelShape shape = Shapes.empty();
+                if (available) {
+                    state = world.getBlockState(position.set(x, y, z));
+                    shape = state.getCollisionShape(world, position, shapeContext);
+                }
+                boolean cellChanged = (dynamicShapeWatchLoaded[slot] != 0) != available
+                        || dynamicShapeWatchState[slot] != state
+                        || !sameShape(dynamicShapeWatchShape[slot], shape);
+                if (cellChanged) changed = true;
+                dynamicShapeWatchLoaded[slot] = (byte) (available ? 1 : 0);
+                dynamicShapeWatchState[slot] = state;
+                dynamicShapeWatchShape[slot] = shape;
+            }
+        } finally {
+            position.set(oldX, oldY, oldZ);
+        }
+        if (changed) revision++;
+    }
+
+    private void clearDynamicShapeWatch(Object world) {
+        if (dynamicShapeWatchEpoch == Integer.MAX_VALUE) {
+            Arrays.fill(dynamicShapeWatchGeneration, 0);
+            dynamicShapeWatchEpoch = 1;
+        } else {
+            dynamicShapeWatchEpoch++;
+        }
+        dynamicShapeWatchEntries = 0;
+        dynamicShapeWatchWorld = world;
+        dynamicShapePollWorld = null;
+        dynamicShapePollTick = Long.MIN_VALUE;
+        dynamicShapeWatchSaturated = false;
+    }
+
+    private int findDynamicShapeWatchSlot(int x, int y, int z) {
+        int slot = voxelHash(x, y, z) & (DYNAMIC_SHAPE_WATCH_SIZE - 1);
+        int start = slot;
+        while (dynamicShapeWatchGeneration[slot] == dynamicShapeWatchEpoch) {
+            if (dynamicShapeWatchX[slot] == x && dynamicShapeWatchY[slot] == y
+                    && dynamicShapeWatchZ[slot] == z) return slot;
+            slot = (slot + 1) & (DYNAMIC_SHAPE_WATCH_SIZE - 1);
+            if (slot == start) return -1;
+        }
+        return slot;
+    }
+
+    private void watchDynamicShape(int x, int y, int z, BlockState state, VoxelShape shape) {
+        int slot = findDynamicShapeWatchSlot(x, y, z);
+        if (slot < 0) {
+            saturateDynamicShapeWatch();
+            return;
+        }
+        if (dynamicShapeWatchGeneration[slot] != dynamicShapeWatchEpoch) {
+            if (dynamicShapeWatchEntries >= DYNAMIC_SHAPE_WATCH_LIMIT) {
+                saturateDynamicShapeWatch();
+                return;
+            }
+            dynamicShapeWatchGeneration[slot] = dynamicShapeWatchEpoch;
+            dynamicShapeWatchX[slot] = x;
+            dynamicShapeWatchY[slot] = y;
+            dynamicShapeWatchZ[slot] = z;
+            dynamicShapeWatchLoaded[slot] = 1;
+            dynamicShapeWatchState[slot] = state;
+            dynamicShapeWatchShape[slot] = shape;
+            dynamicShapeWatchEntries++;
+            return;
+        }
+        if (dynamicShapeWatchState[slot] != state
+                || !sameShape(dynamicShapeWatchShape[slot], shape)) {
+            dynamicShapeWatchState[slot] = state;
+            dynamicShapeWatchShape[slot] = shape;
+            revision++;
+        }
+    }
+
+    private void saturateDynamicShapeWatch() {
+        if (dynamicShapeWatchSaturated) return;
+        dynamicShapeWatchSaturated = true;
+        revision++;
+    }
+
+    private static boolean sameShape(VoxelShape first, VoxelShape second) {
+        return !Shapes.joinIsNotEmpty(first, second, BooleanOp.NOT_SAME);
     }
 
     private boolean hazardous(BlockState state) {
@@ -278,18 +463,21 @@ final class GameTerrain implements Terrain {
 
     @Override public void probeStance(int x, int y, int z, StanceProbe out) {
         syncReadCacheEpoch();
+        if (dynamicShapeWatchSaturated) { out.clear(); return; }
         if (y < -2_048 || y > 2_047) { out.clear(); return; }
         probeAt(x + 0.5, Math.multiplyExact(y, 16), z + 0.5, true, out);
     }
 
     @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
         syncReadCacheEpoch();
+        if (dynamicShapeWatchSaturated) { out.clear(); return false; }
         probeAt(x + 0.5, feetY16, z + 0.5, true, out);
         return out.loaded;
     }
 
     @Override public boolean probeCurrentStance(double feetX, int feetY16, double feetZ, StanceProbe out) {
         syncReadCacheEpoch();
+        if (dynamicShapeWatchSaturated) { out.clear(); return false; }
         if (!Double.isFinite(feetX) || !Double.isFinite(feetZ)) { out.clear(); return false; }
         probeAt(feetX, feetY16, feetZ, false, out);
         return out.loaded;
@@ -297,7 +485,7 @@ final class GameTerrain implements Terrain {
 
     private void probeAt(double feetX, int feetY16, double feetZ, boolean centered, StanceProbe out) {
         out.clear();
-        if (client.player == null || client.level == null || !standingDimensionsValid
+        if (dynamicShapeWatchSaturated || client.player == null || client.level == null || !standingDimensionsValid
                 || !Double.isFinite(feetX) || !Double.isFinite(feetZ)) return;
         if (Math.abs(feetX) > 33_554_432.0 || Math.abs(feetZ) > 33_554_432.0) return;
         double feetY = feetY16 / 16.0;
@@ -350,10 +538,13 @@ final class GameTerrain implements Terrain {
             int floorX = (int) Math.floor(feetX), floorZ = (int) Math.floor(feetZ);
             if (!loaded(floorX, floorY, floorZ)) { out.clear(); return; }
             BlockState floor = blockState(floorX, floorY, floorZ);
+            VoxelShape floorShape = collisionShape(floor);
+            if (dynamicShapeWatchSaturated) { out.clear(); return; }
             out.fullSupport = !out.hazard && exactCoverage.coversAll() && allCoverage.coversAll()
-                    && Block.isShapeFullBlock(collisionShape(floor));
+                    && Block.isShapeFullBlock(floorShape);
         }
         if (out.breakCount > 0) verifyBreakNeighborhood(out);
+        if (dynamicShapeWatchSaturated) { out.clear(); return; }
         out.loaded = true;
     }
 
@@ -361,6 +552,7 @@ final class GameTerrain implements Terrain {
                                                     GroundedStanceBuffer out) {
         syncReadCacheEpoch();
         out.clear();
+        if (dynamicShapeWatchSaturated) return false;
         return collectSupportHeights(x + 0.5, z + 0.5, referenceFeetY16, 16, out);
     }
 
@@ -496,6 +688,14 @@ final class GameTerrain implements Terrain {
 
     private VoxelShape collisionShape(BlockState state) {
         if (shapeContext == null && client.player != null) shapeContext = CollisionContext.of(client.player);
+        int x = position.getX(), y = position.getY(), z = position.getZ();
+        if (state.getBlock().hasDynamicShape()) {
+            shapeMisses++;
+            VoxelShape shape = state.getCollisionShape(client.level, position, shapeContext);
+            watchDynamicShape(x, y, z, state, shape);
+            if (dynamicShapeWatchSaturated) shapeIncomplete = true;
+            return shape;
+        }
         int slot = findVoxelCacheSlot(position.getX(), position.getY(), position.getZ());
         if (slot >= 0 && voxelCacheGeneration[slot] == readCacheGeneration
                 && voxelCacheState[slot] == state && voxelCacheShapeReady[slot] != 0) {
@@ -536,7 +736,7 @@ final class GameTerrain implements Terrain {
     @Override public boolean isMotionClear(double fx, double fy, double fz, double tx, double ty, double tz,
                                            double arc, StanceProbe source, StanceProbe destination) {
         syncReadCacheEpoch();
-        if (!Double.isFinite(fx) || !Double.isFinite(fy) || !Double.isFinite(fz)
+        if (dynamicShapeWatchSaturated || !Double.isFinite(fx) || !Double.isFinite(fy) || !Double.isFinite(fz)
                 || !Double.isFinite(tx) || !Double.isFinite(ty) || !Double.isFinite(tz)
                 || !Double.isFinite(arc)) return false;
         double distance = Math.sqrt(square(tx - fx) + square(ty - fy) + square(tz - fz));
@@ -551,14 +751,15 @@ final class GameTerrain implements Terrain {
             if (i == 0 && !clearBodyAt(x, y, z, source, destination)) return false;
             previousX = x; previousY = y; previousZ = z;
         }
-        return true;
+        return !dynamicShapeWatchSaturated;
     }
 
     @Override public boolean isGroundedWalkClear(double fromX, int fromFeetY16, double fromZ,
                                                  double toX, int toFeetY16, double toZ,
                                                  StanceProbe source, StanceProbe destination) {
         syncReadCacheEpoch();
-        if (!Double.isFinite(fromX) || !Double.isFinite(fromZ) || !Double.isFinite(toX) || !Double.isFinite(toZ)
+        if (dynamicShapeWatchSaturated || !Double.isFinite(fromX) || !Double.isFinite(fromZ)
+                || !Double.isFinite(toX) || !Double.isFinite(toZ)
                 || Math.abs(fromX) > 33_554_430.0 || Math.abs(fromZ) > 33_554_430.0
                 || Math.abs(toX) > 33_554_430.0 || Math.abs(toZ) > 33_554_430.0) return false;
         long riseLong = (long) toFeetY16 - fromFeetY16;
@@ -645,7 +846,9 @@ final class GameTerrain implements Terrain {
         for (int bx = minX; bx <= maxX; bx++) for (int bz = minZ; bz <= maxZ; bz++) {
             if (!loaded(bx, floorY, bz)) return false;
             BlockState state = blockState(bx, floorY, bz);
-            if (hazardous(state) || !Block.isShapeFullBlock(collisionShape(state))) return false;
+            if (hazardous(state)) return false;
+            VoxelShape shape = collisionShape(state);
+            if (dynamicShapeWatchSaturated || !Block.isShapeFullBlock(shape)) return false;
         }
         return true;
     }
@@ -776,7 +979,7 @@ final class GameTerrain implements Terrain {
             if (shapeIncomplete || bodyCollision) { shapeMode = MODE_NONE; return false; }
         }
         shapeMode = MODE_NONE;
-        return true;
+        return !dynamicShapeWatchSaturated;
     }
 
     private boolean isVerifiedBreakTarget(StanceProbe probe, int x, int y, int z, BlockState state) {
@@ -791,7 +994,8 @@ final class GameTerrain implements Terrain {
 
     @Override public boolean canBreakFrom(int x, int y, int z, StanceProbe destination, int index) {
         syncReadCacheEpoch();
-        if (index < 0 || index >= destination.breakCount || index >= StanceProbe.MAX_BREAK_TARGETS) return false;
+        if (dynamicShapeWatchSaturated || index < 0 || index >= destination.breakCount
+                || index >= StanceProbe.MAX_BREAK_TARGETS) return false;
         var target = destination.breakTargets[index];
         double feetY = y;
         double eyeY = feetY + standingHeight * 0.9;
@@ -804,14 +1008,15 @@ final class GameTerrain implements Terrain {
     @Override public boolean canPlaceBridgeFrom(int x, int y, int z, int bx, int by, int bz,
                                                  int token, boolean plannedSupport) {
         syncReadCacheEpoch();
-        if (!config.allowBuilding || !loaded(bx, by, bz)
+        if (dynamicShapeWatchSaturated || !config.allowBuilding || !loaded(bx, by, bz)
                 || !blockState(bx, by, bz).canBeReplaced()) return false;
         if (Math.abs(bx - x) + Math.abs(bz - z) != 1 || by != y - 1) return false;
-        if (plannedSupport) return true;
+        if (plannedSupport) return !dynamicShapeWatchSaturated;
         if (!loaded(x, y - 1, z)) return false;
         BlockState support = blockState(x, y - 1, z);
-        return !unsupportedContextShape(support) && !hazardous(support)
-                && Block.isShapeFullBlock(collisionShape(support));
+        if (unsupportedContextShape(support) || hazardous(support)) return false;
+        VoxelShape shape = collisionShape(support);
+        return !dynamicShapeWatchSaturated && Block.isShapeFullBlock(shape);
     }
 
     private void visitShapeBox(double localMinX, double localMinY, double localMinZ,

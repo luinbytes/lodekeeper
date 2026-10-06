@@ -68,6 +68,9 @@ import java.util.concurrent.CompletableFuture;
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
+    private static final boolean GEOMETRY_EPOCH_MODE = Boolean.getBoolean("lodekeeper.verify.geometryEpoch");
+    private GeometryEpochVerification geometryEpoch;
+    private boolean geometryEpochComplete;
     private static final String NEARBY_WOOD_GOAL = System.getProperty("lodekeeper.verify.nearbyWoodGoal", "wood");
     private static final String NEARBY_WOOD_TERRAIN = System.getProperty("lodekeeper.verify.nearbyWoodTerrain", "flat");
     private static final boolean NEARBY_WOOD_LOCAL_DECOY_MODE = NEARBY_WOOD_MODE
@@ -272,6 +275,13 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (GEOMETRY_EPOCH_MODE && !NEARBY_WOOD_MODE) {
+                failure = "geometryEpoch requires nearbyWood=true";
+                state = State.FAILED;
+                writeEvidence("failed");
+                client.scheduleStop();
+                return;
+            }
             if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE && !IRON_PICKAXE_MODE) {
                 failure = "lodekeeper.verify.ironPickaxeEmptyDistantWood requires lodekeeper.verify.ironPickaxe=true";
                 state = State.FAILED;
@@ -1246,6 +1256,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
                 }
+                if (GEOMETRY_EPOCH_MODE) GeometryEpochVerification.prepareServerFixture(world);
                 player.currentScreenHandler.sendContentUpdates();
                 scheduled.complete((long) server.getTicks());
             } catch (Throwable throwable) {
@@ -1639,8 +1650,20 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startGatherCommand() {
+        if (GEOMETRY_EPOCH_MODE && !geometryEpochComplete) {
+            if (geometryEpoch == null) geometryEpoch = new GeometryEpochVerification();
+            try {
+                JsonObject result = geometryEpoch.advance(client, requireEngine().config);
+                if (result == null) return;
+                geometryEpochComplete = true;
+            } catch (RuntimeException exception) {
+                geometryEpoch.markFailure(exception.getMessage());
+                fail("Geometry epoch verification failed: " + exception.getMessage());
+                return;
+            }
+        }
         if (NEARBY_WOOD_MODE) {
-            if (!NEARBY_WOOD_LOCAL_DECOY_MODE) {
+            if (!NEARBY_WOOD_LOCAL_DECOY_MODE && !GEOMETRY_EPOCH_MODE) {
                 benchmarkNativeRoute();
                 if (state == State.FAILED) return;
             }
@@ -2425,6 +2448,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"serverFurnaceOpened\":").append(serverFurnaceOpened).append(",\n")
             .append("  \"serverTableOpenings\":").append(serverTableOpenings).append(",\n")
             .append("  \"serverFurnaceOpenings\":").append(serverFurnaceOpenings).append(",\n");
+        if (GEOMETRY_EPOCH_MODE) {
+            json.append("  \"geometryEpoch\":").append(geometryEpoch == null
+                ? "null" : geometryEpoch.evidence().toString()).append(",\n");
+        }
         if (COOKING_MODE) {
             json.append("  \"serverSmokerOpened\":").append(serverSmokerOpened).append(",\n")
                 .append("  \"serverSmokerOpenings\":").append(serverSmokerOpenings).append(",\n")

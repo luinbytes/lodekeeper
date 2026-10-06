@@ -65,6 +65,9 @@ import java.util.concurrent.CompletableFuture;
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
+    private static final boolean GEOMETRY_EPOCH_MODE = Boolean.getBoolean("lodekeeper.verify.geometryEpoch");
+    private GeometryEpochVerification geometryEpoch;
+    private boolean geometryEpochComplete;
     private static final String NEARBY_WOOD_GOAL = System.getProperty("lodekeeper.verify.nearbyWoodGoal", "wood");
     private static final String NEARBY_WOOD_TERRAIN = System.getProperty("lodekeeper.verify.nearbyWoodTerrain", "flat");
     private static final boolean MEADOW_BENCHMARK = NEARBY_WOOD_MODE && "meadow".equals(NEARBY_WOOD_TERRAIN);
@@ -233,6 +236,13 @@ public final class RuntimeVerification implements ClientModInitializer {
                 failure = nearbyWoodFailure;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.stop();
+                return;
+            }
+            if (GEOMETRY_EPOCH_MODE && !NEARBY_WOOD_MODE) {
+                failure = "geometryEpoch requires nearbyWood=true";
+                state = State.FAILED;
+                writeEvidence("failed");
                 client.stop();
                 return;
             }
@@ -696,6 +706,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 player.setHealth(player.getMaxHealth());
                 player.getFoodData().setFoodLevel(20);
                 player.teleportTo(MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, PLAYER_Y, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5);
+                if (GEOMETRY_EPOCH_MODE) GeometryEpochVerification.prepareServerFixture(world);
                 player.containerMenu.broadcastChanges();
                 scheduled.complete((long) server.getTickCount());
             } catch (Throwable throwable) {
@@ -1384,9 +1395,23 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void startGatherCommand() {
+        if (GEOMETRY_EPOCH_MODE && !geometryEpochComplete) {
+            if (geometryEpoch == null) geometryEpoch = new GeometryEpochVerification();
+            try {
+                JsonObject result = geometryEpoch.advance(client, requireEngine().config);
+                if (result == null) return;
+                geometryEpochComplete = true;
+            } catch (RuntimeException exception) {
+                geometryEpoch.markFailure(exception.getMessage());
+                fail("Geometry epoch verification failed: " + exception.getMessage());
+                return;
+            }
+        }
         if (NEARBY_WOOD_MODE) {
-            benchmarkNativeRoute();
-            if (state == State.FAILED) return;
+            if (!GEOMETRY_EPOCH_MODE) {
+                benchmarkNativeRoute();
+                if (state == State.FAILED) return;
+            }
             activeCase = "nearby_" + NEARBY_WOOD_GOAL + "_20_blocks" + (MEADOW_BENCHMARK ? "_meadow" : "");
             activeItem = NEARBY_WOOD_GOAL.equals("wood") ? OAK_LOG_ID : "minecraft:crafting_table";
             activeCount = 1;
@@ -2112,6 +2137,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("worldKind", "isolated_superflat_fixture");
             root.addProperty("evidenceAuthority", "integrated_server_inventory_menu_and_hunger");
             root.addProperty("verificationMode", verificationMode());
+            if (GEOMETRY_EPOCH_MODE) root.add("geometryEpoch", geometryEpoch == null
+                ? com.google.gson.JsonNull.INSTANCE : geometryEpoch.evidence());
             root.addProperty("runDirectory", client.gameDirectory.toPath().toRealPath().toString());
             root.addProperty("worldId", worldId);
             root.addProperty("elapsedMillis", (System.nanoTime() - startedAtNanos) / 1_000_000L);

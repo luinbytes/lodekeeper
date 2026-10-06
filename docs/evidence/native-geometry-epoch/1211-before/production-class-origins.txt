@@ -1,0 +1,2 @@
+[15.920s][info][class,load] dev.lodekeeper.fabric.GameTerrain source: file:/private/tmp/lodekeeper-geometry-input-before-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.6-64b5720b4b825f21.jar
+[16.053s][info][class,load] dev.lodekeeper.nav.Planner source: file:/private/tmp/lodekeeper-geometry-input-before-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.6-64b5720b4b825f21.jar

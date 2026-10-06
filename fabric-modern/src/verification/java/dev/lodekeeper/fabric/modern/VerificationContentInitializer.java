@@ -28,6 +28,8 @@ public final class VerificationContentInitializer implements ModInitializer {
     static final String RUBY_ID = "lodekeeper_verification:ruby";
     static final String RUBY_GEAR_ID = "lodekeeper_verification:ruby_gear";
     static final String BREAD_ID = "minecraft:bread";
+    static final String DYNAMIC_COLLISION_ID = "lodekeeper_verification:dynamic_collision";
+    static volatile boolean geometryBlockFull = true;
 
     private static final String SOURCE_CONTRACT = """
         {"schema":1,"gather":[{"id":"ruby_ore","item":"lodekeeper_verification:ruby","blocks":["lodekeeper_verification:ruby_ore"],"tools":["minecraft:stone_pickaxe"]}]}
@@ -47,6 +49,9 @@ public final class VerificationContentInitializer implements ModInitializer {
             new BlockItem(ore, new Item.Properties().setId(ResourceKey.create(Registries.ITEM, oreId))));
         registerItem(RUBY_ID, new Item.Properties());
         registerItem(RUBY_GEAR_ID, new Item.Properties().stacksTo(1));
+        Identifier dynamicCollisionId = Identifier.parse(DYNAMIC_COLLISION_ID);
+        Registry.register(BuiltInRegistries.BLOCK, dynamicCollisionId,
+            VerificationApi.dynamicCollisionBlock(dynamicCollisionId));
     }
 
     private static void registerItem(String id, Item.Properties properties) {

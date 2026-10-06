@@ -1,0 +1,28 @@
+{
+  "runId":"2026-10-06T02-28-53-247701Z-2ad1c6cd",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"nearby_wood",
+  "elapsedMillis":15173,
+  "clientTicks":200,
+  "failure":"Geometry epoch verification failed: same-tick repeat did not bypass the dynamic shape cache",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "geometryEpoch":{"fixtureGridExpectedCells":525,"fixtureGridLoadedCells":525,"fixtureGridDynamicBlockCells":525,"fixtureGridWaitTicks":0,"fixtureGridReady":true,"firstRegistrationDidNotChangeRevision":true,"initialProbeLoaded":true,"initialProbeBodyClear":true,"initialProbeFullSupport":true,"repeatProbeLoaded":true,"sameTickDynamicShapeMisses":0,"sameTickDynamicShapeBypassedCache":false,"status":"failed","passed":false,"failure":"same-tick repeat did not bypass the dynamic shape cache"},
+  "cases":[
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "nearbyWoodWalkArrivalInputEvidence":{"evidenceAuthority":"client_bot_input_intent","serverTimingIncluded":false,"observationLimit":64,"eligibleWalkArrivalCount":0,"zeroForwardIntentArrivalCount":0,"positiveForwardIntentArrivalCount":0,"recordedObservationCount":0,"observations":[]},
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

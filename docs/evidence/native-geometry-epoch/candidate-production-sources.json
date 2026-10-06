@@ -1,0 +1,10 @@
+{
+  "baseCommit": "87aad156168e9f0364de7171279cbd876ef2ee93",
+  "nativeEpochChangesUncommitted": true,
+  "publicRelease": false,
+  "sources": {
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameTerrain.java": "812318652e67296a8d66a3c533f4627bbebea2cde19901e5a012041fe5427a55",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java": "4993082cfcf69aa5d535c9e74cb93bb77ccdcf51ebc24aa0c8b25055a9509a50",
+    "nav/src/main/java/dev/lodekeeper/nav/Planner.java": "00b2c235177595297771a0e0b7767b163826e7ccca7ca8e837360f31f4c39b2b"
+  }
+}

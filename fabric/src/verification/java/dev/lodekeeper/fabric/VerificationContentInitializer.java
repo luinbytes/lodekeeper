@@ -21,6 +21,8 @@ public final class VerificationContentInitializer implements ModInitializer {
     static final String RUBY_ID = "lodekeeper_verification:ruby";
     static final String RUBY_GEAR_ID = "lodekeeper_verification:ruby_gear";
     static final String BREAD_ID = "minecraft:bread";
+    static final String DYNAMIC_COLLISION_ID = "lodekeeper_verification:dynamic_collision";
+    static volatile boolean geometryBlockFull = true;
 
     private static final String SOURCE_CONTRACT = """
         {"schema":1,"gather":[{"id":"ruby_ore","item":"lodekeeper_verification:ruby","blocks":["lodekeeper_verification:ruby_ore"],"tools":["minecraft:stone_pickaxe"]}]}
@@ -36,6 +38,9 @@ public final class VerificationContentInitializer implements ModInitializer {
             VerificationApi.ruby(GameApi.identifier(RUBY_ID)));
         Registry.register(Registries.ITEM, GameApi.identifier(RUBY_GEAR_ID),
             VerificationApi.rubyGear(GameApi.identifier(RUBY_GEAR_ID)));
+        var dynamicCollisionId = GameApi.identifier(DYNAMIC_COLLISION_ID);
+        Registry.register(Registries.BLOCK, dynamicCollisionId,
+            VerificationApi.dynamicCollisionBlock(dynamicCollisionId));
     }
 
     static void ensureSourceContract(Path runDirectory) throws IOException {

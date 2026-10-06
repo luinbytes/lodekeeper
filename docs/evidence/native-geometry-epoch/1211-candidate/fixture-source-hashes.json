@@ -1,0 +1,6 @@
+{
+  "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "086abd3b5f50ed98c203a5bb2c17ae9b3a406e0245856094ea1a008fefadd3ca",
+  "fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java": "ab32e14b8930aff43c1948909977742d47966ff3eb6a2dec9c65a0f931ba2f7d",
+  "fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java": "5af516656225e5e74409a84349b5e05d4dc0ea45ea3626ec1e246ae29aa667eb",
+  "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "d4bdde75068d5b0c23b1714a0f439de8acc653f4ac05ecb98aa7206d9545a814"
+}
