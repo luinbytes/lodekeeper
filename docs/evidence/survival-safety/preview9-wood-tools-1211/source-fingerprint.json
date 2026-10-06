@@ -1,0 +1,7 @@
+{
+  "core/src/main/java/dev/lodekeeper/core/ProjectGatherBatch.java": "29c999af3cfc10466433c17e4840cace27f571a88a4cecaaa2a627758dff1626",
+  "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "30a63ce631b707fb1ce529236dd8dafa7490ac2213a745ae2b43a57669379f4d",
+  "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "3c167e36d0b530cb41dd48cc25a505b40c2ecafe5b2deaccfa5516b3c6c59a7e",
+  "fabric/src/main/java/dev/lodekeeper/fabric/PassiveFoodAction.java": "2f5e852a4575969d7e26e143f3e5bfc5090c1a4492191b1737ba13df90696ed2",
+  "gradle.properties": "5c70f626998aa654ac8bb66e097b2d68183f61054a7fd347f0ede93e40e48589"
+}

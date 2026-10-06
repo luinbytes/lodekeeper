@@ -220,6 +220,7 @@ final class AutomationEngine {
     private long pendingPlanGeneration;
     private long stepCatalogGeneration;
     private PlanStep step;
+    private boolean stepAuxiliaryInvestment;
     private BlockSearch scan;
     private BlockSearch logScan;
     private LocalReachScan localLogReachScan, localIngredientWoodReachScan, localGatherReachScan;
@@ -299,6 +300,7 @@ final class AutomationEngine {
     }
 
     void tick() {
+        try {
         discoveryBudgetStarted = false;
         discoveryDeadlineNanos = 0;
         if (client.world != world) {
@@ -329,7 +331,6 @@ final class AutomationEngine {
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
         if (foodAcquisitionCooldown > 0) foodAcquisitionCooldown--;
-        try {
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
             inventorySampleTicks = 0;
             observeInventory();
@@ -390,6 +391,8 @@ final class AutomationEngine {
                         requestPlan();
                     }
                 } catch (RuntimeException failure) {
+                    if (failure instanceof MovementController.NavigationFailure navigation
+                            && navigation.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw navigation;
                     foodAcquisition.stop();
                     foodAcquisitionCooldown = 200;
                     message("Food acquisition is replanning: " + failure.getMessage());
@@ -457,7 +460,8 @@ final class AutomationEngine {
                     stepPreferencesVersion = pendingPlanPreferencesVersion;
                     PlanResult preferred = outcome.result();
                     if (preferred.success() && !preferred.steps().isEmpty()
-                            && !preferred.steps().get(0).sourceId().equals(step.sourceId())) {
+                            && (outcome.auxiliaryInvestment() && !stepAuxiliaryInvestment
+                                || !preferred.steps().get(0).sourceId().equals(step.sourceId()))) {
                         resetAction();
                         requestPlan();
                         return;
@@ -547,6 +551,16 @@ final class AutomationEngine {
                     if (step == null) return;
                 }
             }
+            if (moving && pendingPlan == null && active.anyLogs && config.optimizeWoodTools && !stepAuxiliaryInvestment
+                    && step.kind() == PlanKind.GATHER && preferenceRefreshCooldown == 0) {
+                preferenceRefreshCooldown = 40;
+                rememberNativeLogTargets();
+                if (captureHarvestOffer(active.count - goalCount()) != null) {
+                    requestPlan();
+                    pendingPreferencePlan = pendingPlan != null;
+                    if (step == null) return;
+                }
+            }
             movement.observeConfirmedProgress();
             observeGatherRemoval();
             long movementProgress = movement.progressToken();
@@ -631,7 +645,12 @@ final class AutomationEngine {
                 case SMELT -> smelt();
                 case CUSTOM -> throw new IllegalStateException("No executor registered for " + step.customType());
             }
-        } catch (RuntimeException ex) { failActive(ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()); }
+        } catch (RuntimeException ex) {
+            if (ex instanceof MovementController.NavigationFailure navigation
+                    && navigation.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST)
+                pauseAfterOwnershipLoss(navigation);
+            else failActive(ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
+        }
     }
     void enqueue(String name, int count) {
         ensureNotStopping();
@@ -1113,6 +1132,7 @@ final class AutomationEngine {
     }
 
     private void requestPlan() {
+        if (paused || active == null) return;
         pendingPreferencePlan = false;
         foodReplanPending = false;
         ensureCatalog(); status = "planning";
@@ -1171,6 +1191,7 @@ final class AutomationEngine {
         InventorySnapshot cookingInventory = cookingSources.isEmpty() ? inventory
                 : protectedFoodInventory(inventory);
         boolean debugPlanning = config.debugLogging;
+        Set<ItemId> logMaterials = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
         pendingPlan = CompletableFuture.supplyAsync(() -> {
             if (preparation != null && !cookingSources.isEmpty()) {
                 CatalogSnapshot cookingCatalog = filteredSnapshot.withOutputSources(preparation.item(), cookingSources);
@@ -1194,6 +1215,15 @@ final class AutomationEngine {
             if (project != null) {
                 ProjectPlanResult joint = planner.planProjectFast(filteredSnapshot, inventory, project,
                         PlannerLimits.DEFAULT, preferences);
+                List<String> originalGathers = debugPlanning ? joint.steps().stream()
+                        .filter(candidate -> candidate.kind() == PlanKind.GATHER)
+                        .map(candidate -> candidate.sourceId() + ":" + candidate.outputCount()).toList() : List.of();
+                joint = ProjectGatherBatch.consolidateInitialMaterial(planner, filteredSnapshot, inventory, joint,
+                        PlannerLimits.DEFAULT, preferences, logMaterials);
+                if (debugPlanning && joint.success()) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] PROJECT_MATERIALS project={} before={} after={}", project.name(), originalGathers,
+                        joint.steps().stream().filter(candidate -> candidate.kind() == PlanKind.GATHER)
+                                .map(candidate -> candidate.sourceId() + ":" + candidate.outputCount()).toList());
                 if (debugPlanning) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                         "[Lodekeeper] PLAN project={} success={} steps={} branches={} elapsedMs={}",
                         project.name(), joint.success(), joint.steps().size(), joint.expandedNodes(),
@@ -1225,6 +1255,10 @@ final class AutomationEngine {
                                 harvestOffer.estimates().minimumNetSavingTicks());
                         HarvestInvestment.Decision decision = HarvestInvestment.approve(filteredPlan, investmentPlan,
                                 harvestOffer.demand(), harvestOffer.localOutputs(), Set.of(CRAFTING_TABLE), adjustedEstimates);
+                        if (debugPlanning) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                                "[Lodekeeper] HARVEST_INVESTMENT approved={} tools={} remaining={} benefitTicks={} costTicks={} reason={}",
+                                decision.approved(), harvestOffer.demand().targetCount(), harvestOffer.demand().remainingBlocks(),
+                                decision.estimatedBenefitTicks(), decision.estimatedCostTicks(), decision.reason());
                         if (decision.approved()) return new PlanningOutcome(investmentPlan, false, true);
                     }
                 } catch (RuntimeException ignored) {
@@ -1295,8 +1329,22 @@ final class AutomationEngine {
         return free;
     }
 
+    private void rememberNativeLogTargets() {
+        if (step == null || step.kind() != PlanKind.GATHER || client.world == null) return;
+        Set<Block> blocks = new HashSet<>();
+        for (BlockId id : step.candidateBlocks()) {
+            Block block = Registries.BLOCK.get(GameApi.identifier(id.toString()));
+            if (block != Blocks.AIR) blocks.add(block);
+        }
+        for (BlockPos position : movement.knownMiningTargets()) {
+            if (!client.world.isChunkLoaded(position)) continue;
+            Block block = client.world.getBlockState(position).getBlock();
+            if (blocks.contains(block)) rememberDiscoveredSource(step.sourceId(), position, block);
+        }
+    }
+
     private HarvestOffer captureHarvestOffer(int remainingBlocks) {
-        if (remainingBlocks < 1 || logScan != null || logCandidates.isEmpty() || client.player == null
+        if (remainingBlocks < 1 || client.player == null
                 || !catalog.ready() || emptyMainInventorySlots() < MIN_FREE_SLOTS_FOR_WOOD_TOOL_OFFER) return null;
 
         ItemStack freshAxe = new ItemStack(Items.WOODEN_AXE);
@@ -1910,9 +1958,13 @@ final class AutomationEngine {
         stationDiscoveryDone = false;
         workbenchRecoveryChecked = false;
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
+        stepAuxiliaryInvestment = auxiliaryInvestment;
         lastMovementProgressToken = movement.progressToken();
         stepPreferencesVersion = plannedPreferencesVersion;
         status = (auxiliaryInvestment ? "preparing for task · " : "") + next.kind() + " " + next.sourceId();
+        if (config.debugLogging && next.kind() == PlanKind.SMELT)
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] SMELT_REQUIREMENTS source={} selected={}", next.sourceId(), next.requirements());
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] STEP kind={} source={} output={} count={} operations={} auxiliary={}",
                 next.kind(), next.sourceId(), next.output(), next.outputCount(), next.operationCount(), auxiliaryInvestment);
@@ -2598,7 +2650,12 @@ final class AutomationEngine {
         miningContinuation = null;
         stationRoom.stop();
         workbenchRecovery.stop(); recoveringWorkbench = null;
-        foodAcquisition.stop(); foodAcquisitionPending = false;
+        try { foodAcquisition.stop(); }
+        catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+            pauseAfterOwnershipLoss(failure);
+        }
+        foodAcquisitionPending = false;
         threats.stop(); equipment.stop(); food.stop(); foodReplanPending = false;
         ScreenHandler stationHandler = ownedStationHandler;
         boolean closeThisHandler = closeOwnedHandler && hasOwnedStationHandlerOpen();
@@ -2609,7 +2666,7 @@ final class AutomationEngine {
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
             crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
-            step = null; scan = null; localGatherReachScan = null;
+            step = null; stepAuxiliaryInvestment = false; scan = null; localGatherReachScan = null;
             target = null; stationApproachTarget = null; verifyTicks = 0;
             clearGatherAttempt();
             exploring = false; explorationMoving = false; explorationTicks = 0;
@@ -2620,10 +2677,27 @@ final class AutomationEngine {
         stationOpeningFrom = null;
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
+    private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        foodAcquisition.abandonNavigationOwnership();
+        if (pendingPlan != null) pendingPlan.cancel(false);
+        pendingPlan = null;
+        pendingPreferencePlan = false;
+        foodAcquisitionPending = false;
+        paused = true;
+        input.release();
+        status = failure.getMessage() + "; resume to reclaim navigation";
+        message("Paused: " + status);
+    }
+
     void pause(String reason) {
         healthRecovery = null;
         stationRoom.stop();
-        foodAcquisition.stop(); foodAcquisitionPending = false;
+        try { foodAcquisition.stop(); }
+        catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+            pauseAfterOwnershipLoss(failure);
+        }
+        foodAcquisitionPending = false;
         threats.stop(); equipment.stop(); food.stop(); movement.suspend();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
         paused = true;

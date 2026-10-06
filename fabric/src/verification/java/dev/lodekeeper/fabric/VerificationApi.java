@@ -107,6 +107,126 @@ final class VerificationApi {
         player.getHungerManager().setSaturationLevel(0.0F);
     }
 
+    static PreparedSafetyPursuitFixture seedPreparedSafetyPursuitFixture(ServerPlayerEntity player,
+                                                                          ServerWorld world) {
+        for (int x = -12; x <= 18; x++) for (int y = 64; y <= 67; y++) {
+            world.setBlockState(new BlockPos(x, y, -6), Blocks.BEDROCK.getDefaultState(), 3);
+            world.setBlockState(new BlockPos(x, y, 6), Blocks.BEDROCK.getDefaultState(), 3);
+        }
+        for (int z = -6; z <= 6; z++) for (int y = 64; y <= 67; y++) {
+            world.setBlockState(new BlockPos(-12, y, z), Blocks.BEDROCK.getDefaultState(), 3);
+            world.setBlockState(new BlockPos(18, y, z), Blocks.BEDROCK.getDefaultState(), 3);
+        }
+        if (!player.getInventory().insertStack(new ItemStack(Items.IRON_INGOT, 3))
+                || !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
+            throw new IllegalStateException("could not seed the pursuit bucket ingredients and crafting table");
+        }
+        player.getHungerManager().setFoodLevel(7);
+        player.getHungerManager().setSaturationLevel(0.0F);
+        CowEntity cow = new CowEntity(EntityType.COW, world);
+        cow.refreshPositionAndAngles(8.5, 64.0, 0.5, 180.0F, 0.0F);
+        if (!world.spawnEntity(cow)) throw new IllegalStateException("could not spawn the prepared pursuit cow");
+        return new PreparedSafetyPursuitFixture(cow, player.getHungerManager().getFoodLevel(),
+            player.getHungerManager().getSaturationLevel());
+    }
+
+    static void observePreparedSafetyPursuitTick(PreparedSafetyPursuitFixture fixture,
+                                                  ServerPlayerEntity player, int serverTick) {
+        fixture.observe(player, serverTick);
+    }
+
+    static Map<String, String> preparedSafetyPursuitReceipt(ServerPlayerEntity player,
+                                                              PreparedSafetyPursuitFixture fixture) {
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("cowUuid", fixture.cow.getUuid().toString());
+        result.put("cowInitialUuid", fixture.cowUuid);
+        result.put("cowAlive", Boolean.toString(fixture.cow.isAlive()));
+        result.put("cowRemoved", Boolean.toString(fixture.cow.isRemoved()));
+        result.put("cowInitialHealth", Float.toString(fixture.initialHealth));
+        result.put("cowHealth", Float.toString(fixture.cow.getHealth()));
+        result.put("cowHealthDropsObserved", Integer.toString(fixture.healthDrops));
+        result.put("pursuitObservationStarted", Boolean.toString(fixture.observationStartServerTick >= 0));
+        result.put("pursuitObservationStartServerTick", Integer.toString(fixture.observationStartServerTick));
+        result.put("pursuitObservationEndServerTick", Integer.toString(fixture.observationEndServerTick));
+        result.put("pursuitObservedServerTicks", Integer.toString(fixture.observedServerTicks));
+        result.put("cowObservationStartX", Double.toString(fixture.observationStartX));
+        result.put("cowObservationStartY", Double.toString(fixture.observationStartY));
+        result.put("cowObservationStartZ", Double.toString(fixture.observationStartZ));
+        result.put("cowCurrentX", Double.toString(fixture.cow.getX()));
+        result.put("cowCurrentY", Double.toString(fixture.cow.getY()));
+        result.put("cowCurrentZ", Double.toString(fixture.cow.getZ()));
+        result.put("cowMaximumHorizontalDisplacement", Double.toString(fixture.maximumHorizontalDisplacement));
+        result.put("maximumDistanceFromPlayerStart", Double.toString(fixture.maximumDistanceFromPlayerStart));
+        result.put("playerObservationStartX", Double.toString(fixture.playerObservationStartX));
+        result.put("playerObservationStartY", Double.toString(fixture.playerObservationStartY));
+        result.put("playerObservationStartZ", Double.toString(fixture.playerObservationStartZ));
+        result.put("playerCurrentX", Double.toString(player.getX()));
+        result.put("playerCurrentY", Double.toString(player.getY()));
+        result.put("playerCurrentZ", Double.toString(player.getZ()));
+        result.put("initialFoodLevel", Integer.toString(fixture.initialFoodLevel));
+        result.put("initialSaturation", Float.toString(fixture.initialSaturation));
+        result.put("currentFoodLevel", Integer.toString(player.getHungerManager().getFoodLevel()));
+        result.put("currentSaturation", Float.toString(player.getHungerManager().getSaturationLevel()));
+        return Map.copyOf(result);
+    }
+
+    static final class PreparedSafetyPursuitFixture {
+        private final CowEntity cow;
+        private final String cowUuid;
+        private final float initialHealth;
+        private final int initialFoodLevel;
+        private final float initialSaturation;
+        private volatile boolean observing;
+        private float lastObservedHealth;
+        private int healthDrops;
+        private int observationStartServerTick = -1;
+        private int observationEndServerTick = -1;
+        private int observedServerTicks;
+        private double observationStartX = Double.NaN, observationStartY = Double.NaN,
+            observationStartZ = Double.NaN;
+        private double playerObservationStartX = Double.NaN, playerObservationStartY = Double.NaN,
+            playerObservationStartZ = Double.NaN;
+        private double maximumHorizontalDisplacement;
+        private double maximumDistanceFromPlayerStart;
+
+        private PreparedSafetyPursuitFixture(CowEntity cow, int initialFoodLevel, float initialSaturation) {
+            this.cow = cow;
+            cowUuid = cow.getUuid().toString();
+            initialHealth = cow.getHealth();
+            lastObservedHealth = initialHealth;
+            this.initialFoodLevel = initialFoodLevel;
+            this.initialSaturation = initialSaturation;
+        }
+
+        void beginObservation() { observing = true; }
+
+        private void observe(ServerPlayerEntity player, int serverTick) {
+            if (!observing) return;
+            if (observationStartServerTick < 0) {
+                observationStartServerTick = serverTick;
+                observationStartX = cow.getX();
+                observationStartY = cow.getY();
+                observationStartZ = cow.getZ();
+                playerObservationStartX = player.getX();
+                playerObservationStartY = player.getY();
+                playerObservationStartZ = player.getZ();
+            }
+            float health = cow.getHealth();
+            if (health < lastObservedHealth - 0.001F) healthDrops++;
+            lastObservedHealth = health;
+            double dx = cow.getX() - observationStartX;
+            double dz = cow.getZ() - observationStartZ;
+            maximumHorizontalDisplacement = Math.max(maximumHorizontalDisplacement, Math.sqrt(dx * dx + dz * dz));
+            double playerDx = cow.getX() - playerObservationStartX;
+            double playerDy = cow.getY() - playerObservationStartY;
+            double playerDz = cow.getZ() - playerObservationStartZ;
+            maximumDistanceFromPlayerStart = Math.max(maximumDistanceFromPlayerStart,
+                Math.sqrt(playerDx * playerDx + playerDy * playerDy + playerDz * playerDz));
+            observationEndServerTick = serverTick;
+            observedServerTicks++;
+        }
+    }
+
     static void seedPreparedSafetyIngredients(ServerPlayerEntity player) {
         if (!player.getInventory().insertStack(new ItemStack(Items.OAK_LOG, 2))
                 || !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {

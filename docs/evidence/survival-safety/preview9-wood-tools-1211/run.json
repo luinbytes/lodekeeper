@@ -1,0 +1,32 @@
+{
+  "runId":"2026-10-06T09-38-30-108997Z-89bedd32",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":false,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":null,
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"bulk_wood",
+  "elapsedMillis":166915,
+  "clientTicks":3221,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"bulk_wood_64","item":"minecraft:oak_log","expected":64,"serverObserved":64,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":2990,"worldTicks":2990,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[72.25491742054105,64.0,0.5010255348914064],"screenshot":"screenshots/lodekeeper-2026-10-06T09-38-30-108997Z-89bedd32-bulk_wood_64.png","elapsedMillisFromCommand":149507,"completionClientTick":3201,"completionWorldTick":3075,"completionHealth":20.0,"finalOakLogCount":64,"fullServerInventory":{"minecraft:crafting_table":1,"minecraft:oak_log":64,"minecraft:wooden_axe":2},"woodenAxeRemainingDurabilityPerStack":[1,52]}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":80,
+  "woodToolsFlag":true,
+  "woodToolsEnabled":true,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

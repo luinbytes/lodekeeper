@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T10-03-21-056424Z-86c34b53",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"pursuit",
+  "evidenceAuthority":"integrated_server_inventory_hunger_entity_health_and_motion",
+  "verificationMode":"prepared_safety_pursuit",
+  "elapsedMillis":29507,
+  "clientTicks":481,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "preparedSafetyFixtureGrants":"3 iron ingots, one crafting table, food level 7, one normal-AI cow, bounded bedrock pen",
+  "cases":[
+    {"name":"prepared_moving_food_pursuit_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":265,"worldTicks":265,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the integrated server recorded 10 native cow health drops and 8.623183129302301 blocks of target movement, then received food and crafted the bucket from the three supplied iron ingots with an empty cursor and idle cancelled navigation","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":7,"serverFoodLevelObserved":10,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[14.402145381223855,64.0,4.009270365034733],"screenshot":"screenshots/lodekeeper-2026-10-06T10-03-21-056424Z-86c34b53-prepared_moving_food_pursuit_bucket.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:iron_ingot":3},"finalStorageInventory":{"minecraft:bucket":1,"minecraft:leather":2},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:leather":2},"elapsedMillisFromCommand":13272,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{"cowAlive":"true","cowCurrentX":"8.5","cowCurrentY":"64.0","cowCurrentZ":"0.5","cowHealth":"10.0","cowHealthDropsObserved":"0","cowInitialHealth":"10.0","cowInitialUuid":"6a969484-e807-4456-92e4-8cfef418c7e4","cowMaximumHorizontalDisplacement":"0.0","cowObservationStartX":"NaN","cowObservationStartY":"NaN","cowObservationStartZ":"NaN","cowRemoved":"false","cowUuid":"6a969484-e807-4456-92e4-8cfef418c7e4","currentFoodLevel":"7","currentSaturation":"0.0","initialFoodLevel":"7","initialSaturation":"0.0","maximumDistanceFromPlayerStart":"0.0","playerCurrentX":"0.5","playerCurrentY":"64.0","playerCurrentZ":"0.5","playerObservationStartX":"NaN","playerObservationStartY":"NaN","playerObservationStartZ":"NaN","pursuitObservationEndServerTick":"-1","pursuitObservationStartServerTick":"-1","pursuitObservationStarted":"false","pursuitObservedServerTicks":"0"},"serverPreparedPursuitReceipt":{"cowAlive":"false","cowCurrentX":"15.48976302610342","cowCurrentY":"64.0","cowCurrentZ":"5.550000011920929","cowHealth":"0.0","cowHealthDropsObserved":"10","cowInitialHealth":"10.0","cowInitialUuid":"6a969484-e807-4456-92e4-8cfef418c7e4","cowMaximumHorizontalDisplacement":"8.623183129302301","cowObservationStartX":"8.5","cowObservationStartY":"64.0","cowObservationStartZ":"0.5","cowRemoved":"true","cowUuid":"6a969484-e807-4456-92e4-8cfef418c7e4","currentFoodLevel":"10","currentSaturation":"1.8000001","initialFoodLevel":"7","initialSaturation":"0.0","maximumDistanceFromPlayerStart":"15.817569209557407","playerCurrentX":"14.402145381223855","playerCurrentY":"64.0","playerCurrentZ":"4.009270365034733","playerObservationStartX":"0.5","playerObservationStartY":"64.0","playerObservationStartZ":"0.5","pursuitObservationEndServerTick":"349","pursuitObservationStartServerTick":"86","pursuitObservationStarted":"true","pursuitObservedServerTicks":"264"}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

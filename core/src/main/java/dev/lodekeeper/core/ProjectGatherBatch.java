@@ -11,6 +11,47 @@ import java.util.function.LongSupplier;
 public final class ProjectGatherBatch {
     private ProjectGatherBatch() { }
 
+    public static ProjectPlanResult consolidateInitialMaterial(AcquisitionPlanner planner, CatalogSnapshot catalog,
+                                                               InventorySnapshot inventory, ProjectPlanResult original,
+                                                               PlannerLimits limits, PlanningPreferences preferences,
+                                                               Set<ItemId> materialFamily) {
+        if (!original.success() || original.steps().isEmpty()) return original;
+        PlanStep first = original.steps().get(0);
+        if (first.kind() != PlanKind.GATHER || !materialFamily.contains(first.output())) return original;
+        boolean mixed = original.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER
+                && materialFamily.contains(step.output()) && !step.sourceId().equals(first.sourceId()));
+        if (!mixed) return original;
+
+        Set<ItemId> outputs = new HashSet<>();
+        for (GatherSource source : catalog.gatherSources())
+            if (materialFamily.contains(source.output())) outputs.add(source.output());
+        if (outputs.size() > 64) return original;
+        CatalogSnapshot restricted = catalog;
+        try {
+            for (ItemId output : outputs) {
+                List<AcquisitionSource> sources = catalog.sourcesFor(output).stream()
+                        .filter(source -> !(source instanceof GatherSource) || source.sourceId().equals(first.sourceId()))
+                        .toList();
+                restricted = restricted.withOutputSources(output, sources);
+            }
+        } catch (IllegalArgumentException | IllegalStateException viewCapacity) {
+            return original;
+        }
+        ProjectPlanResult consolidated = planner.planProjectFast(restricted, inventory, original.project(), limits, preferences);
+        if (!consolidated.success() || consolidated.steps().isEmpty()
+                || !consolidated.steps().get(0).sourceId().equals(first.sourceId())
+                || gatherOperations(consolidated.steps()) > gatherOperations(original.steps()))
+            return original;
+        return new ProjectPlanResult(original.project(), consolidated.steps(), List.of(), false,
+                Math.addExact(original.expandedNodes(), consolidated.expandedNodes()),
+                Math.addExact(original.elapsedNanos(), consolidated.elapsedNanos()));
+    }
+
+    private static long gatherOperations(List<PlanStep> steps) {
+        return steps.stream().filter(step -> step.kind() == PlanKind.GATHER)
+                .mapToLong(PlanStep::operationCount).sum();
+    }
+
     public static PlanStep firstStep(AcquisitionPlanner planner, CatalogSnapshot catalog,
                                      InventorySnapshot inventory, List<PlanStep> steps,
                                      PlannerLimits limits, PlanningPreferences preferences,

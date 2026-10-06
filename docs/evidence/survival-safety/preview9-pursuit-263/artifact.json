@@ -1,0 +1,21 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.9.jar",
+  "artifactSha256": "9295cd74db8deb28f6ecae860b48ab004bac8c3405d37ffc30152c8f8ab5f13c",
+  "sourceCommit": null,
+  "sourceTreeState": "worktree",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=pursuit",
+    "-Dlodekeeper.verify.candidateSha256=9295cd74db8deb28f6ecae860b48ab004bac8c3405d37ffc30152c8f8ab5f13c"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview9-pursuit-strict-263-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

@@ -3,7 +3,7 @@
   "id": "lodekeeper",
   "version": "${version}",
   "name": "Lodekeeper",
-  "description": "Goal-driven survival automation with independent navigation.",
+  "description": "Goal-driven client survival automation with Baritone navigation.",
   "environment": "client",
   "license": "MIT",
   "mixins": ["lodekeeper.mixins.json"],

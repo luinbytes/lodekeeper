@@ -18,6 +18,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.Consumable;
 import net.minecraft.world.item.consume_effects.PlaySoundConsumeEffect;
 import net.minecraft.world.level.entity.EntityTypeTest;
+
 import net.minecraft.world.phys.AABB;
 
 import java.lang.ref.WeakReference;
@@ -37,7 +38,7 @@ final class PassiveFoodAction {
     private static final long MAX_DURATION_NANOS = 60_000_000_000L;
     private static final long FAILED_APPROACH_COOLDOWN_NANOS = 30_000_000_000L;
     private static final int MAX_FAILED_APPROACHES = 128;
-    private static final int MAX_APPROACHES = 4;
+    private static final int MAX_FAILED_ROUTES = 4;
     private static final int MAX_ATTACKS = 32;
     private static final Map<UUID, Long> FAILED_APPROACH_UNTIL = new LinkedHashMap<>();
     private static WeakReference<Object> cooldownWorld = new WeakReference<>(null);
@@ -73,7 +74,8 @@ final class PassiveFoodAction {
     private double originZ;
     private long startedAtNanos;
     private int approachCount;
-    private int approachRadius = 1;
+    private int failedRouteCount;
+    private float observedTargetHealth;
     private int attackCount;
     private int originalSlot = -1;
     private int selectedSlot = -1;
@@ -82,8 +84,6 @@ final class PassiveFoodAction {
     private boolean recoveryMode;
     private Object owningPlayer;
     private Object actionWorld;
-    private BlockPos approachGoal;
-    private BlockPos completedApproachGoal;
 
     PassiveFoodAction(Minecraft client, LodekeeperConfig config, PlayerActions actions,
                       MovementController movement) {
@@ -153,13 +153,12 @@ final class PassiveFoodAction {
         startingFoodCounts = snapshotFoodCounts(target.meat());
         startedAtNanos = System.nanoTime();
         approachCount = 0;
-        approachRadius = 1;
+        failedRouteCount = 0;
+        observedTargetHealth = target.entity().getHealth();
         attackCount = 0;
         attacked = false;
         deathPosition = null;
         acquiredFood = null;
-        approachGoal = null;
-        completedApproachGoal = null;
         recoveryMode = recovery;
         owningPlayer = player;
         actionWorld = currentWorld();
@@ -196,6 +195,16 @@ final class PassiveFoodAction {
                 throw new IllegalStateException("passive food route exceeded 32 blocks from its start");
             }
 
+            if (attacked && target != null) {
+                float health = target.entity().getHealth();
+                if (Float.isFinite(health) && health < observedTargetHealth) {
+                    observedTargetHealth = health;
+                    failedRouteCount = 0;
+                    movement.recordConfirmedWorldAction();
+                    logPursuit("health-progress");
+                }
+            }
+
             return switch (phase) {
                 case APPROACH -> tickApproach();
                 case STOPPING_FOR_ATTACK -> tickStoppingForAttack();
@@ -211,10 +220,22 @@ final class PassiveFoodAction {
         }
     }
 
+    void abandonNavigationOwnership() {
+        recoveryMode = false;
+        clearOwnership();
+        phase = Phase.STOPPED;
+        status = "passive food action lost movement ownership";
+    }
+
     void stop() {
         recoveryMode = false;
         if (!active()) { clearOwnership(); return; }
-        boolean cancelled = cancelMovement();
+        boolean cancelled;
+        try {
+            cancelled = cancelMovement();
+        } catch (MovementController.NavigationFailure failure) {
+            throw abort("passive food action lost movement ownership", failure);
+        }
         restoreSelection();
         clearOwnership();
         phase = Phase.STOPPED;
@@ -225,39 +246,45 @@ final class PassiveFoodAction {
     String status() { return status; }
 
     private boolean tickApproach() {
+        if (targetDead() && attacked) {
+            movement.stop();
+            phase = Phase.STOPPING_FOR_ATTACK;
+            status = "stopping pursuit after the native attack";
+            return false;
+        }
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal changed or became unsafe before attack");
         if (canHitTarget()) {
-            completedApproachGoal = null;
+            logPursuit("in-reach");
             movement.stop();
             phase = Phase.STOPPING_FOR_ATTACK;
             status = "stopping movement before attack";
             return false;
         }
-        if (!movement.tick()) return false;
-        completedApproachGoal = approachGoal;
+        try {
+            if (!movement.tick()) return false;
+        } catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.PROCESS_ENDED) throw failure;
+        }
+        failedRouteCount++;
+        logPursuit("route-failed");
         movement.stop();
         phase = Phase.STOPPING_FOR_ATTACK;
-        status = "waiting for movement cancellation";
+        status = "waiting for movement cancellation before retrying pursuit";
         return false;
     }
 
     private boolean tickStoppingForAttack() {
         movement.stop();
         if (!movement.finishCancellation()) return false;
+        if (targetDead() && attacked) {
+            beginCollection();
+            return false;
+        }
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal changed or became unsafe before attack");
         if (canHitTarget()) {
-            completedApproachGoal = null;
             phase = Phase.ATTACK;
             status = "attacking " + target.meat().animal();
             return false;
-        }
-        if (completedApproachGoal != null) {
-            BlockPos currentGoal = target.entity().blockPosition();
-            if (approachRadius == 0 && currentGoal.equals(completedApproachGoal)) {
-                failUnreachableTarget();
-            }
-            approachRadius = 0;
-            completedApproachGoal = null;
         }
         startApproach();
         return false;
@@ -275,20 +302,28 @@ final class PassiveFoodAction {
             return false;
         }
         if (attackCount >= MAX_ATTACKS) throw new IllegalStateException("native attacks made no verified progress");
-        if (client.player.getAttackStrengthScale(0.0f) < 1.0f) {
+        int currentSlot = client.player.getInventory().getSelectedSlot();
+        int attackSlot = chooseWeaponSlot(currentSlot);
+        if (attackSlot < 0) throw new IllegalStateException("no safe attack stack remains available");
+        if (currentSlot != attackSlot || selectedSlot != attackSlot) {
+            if (!actions.selectSlot(attackSlot))
+                throw new IllegalStateException("could not safely select the attack stack");
+            selectedSlot = client.player.getInventory().getSelectedSlot();
+            status = "waiting for the selected attack stack";
+            return false;
+        }
+        // Native hand attributes and attack cooldown must observe a new slot on the next tick.
+        if (!(client.player.getAttackStrengthScale(0.0f) >= 1.0f)) {
             status = "waiting for native attack cooldown";
             return false;
         }
 
-        int attackSlot = chooseWeaponSlot(client.player.getInventory().getSelectedSlot());
-        if (attackSlot < 0 || !actions.selectSlot(attackSlot))
-            throw new IllegalStateException("no safe attack stack remains available");
-        selectedSlot = client.player.getInventory().getSelectedSlot();
         actions.look(target.entity().getBoundingBox().getCenter());
         client.gameMode.attack(client.player, target.entity());
         GameApi.swing(client.player, InteractionHand.MAIN_HAND);
         attacked = true;
         attackCount++;
+        logPursuit("native-attack");
         status = "attacking " + target.meat().animal() + " (" + attackCount + ")";
         return false;
     }
@@ -353,16 +388,16 @@ final class PassiveFoodAction {
     }
 
     private void startApproach() {
-        if (approachCount >= MAX_APPROACHES) failUnreachableTarget();
+        if (failedRouteCount >= MAX_FAILED_ROUTES) failUnreachableTarget();
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal is no longer safe to approach");
         if (!withinOrigin(target.entity().getX(), target.entity().getY(), target.entity().getZ())) {
             throw new IllegalStateException("tracked animal moved beyond the 32-block action limit");
         }
-        approachGoal = target.entity().blockPosition();
-        movement.start(approachGoal, approachRadius);
+        movement.startFollowing(target.entity(), animal -> target != null && animal == target.entity() && targetStillEligible());
         approachCount++;
         phase = Phase.APPROACH;
-        status = "approaching " + target.meat().animal() + " (" + approachCount + ")";
+        status = "pursuing " + target.meat().animal() + " (" + approachCount + ")";
+        logPursuit("start");
     }
 
     private boolean canHitTarget() {
@@ -379,18 +414,33 @@ final class PassiveFoodAction {
     }
 
     private void logApproachFailure() {
+        if (!config.debugLogging) return;
+        logPursuit("failed");
         var player = client.player;
         var animal = target.entity();
-        var eye = player.getEyePosition();
-        AABB box = animal.getBoundingBox();
-        double dx = Math.max(box.minX - eye.x, Math.max(0.0, eye.x - box.maxX));
-        double dy = Math.max(box.minY - eye.y, Math.max(0.0, eye.y - box.maxY));
-        double dz = Math.max(box.minZ - eye.z, Math.max(0.0, eye.z - box.maxZ));
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] FOOD_APPROACH_FAILED approaches={} playerFeet=({},{},{}) animalFeet=({},{},{}) closestBoxDistance={} lineOfSight={}",
                 approachCount, round2(player.getX()), round2(player.getY()), round2(player.getZ()),
                 round2(animal.getX()), round2(animal.getY()), round2(animal.getZ()),
-                round2(Math.sqrt(dx * dx + dy * dy + dz * dz)), player.hasLineOfSight(animal));
+                round2(Math.sqrt(closestBoxDistanceSquared(animal))), player.hasLineOfSight(animal));
+    }
+
+    private double closestBoxDistanceSquared(Animal animal) {
+        var box = animal.getBoundingBox();
+        var eye = client.player.getEyePosition();
+        double dx = Math.max(box.minX - eye.x, Math.max(0.0, eye.x - box.maxX));
+        double dy = Math.max(box.minY - eye.y, Math.max(0.0, eye.y - box.maxY));
+        double dz = Math.max(box.minZ - eye.z, Math.max(0.0, eye.z - box.maxZ));
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private void logPursuit(String event) {
+        if (!config.debugLogging || target == null || client.player == null) return;
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] FOOD_PURSUIT event={} target={} routes={} failedRoutes={} attacks={} health={} closestBoxDistance={} elapsedMs={}",
+                event, target.entity().getUUID(), approachCount, failedRouteCount, attackCount,
+                target.entity().getHealth(), round2(Math.sqrt(closestBoxDistanceSquared(target.entity()))),
+                (System.nanoTime() - startedAtNanos) / 1_000_000L);
     }
 
     private static double round2(double value) {
@@ -400,7 +450,9 @@ final class PassiveFoodAction {
     private boolean targetStillEligible() {
         if (target == null) return false;
         Animal animal = target.entity();
-        return !targetDead() && eligible(animal) && profileFor(animal) == target.meat()
+        return actionWorld == currentWorld() && client.level != null
+                && client.level.getEntity(animal.getId()) == animal
+                && !targetDead() && eligible(animal) && profileFor(animal) == target.meat()
                 && withinOrigin(animal.getX(), animal.getY(), animal.getZ());
     }
 
@@ -567,13 +619,23 @@ final class PassiveFoodAction {
     }
 
     private IllegalStateException abort(String reason, RuntimeException cause) {
-        boolean cancelled = cancelMovement();
-        restoreSelection();
+        logPursuit("abort");
+        boolean cancelled;
+        try {
+            cancelled = cancelMovement();
+        } catch (MovementController.NavigationFailure failure) {
+            cause = failure;
+            cancelled = true;
+        }
+        boolean ownershipLost = cause instanceof MovementController.NavigationFailure failure
+                && failure.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST;
+        if (!ownershipLost) restoreSelection();
         recoveryMode = false;
         clearOwnership();
         phase = Phase.STOPPED;
         if (!cancelled) reason += "; movement cancellation remains pending";
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
+        if (ownershipLost) return (MovementController.NavigationFailure) cause;
         return cause == null ? new IllegalStateException(status) : new IllegalStateException(status, cause);
     }
 
@@ -588,6 +650,9 @@ final class PassiveFoodAction {
         try {
             movement.stop();
             return movement.finishCancellation();
+        } catch (MovementController.NavigationFailure failure) {
+            if (failure.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+            return false;
         } catch (RuntimeException ignored) {
             return false;
         }

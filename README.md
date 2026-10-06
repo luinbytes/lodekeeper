@@ -31,7 +31,7 @@ Watch the planned path and target while it works. The compact panel shows the cu
 
 Lodekeeper also writes a short progress trace to the launcher console and your instance's `logs/latest.log`. If a task stalls, copy the `[Lodekeeper]` lines from `BEGIN` through the latest `PROGRESS` or `task_end`. They include the task, elapsed time, navigation phase, route events, and retries. Logging is enabled by default; use `!lk config debugLogging false` to turn it off.
 
-For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
+For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; Preview 8 defaults it to off. Current development builds default it to on; saved configurations retain their previous value. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
 `wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.
 

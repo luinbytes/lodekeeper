@@ -286,4 +286,22 @@ final class VerificationApi {
             return VerificationContentInitializer.geometryBlockFull ? VoxelShapes.fullCube() : VoxelShapes.empty();
         }
     }
+    static PreparedSafetyPursuitFixture seedPreparedSafetyPursuitFixture(ServerPlayerEntity player, ServerWorld world) {
+        throw new UnsupportedOperationException("Moving-food pursuit verification is limited to Minecraft 1.21.1 and 26.3");
+    }
+
+    static void observePreparedSafetyPursuitTick(PreparedSafetyPursuitFixture fixture, ServerPlayerEntity player, int serverTick) {
+        throw new UnsupportedOperationException("Moving-food pursuit verification is unavailable in this profile");
+    }
+
+    static Map<String, String> preparedSafetyPursuitReceipt(ServerPlayerEntity player, PreparedSafetyPursuitFixture fixture) {
+        throw new UnsupportedOperationException("Moving-food pursuit verification is unavailable in this profile");
+    }
+
+    static final class PreparedSafetyPursuitFixture {
+        void beginObservation() {
+            throw new UnsupportedOperationException("Moving-food pursuit verification is unavailable in this profile");
+        }
+    }
+
 }

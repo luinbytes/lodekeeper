@@ -22,6 +22,8 @@ import dev.lodekeeper.nav.StanceProbe;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
 import net.minecraft.util.math.BlockPos;
@@ -30,11 +32,12 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.ChunkStatus;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 /** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
     record RetreatThreat(double x, double z) { }
-    private enum Mode { IDLE, MOVE, MINE, DESCEND, PICKUP, SUSPENDED }
+    private enum Mode { IDLE, MOVE, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
@@ -42,7 +45,7 @@ final class MovementController {
     private final GameTerrain terrain;
     private IBaritone bot;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
-    private boolean cancelling;
+    private boolean cancelling, followCancellationPending;
     private baritone.api.pathing.goals.Goal routeGoal;
     private dev.lodekeeper.nav.Goal diagnosticGoal;
     private Block[] mineBlocks = new Block[0];
@@ -52,6 +55,9 @@ final class MovementController {
     private Set<Item> reserved = Set.of();
     private Set<Block> protectedBlocks = Set.of();
     private SettingsLease lease;
+    private UUID followTargetId;
+    private Object followOwnerWorld, followOwnerPlayer;
+    private Predicate<Entity> followFilter;
     private long progressToken, startedNanos;
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
@@ -62,7 +68,7 @@ final class MovementController {
     private final Set<BlockPos> rejectedMiningTargets = new LinkedHashSet<>();
     private final Set<BlockPos> discoveredMiningTargets = new LinkedHashSet<>();
     private final Set<BlockPos> pendingMiningTargets = new LinkedHashSet<>();
-    private NavigationFailure pendingBreakFailure;
+    private NavigationFailure pendingBreakFailure, pendingOwnershipFailure;
     private BlockPos lastLoggedBreakPosition, miningTarget;
     private Item lastLoggedBreakTool;
     private List<Item> scaffoldItems = List.of();
@@ -76,7 +82,7 @@ final class MovementController {
     }
 
     static final class NavigationFailure extends IllegalStateException {
-        enum Kind { TOOL, PROCESS_ENDED, REQUEST_LIMIT, PROTECTED_BLOCK, OTHER }
+        enum Kind { TOOL, PROCESS_ENDED, OWNERSHIP_LOST, REQUEST_LIMIT, PROTECTED_BLOCK, OTHER }
         final Kind kind;
         final MiningRequestLimit requestLimit;
         NavigationFailure(String reason) { this(Kind.OTHER, reason); }
@@ -169,6 +175,20 @@ final class MovementController {
         launch();
     }
 
+    void startFollowing(AnimalEntity animal, Predicate<AnimalEntity> eligible) {
+        Objects.requireNonNull(animal);
+        Objects.requireNonNull(eligible);
+        prepare();
+        followTargetId = animal.getUuid();
+        followOwnerWorld = client.world;
+        followOwnerPlayer = client.player;
+        followFilter = entity -> mode == Mode.FOLLOW && client.world == followOwnerWorld
+                && client.player == followOwnerPlayer && entity instanceof AnimalEntity candidate
+                && candidate.getUuid().equals(followTargetId) && eligible.test(candidate);
+        mode = Mode.FOLLOW;
+        launch();
+    }
+
     void startPickup(ItemEntity item) {
         prepare(); output = item.getStack().getItem(); targetCount = actions.count(output) + 1;
         BlockPos position = item.getBlockPos();
@@ -252,6 +272,12 @@ final class MovementController {
         switch (mode) {
             case MOVE -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
             case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.isOf(output));
+            case FOLLOW -> {
+                lease.set(settings.followRadius, 1);
+                lease.set(settings.followOffsetDistance, 0.0);
+                lease.set(settings.followTargetMaxDistance, 64);
+                bot.getFollowProcess().follow(followFilter);
+            }
             case DESCEND -> bot.getCustomGoalProcess().setGoalAndPath(new GoalYLevel(miningY));
             case MINE -> {
                 lease.set(settings.legitMineYLevel, miningY == Integer.MIN_VALUE ? (int) Math.floor(client.player.getY()) : miningY);
@@ -282,8 +308,14 @@ final class MovementController {
     }
 
     boolean tick() {
+        checkFollowOwnership();
         if (mode == Mode.IDLE && !cancelling) return true;
         if (client.player == null || client.world == null) { stop(); return false; }
+        if ((mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW)
+                && (client.world != followOwnerWorld || client.player != followOwnerPlayer)) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Follow owner player or world changed");
+        }
         if (mode != Mode.IDLE || resumeMode != Mode.IDLE) requestTicks++;
         boolean miningRequest = mode == Mode.MINE || mode == Mode.DESCEND
                 || mode == Mode.SUSPENDED && (resumeMode == Mode.MINE || resumeMode == Mode.DESCEND);
@@ -328,7 +360,7 @@ final class MovementController {
         actions.prepareScaffoldHotbar(scaffoldItems);
         boolean satisfied = mode == Mode.MOVE
                 ? routeGoal.isInGoal(client.player.getBlockPos())
-                : actions.count(output) >= targetCount;
+                : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
         if (satisfied) { stop(); return finishCancellation(); }
         if (mode == Mode.DESCEND && new GoalYLevel(miningY).isInGoal(client.player.getBlockPos())) {
             changeMiningPhase(Mode.MINE);
@@ -337,9 +369,13 @@ final class MovementController {
         boolean active = switch (mode) {
             case MOVE, DESCEND -> bot.getCustomGoalProcess().isActive();
             case MINE -> bot.getMineProcess().isActive();
-            case PICKUP -> bot.getFollowProcess().isActive();
+            case PICKUP, FOLLOW -> bot.getFollowProcess().isActive();
             default -> false;
         };
+        if (mode == Mode.FOLLOW && failedCalculations >= 4) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Follow route exhausted four native path calculations");
+        }
         var pathing = bot.getPathingBehavior();
         boolean waiting = !pathing.hasPath() && pathing.getInProgress().isEmpty();
         boolean exploring = mode == Mode.MINE && active && pathing.getGoal() instanceof GoalRunAway
@@ -494,6 +530,8 @@ final class MovementController {
 
     /** Native destroy HEAD gate: runs before the selected-slot sync and destroy packet. */
     boolean prepareAutomatedBreak(BlockPos position) {
+        if (foreignFollowOwnsProcess()) pendingOwnershipFailure = releaseLostFollowOwnership();
+        if (pendingOwnershipFailure != null) return true;
         if (lease == null || bot == null
                 || !bot.getInputOverrideHandler().isInputForcedDown(baritone.api.utils.input.Input.CLICK_LEFT)) return true;
         if (cancelling || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
@@ -528,12 +566,21 @@ final class MovementController {
     }
 
     void suspend() {
+        checkFollowOwnership();
         if (mode == Mode.IDLE || mode == Mode.SUSPENDED) return;
+        followCancellationPending = mode == Mode.FOLLOW;
         resumeMode = mode; mode = Mode.SUSPENDED;
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
 
     void stop() {
+        checkFollowOwnership();
+        followCancellationPending |= mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW;
+        if (bot != null && followFilter != null && bot.getFollowProcess().currentFilter() == followFilter)
+            bot.getFollowProcess().cancel();
+        followFilter = null;
+        followTargetId = null;
+        followOwnerWorld = followOwnerPlayer = null;
         resumeMode = Mode.IDLE;
         if (bot != null && (mode != Mode.IDLE || cancelling || lease != null)) {
             mode = Mode.IDLE;
@@ -545,7 +592,42 @@ final class MovementController {
         input.release(); observation = NavigationSnapshot.EMPTY; miningTarget = null;
     }
 
+    private void checkFollowOwnership() {
+        if (pendingOwnershipFailure != null) {
+            NavigationFailure failure = pendingOwnershipFailure;
+            pendingOwnershipFailure = null;
+            throw failure;
+        }
+        if (foreignFollowOwnsProcess()) throw releaseLostFollowOwnership();
+    }
+
+    private boolean foreignFollowOwnsProcess() {
+        if (bot == null || mode != Mode.FOLLOW && resumeMode != Mode.FOLLOW && !followCancellationPending)
+            return false;
+        Predicate<Entity> current = bot.getFollowProcess().currentFilter();
+        return current != null && current != followFilter;
+    }
+
+    private NavigationFailure releaseLostFollowOwnership() {
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] FOOD_PURSUIT event=ownership-lost target={}", followTargetId);
+        followFilter = null;
+        followTargetId = null;
+        followOwnerWorld = followOwnerPlayer = null;
+        mode = resumeMode = Mode.IDLE;
+        cancelling = followCancellationPending = false;
+        input.release();
+        observation = NavigationSnapshot.EMPTY;
+        miningTarget = null;
+        routeGoal = null;
+        diagnosticGoal = null;
+        if (lease != null) { lease.restore(); lease = null; }
+        return new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST,
+                "Native follow process changed owner");
+    }
+
     boolean finishCancellation() {
+        checkFollowOwnership();
         if (!cancelling) return true;
         var pathing = bot.getPathingBehavior();
         boolean hasWork = pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent();
@@ -559,7 +641,7 @@ final class MovementController {
                     || velocity.x * velocity.x + velocity.z * velocity.z > .0004)) return false;
         }
         if (lease != null) { lease.restore(); lease = null; }
-        cancelling = false; observation = NavigationSnapshot.EMPTY;
+        cancelling = followCancellationPending = false; observation = NavigationSnapshot.EMPTY;
         if (mode == Mode.IDLE && resumeMode == Mode.IDLE && routeGoal instanceof GoalComposite) {
             terrain.beginSearch();
             routeGoal = null;
@@ -590,12 +672,26 @@ final class MovementController {
         }
     }
 
+    List<BlockPos> knownMiningTargets() {
+        if (mode != Mode.MINE || bot == null || !bot.getMineProcess().isActive()) return List.of();
+        Set<BlockPos> known = new LinkedHashSet<>();
+        int inspected = 0;
+        for (BlockPos position : miningAccess().lodekeeper$knownMiningTargets()) {
+            if (inspected++ >= 512) break;
+            if (position != null && !rejectedMiningTargets.contains(position)) known.add(position.toImmutable());
+        }
+        return List.copyOf(known);
+    }
+
     boolean canReconsiderMiningSource() {
         return mode == Mode.MINE && requestTicks - lastBreakTick > 20;
     }
 
     long progressToken() { return progressToken; }
-    void recordConfirmedWorldAction() { progressToken++; }
+    void recordConfirmedWorldAction() {
+        progressToken++;
+        if (mode == Mode.FOLLOW) failedCalculations = 0;
+    }
     void observeConfirmedProgress() {
         if (client.player == null) return;
         double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
@@ -658,6 +754,7 @@ final class MovementController {
         if (mode == Mode.MINE || mode == Mode.DESCEND) return (mode == Mode.DESCEND ? "seeking mining depth " + miningY + " for " : "mining and collecting ") + output + " · " + actions.count(output) + "/" + targetCount
                 + (observation.searching() ? " · planning next route" : "");
         if (mode == Mode.PICKUP) return "collecting dropped " + output;
+        if (mode == Mode.FOLLOW) return "following the tracked animal";
         return observation.searching() ? "planning route" : "following route";
     }
 

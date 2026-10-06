@@ -30,7 +30,7 @@ public final class LodekeeperConfig {
     public boolean autoEat = true;
     public boolean autoEquipArmor = true;
     public boolean autoDefend = true;
-    public boolean optimizeWoodTools = false;
+    public boolean optimizeWoodTools = true;
     public boolean showPath = true;
     public boolean showSearch = false;
     public boolean showHud = true;

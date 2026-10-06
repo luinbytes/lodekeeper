@@ -27,6 +27,8 @@ Prepared native checks pass water retreat on 1.21.1 and 26.3, plus selected 26.3
 
 The [normal-survival full diamond run](evidence/navigation-rebuild/checkpoint-07.json) fails its 15-minute target with all four armor pieces equipped and three of five diamond tools complete. Moving-animal pursuit and portable crafting supplies need further work. Ordinary-launcher, remote-server and broader version gameplay acceptance remain pending.
 
+Current development jars pass prepared native moving-animal pursuit and the repaired 64-log tool investment on 1.21.1 and 26.3. [Pursuit receipts](evidence/survival-safety/preview9-pursuit-1211/run.json) include server health, hunger, actual target movement, crafted output and stopped navigation. [Wood receipts](evidence/survival-safety/preview9-wood-tools-1211/run.json) include exact stock and axe wear. These working-tree candidates have not passed the fresh-world full diamond project.
+
 ## What a check proves
 
 - Core/JUnit: dependency quantities, tool/material reservations, cycle handling, deterministic search bounds, command caps.
