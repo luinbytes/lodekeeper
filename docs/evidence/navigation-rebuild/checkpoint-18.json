@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "a73679b13880f9bded9c01ae3d444db997b8a13d",
+  "candidateSha256": "24edd202dd50e478e3eb67a747cbae743f743860f17972cc1b4dd3b6bc816065",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37498575499",
+  "minecraftVersion": "26.3",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "passed",
+  "commandElapsedMillis": 627549,
+  "firstServerMovementElapsedMillis": 2290,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots"
+  ],
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "failure": "",
+  "seed": 483920105,
+  "commandStartPosition": {
+    "x": -8.5,
+    "y": 65.0,
+    "z": 15.5
+  },
+  "naturalReceipt": "checkpoint-18-natural.json",
+  "artifactReceipt": "checkpoint-18-artifact.json",
+  "scope": "One seeded world with no grants or post-spawn teleports; not a time guarantee for every seed, ordinary-launcher acceptance or universal mechanic coverage.",
+  "screenshotInspected": true,
+  "ciJarByteMatchVerified": true,
+  "ciJarByteMatchScope": "The separately downloaded 26.3 CI jar and the tested frozen jar have identical bytes; the original runtime artifact receipt retains its local launch metadata."
+}

@@ -79,6 +79,10 @@
     "completion": "One drained native furnace, server iron1, exact air cells, preserved bedrock and tables, health20, empty cursor, idle engine and stopped navigation.",
     "branchProof": "Native STATION_ROUTE start, rejection of the initial stance with eleven remaining, and arrival at the usable stance must appear in the causal log. A game result alone is insufficient proof of this branch.",
     "review": "All ten QA files independently inspected, no material findings; no production code changes.",
-    "nativeStatus": "Pending exact-jar execution"
+    "nativeStatus": "Passed on both primary versions. Ordered native route logs show start, rejected initial stance with eleven remaining, and arrival at the usable stance. Both clients preserve every shell cell and both table floors, smelt one iron ingot, drain the furnace and cancel native navigation.",
+    "receipts": [
+      "../survival-safety/preview11-approach-fixed-1211/assessment.json",
+      "../survival-safety/preview11-approach-fixed-263/assessment.json"
+    ]
   }
 }

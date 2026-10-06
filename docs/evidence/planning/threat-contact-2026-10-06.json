@@ -1,0 +1,18 @@
+{
+  "status": "reproduced_fix_in_progress",
+  "sourceCommit": "a73679b13880f9bded9c01ae3d444db997b8a13d",
+  "failureReceipt": "../navigation-rebuild/checkpoint-19.json",
+  "observedMechanisms": [
+    "Multiple hostiles always force retreat; no native attacks occurred",
+    "Retreat routes mine deepslate instead of immediate movement",
+    "STOPPING/FINISHING wait for ground/rest as well as native path drain; contact defense does not run during that wait"
+  ],
+  "unconfirmedMechanism": "Trace does not identify which cancellation predicate remained false; add native drain/ground/velocity diagnostics",
+  "plan": [
+    "Retain strict inventory cancellation and separate defense-only native input drain",
+    "Permit bounded native contact defense against reachable non-creepers after owned path drain",
+    "Forbid mining/placement on retreat routes",
+    "Native live multi-threat regression and exact fresh-world repeats before publication"
+  ],
+  "scope": "Do not weaken component, protection, cursor, ownership, manual input or creeper collateral checks"
+}

@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "case": "Unusable first placement stance with a reachable alternate stance",
+  "sourceCommit": "a73679b13880f9bded9c01ae3d444db997b8a13d",
+  "artifactSha256": "d87b8bdc82e6f478d92bf1d376817938dc8cbff8cf50e0b309eb4315af315280",
+  "nativeReceipt": "native-result.json",
+  "scope": "Declared pre-command geometry and inventory grants; no post-command fixture stock or block mutations. Isolated development client using the exact candidate jar.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "elapsedMillisFromCommand": 13891,
+  "changedNativeStoneCells": "0",
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "observation": "Native navigation rejects the first placement stance, reaches the alternate stance, places the held furnace at the sole valid site and completes the iron ingot. The shell, both table floors and exact remaining air cells are preserved.",
+  "bedrockShellCellsChanged": "0",
+  "nativeBranchTraceObserved": true,
+  "branchTraceEvents": [
+    "STATION_ROUTE event=start destination=BlockPos{x=0, y=64, z=0}",
+    "STATION_ROUTE event=stance-rejected destination=BlockPos{x=0, y=64, z=0} stance=BlockPos{x=1, y=65, z=0} remaining=11",
+    "STATION_ROUTE event=arrival destination=BlockPos{x=0, y=64, z=0} player=BlockPos{x=0, y=64, z=1}"
+  ]
+}
