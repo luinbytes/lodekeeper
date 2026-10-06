@@ -1,0 +1,30 @@
+{
+  "baselineSourceCommit": "cba2ee6731104d010fa272510d7e937f66f1a4cb",
+  "baselinePlannerSha256": "0386ad9925d9d7dfa29c67378c3ad6bcd66ab6469b513792fa1207085f7d3903",
+  "candidatePlannerSha256": "00b2c235177595297771a0e0b7767b163826e7ccca7ca8e837360f31f4c39b2b",
+  "candidatePlannerTestSha256": "fbea9df181c6fde4a9ea5882f886fd07a7d95f559c430322e7c3da1b980843de",
+  "baselineTestsFound": 3,
+  "baselineTestsFailed": 3,
+  "baselineFailureIsExpected": true,
+  "candidateSuites": {
+    "core": {
+      "tests": 52,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 91,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "nativeEpochVerification": "pending; this receipt covers Java planner revision guards only"
+}

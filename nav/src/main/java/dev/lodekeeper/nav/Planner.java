@@ -171,6 +171,7 @@ public final class Planner {
 
         long start = Position.pack(startX, startY, startZ);
         probeAtFeetY16(startX, startFeetY16, startZ, sourceProbe);
+        if (markStaleIfChanged()) return;
         boolean integralStart = Math.floorMod(startFeetY16, 16) == 0;
         boolean mediumStart = integralStart
                 && ((allowSwimming && sourceProbe.water) || (allowClimbing && sourceProbe.climbable));
@@ -197,12 +198,12 @@ public final class Planner {
     public NavStatus advance(int maxExpansions, long nanosBudget) {
         if (status != NavStatus.IN_PROGRESS) return status;
         if (maxExpansions <= 0 || nanosBudget <= 0L) return status;
-        if (terrain.revision() != terrainRevision) return status = NavStatus.STALE;
+        if (markStaleIfChanged()) return status;
 
         long started = System.nanoTime();
         int expandedThisCall = 0;
         while (heapSize > 0 && expandedThisCall < maxExpansions) {
-            if (terrain.revision() != terrainRevision) return status = NavStatus.STALE;
+            if (markStaleIfChanged()) return status;
             if (System.nanoTime() - started >= nanosBudget) break;
 
             int current = popHeap();
@@ -216,23 +217,35 @@ public final class Planner {
             int z = Position.z(positions[current]);
             int feetY16 = feetY16(current);
             if (goal.matches16(x, feetY16, z)) {
+                if (markStaleIfChanged()) return status;
                 buildPath(current);
                 status = NavStatus.FOUND;
                 return status;
             }
 
             probeAtFeetY16(x, feetY16, z, sourceProbe);
-            if (!prepareSourceAfterBreak(current)) continue;
+            if (markStaleIfChanged()) return status;
+            boolean sourceReady = prepareSourceAfterBreak(current);
+            if (markStaleIfChanged()) return status;
+            if (!sourceReady) continue;
             groundedValidations = 0;
             expandLocal(current, x, y, z);
+            if (markStaleIfChanged()) return status;
             if (nodeLimitHit) {
                 buildPartialPath();
                 return status = NavStatus.PARTIAL_LIMIT;
             }
         }
 
+        if (markStaleIfChanged()) return status;
         if (heapSize == 0) status = NavStatus.NO_PATH;
         return status;
+    }
+
+    private boolean markStaleIfChanged() {
+        if (terrain.revision() == terrainRevision) return false;
+        status = NavStatus.STALE;
+        return true;
     }
 
     public void cancel() {
@@ -244,7 +257,7 @@ public final class Planner {
         if (minimumProgressBlocks < 1 || minimumProgressBlocks > 64)
             throw new IllegalArgumentException("Progress threshold must be between 1 and 64 blocks");
         if (status != NavStatus.IN_PROGRESS) return status;
-        if (terrain.revision() != terrainRevision) return status = NavStatus.STALE;
+        if (markStaleIfChanged()) return status;
         int best = -1;
         long minimumSquared16 = (long) minimumProgressBlocks * minimumProgressBlocks * 256L;
         for (int i = 1; i < nodeCount; i++) {

@@ -543,6 +543,39 @@ final class PlannerTest {
     }
 
     @Test
+    void sourceProbeRevisionChangeCannotConstructAnAcceptedNoPathResult() {
+        FakeTerrain terrain = new FakeTerrain();
+        terrain.reviseDuringNextProbe = true;
+
+        Planner planner = planner(terrain, 0, 0, 0, Goal.exact(1, 0, 0), new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.STALE, planner.getStatus());
+        assertNull(planner.getPath());
+    }
+
+    @Test
+    void revisionChangeDuringGroundedCollectionRejectsTheExpandedSearch() {
+        FakeTerrain terrain = FakeTerrain.infiniteFloor();
+        terrain.reviseDuringGroundedCollection = true;
+        Planner planner = planner(terrain, 0, 0, 0, Goal.exact(1, 0, 0), new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.STALE, planner.advance(1, Long.MAX_VALUE));
+        assertTrue(planner.getGroundedCollectionCalls() > 0);
+        assertNull(planner.getPath());
+    }
+
+    @Test
+    void revisionChangeDuringMotionProofRejectsTheExpandedSearch() {
+        FakeTerrain terrain = FakeTerrain.infiniteFloor();
+        terrain.reviseDuringMotionProof = true;
+        Planner planner = planner(terrain, 0, 0, 0, Goal.exact(1, 0, 0), new Planner.Options().maxDrop(0));
+
+        assertEquals(NavStatus.STALE, planner.advance(1, Long.MAX_VALUE));
+        assertTrue(terrain.groundedChecks > 0);
+        assertNull(planner.getPath());
+    }
+
+    @Test
     void returnsPartialLimitAtNodeCap() {
         FakeTerrain terrain = FakeTerrain.infiniteFloor();
         Planner planner = planner(terrain, 0, 0, 0, Goal.exact(1_000, 0, 1_000),
@@ -697,6 +730,9 @@ final class PlannerTest {
         boolean sawSourceBreakCells;
         boolean supportEveryFractionalStance;
         boolean requirePhysicalGroundedSource;
+        boolean reviseDuringNextProbe;
+        boolean reviseDuringGroundedCollection;
+        boolean reviseDuringMotionProof;
         double maximumArc;
         int motionChecks;
         int groundedChecks;
@@ -739,31 +775,53 @@ final class PlannerTest {
         @Override public boolean collectGroundedStances(int x, int referenceFeetY16, int z,
                                                         GroundedStanceBuffer out) {
             int[] values = groundedHeights.get(Position.pack(x, 0, z));
-            if (values == null) return Terrain.super.collectGroundedStances(x, referenceFeetY16, z, out);
-            out.clear();
-            for (int value : values) out.add(value);
-            return out.isComplete();
+            boolean complete;
+            if (values == null) {
+                complete = Terrain.super.collectGroundedStances(x, referenceFeetY16, z, out);
+            } else {
+                out.clear();
+                for (int value : values) out.add(value);
+                complete = out.isComplete();
+            }
+            if (reviseDuringGroundedCollection) {
+                revision++;
+                reviseDuringGroundedCollection = false;
+            }
+            return complete;
         }
 
         @Override public boolean probeStance16(int x, int feetY16, int z, StanceProbe out) {
             FeetKey key = new FeetKey(x, feetY16, z);
             exactProbeCounts.merge(key, 1, Integer::sum);
             StanceProbe stored = stances16.get(key);
-            if (stored != null) { out.copyFrom(stored); return out.loaded; }
+            if (stored != null) {
+                out.copyFrom(stored);
+                reviseAfterProbe();
+                return out.loaded;
+            }
             if (supportEveryFractionalStance) {
                 out.clear();
                 out.loaded = true;
                 out.bodyClear = true;
                 out.hazard = false;
                 out.surfaceSupport = true;
+                reviseAfterProbe();
                 return true;
             }
             if (Math.floorMod(feetY16, 16) == 0) {
                 probeStance(x, Math.floorDiv(feetY16, 16), z, out);
+                reviseAfterProbe();
                 return out.loaded;
             }
             out.clear();
+            reviseAfterProbe();
             return false;
+        }
+
+        private void reviseAfterProbe() {
+            if (!reviseDuringNextProbe) return;
+            revision++;
+            reviseDuringNextProbe = false;
         }
 
         @Override public void probeStance(int x, int y, int z, StanceProbe out) {
@@ -817,6 +875,10 @@ final class PlannerTest {
                     && (sourceAfterBreak == null || !sourceAfterBreak.hasGroundSupport())) {
                 rejectedGroundedProofsWithoutSourceSupport++;
                 return false;
+            }
+            if (reviseDuringMotionProof) {
+                revision++;
+                reviseDuringMotionProof = false;
             }
             return motionClear;
         }
