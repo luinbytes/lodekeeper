@@ -401,6 +401,13 @@ final class AutomationEngine {
             observedInventory = Map.of();
         }
         if (client.player == null || client.level == null) { stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+        if (editingSettings()) {
+            healthRecovery = null;
+            airRecovery.stop(); stationRoom.stop(); threats.stop(); equipment.stop();
+            foodAcquisition.stop(); food.stop(); movement.suspend(); input.release();
+            if (active != null && !paused) status = "Editing automation settings";
+            return;
+        }
         if (active != null && !paused && !client.player.isAlive()) { pause("player is no longer alive"); return; }
         if (!paused && (active != null || airRecovery.active()) && recoverAirIfNeeded()) return;
         if (healthRecovery != null && !paused
@@ -3145,7 +3152,11 @@ final class AutomationEngine {
     boolean visualizationActive() {
         return client.player != null && client.level != null && client.level == world && active != null;
     }
-    boolean visualizationPaused() { return paused || config.pauseOnScreen && GameApi.screen(client) != null
+    private boolean editingSettings() {
+        var screen = GameApi.screen(client);
+        return screen instanceof AutomationSettingsScreen || screen instanceof NavigationPreferencesScreen;
+    }
+    boolean visualizationPaused() { return paused || editingSettings() || config.pauseOnScreen && GameApi.screen(client) != null
                 && crafting == null && stonecutting == null && smelting == null && !openingStation; }
     String visualizationGoal() { return active == null ? "Idle" : (active.project() == null ? active.name : active.project().spec.name() + " · " + active.item().path()) + " · " + goalCount() + "/" + active.count; }
     String visualizationDetail() { return visualizationPaused() && !paused ? "Waiting for the screen to close" : status; }

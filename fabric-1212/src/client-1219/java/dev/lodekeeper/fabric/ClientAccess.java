@@ -11,12 +11,15 @@ import java.util.List;
 
 /** Native client access; storage views are used only on the client thread. */
 final class ClientAccess {
+    private static final KeyBinding.Category LODEKEEPER_CATEGORY = KeyBinding.Category.create(net.minecraft.util.Identifier.of("lodekeeper", "controls"));
     private ClientAccess() {}
     static List<ItemStack> main(PlayerInventory inventory) { return inventory.getMainStacks(); }
     static int selectedSlot(PlayerInventory inventory) { return inventory.getSelectedSlot(); }
     static void selectedSlot(PlayerInventory inventory, int slot) { inventory.setSelectedSlot(slot); }
     static Vec3d position(Entity entity) { return entity.getEntityPos(); }
-    static KeyBinding stopKey() {
-        return new KeyBinding("key.lodekeeper.stop", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, KeyBinding.Category.create(net.minecraft.util.Identifier.of("lodekeeper", "controls")));
+    static KeyBinding stopKey() { return key("key.lodekeeper.stop", GLFW.GLFW_KEY_K); }
+    static KeyBinding settingsKey() { return key("key.lodekeeper.settings", GLFW.GLFW_KEY_RIGHT_SHIFT); }
+    private static KeyBinding key(String translation, int code) {
+        return new KeyBinding(translation, InputUtil.Type.KEYSYM, code, LODEKEEPER_CATEGORY);
     }
 }

@@ -47,6 +47,7 @@ tasks.named('jar') {
 }
 
 processResources {
+    from(rootProject.file('fabric/src/main/resources')) { include 'assets/**' }
     inputs.property 'version', project.version
     inputs.property 'minecraft', rootProject.minecraft_version
     filesMatching('fabric.mod.json') {

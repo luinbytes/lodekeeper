@@ -130,7 +130,15 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final Field MOVEMENT_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "pathIndex");
     private static final Field MOVEMENT_VALIDATED_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "validatedPathIndex");
     private static final boolean CONFIG_ROUND_TRIP_MODE = Boolean.getBoolean("lodekeeper.verify.configRoundTrip");
+    private static final boolean SETTINGS_UI_MODE = Boolean.getBoolean("lodekeeper.verify.settingsUi");
     private JsonObject configRoundTripReceipt;
+    private SettingsUiVerification settingsUiVerification;
+    private NativeSettingsUiAccess settingsUiAccess;
+    private boolean settingsUiChatEntryConfirmed;
+    private String settingsUiReceipt;
+    private String settingsUiFinalScreenshot;
+    private int settingsUiFinalCaptureTick = -1;
+    private final JsonObject settingsUiScreenshots = new JsonObject();
     private boolean resourceInitiallyLoaded;
     private static final int FLOOR_Y = 63;
     private static final int PLAYER_Y = FLOOR_Y + 1;
@@ -147,7 +155,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         new CoalNavigationCheckpoint(16, 68 * 16));
 
     private enum State {
-        DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
+        DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK,
         CRAFTING_FURNACE, SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE,
         GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED
@@ -310,7 +318,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
-        if (System.getProperty("lodekeeper.verify.naturalGoal") != null
+        if (!SETTINGS_UI_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
@@ -589,6 +597,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             return;
         }
         try {
+            if (state == State.SETTINGS_UI) {
+                tickSettingsUi();
+                return;
+            }
             if (state == State.OPENING_WORLD) {
                 if (client.level != null) throw new IllegalStateException("start from the title screen; an existing world is active");
                 if (!worldLaunchQueued && GameApi.screen(client) != null) queueWorldLaunch();
@@ -598,6 +610,29 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (client.level != null && client.player != null && GameApi.screen(client) == null) {
                     if (++readyTicks < 40) return;
                     playerId = client.player.getUUID();
+                    if (SETTINGS_UI_MODE) {
+                        AutomationEngine engine = requireEngine();
+                        engine.stop();
+                        activeCase = "native_settings_ui";
+                        activeItem = null;
+                        activeCount = 0;
+                        activeRequiresEmpty = false;
+                        activeStartedEmpty = false;
+                        caseStartedAtTick = clientTicks;
+                        caseStartedAtWorldTime = client.level.getGameTime();
+                        caseStartedAtNanos = System.nanoTime();
+                        activeTableOpeningsAtStart = serverTableOpenings;
+                        state = State.SETTINGS_UI;
+                        settingsUiAccess = new NativeSettingsUiAccess(
+                                client, engine.config,
+                                () -> new AutomationSettingsScreen(engine.config, () -> {}),
+                                this::captureSettingsUi, System.out::println,
+                                () -> LodekeeperClient.engine != null
+                                        && LodekeeperClient.engine.diagnosticTaskIdentity() == null
+                                        && LodekeeperClient.engine.status().startsWith("idle"));
+                        settingsUiAccess.submitSettingsChatCommand();
+                        return;
+                    }
                     configureAutomation();
                     beginFixtureSetup();
                 }
@@ -3437,6 +3472,46 @@ public final class RuntimeVerification implements ClientModInitializer {
         return LodekeeperClient.engine;
     }
 
+    private void captureSettingsUi(String label) {
+        String screenshot = capture("settings-ui-" + label);
+        settingsUiScreenshots.add(label, screenshot == null
+                ? com.google.gson.JsonNull.INSTANCE : new com.google.gson.JsonPrimitive(screenshot));
+    }
+
+    private void tickSettingsUi() {
+        if (settingsUiVerification == null) {
+            if (!(GameApi.screen(client) instanceof AutomationSettingsScreen)) {
+                if (clientTicks - caseStartedAtTick > 20) fail("native config chat command did not open settings within 20 ticks");
+                return;
+            }
+            settingsUiChatEntryConfirmed = true;
+            settingsUiVerification = SettingsUiVerification.begin(settingsUiAccess);
+            return;
+        }
+        settingsUiVerification.tick();
+        if (!settingsUiVerification.completed()) return;
+        settingsUiReceipt = settingsUiVerification.receipt();
+        if (!settingsUiVerification.passed() || !settingsUiVerification.restorationComplete()) {
+            fail("settings UI verification failed or config restoration was incomplete: " + settingsUiReceipt);
+            return;
+        }
+        if (settingsUiFinalCaptureTick < 0) {
+            settingsUiFinalCaptureTick = clientTicks + 2;
+            return;
+        }
+        if (clientTicks < settingsUiFinalCaptureTick) return;
+        settingsUiFinalScreenshot = capture("native-settings-ui-final");
+        if (settingsUiFinalScreenshot == null) {
+            fail("final native settings UI screenshot could not be captured");
+            return;
+        }
+        settingsUiScreenshots.addProperty("final", settingsUiFinalScreenshot);
+        addResult(true, 0, "native settings screen child widgets accepted search, filter, save, discard, dependency, reset, and navigation-map mouse/key/character events; "
+                + settingsUiReceipt);
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
     private void addResult(boolean passed, int observed, String detail) {
         if (PREPARED_SAFETY_MODE != null) {
             String screenshot = capture("prepared-safety-" + activeCase);
@@ -3504,6 +3579,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     private record MovementClock(long startedAtNanos, double x, double z) { }
 
     private void finishRun() {
+        if (SETTINGS_UI_MODE && !settingsUiScreenshotsValid()) {
+            fail("settings UI screenshots were missing or unreadable");
+            return;
+        }
         if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) {
             try {
                 if (stationRoomSetupScreenshot == null || screenshotWritesPending > 0
@@ -3570,18 +3649,41 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = PREPARED_SAFETY_MODE != null
+        int expectedCases = SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || NEARBY_WOOD_MODE
                 || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean passed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(passed ? "passed" : "failed");
-        System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence=" + evidenceDirectory);
+        System.out.println("[Lodekeeper verification] Finished " + results.size()
+                + (SETTINGS_UI_MODE ? " native settings UI cases; evidence=" : " server-observed cases; evidence=")
+                + evidenceDirectory);
         client.stop();
+    }
+
+    private boolean settingsUiScreenshotsValid() {
+        try {
+            if (settingsUiScreenshots.size() < 3 || settingsUiFinalScreenshot == null) return false;
+            for (var entry : settingsUiScreenshots.entrySet()) {
+                if (!entry.getValue().isJsonPrimitive()) return false;
+                Path image = evidenceDirectory.resolve(entry.getValue().getAsString()).normalize();
+                if (!image.startsWith(evidenceDirectory) || !Files.isRegularFile(image)
+                        || Files.size(image) == 0 || javax.imageio.ImageIO.read(image.toFile()) == null) return false;
+            }
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private void fail(String reason) {
         if (state == State.FAILED || state == State.COMPLETE) return;
+        if (settingsUiVerification != null) {
+            settingsUiVerification.restore();
+            settingsUiReceipt = settingsUiVerification.receipt();
+            if (client != null && (GameApi.screen(client) instanceof AutomationSettingsScreen
+                    || GameApi.screen(client) instanceof NavigationPreferencesScreen)) GameApi.setScreen(client, null);
+        }
         failure = reason;
         if (activeCase != null && results.stream().noneMatch(result -> result.name.equals(activeCase))) {
             int observed = latestSnapshot == null || activeItem == null ? 0 : latestSnapshot.count(activeItem);
@@ -3696,7 +3798,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (PREPARED_SAFETY_MODE != null) root.addProperty("preparedSafetyProperty", PREPARED_SAFETY_MODE);
             if (WORKBENCH_MODE) root.add("preparedWorkbench", workbenchEvidence());
             if (HELD_FUEL_MODE) root.add("preparedHeldFuel", heldFuelEvidence());
-            root.addProperty("evidenceAuthority", HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
+            root.addProperty("evidenceAuthority", SETTINGS_UI_MODE ? "native_screen_child_widgets_native_input_events_and_config_reload" : HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
                 ? "integrated_server_inventory_menu_hunger_entities_and_item_durability"
                 : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("station_room")
                     ? "integrated_server_inventory_furnace_menu_and_block_states"
@@ -3706,6 +3808,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                             ? "integrated_server_air_health_hunger_position_and_inventory"
                         : "integrated_server_inventory_menu_and_hunger");
             root.addProperty("verificationMode", verificationMode());
+            if (SETTINGS_UI_MODE) {
+                root.addProperty("settingsUiReceipt", settingsUiReceipt);
+                root.addProperty("settingsUiChatEntryConfirmed", settingsUiChatEntryConfirmed);
+                root.add("settingsUiScreenshots", settingsUiScreenshots.deepCopy());
+                root.addProperty("settingsUiFinalScreenshot", settingsUiFinalScreenshot);
+            }
             if (GEOMETRY_EPOCH_MODE) root.add("geometryEpoch", geometryEpoch == null
                 ? com.google.gson.JsonNull.INSTANCE : geometryEpoch.evidence());
             root.addProperty("runDirectory", client.gameDirectory.toPath().toRealPath().toString());
@@ -4171,6 +4279,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (SETTINGS_UI_MODE) return "native_settings_ui";
         if (invalidStationRoomTunnelMode()) return "invalid_station_room_tunnel";
         if (WORKBENCH_MODE && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_safety_workbench";

@@ -28,6 +28,7 @@ import java.util.Objects;
 public final class LodekeeperClient implements ClientModInitializer {
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("lodekeeper");
     static AutomationEngine engine;
+    private boolean openSettingsPending;
     private final CommandParser parser = new CommandParser();
     private String[] panelLines = new String[0];
     private int panelTicks;
@@ -55,6 +56,8 @@ public final class LodekeeperClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> engine.dispose());
         KeyMapping stop = KeyMappingHelper.registerKeyMapping(GameApi.keyMapping(
                 "key.lodekeeper.stop", InputConstants.KEY_K, KeyMapping.Category.MISC));
+        KeyMapping settings = KeyMappingHelper.registerKeyMapping(GameApi.keyMapping(
+                "key.lodekeeper.settings", InputConstants.KEY_RSHIFT, KeyMapping.Category.MISC));
 
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             String body = CommandParser.clientCommandBody(message, engine.config.prefix);
@@ -64,6 +67,11 @@ public final class LodekeeperClient implements ClientModInitializer {
         });
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             while (stop.consumeClick()) { stopRequested = true; engine.stop(); }
+            while (settings.consumeClick()) openSettingsPending = true;
+            if (openSettingsPending) {
+                openSettingsPending = false;
+                GameApi.setScreen(mc, new AutomationSettingsScreen(engine.config, () -> engine.message("Settings saved")));
+            }
             engine.tick();
             syncDiagnostics(client);
             updatePanel();
@@ -350,7 +358,13 @@ public final class LodekeeperClient implements ClientModInitializer {
 
     private void configure(CommandParser.ConfigCommand command) throws java.io.IOException {
         LodekeeperConfig config = engine.config;
-        if (command.key() == null) {
+        if (command.key() == null || command.key().equalsIgnoreCase("ui")) {
+            if (command.value() != null) throw new IllegalArgumentException("config ui takes no value");
+            openSettingsPending = true;
+            return;
+        }
+        if (command.key().equalsIgnoreCase("list")) {
+            if (command.value() != null) throw new IllegalArgumentException("config list takes no value");
             for (String category : LodekeeperConfig.specs().stream()
                     .map(dev.lodekeeper.core.SettingSpec::category).distinct().toList()) {
                 engine.message(category + ": " + LodekeeperConfig.specs().stream()

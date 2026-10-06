@@ -1,1 +1,6 @@
-{"key.lodekeeper.stop":"Stop automation","category.lodekeeper":"Lodekeeper"}
+{
+  "key.lodekeeper.stop": "Stop automation",
+  "category.lodekeeper": "Lodekeeper",
+  "key.lodekeeper.settings": "Open Lodekeeper settings",
+  "key.category.lodekeeper.controls": "Lodekeeper"
+}

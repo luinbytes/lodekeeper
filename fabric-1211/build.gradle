@@ -65,7 +65,9 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NaturalWorldVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java'),
-    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/ConfigRoundTripVerification.java')
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/ConfigRoundTripVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java')
 ]
 def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
 def generateVerificationDamageEvents = tasks.register('generateVerificationDamageEvents') {
