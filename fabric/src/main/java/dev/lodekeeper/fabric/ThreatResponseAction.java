@@ -160,9 +160,10 @@ final class ThreatResponseAction {
     }
 
     void stop() {
-        if (!active()) return;
+        if (!active()) { clearOwnership(); return; }
         boolean cancelled = cancelMovement();
         restoreSelection();
+        clearOwnership();
         phase = Phase.STOPPED;
         status = cancelled ? "threat response stopped" : "threat response stopped; movement cancellation pending";
         log("stopped");
@@ -193,6 +194,7 @@ final class ThreatResponseAction {
 
     private boolean complete() {
         restoreSelection();
+        clearOwnership();
         phase = Phase.COMPLETE;
         status = "live threats cleared";
         log("cleared");
@@ -286,11 +288,19 @@ final class ThreatResponseAction {
     private IllegalStateException abort(RuntimeException failure) {
         boolean cancelled = cancelMovement();
         restoreSelection();
+        clearOwnership();
         phase = Phase.STOPPED;
         status = "threat response failed: " + failure.getClass().getSimpleName() + ": " + failure.getMessage();
         if (!cancelled) status += "; movement cancellation pending";
         log("failed");
         return new IllegalStateException(status, failure);
+    }
+
+    private void clearOwnership() {
+        tracked.clear();
+        target = null;
+        ownerPlayer = ownerWorld = null;
+        originalSlot = selectedSlot = -1;
     }
 
     private void log(String outcome) {

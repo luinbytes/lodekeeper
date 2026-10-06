@@ -1508,6 +1508,108 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void fastPlanCraftsStoredWoodBeforeFollowingPreferredGatherSources() {
+        CatalogSnapshot catalog = competingWoodCatalog();
+        PlanningPreferences preferences = new PlanningPreferences(Map.of(
+                "gather:acacia_log", 1, "gather:oak_log", 100));
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(LOG, 2));
+
+        PlanResult stored = planner().planFast(catalog, inventory, STICKS, 4,
+                PlannerLimits.DEFAULT, preferences);
+        assertTrue(stored.success(), stored.blockedReasons().toString());
+        assertEquals(List.of("craft:oak_planks", "craft:sticks"),
+                stored.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(4, stored.steps().get(1).outputCount());
+        assertEquals(List.of(new SelectedItemRequirement(LOG, 1, true, "recipe ingredient", 0)),
+                stored.steps().get(0).requirements());
+        assertEquals(Map.of(LOG, 2), inventory.counts());
+
+        InventorySnapshot partlyProtected = new InventorySnapshot(Map.of(LOG, 2), Set.of(), Map.of(), Map.of(LOG, 1));
+        PlanResult oneSpendable = planner().planFast(catalog, partlyProtected, STICKS, 4,
+                PlannerLimits.DEFAULT, preferences);
+        assertTrue(oneSpendable.success(), oneSpendable.blockedReasons().toString());
+        assertEquals(List.of("craft:oak_planks", "craft:sticks"),
+                oneSpendable.steps().stream().map(PlanStep::sourceId).toList());
+
+        InventorySnapshot protectedLogs = new InventorySnapshot(Map.of(LOG, 2), Set.of(), Map.of(), Map.of(LOG, 2));
+        PlanResult needsGathering = planner().planFast(catalog, protectedLogs, STICKS, 4,
+                PlannerLimits.DEFAULT, preferences);
+        assertTrue(needsGathering.success(), needsGathering.blockedReasons().toString());
+        assertEquals(List.of("gather:acacia_log", "craft:acacia_planks", "craft:sticks"),
+                needsGathering.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(Map.of(LOG, 2), protectedLogs.protectedCounts());
+    }
+
+    @Test
+    void storedMaterialSeedBacktracksWhenDerivativesCompeteForTheSameStock() {
+        ItemId a = ItemId.parse("test:a"), b = ItemId.parse("test:b");
+        ItemId intermediate = ItemId.parse("test:intermediate"), target = ItemId.parse("test:target");
+        var builder = CatalogSnapshot.builder().item(a, 0).item(b, 0).item(intermediate, 0).item(target, 0);
+        for (ItemId input : List.of(a, b)) {
+            builder.source(new GatherSource("gather:" + input.path(), input, 1,
+                    List.of(BlockId.parse("test:" + input.path()))));
+            builder.source(new CraftingSource("craft:" + input.path(), intermediate, 1,
+                    RecipeType.SHAPELESS, 0, 0, List.of(new RecipeSlot(-1, Ingredient.of(input))), List.of()));
+        }
+        builder.source(new CraftingSource("craft:target", target, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.of(intermediate)), new RecipeSlot(-1, Ingredient.of(a))), List.of()));
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(a, 1, b, 1));
+
+        PlanResult result = planner().planFast(builder.build(), inventory, target, 1);
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("craft:b", "craft:target"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(new SelectedItemRequirement(b, 1, true, "recipe ingredient", 0)),
+                result.steps().get(0).requirements());
+        assertEquals(Map.of(a, 1, b, 1), inventory.counts());
+    }
+
+    @Test
+    void storedMaterialSeedSharesTheGlobalNodeAndElapsedBudgets() {
+        CatalogSnapshot catalog = competingWoodCatalog();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(LOG, 2));
+        PlannerLimits limits = new PlannerLimits(48, 8, 4, 12, 4096, 1_000_000);
+        PlanResult capped = planner().planFast(catalog, inventory, STICKS, 4, limits);
+        assertFalse(capped.success());
+        assertEquals(8, capped.expandedNodes());
+        assertEquals(BlockedReason.Code.NODE_LIMIT, capped.blockedReasons().get(0).code());
+
+        var reads = new java.util.concurrent.atomic.AtomicInteger();
+        AcquisitionPlanner timed = new AcquisitionPlanner(() -> reads.getAndIncrement() <= 2 ? 0L : 4_000_000L);
+        PlanResult expired = timed.planFast(catalog, inventory, STICKS, 4, limits);
+        assertFalse(expired.success());
+        assertTrue(expired.expandedNodes() > 0);
+        assertTrue(expired.expandedNodes() <= limits.maximumExpandedNodes());
+        assertEquals(4_000_000L, expired.elapsedNanos());
+        assertEquals(BlockedReason.Code.TIME_LIMIT, expired.blockedReasons().get(0).code());
+
+        CatalogSnapshot gatherOnly = CatalogSnapshot.builder().item(LOG, 0)
+                .source(new GatherSource("gather:oak_log", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
+                .build();
+        PlanResult empty = planner().planFast(gatherOnly, new InventorySnapshot(Map.of()), LOG, 1, limits);
+        assertTrue(empty.success(), empty.blockedReasons().toString());
+        assertEquals(List.of("gather:oak_log"), empty.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(3, empty.expandedNodes());
+    }
+
+    private static CatalogSnapshot competingWoodCatalog() {
+        ItemId acaciaLog = ItemId.parse("minecraft:acacia_log");
+        ItemId acaciaPlanks = ItemId.parse("minecraft:acacia_planks");
+        TagId planks = TagId.parse("minecraft:planks");
+        return CatalogSnapshot.builder().item(LOG, 0).item(PLANKS, 0).item(STICKS, 0)
+                .item(acaciaLog, 0).item(acaciaPlanks, 0).tag(planks, Set.of(PLANKS, acaciaPlanks))
+                .source(new GatherSource("gather:oak_log", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
+                .source(new GatherSource("gather:acacia_log", acaciaLog, 1, List.of(BlockId.parse("minecraft:acacia_log"))))
+                .source(new CraftingSource("craft:oak_planks", PLANKS, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(LOG))), List.of()))
+                .source(new CraftingSource("craft:acacia_planks", acaciaPlanks, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(acaciaLog))), List.of()))
+                .source(new CraftingSource("craft:sticks", STICKS, 4, RecipeType.SHAPED, 1, 2,
+                        List.of(new RecipeSlot(0, Ingredient.tag(planks, 1)),
+                                new RecipeSlot(1, Ingredient.tag(planks, 1))), List.of()))
+                .build();
+    }
+
+    @Test
     void sourcePreferencesBreakIngredientTiesButEmptyPreferencesPreserveLegacyChoice() {
         ItemId deepslate = ItemId.parse("minecraft:cobbled_deepslate");
         ItemId cobblestone = ItemId.parse("minecraft:cobblestone");

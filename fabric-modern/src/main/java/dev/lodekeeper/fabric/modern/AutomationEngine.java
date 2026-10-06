@@ -41,6 +41,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
@@ -72,6 +73,8 @@ import java.util.concurrent.Executors;
 
 /** Coordinates one goal/action at a time. Pure planning runs on a single bounded worker. */
 final class AutomationEngine {
+    private static final List<EquipmentSlot> GOAL_EQUIPMENT_SLOTS = List.of(
+            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
     private static final int MAX_FOREGROUND_QUEUE = 32;
     private static final int MAX_MAINTENANCE_QUEUE = 32;
     private static final int MAX_PROJECT_RECONCILIATIONS = 3;
@@ -790,7 +793,7 @@ final class AutomationEngine {
                 : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item
                 : queue.peekFirst().item : resolve(name);
         if (item == null) { message("No active or queued goal"); return; }
-        CatalogSnapshot snapshot = catalog.snapshot();
+        CatalogSnapshot snapshot = planningCatalog(config.allowBreaking);
         InventorySnapshot inventory = inventorySnapshot(item);
         var previewWorld = client.level;
         PlanningPreferences preferences = nearbyResources.snapshot();
@@ -1135,6 +1138,16 @@ final class AutomationEngine {
         return true;
     }
 
+    private CatalogSnapshot planningCatalog(boolean allowGathering) {
+        CatalogSnapshot full = catalog.snapshot();
+        if (allowGathering) return full;
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+        full.itemDefinitions().values().forEach(builder::item);
+        catalog.tags.forEach(builder::tag);
+        catalog.sources.stream().filter(source -> !(source instanceof GatherSource)).forEach(builder::source);
+        return builder.build();
+    }
+
     private void requestPlan() {
         pendingPreferencePlan = false;
         foodReplanPending = false;
@@ -1144,6 +1157,10 @@ final class AutomationEngine {
         if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
         observeInventory();
         if (goalCount() >= active.count) { finishGoal(); return; }
+        if (active.anyLogs && !config.allowBreaking) {
+            pause("Wood gathering requires allowBreaking=true");
+            return;
+        }
         ItemId item = active.item;
         if (active.anyLogs) {
             item = chooseLogs();
@@ -1154,26 +1171,28 @@ final class AutomationEngine {
                 return;
             }
         }
-        CatalogSnapshot full = catalog.snapshot();
+        boolean gatheringEnabled = config.allowBreaking;
+        CatalogSnapshot full = planningCatalog(gatheringEnabled);
         CatalogSnapshot snapshot = full;
         if (!unavailableSources.isEmpty()) {
             CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
             full.itemDefinitions().values().forEach(definition -> builder.item(definition.id(), definition.maximumDurability(), definition.fuelBurnTicks(), definition.aliases().toArray(String[]::new)));
             catalog.tags.forEach(builder::tag);
-            catalog.sources.stream().filter(source -> !unavailableSources.contains(source.sourceId())).forEach(builder::source);
+            catalog.sources.stream().filter(source -> !unavailableSources.contains(source.sourceId())
+                    && (gatheringEnabled || !(source instanceof GatherSource))).forEach(builder::source);
             snapshot = builder.build();
         }
-        Set<String> excludedGatherSourceIds = catalog.sources.stream()
+        Set<String> excludedGatherSourceIds = full.gatherSources().stream()
                 .filter(GatherSource.class::isInstance).map(GatherSource.class::cast)
                 .filter(source -> unavailableSources.contains(source.sourceId()))
                 .map(GatherSource::sourceId).collect(java.util.stream.Collectors.toUnmodifiableSet());
-        boolean explorationEnabled = config.allowExploration;
+        boolean explorationEnabled = gatheringEnabled && config.allowExploration;
         InventorySnapshot inventory = inventorySnapshot(active.item);
         int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item)
                 : Math.max(1, active.count - Math.max(0, goalCount() - inventory.count(item)));
         ItemId targetItem = item;
         int targetCount = requested;
-        HarvestOffer harvestOffer = active.anyLogs && config.optimizeWoodTools
+        HarvestOffer harvestOffer = gatheringEnabled && active.anyLogs && config.optimizeWoodTools
                 ? captureHarvestOffer(active.count - goalCount()) : null;
         CatalogSnapshot filteredSnapshot = snapshot;
         PlanningPreferences preferences = nearbyResources.snapshot();
@@ -1916,6 +1935,10 @@ final class AutomationEngine {
             ItemStack stack = client.player.getInventory().getItem(slot);
             if (stack.is(ItemTags.LOGS)) count += stack.getCount();
         }
+        for (var slot : GOAL_EQUIPMENT_SLOTS) {
+            ItemStack stack = client.player.getItemBySlot(slot);
+            if (stack.is(ItemTags.LOGS)) count = Math.addExact(count, stack.getCount());
+        }
         return count;
     }
 
@@ -2040,6 +2063,9 @@ final class AutomationEngine {
         actionTicks = 0;
         lastMovementProgressToken = movement.progressToken();
         status = (auxiliaryInvestment ? "preparing for task · " : "") + next.kind() + " " + next.sourceId();
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] STEP kind={} source={} output={} count={} operations={} auxiliary={}",
+                next.kind(), next.sourceId(), next.output(), next.outputCount(), next.operationCount(), auxiliaryInvestment);
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline;
         lastSmeltProgress = 0;

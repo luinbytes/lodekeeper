@@ -21,6 +21,12 @@ sourceSets {
         java.srcDirs = [generatedSharedSources, rootProject.file('fabric/src/legacy-render/java'), 'src/main/java']
     }
     test.java.srcDir rootProject.file('fabric/src/test/java')
+    verification {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+        java.srcDir(layout.buildDirectory.dir('generated/shared-verification'))
+        resources.srcDirs = ['src/verification/resources']
+    }
 }
 tasks.named('compileJava').configure { dependsOn copySharedSources }
 dependencies {
@@ -43,9 +49,40 @@ processResources {
     from(rootProject.file('fabric/src/main/resources')) { exclude 'fabric.mod.json' }
     filesMatching('fabric.mod.json') { expand version: project.version, minecraft: rootProject.minecraft_version }
 }
+processVerificationResources {
+    inputs.property 'minecraft', rootProject.minecraft_version
+    filesMatching('fabric.mod.json') { expand minecraft: rootProject.minecraft_version }
+}
 loom {
     mixin { defaultRefmapName = 'lodekeeper-refmap.json' }
-    runs { client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' } }
+    mods {
+        lodekeeper { sourceSet sourceSets.main }
+        'lodekeeper-verification' { sourceSet sourceSets.verification }
+    }
+    runs {
+        client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' }
+        verificationClient {
+            client()
+            source sourceSets.verification
+            runDir 'run'
+            vmArg '-Dlodekeeper.verify=true'
+            vmArg '-Xmx1536m'
+            vmArg '-XX:ActiveProcessorCount=2'
+            programArg '--width'
+            programArg '640'
+            programArg '--height'
+            programArg '360'
+        }
+    }
 }
+
+def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
+def copySharedVerifier = tasks.register('copySharedVerifier', Sync) {
+    from(rootProject.file('fabric/src/verification/java')) {
+        exclude 'dev/lodekeeper/fabric/VerificationApi.java'
+    }
+    into generatedVerifierDir
+}
+tasks.named('compileVerificationJava').configure { dependsOn copySharedVerifier }
 
 apply from: rootProject.file('gradle/baritone.gradle')

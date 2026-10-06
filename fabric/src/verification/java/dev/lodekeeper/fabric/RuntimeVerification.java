@@ -2368,6 +2368,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             preparedMaintenanceReservationObservedBeforeForeground = true;
             preparedMaintenanceQueueEmptyBeforeForeground = true;
             preparedSafetyForegroundStarted = true;
+            if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS)
+                sendCommand("!lk get wood 8");
             sendCommand(preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD
                 ? "!lk get bucket 1" : "!lk get stick 4");
             return;

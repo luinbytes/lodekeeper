@@ -173,7 +173,7 @@ final class VerificationApi {
                 || !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
             throw new IllegalStateException("could not seed the prepared threat weapons and bucket stock");
         }
-        player.getInventory().selectedSlot = 0;
+        ClientAccess.selectedSlot(player.getInventory(), 0);
         ZombieEntity zombie = new ZombieEntity(EntityType.ZOMBIE, world);
         zombie.refreshPositionAndAngles(2.5, 64.0, 0.5, 180.0F, 0.0F);
         zombie.setAiDisabled(true);
@@ -232,7 +232,7 @@ final class VerificationApi {
                 || !player.getInventory().insertStack(new ItemStack(Items.RAW_IRON))) {
             throw new IllegalStateException("could not seed the prepared station-room pickaxe, furnace, coal, and raw iron");
         }
-        player.getInventory().selectedSlot = 0;
+        ClientAccess.selectedSlot(player.getInventory(), 0);
         BlockPos[] nearbyStoneCells = new BlockPos[73];
         int index = 0;
         for (int x = -2; x <= 2; x++) for (int y = 64; y <= 66; y++) for (int z = -2; z <= 2; z++) {

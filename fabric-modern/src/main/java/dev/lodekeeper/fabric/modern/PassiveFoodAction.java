@@ -20,6 +20,7 @@ import net.minecraft.world.item.consume_effects.PlaySoundConsumeEffect;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 
+import java.lang.ref.WeakReference;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -39,7 +40,7 @@ final class PassiveFoodAction {
     private static final int MAX_APPROACHES = 4;
     private static final int MAX_ATTACKS = 32;
     private static final Map<UUID, Long> FAILED_APPROACH_UNTIL = new LinkedHashMap<>();
-    private static Object cooldownWorld;
+    private static WeakReference<Object> cooldownWorld = new WeakReference<>(null);
 
     private enum Phase {
         IDLE, APPROACH, STOPPING_FOR_ATTACK, ATTACK, WAITING_FOR_DROP, PICKUP,
@@ -79,6 +80,7 @@ final class PassiveFoodAction {
     private Item acquiredFood;
     private boolean attacked;
     private boolean recoveryMode;
+    private Object owningPlayer;
     private Object actionWorld;
     private BlockPos approachGoal;
     private BlockPos completedApproachGoal;
@@ -138,10 +140,12 @@ final class PassiveFoodAction {
         originalSlot = player.getInventory().getSelectedSlot();
         int weaponSlot = chooseWeaponSlot(originalSlot);
         if (weaponSlot < 0) {
+            clearOwnership();
             status = "no safe weapon or empty hand slot is available";
             return false;
         }
         if (weaponSlot >= 0 && weaponSlot != originalSlot && !actions.selectSlot(weaponSlot)) {
+            clearOwnership();
             status = "could not safely select the existing weapon";
             return false;
         }
@@ -157,6 +161,7 @@ final class PassiveFoodAction {
         approachGoal = null;
         completedApproachGoal = null;
         recoveryMode = recovery;
+        owningPlayer = player;
         actionWorld = currentWorld();
         phase = Phase.APPROACH;
         status = "approaching " + target.meat().animal();
@@ -179,8 +184,8 @@ final class PassiveFoodAction {
         if (phase == Phase.COMPLETE) return true;
         if (!active()) return false;
         try {
-            if (actionWorld != currentWorld()) {
-                throw new IllegalStateException("world changed during passive food action");
+            if (owningPlayer != client.player || actionWorld != currentWorld()) {
+                throw new IllegalStateException("player or world changed during passive food action");
             }
             String reason = unsafeContextReason(recoveryMode);
             if (reason != null) throw new IllegalStateException(reason);
@@ -208,10 +213,10 @@ final class PassiveFoodAction {
 
     void stop() {
         recoveryMode = false;
-        actionWorld = null;
-        if (!active()) return;
+        if (!active()) { clearOwnership(); return; }
         boolean cancelled = cancelMovement();
         restoreSelection();
+        clearOwnership();
         phase = Phase.STOPPED;
         status = cancelled ? "passive food action stopped"
                 : "passive food action stopped; movement cancellation remains pending";
@@ -342,7 +347,7 @@ final class PassiveFoodAction {
     private void complete() {
         restoreSelection();
         recoveryMode = false;
-        actionWorld = null;
+        clearOwnership();
         phase = Phase.COMPLETE;
         status = "acquired " + BuiltInRegistries.ITEM.getKey(acquiredFood);
     }
@@ -432,16 +437,16 @@ final class PassiveFoodAction {
     }
 
     private void pruneFailedApproaches() {
-        if (cooldownWorld != client.level) {
+        if (cooldownWorld.get() != client.level) {
             FAILED_APPROACH_UNTIL.clear();
-            cooldownWorld = client.level;
+            cooldownWorld = new WeakReference<>(client.level);
         }
         long now = System.nanoTime();
         FAILED_APPROACH_UNTIL.entrySet().removeIf(entry -> now - entry.getValue() >= 0L);
     }
 
     private boolean isCoolingDown(UUID entityId) {
-        if (cooldownWorld != currentWorld()) return false;
+        if (cooldownWorld.get() != currentWorld()) return false;
         Long until = FAILED_APPROACH_UNTIL.get(entityId);
         return until != null && System.nanoTime() - until < 0L;
     }
@@ -565,11 +570,18 @@ final class PassiveFoodAction {
         boolean cancelled = cancelMovement();
         restoreSelection();
         recoveryMode = false;
-        actionWorld = null;
+        clearOwnership();
         phase = Phase.STOPPED;
         if (!cancelled) reason += "; movement cancellation remains pending";
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
         return cause == null ? new IllegalStateException(status) : new IllegalStateException(status, cause);
+    }
+
+    private void clearOwnership() {
+        target = null;
+        owningPlayer = null;
+        actionWorld = null;
+        originalSlot = selectedSlot = -1;
     }
 
     private boolean cancelMovement() {
@@ -582,7 +594,8 @@ final class PassiveFoodAction {
     }
 
     private void restoreSelection() {
-        if (client.player == null || originalSlot < 0 || selectedSlot < 0
+        if (client.player == null || client.player != owningPlayer || currentWorld() != actionWorld
+                || originalSlot < 0 || selectedSlot < 0
                 || selectedSlot == originalSlot || manualInput() || GameApi.screen(client) != null
                 || client.player.getInventory().getSelectedSlot() != selectedSlot) return;
         actions.selectSlot(originalSlot);

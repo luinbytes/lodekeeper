@@ -6,12 +6,15 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 
+import java.lang.ref.WeakReference;
+
 /** Fills empty native armor slots with one verified vanilla quick-move at a time. */
 final class AutoEquipmentAction {
     private static final int MAX_RECEIPT_TICKS = 40;
     private final MinecraftClient client;
     private ScreenHandler handler;
-    private Object owningPlayer, owningWorld;
+    private WeakReference<Object> owningPlayer = new WeakReference<>(null);
+    private WeakReference<Object> owningWorld = new WeakReference<>(null);
     private ItemStack expected = ItemStack.EMPTY;
     private int sourceSlot, armorSlot, sourceCount, waitTicks;
     private boolean blocked;
@@ -24,7 +27,7 @@ final class AutoEquipmentAction {
 
     /** True means an issued transfer still owns the inventory-action turn. */
     boolean tick() {
-        if (owningPlayer != client.player || owningWorld != client.world) {
+        if (owningPlayer.get() != client.player || owningWorld.get() != client.world) {
             if (active()) throw fail("world or player changed after the armor quick-move");
             blocked = false;
         }
@@ -52,8 +55,8 @@ final class AutoEquipmentAction {
             if (ambiguous || destination < 0 || !menu.getSlot(destination).getStack().isEmpty()
                     || menu.getSlot(destination).getMaxItemCount(stack) != 1) continue;
             handler = menu;
-            owningPlayer = client.player;
-            owningWorld = client.world;
+            owningPlayer = new WeakReference<>(client.player);
+            owningWorld = new WeakReference<>(client.world);
             sourceSlot = index;
             armorSlot = destination;
             expected = stack.copy();

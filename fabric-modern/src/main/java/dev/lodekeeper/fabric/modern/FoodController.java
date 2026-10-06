@@ -195,8 +195,13 @@ public final class FoodController {
         ticks = 0;
         usingPlayer = client.player;
         usingFood = mainHand.copy();
-        InteractionResult result = client.gameMode.useItem(client.player, InteractionHand.MAIN_HAND);
-        active = result.consumesAction();
+        try {
+            InteractionResult result = client.gameMode.useItem(client.player, InteractionHand.MAIN_HAND);
+            active = result.consumesAction();
+        } catch (RuntimeException failure) {
+            clearOwnership();
+            throw failure;
+        }
         if (!ownsUse()) {
             clearOwnership();
             return false;

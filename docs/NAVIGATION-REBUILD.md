@@ -78,3 +78,12 @@ The `f7f7281` normal-survival run began moving after 1,200 ms and acquired three
 Prepared native armor-transfer checks passed in 1.21.1 and 26.3. Those fixtures seed an ordinary helmet and verify its transfer into the native head slot, with no extra crafting and an empty cursor. They do not prove survival acquisition of armor. The full diamond target remains unpassed.
 
 The next patch removes the adjacent-site exclusion and clears at most two exact natural blocks for a station pocket when no valid air site exists. Project goals remain queued on a station-placement failure. Food reservations, protected offhand stock, threat handling and cramped-room receipts are being checked in isolated clients. The intermediate-version API corrections still need a fresh complete CI run.
+
+
+## Stored-material and ownership regression checkpoint
+
+The packaged `918bf43` 1.21.1 offhand fixture passed its food and bucket phase, then paused on a stick request despite two stored oak logs and a held crafting table. Eight additional logs were reserved in offhand, and breaking was disabled. The planner selected a gathering step instead of a plan using stored logs. [The failed native receipt](evidence/survival-safety/offhand-stored-materials-before-1211.json) and [artifact identity](evidence/survival-safety/offhand-stored-materials-before-1211-artifact.json) preserve that regression.
+
+The fix gives `planFast` a small stored-material recipe search before its general seed, sharing the original deadline and node budget. It respects protected stock and preserves station availability and cooking duration ordering. Both adapters remove gathering sources from planning when breaking is disabled, including exploration recovery. Wood aliases count offhand stock toward their goal. The debug console records the chosen step before execution begins.
+
+Survival actors release native entity, player and world references after cancellation or completion. Food actions restore hotbar selection only for the player and world that started the action. Prepared offhand, food, equipment, threat and station-pocket cases are being rerun against the packaged changes. These fixes do not establish the full diamond target.

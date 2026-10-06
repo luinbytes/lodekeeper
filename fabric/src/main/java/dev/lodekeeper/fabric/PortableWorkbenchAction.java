@@ -79,6 +79,7 @@ final class PortableWorkbenchAction {
             if (!actions.mine(candidate, null)) {
                 String reasonText = "native mining refused: " + actions.mineFailure();
                 actions.cancel();
+                clearOwnership();
                 phase = Phase.STOPPED;
                 status = reasonText;
                 return false;
@@ -115,9 +116,10 @@ final class PortableWorkbenchAction {
     }
 
     void stop() {
-        if (!active()) return;
+        if (!active()) { clearOwnership(); return; }
         actions.cancel();
         boolean cancelled = cancelMovement();
+        clearOwnership();
         phase = Phase.STOPPED;
         status = cancelled ? "portable workbench recovery stopped"
                 : "portable workbench recovery stopped; movement cancellation remains pending";
@@ -193,6 +195,7 @@ final class PortableWorkbenchAction {
         if (!hasInventoryGain()) {
             throw new IllegalStateException("crafting-table inventory count returned to its starting value");
         }
+        clearOwnership();
         phase = Phase.COMPLETE;
         status = "recovered the owned crafting table";
         return true;
@@ -263,10 +266,16 @@ final class PortableWorkbenchAction {
     private IllegalStateException abort(String reason, RuntimeException cause) {
         actions.cancel();
         boolean cancelled = cancelMovement();
+        clearOwnership();
         phase = Phase.STOPPED;
         if (!cancelled) reason += "; movement cancellation remains pending";
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
         return new IllegalStateException(status, cause);
+    }
+
+    private void clearOwnership() {
+        drop = null;
+        startingNearbyDrops = Map.of();
     }
 
     private boolean cancelMovement() {

@@ -6,12 +6,15 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.ContainerInput;
 
+import java.lang.ref.WeakReference;
+
 /** Fills empty native armor slots with one verified vanilla quick-move at a time. */
 final class AutoEquipmentAction {
     private static final int MAX_RECEIPT_TICKS = 40;
     private final Minecraft client;
     private AbstractContainerMenu handler;
-    private Object owningPlayer, owningWorld;
+    private WeakReference<Object> owningPlayer = new WeakReference<>(null);
+    private WeakReference<Object> owningWorld = new WeakReference<>(null);
     private ItemStack expected = ItemStack.EMPTY;
     private int sourceSlot, armorSlot, sourceCount, waitTicks;
     private boolean blocked;
@@ -24,7 +27,7 @@ final class AutoEquipmentAction {
 
     /** True means an issued transfer still owns the inventory-action turn. */
     boolean tick() {
-        if (owningPlayer != client.player || owningWorld != client.level) {
+        if (owningPlayer.get() != client.player || owningWorld.get() != client.level) {
             if (active()) throw fail("world or player changed after the armor quick-move");
             blocked = false;
         }
@@ -52,8 +55,8 @@ final class AutoEquipmentAction {
             if (ambiguous || destination < 0 || !menu.getSlot(destination).getItem().isEmpty()
                     || menu.getSlot(destination).getMaxStackSize(stack) != 1) continue;
             handler = menu;
-            owningPlayer = client.player;
-            owningWorld = client.level;
+            owningPlayer = new WeakReference<>(client.player);
+            owningWorld = new WeakReference<>(client.level);
             sourceSlot = index;
             armorSlot = destination;
             expected = stack.copy();

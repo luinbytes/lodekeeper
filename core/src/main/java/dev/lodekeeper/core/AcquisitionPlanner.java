@@ -18,6 +18,9 @@ import java.util.function.LongSupplier;
 public final class AcquisitionPlanner {
     private static final int MAX_REASONS = 32;
     private static final int MAX_PROJECT_ORDER_WORK = 100_000;
+    private static final int MAX_STORED_SEED_NODES = 256;
+    private static final int MAX_STORED_SEED_MILLIS = 2;
+    private enum SourceScope { ALL, STORED_MATERIALS }
     private final LongSupplier clock;
 
     public AcquisitionPlanner() { this(System::nanoTime); }
@@ -32,7 +35,7 @@ public final class AcquisitionPlanner {
         return planInternal(catalog, inventory, target, count, limits, PlanningPreferences.NONE, false);
     }
 
-    /** Finds a complete feasible seed before spending the remaining shared budget on beam search. */
+    /** Tries stored-material recipes, then a general feasible seed and bounded beam search. */
     public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count) {
         return planFast(catalog, inventory, target, count, PlannerLimits.DEFAULT);
     }
@@ -69,7 +72,7 @@ public final class AcquisitionPlanner {
             }
         }
 
-        Search search = new Search(catalog, limits, started, clock, true, preferences);
+        Search search = new Search(catalog, limits, started, clock, true, preferences, SourceScope.ALL);
         List<ItemId> goalOrder = search.projectGoalOrder(project);
         if (goalOrder == null) {
             List<BlockedReason> reasons = search.reasons();
@@ -109,12 +112,30 @@ public final class AcquisitionPlanner {
 
         int seedNodes = 0;
         if (seedFirst) {
+            int storedNodes = Math.min(MAX_STORED_SEED_NODES, limits.maximumExpandedNodes() / 4);
+            int storedMillis = Math.min(MAX_STORED_SEED_MILLIS, limits.maximumElapsedMillis() / 4);
+            if (!inventory.counts().isEmpty() && storedNodes > 0 && storedMillis > 0) {
+                PlannerLimits storedLimits = new PlannerLimits(limits.maximumDepth(), storedNodes, storedMillis,
+                        limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
+                Search stored = new Search(catalog, storedLimits, started, clock, true,
+                        PlanningPreferences.NONE, SourceScope.STORED_MATERIALS);
+                State initial = new State(inventory, catalog);
+                List<State> feasible = stored.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
+                if (feasible.isEmpty() && stored.limitCode == null) {
+                    stored.beginBacktracking();
+                    feasible = stored.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
+                }
+                seedNodes = stored.expanded;
+                if (!feasible.isEmpty()) {
+                    return new PlanResult(target, count, feasible.get(0).steps, List.of(), false, seedNodes, elapsed(started));
+                }
+            }
             PlannerLimits seedLimits = new PlannerLimits(limits.maximumDepth(),
-                    Math.min(1_024, limits.maximumExpandedNodes()), Math.max(1, limits.maximumElapsedMillis() * 3 / 4),
+                    Math.min(1_024, limits.maximumExpandedNodes() - seedNodes), Math.max(1, limits.maximumElapsedMillis() * 3 / 4),
                     limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
-            Search seed = new Search(catalog, seedLimits, started, clock, true, preferences);
+            Search seed = new Search(catalog, seedLimits, started, clock, true, preferences, SourceScope.ALL);
             List<State> feasible = seed.satisfy(target, count, false, new State(inventory, catalog), Set.of(), 0, "requested target", -1);
-            seedNodes = seed.expanded;
+            seedNodes += seed.expanded;
             if (!feasible.isEmpty()) {
                 return new PlanResult(target, count, feasible.get(0).steps, List.of(), false, seedNodes, elapsed(started));
             }
@@ -126,7 +147,7 @@ public final class AcquisitionPlanner {
         PlannerLimits remaining = seedNodes == 0 ? limits : new PlannerLimits(limits.maximumDepth(),
                 limits.maximumExpandedNodes() - seedNodes, limits.maximumElapsedMillis(),
                 limits.maximumCandidatesPerBranch(), limits.maximumSteps(), limits.maximumRequestedCount());
-        Search search = new Search(catalog, remaining, started, clock, false, preferences);
+        Search search = new Search(catalog, remaining, started, clock, false, preferences, SourceScope.ALL);
         State initial = new State(inventory, catalog);
         List<State> plans = search.satisfy(target, count, false, initial, Set.of(), 0, "requested target", -1);
         if (plans.isEmpty()) {
@@ -170,6 +191,7 @@ public final class AcquisitionPlanner {
         private final long deadline;
         private final LongSupplier clock;
         private boolean firstFeasible;
+        private final SourceScope sourceScope;
         private final PlanningPreferences preferences;
         private final Map<ItemId, Integer> directItemRanks;
         private final PreferenceScorer preferenceScorer;
@@ -183,12 +205,13 @@ public final class AcquisitionPlanner {
         private ItemId unresolvedProjectGoal;
 
         private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock,
-                       boolean firstFeasible, PlanningPreferences preferences) {
+                       boolean firstFeasible, PlanningPreferences preferences, SourceScope sourceScope) {
             this.catalog = catalog;
             this.limits = limits;
             this.deadline = started + limits.maximumElapsedMillis() * 1_000_000L;
             this.clock = clock;
             this.firstFeasible = firstFeasible;
+            this.sourceScope = sourceScope;
             this.preferences = preferences;
             this.directItemRanks = seedDirectItemRanks();
             this.preferenceScorer = new PreferenceScorer();
@@ -582,7 +605,7 @@ public final class AcquisitionPlanner {
             if (stationBootstrapRanks == null) return List.of();
             if (orderSources) {
                 Comparator<AcquisitionSource> sourceOrder = Comparator
-                        .comparingInt((AcquisitionSource source) -> source instanceof GatherSource ? 0
+                        .comparingInt((AcquisitionSource source) -> sourceScope == SourceScope.ALL && source instanceof GatherSource ? 0
                                 : source instanceof SmeltingSource ? 1 : source instanceof CraftingSource ? 2 : 3)
                         .thenComparingInt(source -> stationBootstrapRanks.getOrDefault(source.sourceId(), 0));
                 if (!preferences.isEmpty()) {
@@ -600,6 +623,8 @@ public final class AcquisitionPlanner {
             var results = new ArrayList<State>();
             for (AcquisitionSource source : sources) {
                 if (!visit(item, path, depth)) break;
+                if (sourceScope == SourceScope.STORED_MATERIALS
+                        && !(source instanceof CraftingSource) && !(source instanceof SmeltingSource)) continue;
                 int operations;
                 try {
                     operations = ceilDiv(missing, source.outputCount());
