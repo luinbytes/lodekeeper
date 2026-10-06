@@ -75,6 +75,7 @@ final class NaturalWorldVerification {
     private final JsonArray expectedItems = new JsonArray();
     private final Object screenshotQueueLock = new Object();
     private final ArrayDeque<ScreenshotRequest> screenshotQueue = new ArrayDeque<>();
+    private final java.util.Set<String> scheduledScreenshotNames = new java.util.HashSet<>();
     private final List<String> screenshotFiles = new ArrayList<>();
 
     private volatile State state = State.OPENING_WORLD;
@@ -275,7 +276,7 @@ final class NaturalWorldVerification {
                         .split("[ :·]", 2)[0].toLowerCase(java.util.Locale.ROOT);
                 if (!taskPhase.equals(lastTaskScreenshotPhase)) {
                     lastTaskScreenshotPhase = taskPhase;
-                    requestScreenshot("task-" + taskPhase, false);
+                    if (!"gear_diamond".equals(goal)) requestScreenshot("task-" + taskPhase, false);
                 }
                 if (LodekeeperClient.engine.visualizationPaused()) {
                     fail("automation paused: " + LodekeeperClient.engine.status());
@@ -447,6 +448,8 @@ final class NaturalWorldVerification {
                 receipt.addProperty("requestedTargetItem", isGoalItem(entry.getKey()));
                 receipt.addProperty("authority", "integrated_server_inventory_diff");
                 serverTargetReceipts.add(receipt);
+                if ("gear_diamond".equals(goal) && DIAMOND_GEAR_IDS.contains(entry.getKey()))
+                    requestScreenshot("received-" + entry.getKey().substring(entry.getKey().indexOf(':') + 1), false);
             }
         }
     }
@@ -504,7 +507,8 @@ final class NaturalWorldVerification {
     private void transitionTo(State next) {
         if (state == next) return;
         state = next;
-        requestScreenshot("phase-" + next.name().toLowerCase(java.util.Locale.ROOT), false);
+        if (next == State.RUNNING)
+            requestScreenshot("phase-" + next.name().toLowerCase(java.util.Locale.ROOT), false);
     }
 
     private void requestScreenshot(String name, boolean finalCapture) {
@@ -515,6 +519,7 @@ final class NaturalWorldVerification {
         synchronized (screenshotQueueLock) {
             if (terminal || finalizing && !finalCapture) return;
             if (finalCapture && finalScreenshotQueued) return;
+            if (!scheduledScreenshotNames.add(name)) return;
             int limit = finalCapture ? MAX_SCREENSHOTS : MAX_SCREENSHOTS - 1;
             if (screenshotSlotsReserved >= limit) {
                 System.err.println("[Lodekeeper natural verification] Screenshot limit reached; omitted " + name);

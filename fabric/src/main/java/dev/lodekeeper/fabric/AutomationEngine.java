@@ -174,6 +174,7 @@ final class AutomationEngine {
     private final FoodController food;
     private final ThreatResponseAction threats;
     private final AutoEquipmentAction equipment;
+    private final StationRoomAction stationRoom;
     private final PassiveFoodAction foodAcquisition;
     private final PortableWorkbenchAction workbenchRecovery;
     final GameTerrain terrain;
@@ -186,6 +187,8 @@ final class AutomationEngine {
     private final MaintainedDemandModel maintained = new MaintainedDemandModel();
     private final Map<StationId, BlockPos> ownedStations = new HashMap<>();
     private final Set<BlockPos> rejectedStationSites = new HashSet<>();
+    private Request stationPlacementOwner;
+    private StationId stationPlacementStation;
     private final Set<BlockPos> createdWorkbenches = new HashSet<>(), unreachableStations = new HashSet<>();
     private BlockPos recoveringWorkbench;
     private boolean workbenchRecoveryChecked;
@@ -271,6 +274,7 @@ final class AutomationEngine {
         movement = new MovementController(client, config, actions, input, terrain);
         food = new FoodController(client, actions);
         equipment = new AutoEquipmentAction(client);
+        stationRoom = new StationRoomAction(client, actions);
         threats = new ThreatResponseAction(client, actions, movement);
         foodAcquisition = new PassiveFoodAction(client, config, actions, movement);
         workbenchRecovery = new PortableWorkbenchAction(client, config, actions, movement);
@@ -299,7 +303,7 @@ final class AutomationEngine {
                 message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
             }
         }
-        if (client.player == null || client.world == null) { threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+        if (client.player == null || client.world == null) { stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (active != null && !paused && !client.player.isAlive()) { pause("player is no longer alive"); return; }
         if (healthRecovery != null && !paused
                 && System.nanoTime() - healthRecovery.startedNanos() >= 40_000_000_000L) {
@@ -319,9 +323,9 @@ final class AutomationEngine {
         }
             if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
             if (active == null && !paused) startNextRequest();
-            if (active == null || paused) { threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+            if (active == null || paused) { stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             if (!client.player.isAlive()) { pause("player is no longer alive"); return; }
-            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             threats.updateProtection(foodReservations());
             if (config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
                     && !hasOwnedStationHandlerOpen() && !food.active() && !equipment.active() && threats.ready()) {
@@ -417,7 +421,7 @@ final class AutomationEngine {
             }
             if (config.autoEquipArmor && !stopAfterStep && !transactionInProgress() && !openingStation
                     && !hasOwnedStationHandlerOpen() && !food.active() && !foodAcquisition.active()
-                    && !workbenchRecovery.active() && client.currentScreen == null) {
+                    && !workbenchRecovery.active() && !stationRoom.active() && client.currentScreen == null) {
                 try {
                     if (equipment.tick()) {
                         status = equipment.status();
@@ -1022,7 +1026,7 @@ final class AutomationEngine {
             if (active == null || paused) { threats.stop(); return true; }
             if (config.pauseOnScreen && client.currentScreen != null) {
                 healthRecovery = null;
-                threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
+                stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
                 movement.suspend(); input.release();
                 return true;
             }
@@ -1820,7 +1824,9 @@ final class AutomationEngine {
             else status = "waiting for recipe catalog";
             return;
         }
-        resetAction(); rejectedStationSites.clear(); stationPlacementFailures = 0; stationDiscoveryDone = false;
+        resetAction();
+        prepareStationAttempts(next);
+        stationDiscoveryDone = false;
         workbenchRecoveryChecked = false;
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
         lastMovementProgressToken = movement.progressToken();
@@ -2103,6 +2109,24 @@ final class AutomationEngine {
             stationDiscoveryDone = false;
             throw new IllegalStateException("Station " + step.station() + " is not available nearby, and allowBuilding=false; enable it with config allowBuilding true");
         }
+        if (stationRoom.active()) {
+            BlockPos prepared = stationRoom.site();
+            if (!config.allowBreaking) {
+                stationRoom.stop();
+                throw stationPlacementFailure("room preparation requires allowBreaking=true", prepared);
+            }
+            try {
+                if (!stationRoom.tick()) { status = stationRoom.status(); return; }
+                stationRoom.stop();
+                terrain.changed();
+                target = prepared;
+            } catch (RuntimeException failure) {
+                stationRoom.stop();
+                rejectStationSite(prepared);
+                message("Station room preparation is retrying: " + failure.getMessage());
+                return;
+            }
+        }
         if (target != null && client.world.getBlockState(target).isOf(block)) { ownedStations.put(step.station(), target); terrain.changed(); completeStep(); return; }
         if (target != null && !safeStationStructure(target)) rejectStationSite(target);
         if (stationPlacementFailures >= MAX_STATION_PLACEMENT_ATTEMPTS)
@@ -2110,6 +2134,12 @@ final class AutomationEngine {
         if (target == null) target = findStationCandidate(true);
         if (target == null) target = findStationCandidate(false);
         if (target == null) {
+            BlockPos preparation = config.allowBreaking ? findStationPreparation() : null;
+            if (preparation != null) {
+                if (stationRoom.begin(preparation)) status = stationRoom.status();
+                else rejectStationSite(preparation);
+                return;
+            }
             stationDiscoveryDone = false;
             throw stationPlacementFailure("no visible, reachable full-floor placement site nearby", client.player.getBlockPos());
         }
@@ -2161,7 +2191,8 @@ final class AutomationEngine {
         for (int dx = -8; dx <= 8; dx++) for (int dz = -8; dz <= 8; dz++) for (int dy = -6; dy <= 4; dy++) {
             BlockPos candidate = player.add(dx, dy, dz);
             double distance = candidate.getSquaredDistance(player);
-            if (distance < 2 || distance >= closestDistance || rejectedStationSites.contains(candidate)) continue;
+            if (distance >= closestDistance || rejectedStationSites.contains(candidate)
+                    || client.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(candidate))) continue;
             if (!safeStationStructure(candidate) || requireReach && !actions.canPlaceAt(candidate)) continue;
             closest = candidate;
             closestDistance = distance;
@@ -2169,9 +2200,37 @@ final class AutomationEngine {
         return closest;
     }
 
+    private BlockPos findStationPreparation() {
+        BlockPos player = client.player.getBlockPos();
+        BlockPos closest = null;
+        double distance = Double.POSITIVE_INFINITY;
+        for (int dy = -1; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            BlockPos candidate = player.add(dx, dy, dz);
+            double nextDistance = candidate.getSquaredDistance(player);
+            if (nextDistance >= distance || rejectedStationSites.contains(candidate)
+                    || !stationRoom.canPrepareAt(candidate)) continue;
+            closest = candidate;
+            distance = nextDistance;
+        }
+        return closest;
+    }
+
+    private void prepareStationAttempts(PlanStep next) {
+        if (next.kind() != PlanKind.PLACE_STATION) return;
+        if (stationPlacementOwner != active || !Objects.equals(stationPlacementStation, next.station())) {
+            rejectedStationSites.clear();
+            stationPlacementFailures = 0;
+            stationPlacementOwner = active;
+            stationPlacementStation = next.station();
+        }
+    }
+
     private boolean safeStationStructure(BlockPos candidate) {
         if (client.world.getChunkManager().getChunk(candidate.getX() >> 4, candidate.getZ() >> 4, net.minecraft.world.chunk.ChunkStatus.FULL, false) == null) return false;
-        return client.world.getBlockState(candidate).isReplaceable() && actions.safePlacementSupport(candidate.down());
+        var state = client.world.getBlockState(candidate);
+        return state.getFluidState().isEmpty() && !state.hasBlockEntity()
+                && !state.isOf(Blocks.FIRE) && !state.isOf(Blocks.SOUL_FIRE) && !state.isOf(Blocks.POWDER_SNOW)
+                && state.isReplaceable() && actions.safePlacementSupport(candidate.down());
     }
 
     private void rejectStationSite(BlockPos rejected) {
@@ -2386,6 +2445,10 @@ final class AutomationEngine {
 
     private void failActive(String reason) {
         Request failed = active;
+        if (reason.startsWith("Cannot place required station ")) {
+            pause(reason + ". The current goal and remaining project are preserved");
+            return;
+        }
         if (reason.startsWith("Cannot safely return ")) {
             pause(reason + ". Free inventory space, then resume; the owned container stays open");
             return;
@@ -2439,6 +2502,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedHandler) {
+        stationRoom.stop();
         workbenchRecovery.stop(); recoveringWorkbench = null;
         foodAcquisition.stop(); foodAcquisitionPending = false;
         threats.stop(); equipment.stop(); food.stop(); foodReplanPending = false;
@@ -2464,6 +2528,7 @@ final class AutomationEngine {
     }
     void pause(String reason) {
         healthRecovery = null;
+        stationRoom.stop();
         foodAcquisition.stop(); foodAcquisitionPending = false;
         threats.stop(); equipment.stop(); food.stop(); movement.suspend();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
@@ -2494,6 +2559,8 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        stationPlacementOwner = null; stationPlacementStation = null;
+        rejectedStationSites.clear(); stationPlacementFailures = 0;
         healthRecovery = null;
         ingredientWoodScan = null; ingredientWoodRequest = null; ingredientWoodOrigin = null;
         ingredientWoodSources.clear(); localIngredientWoodSources.clear();
@@ -2536,7 +2603,7 @@ final class AutomationEngine {
     dev.lodekeeper.nav.NavigationSnapshot diagnosticNavigation() {
         return (moving || explorationMoving || foodAcquisition.active() || workbenchRecovery.active() || threats.active()) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
     }
-    BlockPos diagnosticTarget() { return target != null ? target : movement.miningTarget(); }
+    BlockPos diagnosticTarget() { return stationRoom.active() ? stationRoom.site() : target != null ? target : movement.miningTarget(); }
     dev.lodekeeper.nav.Goal diagnosticRouteGoal() { return movement.diagnosticGoal(); }
     int diagnosticRouteGoalCandidateCount() { return movement.diagnosticGoalCandidateCount(); }
 

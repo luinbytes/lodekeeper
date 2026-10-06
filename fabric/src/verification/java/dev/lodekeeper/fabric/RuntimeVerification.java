@@ -53,6 +53,7 @@ import net.minecraft.resource.DataConfiguration;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -104,6 +105,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean STONECUTTING_DRAIN_MODE = Boolean.getBoolean("lodekeeper.verify.stonecuttingDrain");
     private static final boolean PROCESSING_MODE = COOKING_MODE || STONECUTTING_MODE;
     private static final String PROCESSING_STATION_MODE = STONECUTTING_MODE ? "stonecutter" : COOKING_STATION_MODE;
+    private static final String PREPARED_SAFETY_MODE = System.getProperty("lodekeeper.verify.preparedSafety");
+    private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
+    private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
     private static final String OAK_LOG_ID = "minecraft:oak_log";
     private static final String WOODEN_AXE_ID = "minecraft:wooden_axe";
@@ -121,6 +125,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final double FORCED_PREPHYSICS_HANDOFF_SPEED = .015;
     private static final int NEARBY_WOOD_LOCAL_DECOY_TIMEOUT_TICKS = 200;
     private static final Field ENGINE_MOVEMENT_FIELD = findField(AutomationEngine.class, "movement");
+    private static final Field MAINTAINED_DEMAND_FIELD = findField(AutomationEngine.class, "maintained");
     private static final Field ENGINE_TARGET_FIELD = findField(AutomationEngine.class, "target");
     private static final Field ENGINE_GATHER_MINE_TARGET_FIELD = findField(AutomationEngine.class, "gatherMineTarget");
     private static final Field MOVEMENT_PATH_FIELD = findField("dev.lodekeeper.fabric.MovementController", "path");
@@ -155,7 +160,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private enum State { DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK, CRAFTING_FURNACE,
         SMELTING_IRON, COOKING, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
-        GATHERING_COAL_RECOVERY, CAPTURING, COMPLETE, FAILED }
+        GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
+
+    private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, STATION_ROOM }
 
     private MinecraftClient client;
     private State state = State.DISABLED;
@@ -244,6 +251,18 @@ public final class RuntimeVerification implements ClientModInitializer {
     private volatile int serverStonecutterOpenings;
     private Map<String, Integer> activeInitialResources = Map.of();
     private int foodBreadCountBeforeSetup;
+    private PreparedSafetyPhase preparedSafetyPhase = PreparedSafetyPhase.NONE;
+    private VerificationApi.PreparedSafetyThreatFixture preparedSafetyThreatFixture;
+    private Map<String, String> activeInitialThreatReceipt = Map.of();
+    private VerificationApi.PreparedSafetyStationRoomFixture preparedSafetyStationRoomFixture;
+    private Map<String, String> activeInitialStationRoomReceipt = Map.of();
+    private int preparedSafetySetupStartedAtTick = -1;
+    private Map<String, String> activeInitialEquipment = Map.of();
+    private boolean activeInitialCursorEmpty;
+    private boolean preparedSafetyForegroundStarted;
+    private boolean preparedMaintenanceQueueEmptyBeforeForeground;
+    private boolean preparedMaintenanceReservationObservedBeforeForeground;
+    private boolean preparedMaintenanceReservationPresentAtCompletion;
     private String failure = "";
     private volatile boolean serverTableOpened, serverFurnaceOpened;
     private volatile int serverTableOpenings;
@@ -331,6 +350,16 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
+            if (PREPARED_SAFETY_MODE != null
+                    && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
+                    && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("station_room")) {
+                failure = "lodekeeper.verify.preparedSafety must be exactly equipment, offhand, threat, or station_room";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
             if ((!COAL_START_SURFACE.equals("full") && !COAL_START_SURFACE.equals("dirt_path")
                     && !COAL_START_SURFACE.equals("farmland") && !COAL_RAISED_FULL_DROP_MODE)
                     || (!COAL_START_SURFACE.equals("full") && !COAL_RECOVERY_MODE)) {
@@ -391,7 +420,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (selectedFixtureModes() > 1) {
-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, and lodekeeper.verify.stonecutting are mutually exclusive; stonecuttingDrain is a stonecutting submode";
+                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, lodekeeper.verify.stonecutting, and lodekeeper.verify.preparedSafety are mutually exclusive; stonecuttingDrain is a stonecutting submode";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -463,6 +492,13 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (clientTicks > MAX_RUN_TICKS || System.nanoTime() - startedAtNanos > MAX_RUN_WALL_NANOS) {
             fail(COOKING_MODE ? "verification exceeded the 500-second cooking-mode limit"
                 : "verification exceeded the five-minute limit");
+            return;
+        }
+        if (PREPARED_SAFETY_MODE != null
+                && (state == State.SETTING_UP || state == State.WAITING_FOR_EMPTY_SNAPSHOT)
+                && clientTicks - preparedSafetySetupStartedAtTick > PREPARED_SAFETY_SETUP_TIMEOUT_TICKS) {
+            fail("prepared safety fixture did not become server-ready within "
+                + PREPARED_SAFETY_SETUP_TIMEOUT_TICKS + " ticks");
             return;
         }
         try {
@@ -539,7 +575,27 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 return;
             }
-                if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+            if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (PREPARED_SAFETY_MODE != null) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    if (preparedSafetyFixtureReady()) {
+                        if (++readyTicks >= 20 && client.player.getY() > FIXTURE_FLOOR_Y
+                                && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK)) {
+                            if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS) {
+                                startPreparedSafetyIngredientsCase();
+                            } else if (preparedSafetyPhase == PreparedSafetyPhase.THREAT) {
+                                startPreparedSafetyThreatCase();
+                            } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
+                                startPreparedSafetyStationRoomCase();
+                            } else {
+                                startPreparedSafetyCase();
+                            }
+                        }
+                    } else {
+                        readyTicks = 0;
+                    }
+                    return;
+                }
                 if (COAL_RECOVERY_MODE) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     boolean startingStockObserved = latestSnapshot != null
@@ -692,6 +748,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.actionTimeoutTicks = 1_200;
         engine.config.pauseBelowHealth = 6.0F;
         engine.config.allowBreaking = true;
+        if (PREPARED_SAFETY_MODE != null && !PREPARED_SAFETY_MODE.equals("station_room")) engine.config.allowBreaking = false;
         engine.config.allowBuilding = !MIXED_NAVIGATION_COURSE && !COAL_RAISED_FULL_DROP_MODE;
         engine.config.allowParkour = false;
         engine.config.autoEat = true;
@@ -1149,6 +1206,11 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void beginFixtureSetup() {
         state = State.SETTING_UP;
+        preparedSafetyPhase = PREPARED_SAFETY_MODE == null ? PreparedSafetyPhase.NONE
+            : PREPARED_SAFETY_MODE.equals("equipment") ? PreparedSafetyPhase.EQUIPMENT
+            : PREPARED_SAFETY_MODE.equals("offhand") ? PreparedSafetyPhase.OFFHAND_FOOD
+            : PREPARED_SAFETY_MODE.equals("threat") ? PreparedSafetyPhase.THREAT : PreparedSafetyPhase.STATION_ROOM;
+        preparedSafetySetupStartedAtTick = clientTicks;
         IntegratedServer server = requireServer();
         setupFuture = new CompletableFuture<>();
         CompletableFuture<Long> scheduled = setupFuture;
@@ -1205,7 +1267,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     world.setBlockState(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.getDefaultState(), 3);
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
-                } else if (!PROCESSING_MODE) {
+                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null) {
                     int oakLogStartX = NEARBY_WOOD_LOCAL_DECOY_MODE ? NEARBY_WOOD_LOCAL_VISIBLE_LOG.getX()
                         : IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
                         : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
@@ -1264,6 +1326,16 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
+                if (PREPARED_SAFETY_MODE != null) {
+                    server.setDifficulty(Difficulty.NORMAL, true);
+                    if (preparedSafetyPhase == PreparedSafetyPhase.THREAT) {
+                        preparedSafetyThreatFixture = VerificationApi.seedPreparedSafetyThreatFixture(player, world);
+                    } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
+                        preparedSafetyStationRoomFixture = VerificationApi.seedPreparedSafetyStationRoomFixture(player, world);
+                    } else {
+                        VerificationApi.seedPreparedSafetyFixture(player, PREPARED_SAFETY_MODE);
+                    }
+                }
                 double startFeetY = COAL_RAISED_FULL_DROP_MODE ? PLAYER_Y + 1.0 : PLAYER_Y;
                 if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
@@ -1941,6 +2013,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void evaluateCurrentCase() {
         if (activeCase == null || state == State.CAPTURING) return;
         if (latestSnapshot == null) return;
+        if (state == State.PREPARED_SAFETY) {
+            evaluatePreparedSafetyCase();
+            return;
+        }
         if (NEARBY_WOOD_LOCAL_DECOY_MODE) observeNearbyWoodLocalTargetsAfterEngineTick();
         if (STONECUTTING_DRAIN_MODE && state == State.COOKING && !stonecuttingDrainStopInjected
                 && latestSnapshot.count(cookingOutputId()) > 0) {
@@ -2129,6 +2205,334 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.CRAFTING_STICKS;
     }
 
+    private boolean preparedSafetyFixtureReady() {
+        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                || latestSnapshot.health != 20.0F || !latestSnapshot.serverCursorEmpty) return false;
+        if (preparedSafetyPhase != PreparedSafetyPhase.EQUIPMENT
+                && !latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())) return false;
+        return switch (preparedSafetyPhase) {
+            case EQUIPMENT -> latestSnapshot.storageInventory.equals(Map.of("minecraft:iron_helmet", 1))
+                && latestSnapshot.count("minecraft:iron_helmet") == 1 && latestSnapshot.equippedItems.isEmpty();
+            case OFFHAND_FOOD -> latestSnapshot.storageInventory.equals(Map.of(
+                    "minecraft:cooked_beef", 1, "minecraft:crafting_table", 1, "minecraft:iron_ingot", 3))
+                && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:cooked_beef"))
+                && latestSnapshot.count("minecraft:cooked_beef") == 2
+                && latestSnapshot.foodLevel == 7;
+            case OFFHAND_INGREDIENTS -> latestSnapshot.storageInventory.equals(
+                Map.of("minecraft:oak_log", 2, "minecraft:crafting_table", 1))
+                && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:oak_log"))
+                && latestSnapshot.count("minecraft:oak_log") == 10;
+            case THREAT -> latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+                && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
+                    "minecraft:iron_ingot", 3, "minecraft:wooden_pickaxe", 1))
+                && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
+                && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("zombieAlive"))
+                && "4.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("zombieHealth"))
+                && "false".equals(latestSnapshot.preparedSafetyThreatReceipt.get("preparedThreatsCleared"))
+                && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("cowAlive"))
+                && "10.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("cowHealth"))
+                && "10.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("cowInitialHealth"))
+                && "0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("diamondSwordDamage"))
+                && "0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("woodenPickaxeDamage"));
+            case STATION_ROOM -> latestSnapshot.inventory.equals(Map.of("minecraft:coal", 1,
+                    "minecraft:furnace", 1, "minecraft:raw_iron", 1, "minecraft:stone_pickaxe", 1))
+                && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+                && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
+                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
+                && Math.abs(latestSnapshot.x - 0.5) < 0.001 && Math.abs(latestSnapshot.y - 64.0) < 0.001
+                && Math.abs(latestSnapshot.z - 0.5) < 0.001
+                && "73".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && "73".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsChangedCount"))
+                && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("nearbyFurnaceCount"))
+                && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"));
+            case NONE -> false;
+        };
+    }
+
+    private boolean maintainedReservationObserved(String item, int expectedCount) {
+        if (MAINTAINED_DEMAND_FIELD == null) throw new IllegalStateException("maintained demand model field is unavailable");
+        try {
+            Object model = MAINTAINED_DEMAND_FIELD.get(requireEngine());
+            Object result = model.getClass().getMethod("reservedCounts").invoke(model);
+            if (!(result instanceof Map<?, ?> reserved)) return false;
+            return Integer.valueOf(expectedCount).equals(reserved.get(ItemId.parse(item)));
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("could not inspect maintained stock reservations", exception);
+        }
+    }
+
+    private void startPreparedSafetyCase() {
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        preparedSafetyForegroundStarted = false;
+        preparedMaintenanceQueueEmptyBeforeForeground = false;
+        preparedMaintenanceReservationObservedBeforeForeground = false;
+        preparedMaintenanceReservationPresentAtCompletion = false;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        if (preparedSafetyPhase == PreparedSafetyPhase.EQUIPMENT) {
+            activeCase = "prepared_equipment_iron_helmet";
+            activeItem = "minecraft:iron_helmet";
+            activeCount = 1;
+            sendCommand("!lk get iron_helmet 1");
+            return;
+        }
+        activeCase = "prepared_offhand_food_reservation_bucket";
+        activeItem = "minecraft:bucket";
+        activeCount = 1;
+        sendCommand("!lk maintain cooked_beef 1");
+    }
+
+    private void startPreparedSafetyThreatCase() {
+        String engineStatus = requireEngine().status();
+        if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
+            fail("prepared threat command was not issued from an idle engine: " + engineStatus);
+            return;
+        }
+        activeCase = "prepared_threat_sweep_guard_bucket";
+        activeItem = "minecraft:bucket";
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        activeInitialThreatReceipt = Map.copyOf(latestSnapshot.preparedSafetyThreatReceipt);
+        preparedSafetyForegroundStarted = true;
+        preparedMaintenanceQueueEmptyBeforeForeground = true;
+        preparedMaintenanceReservationObservedBeforeForeground = false;
+        preparedMaintenanceReservationPresentAtCompletion = false;
+        activeFoodLevelAtStart = latestSnapshot.foodLevel;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        sendCommand("!lk get bucket 1");
+    }
+
+    private void startPreparedSafetyStationRoomCase() {
+        String engineStatus = requireEngine().status();
+        if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
+            fail("prepared station-room command was not issued from an idle engine: " + engineStatus);
+            return;
+        }
+        activeCase = "prepared_station_room_iron_ingot";
+        activeItem = IRON_INGOT_ID;
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        activeInitialStationRoomReceipt = Map.copyOf(latestSnapshot.preparedSafetyStationRoomReceipt);
+        preparedSafetyForegroundStarted = true;
+        preparedMaintenanceQueueEmptyBeforeForeground = true;
+        preparedMaintenanceReservationObservedBeforeForeground = false;
+        preparedMaintenanceReservationPresentAtCompletion = false;
+        activeFoodLevelAtStart = latestSnapshot.foodLevel;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        sendCommand("!lk get iron_ingot 1");
+    }
+
+    private boolean baritoneNavigationStopped() {
+        if (!BARITONE_MODE) return true;
+        var upstream = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
+        return !upstream.getMineProcess().isActive() && !upstream.getPathingBehavior().hasPath()
+            && upstream.getPathingBehavior().getInProgress().isEmpty();
+    }
+
+    private void evaluatePreparedSafetyCase() {
+        if (requireEngine().status().startsWith("paused")) {
+            fail("prepared safety automation paused during " + activeCase + ": " + requireEngine().status());
+            return;
+        }
+        String engineStatus = requireEngine().status();
+        if ((preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD
+                || preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS)
+                && !preparedSafetyForegroundStarted) {
+            if (clientTicks - caseStartedAtTick < 2) return;
+            if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
+                fail("offhand-maintained stock unexpectedly queued an acquisition before the foreground goal: " + engineStatus);
+                return;
+            }
+            String maintainedItem = preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD
+                ? "minecraft:cooked_beef" : "minecraft:oak_log";
+            int maintainedCount = preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD ? 1 : 8;
+            if (!maintainedReservationObserved(maintainedItem, maintainedCount)) {
+                fail("maintained demand model did not retain the expected physically held reservation for " + maintainedItem);
+                return;
+            }
+            preparedMaintenanceReservationObservedBeforeForeground = true;
+            preparedMaintenanceQueueEmptyBeforeForeground = true;
+            preparedSafetyForegroundStarted = true;
+            sendCommand(preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD
+                ? "!lk get bucket 1" : "!lk get stick 4");
+            return;
+        }
+        boolean navigationStopped = baritoneNavigationStopped();
+        if (!engineStatus.startsWith("idle") || !navigationStopped) {
+            if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
+                fail("prepared safety case timed out after " + PREPARED_SAFETY_CASE_TIMEOUT_TICKS + " ticks: " + activeCase);
+            }
+            return;
+        }
+        boolean noMaintenanceQueued = engineStatus.endsWith("0 maintenance queued");
+
+        boolean passed;
+        String detail;
+        int observed;
+        if (preparedSafetyPhase == PreparedSafetyPhase.EQUIPMENT) {
+            observed = latestSnapshot.count(activeItem);
+            passed = observed == activeCount && latestSnapshot.storageCount(activeItem) == 0
+                && "minecraft:iron_helmet".equals(latestSnapshot.equippedItems.get("head"))
+                && latestSnapshot.serverCursorEmpty
+                && serverTableOpenings == activeTableOpeningsAtStart
+                && serverFurnaceOpenings == activeFurnaceOpeningsAtStart;
+            detail = passed
+                ? "integrated server received the stored iron helmet in the head slot through a completed goal, with storage empty, cursor empty, and no crafting station opened"
+                : "equipped armor goal completed without the required server head-slot receipt, empty cursor, and zero recrafting menus";
+        } else if (preparedSafetyPhase == PreparedSafetyPhase.THREAT) {
+            observed = latestSnapshot.count(activeItem);
+            Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
+            int initialPickaxeDamage = Integer.parseInt(activeInitialThreatReceipt.getOrDefault("woodenPickaxeDamage", "-1"));
+            int finalPickaxeDamage = Integer.parseInt(receipt.getOrDefault("woodenPickaxeDamage", "-1"));
+            int pickaxeWear = finalPickaxeDamage - initialPickaxeDamage;
+            boolean pickaxeShowsNativeHits = pickaxeWear > 0 && pickaxeWear <= 6 && pickaxeWear % 2 == 0;
+            passed = observed == 1 && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
+                && latestSnapshot.count("minecraft:iron_ingot") == 0
+                && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
+                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name()) && latestSnapshot.foodLevel == 20
+                && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
+                && "true".equals(receipt.get("preparedThreatsCleared"))
+                && activeInitialThreatReceipt.get("zombieUuid").equals(receipt.get("zombieUuid"))
+                && activeInitialThreatReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
+                && "false".equals(receipt.get("zombieAlive"))
+                && "0.0".equals(receipt.get("zombieHealth"))
+                && "true".equals(receipt.get("cowAlive"))
+                && activeInitialThreatReceipt.get("cowHealth").equals(receipt.get("cowHealth"))
+                && activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
+                && "0".equals(receipt.get("diamondSwordDamage")) && pickaxeShowsNativeHits;
+            detail = passed
+                ? "the integrated server killed the prepared zombie with native wooden-pickaxe hits, left the diamond sword untouched and cow at full health, then completed the bucket goal with an empty cursor and idle engine; measured pickaxe wear=" + pickaxeWear + " (" + (pickaxeWear / 2) + " hits at two wear each)"
+                : "the prepared threat goal did not produce the required native zombie, cow, weapon-wear, bucket, cursor, and idle receipts";
+        } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
+            observed = latestSnapshot.count(activeItem);
+            Map<String, String> receipt = latestSnapshot.preparedSafetyStationRoomReceipt;
+            int changedStoneCells = Integer.parseInt(receipt.getOrDefault("roomStoneCellsChangedCount", "-1"));
+            passed = observed == 1 && latestSnapshot.count(RAW_IRON_ID) == 0
+                && latestSnapshot.storageCount(RAW_IRON_ID) == 0
+                && latestSnapshot.health == 20.0F && latestSnapshot.foodLevel == 20
+                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
+                && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
+                && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
+                && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
+                && "73".equals(activeInitialStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && "73".equals(activeInitialStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && "0".equals(activeInitialStationRoomReceipt.get("roomStoneCellsChangedCount"))
+                && "0".equals(activeInitialStationRoomReceipt.get("nearbyFurnaceCount"))
+                && "true".equals(activeInitialStationRoomReceipt.get("playerSupportBedrock"))
+                && "true".equals(receipt.get("playerSupportBedrock"))
+                && "true".equals(receipt.get("stationFloorBedrock"))
+                && "73".equals(receipt.get("roomStoneCellCandidateCount"))
+                && Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1
+                && "0.5,64,0.5".equals(receipt.get("preparedRoomStartPosition"))
+                && changedStoneCells >= 1 && changedStoneCells <= 2;
+            detail = passed
+                ? "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded " + changedStoneCells
+                    + " changed native stone cell(s), with the original support and furnace floor still bedrock"
+                : "the prepared station-room goal did not produce the required ingot, raw-iron, furnace-menu, nearby placement, bounded stone-change, floor, health, cursor, and idle receipts";
+        } else if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD) {
+            observed = latestSnapshot.count(activeItem);
+            preparedMaintenanceReservationPresentAtCompletion = preparedMaintenanceReservationObservedBeforeForeground
+                && maintainedReservationObserved("minecraft:cooked_beef", 1);
+            passed = observed == activeCount && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
+                && latestSnapshot.storageCount("minecraft:cooked_beef") == 0
+                && latestSnapshot.count("minecraft:cooked_beef") == 1
+                && "minecraft:cooked_beef".equals(latestSnapshot.equippedItems.get("offhand"))
+                && latestSnapshot.serverCursorEmpty && noMaintenanceQueued
+                && preparedMaintenanceQueueEmptyBeforeForeground
+                && preparedMaintenanceReservationPresentAtCompletion
+                && latestSnapshot.foodLevel > activeFoodLevelAtStart
+                && serverTableOpenings > activeTableOpeningsAtStart;
+            detail = passed
+                ? "maintained cooked beef remained satisfied by the offhand without queued maintenance work before or after the foreground goal while stored beef was eaten and three stored iron ingots were crafted into a bucket"
+                : "offhand maintenance did not preserve the offhand item while allowing stored food and bucket ingredients to be used without queued maintenance work";
+        } else {
+            observed = latestSnapshot.count(activeItem);
+            int remainingLogs = latestSnapshot.storageCount("minecraft:oak_log");
+            preparedMaintenanceReservationPresentAtCompletion = preparedMaintenanceReservationObservedBeforeForeground
+                && maintainedReservationObserved("minecraft:oak_log", 8);
+            passed = observed >= activeCount && remainingLogs < activeInitialResources.getOrDefault("minecraft:oak_log", 0)
+                && remainingLogs <= 1
+                && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:oak_log"))
+                && latestSnapshot.count("minecraft:oak_log") - remainingLogs == 8
+                && latestSnapshot.serverCursorEmpty && noMaintenanceQueued
+                && preparedMaintenanceQueueEmptyBeforeForeground
+                && preparedMaintenanceReservationPresentAtCompletion;
+            detail = passed
+                ? "an eight-log offhand maintenance goal protected the held logs while the planner used stored oak logs to craft sticks with block breaking disabled and no maintenance work queued"
+                : "stored oak logs were not used for the stick goal while the offhand-maintained oak-log target remained satisfied";
+        }
+        if (!passed && clientTicks - caseStartedAtTick <= PREPARED_SAFETY_CASE_TIMEOUT_TICKS) return;
+        if (!passed) {
+            fail(detail + "; timed out after " + PREPARED_SAFETY_CASE_TIMEOUT_TICKS
+                + " ticks waiting for an authoritative server receipt");
+            return;
+        }
+
+        addResult(true, observed, detail, capture(activeCase));
+        if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD) {
+            beginPreparedSafetyIngredientsSetup();
+            return;
+        }
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
+    private void beginPreparedSafetyIngredientsSetup() {
+        requireEngine().unmaintain("all");
+        preparedSafetyPhase = PreparedSafetyPhase.OFFHAND_INGREDIENTS;
+        state = State.SETTING_UP;
+        readyTicks = 0;
+        preparedSafetySetupStartedAtTick = clientTicks;
+        IntegratedServer server = requireServer();
+        setupFuture = new CompletableFuture<>();
+        CompletableFuture<Long> scheduled = setupFuture;
+        server.execute(() -> {
+            try {
+                ServerPlayerEntity player = requireServerPlayer(server);
+                server.setDifficulty(Difficulty.NORMAL, true);
+                clearInventory(player.getInventory());
+                VerificationApi.seedPreparedSafetyIngredients(player);
+                player.currentScreenHandler.sendContentUpdates();
+                scheduled.complete((long) server.getTicks());
+            } catch (Throwable throwable) {
+                scheduled.completeExceptionally(throwable);
+            }
+        });
+    }
+
+    private void startPreparedSafetyIngredientsCase() {
+        activeCase = "prepared_offhand_ingredients_sticks";
+        activeItem = "minecraft:stick";
+        activeCount = 4;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        preparedSafetyForegroundStarted = false;
+        preparedMaintenanceQueueEmptyBeforeForeground = false;
+        preparedMaintenanceReservationObservedBeforeForeground = false;
+        preparedMaintenanceReservationPresentAtCompletion = false;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        sendCommand("!lk maintain oak_log 8");
+    }
+
     private void startAdditionalCase(State next, String name, String item) {
         activeCase = name; activeItem = item; activeCount = 1;
         activeRequiresEmpty = false; activeStartedEmpty = latestSnapshot.inventoryEmpty();
@@ -2253,7 +2657,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                     MIXED_NAVIGATION_COURSE ? coalNavigationCourseObservedMask : -1,
                     MIXED_NAVIGATION_COURSE ? coalNavigationCourseMinimumHealth : -1.0F,
                     MIXED_NAVIGATION_COURSE ? coalNavigationCheckpointServerTicksSnapshot() : List.of(),
-                    nearbyWoodLocalFixtureSnapshot(world),
+                    nearbyWoodLocalFixtureSnapshot(world), inventory.storageCounts(),
+                    VerificationApi.equippedItems(player), VerificationApi.serverCursorEmpty(player),
+                    preparedSafetyThreatFixture == null ? Map.of()
+                        : VerificationApi.preparedSafetyThreatReceipt(player, preparedSafetyThreatFixture),
+                    preparedSafetyStationRoomFixture == null ? Map.of()
+                        : VerificationApi.preparedSafetyStationRoomReceipt(player, world, preparedSafetyStationRoomFixture),
                     player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ());
                 capture.complete(snapshot);
@@ -2290,15 +2699,16 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private static ServerInventorySnapshot inventorySnapshot(ServerPlayerEntity player) {
         PlayerInventory inventory = player.getInventory();
-        Map<String, Integer> counts = new HashMap<>();
+        Map<String, Integer> storageCounts = new HashMap<>();
         List<Integer> woodenAxes = new ArrayList<>();
-        countStacks(ClientAccess.main(inventory), counts, woodenAxes);
+        countStacks(ClientAccess.main(inventory), storageCounts, woodenAxes);
+        Map<String, Integer> counts = new HashMap<>(storageCounts);
         countStacks(List.of(player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD),
             player.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST),
             player.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS),
             player.getEquippedStack(net.minecraft.entity.EquipmentSlot.FEET),
             player.getEquippedStack(net.minecraft.entity.EquipmentSlot.OFFHAND)), counts, woodenAxes);
-        return new ServerInventorySnapshot(counts, woodenAxes);
+        return new ServerInventorySnapshot(counts, storageCounts, woodenAxes);
     }
 
     private static int countIronPickaxeDeepslate(ServerWorld world) {
@@ -2353,17 +2763,25 @@ public final class RuntimeVerification implements ClientModInitializer {
             latestSnapshot == null ? 0 : latestSnapshot.x, latestSnapshot == null ? 0 : latestSnapshot.y,
             latestSnapshot == null ? 0 : latestSnapshot.z,
             latestSnapshot == null ? Map.of() : latestSnapshot.inventory,
+            latestSnapshot == null ? Map.of() : latestSnapshot.storageInventory,
             latestSnapshot == null ? List.of() : latestSnapshot.woodenAxeRemainingDurability,
             clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime,
             PROCESSING_MODE ? PROCESSING_STATION_MODE : "", PROCESSING_MODE ? cookingRecipeType() : "",
-            PROCESSING_MODE || IRON_PICKAXE_MODE ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
+            PROCESSING_MODE || IRON_PICKAXE_MODE || PREPARED_SAFETY_MODE != null ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
             PROCESSING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
             PROCESSING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
             PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
             latestSnapshot == null ? 0 : latestSnapshot.count("minecraft:coal"),
             PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:" + PROCESSING_STATION_MODE, 0) : 0,
             latestSnapshot == null || !PROCESSING_MODE ? 0
-                : latestSnapshot.count("minecraft:" + PROCESSING_STATION_MODE)));
+                : latestSnapshot.count("minecraft:" + PROCESSING_STATION_MODE),
+            latestSnapshot == null ? Map.of() : latestSnapshot.equippedItems,
+            activeInitialEquipment, latestSnapshot != null && latestSnapshot.serverCursorEmpty, activeInitialCursorEmpty,
+            preparedMaintenanceQueueEmptyBeforeForeground, preparedMaintenanceReservationObservedBeforeForeground,
+            preparedMaintenanceReservationPresentAtCompletion, activeInitialThreatReceipt,
+            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyThreatReceipt,
+            activeInitialStationRoomReceipt,
+            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyStationRoomReceipt, baritoneNavigationStopped()));
     }
 
     private String capture(String name) {
@@ -2418,7 +2836,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = NEARBY_WOOD_MODE || EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
+        int expectedCases = PREPARED_SAFETY_MODE != null
+            ? PREPARED_SAFETY_MODE.equals("offhand") ? 2 : 1
+            : NEARBY_WOOD_MODE || EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
         writeEvidence(allPassed ? "passed" : "failed");
         System.out.println("[Lodekeeper verification] Finished " + results.size() + " server-observed cases; evidence: " + evidenceDirectory);
@@ -2460,7 +2880,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"status\":\"").append(escape(status)).append("\",\n")
             .append("  \"minecraftVersion\":\"").append(escape(VerificationApi.minecraftVersion())).append("\",\n")
             .append("  \"worldKind\":\"isolated_superflat_fixture\",\n")
-            .append("  \"evidenceAuthority\":\"integrated_server_inventory\",\n")
+            .append("  \"preparedWorld\":").append(PREPARED_SAFETY_MODE != null).append(",\n")
+            .append("  \"preparedSafetyProperty\":").append(PREPARED_SAFETY_MODE == null ? "null" : "\"" + escape(PREPARED_SAFETY_MODE) + "\"").append(",\n")
+            .append("  \"evidenceAuthority\":\"")
+            .append(PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
+                ? "integrated_server_inventory_entities_and_item_durability"
+                : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("station_room")
+                    ? "integrated_server_inventory_furnace_menu_and_block_states"
+                    : "integrated_server_inventory")
+            .append("\",\n")
             .append("  \"verificationMode\":\"").append(verificationMode()).append("\",\n")
             .append("  \"elapsedMillis\":").append((System.nanoTime() - startedAtNanos) / 1_000_000L).append(",\n")
             .append("  \"clientTicks\":").append(clientTicks).append(",\n")
@@ -2525,6 +2953,35 @@ public final class RuntimeVerification implements ClientModInitializer {
                 .append(",\"serverBreadAtStart\":").append(result.breadAtStart).append(",\"serverBreadObserved\":").append(result.breadObserved)
                 .append(",\"serverPosition\":[").append(result.x).append(',').append(result.y).append(',').append(result.z).append(']')
                 .append(",\"screenshot\":").append(result.screenshot == null ? "null" : "\"" + escape(result.screenshot) + "\"");
+            if (PREPARED_SAFETY_MODE != null) {
+                json.append(",\"initialStorageInventory\":");
+                appendStringIntMap(json, result.initialResources);
+                json.append(",\"finalStorageInventory\":");
+                appendStringIntMap(json, result.storageInventory);
+                json.append(",\"fullServerHeldInventory\":");
+                appendStringIntMap(json, result.serverInventory);
+                json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
+                    .append(",\"baritoneCompletionGuardEnabled\":").append(BARITONE_MODE)
+                    .append(",\"baritoneNavigationStoppedAtReceipt\":").append(result.navigationStopped);
+                json.append(",\"initialEquipmentSlotItems\":");
+                appendStringStringMap(json, result.initialEquipment);
+                json.append(",\"serverEquipmentSlotItems\":");
+                appendStringStringMap(json, result.serverEquipment);
+                json.append(",\"initialServerCursorEmpty\":").append(result.initialCursorEmpty)
+                    .append(",\"serverCursorEmpty\":").append(result.cursorEmpty)
+                    .append(",\"noMaintenanceQueuedBeforeForeground\":").append(result.noMaintenanceQueuedBeforeForeground)
+                    .append(",\"maintainedReservationObservedBeforeForeground\":").append(result.maintainedReservationObservedBeforeForeground)
+                    .append(",\"maintainedReservationPresentAtCompletion\":").append(result.maintainedReservationPresentAtCompletion)
+                    .append(",\"noMaintenanceQueued\":").append(result.engineStatus.endsWith("0 maintenance queued"));
+                json.append(",\"initialPreparedThreatReceipt\":");
+                appendStringStringMap(json, result.initialThreatReceipt);
+                json.append(",\"serverPreparedThreatReceipt\":");
+                appendStringStringMap(json, result.serverThreatReceipt);
+                json.append(",\"initialPreparedStationRoomReceipt\":");
+                appendStringStringMap(json, result.initialStationRoomReceipt);
+                json.append(",\"serverPreparedStationRoomReceipt\":");
+                appendStringStringMap(json, result.serverStationRoomReceipt);
+            }
             if (NEARBY_WOOD_MODE) {
                 json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
                     .append(",\"liveRouteScreenshot\":").append(liveRouteScreenshot == null ? "null" : "\"" + escape(liveRouteScreenshot) + "\"")
@@ -2990,6 +3447,16 @@ public final class RuntimeVerification implements ClientModInitializer {
         json.append('}');
     }
 
+    private static void appendStringStringMap(StringBuilder json, Map<String, String> values) {
+        json.append('{');
+        int index = 0;
+        for (Map.Entry<String, String> entry : values.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            if (index++ > 0) json.append(',');
+            json.append('"').append(escape(entry.getKey())).append("\":\"").append(escape(entry.getValue())).append('"');
+        }
+        json.append('}');
+    }
+
     private static String blockPosition(BlockPos position) {
         return position.getX() + "," + position.getY() + "," + position.getZ();
     }
@@ -3023,6 +3490,11 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (PREPARED_SAFETY_MODE != null
+                && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
+                && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("station_room")) {
+            return "invalid_prepared_safety_mode";
+        }
         if (NEARBY_WOOD_TERRAIN.equals("local_decoy") && !NEARBY_WOOD_MODE) {
             return "invalid_nearby_wood_local_decoy_requires_nearby_wood";
         }
@@ -3035,6 +3507,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         if (COAL_RAISED_FULL_DROP_MODE && !COAL_RECOVERY_MODE) return "invalid_raised_full_requires_coal_recovery";
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
+        if (PREPARED_SAFETY_MODE != null) return "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
         if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";
         if (MIXED_NAVIGATION_COURSE && !COAL_START_SURFACE.equals("full")) return "invalid_navigation_course_requires_full_surface";
@@ -3057,7 +3530,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static int selectedFixtureModes() {
         return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
             + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
-            + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0);
+            + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0) + (PREPARED_SAFETY_MODE != null ? 1 : 0);
     }
 
     private record NearbyWoodWalkActionSnapshot(String type, int x, int y, int z, int token) { }
@@ -3110,9 +3583,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
     }
 
-    private record ServerInventorySnapshot(Map<String, Integer> counts, List<Integer> woodenAxeRemainingDurability) {
+    private record ServerInventorySnapshot(Map<String, Integer> counts, Map<String, Integer> storageCounts,
+                                           List<Integer> woodenAxeRemainingDurability) {
         private ServerInventorySnapshot {
             counts = Map.copyOf(counts);
+            storageCounts = Map.copyOf(storageCounts);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
         }
     }
@@ -3135,14 +3610,24 @@ public final class RuntimeVerification implements ClientModInitializer {
                                   float coalNavigationCourseMinimumHealth,
                                   List<Integer> coalNavigationCourseCheckpointServerTicks,
                                   NearbyWoodLocalFixtureSnapshot nearbyWoodLocalFixture,
+                                  Map<String, Integer> storageInventory,
+                                  Map<String, String> equippedItems, boolean serverCursorEmpty,
+                                  Map<String, String> preparedSafetyThreatReceipt,
+                                  Map<String, String> preparedSafetyStationRoomReceipt,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {
             inventory = Map.copyOf(inventory);
+            storageInventory = Map.copyOf(storageInventory);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
             coalNavigationCourseCheckpointServerTicks = List.copyOf(coalNavigationCourseCheckpointServerTicks);
+            equippedItems = Map.copyOf(equippedItems);
+            preparedSafetyThreatReceipt = Map.copyOf(preparedSafetyThreatReceipt);
+            preparedSafetyStationRoomReceipt = Map.copyOf(preparedSafetyStationRoomReceipt);
         }
         int count(String id) { return inventory.getOrDefault(id, 0); }
+        int storageCount(String id) { return storageInventory.getOrDefault(id, 0); }
+        int heldCount(String id) { return count(id); }
         boolean inventoryEmpty() { return inventory.isEmpty(); }
     }
 
@@ -3152,15 +3637,32 @@ public final class RuntimeVerification implements ClientModInitializer {
                               boolean furnaceOpenedDuringCase, int ironPickaxeCount,
                               int foodLevelAtStart, int foodLevelObserved, int breadAtStart, int breadObserved,
                               double x, double y, double z, Map<String, Integer> serverInventory,
+                              Map<String, Integer> storageInventory,
                               List<Integer> woodenAxeRemainingDurability, int completionClientTick,
                               long completionWorldTick, String cookingStation, String cookingRecipeType,
                               Map<String, Integer> initialResources, boolean correctCookingStationMenuOpenedDuringCase,
                               int initialRawInputCount, int finalRawInputCount, int initialCoalCount, int finalCoalCount,
-                              int initialStationItemCount, int finalStationItemCount) {
+                              int initialStationItemCount, int finalStationItemCount,
+                              Map<String, String> serverEquipment, Map<String, String> initialEquipment,
+                              boolean cursorEmpty, boolean initialCursorEmpty,
+                              boolean noMaintenanceQueuedBeforeForeground,
+                              boolean maintainedReservationObservedBeforeForeground,
+                              boolean maintainedReservationPresentAtCompletion,
+                              Map<String, String> initialThreatReceipt,
+                              Map<String, String> serverThreatReceipt,
+                              Map<String, String> initialStationRoomReceipt,
+                              Map<String, String> serverStationRoomReceipt, boolean navigationStopped) {
         private CaseResult {
             serverInventory = Map.copyOf(serverInventory);
+            storageInventory = Map.copyOf(storageInventory);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
             initialResources = Map.copyOf(initialResources);
+            serverEquipment = Map.copyOf(serverEquipment);
+            initialEquipment = Map.copyOf(initialEquipment);
+            initialThreatReceipt = Map.copyOf(initialThreatReceipt);
+            serverThreatReceipt = Map.copyOf(serverThreatReceipt);
+            initialStationRoomReceipt = Map.copyOf(initialStationRoomReceipt);
+            serverStationRoomReceipt = Map.copyOf(serverStationRoomReceipt);
         }
     }
 }

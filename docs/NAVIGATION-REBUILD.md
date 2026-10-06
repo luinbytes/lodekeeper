@@ -69,3 +69,12 @@ The packaged `755fd70` build passed all 24 exact version profiles in [CI](https:
 The native mining accessors applied in the packaged client. Debug logs show fresh discoveries merging into an active mining request and later path segments calculating during movement. Food approach failures consumed time. A skeleton was visible in the final frame, and crafted armor had not been equipped.
 
 The next changes plan project materials together, preserve planned tool upgrades before bulk gathering, and cook ordinary spare meat before further travel. Armor quick-moves use native slot predicates and receipt checks. Equipped stock counts toward goals but stays outside crafting ingredients. Threat response and the continuous project timer still need native verification. These changes do not establish the full-set target or support for every Minecraft mechanic.
+
+
+## Fifth development checkpoint
+
+The `f7f7281` normal-survival run began moving after 1,200 ms and acquired three raw iron before failing at furnace placement after 105,992 ms. Health and hunger stayed at 20, with no deaths. The saved world contained a usable air square directly beside the player, but candidate selection rejected it because its squared block-position distance was less than two. This is a failed full-set benchmark. [The server receipt and artifact identity](evidence/navigation-rebuild/checkpoint-05.json) retain the failure.
+
+Prepared native armor-transfer checks passed in 1.21.1 and 26.3. Those fixtures seed an ordinary helmet and verify its transfer into the native head slot, with no extra crafting and an empty cursor. They do not prove survival acquisition of armor. The full diamond target remains unpassed.
+
+The next patch removes the adjacent-site exclusion and clears at most two exact natural blocks for a station pocket when no valid air site exists. Project goals remain queued on a station-placement failure. Food reservations, protected offhand stock, threat handling and cramped-room receipts are being checked in isolated clients. The intermediate-version API corrections still need a fresh complete CI run.

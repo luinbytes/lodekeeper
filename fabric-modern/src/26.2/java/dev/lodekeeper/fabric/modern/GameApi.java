@@ -40,9 +40,9 @@ final class GameApi {
                 && player.isWithinAttackRange(player.getMainHandItem(), target.getBoundingBox(), 0.0);
     }
 
-    static boolean defenseHasSweepCollateral(net.minecraft.world.entity.player.Player player, net.minecraft.world.entity.Entity target) {
+    static boolean defenseHasSweepCollateral(net.minecraft.world.level.Level world, net.minecraft.world.entity.player.Player player, net.minecraft.world.entity.Entity target) {
         java.util.List<net.minecraft.world.entity.LivingEntity> nearby = new java.util.ArrayList<>();
-        player.level().getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(net.minecraft.world.entity.LivingEntity.class),
+        world.getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(net.minecraft.world.entity.LivingEntity.class),
                 target.getBoundingBox().inflate(1.0, 0.25, 1.0), living -> living != player && living != target, nearby, 17);
         if (nearby.size() >= 17) return true;
         for (var living : nearby) {

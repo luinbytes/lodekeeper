@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T07:03:30.782345+00:00",
+  "cases": [
+    {
+      "minecraftVersion": "1.21.1",
+      "goal": "gear_diamond",
+      "status": "failed",
+      "commandElapsedMillis": 105992,
+      "firstServerMovementElapsedMillis": 1200,
+      "minimumHealth": 20.0,
+      "serverHealth": 20.0,
+      "serverHunger": 20,
+      "deathsObserved": 0,
+      "goalSatisfied": false,
+      "failure": "automation paused: paused \u00b7 Project gear_diamond blocked: Cannot place required station minecraft:furnace at BlockPos{x=-9, y=40, z=22}: no visible, reachable full-floor placement site nearby; required minecraft:furnace (inventory 1), tried 0 site(s) \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "serverHeldCounts": {
+        "minecraft:furnace": 1,
+        "minecraft:raw_iron": 3,
+        "minecraft:birch_planks": 3,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:cobblestone": 10,
+        "minecraft:dirt": 16,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:birch_log": 1
+      },
+      "serverArmorCounts": {},
+      "serverCursor": {
+        "item": "",
+        "count": 0
+      },
+      "sourceCommit": "f7f728188d80521f19988b588dd5d725f661bbb7",
+      "artifactSha256": "05f95ded5d2f2eb0cd647d4e33c5188390a4c1df1415d1580fc74564efcffac9",
+      "clientExitCode": 0,
+      "evidence": "natural-diamond-checkpoint05-1211.json",
+      "artifact": "natural-diamond-checkpoint05-1211-artifact.json"
+    }
+  ],
+  "fullDiamondAcceptance": "not passed",
+  "comparison": "One unpaired normal-survival run. No competitor speed claim.",
+  "failureAnalysis": "Saved-world block data identified an air placement site at (-9,40,21), with stone support and no player-body intersection, rejected solely because squared block-position distance was less than 2.",
+  "nextChanges": "Remove arbitrary adjacent-site exclusion, prepare a bounded safe station pocket when none exists, preserve the project on placement failure, and verify survival interruption cases."
+}

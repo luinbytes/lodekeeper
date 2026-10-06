@@ -235,7 +235,7 @@ final class ThreatResponseAction {
     private int chooseWeaponSlot() {
         int current = ClientAccess.selectedSlot(client.player.getInventory()), best = -1;
         double damage = Double.NEGATIVE_INFINITY;
-        boolean sweepCollateral = GameApi.defenseHasSweepCollateral(client.player, target);
+        boolean sweepCollateral = GameApi.defenseHasSweepCollateral(client.world, client.player, target);
         for (int offset = 0; offset < 9; offset++) {
             int slot = (current + offset) % 9;
             ItemStack stack = client.player.getInventory().getStack(slot);

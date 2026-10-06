@@ -61,9 +61,9 @@ final class GameApi {
         return dx * dx + dy * dy + dz * dz < 9.0;
     }
 
-    static boolean defenseHasSweepCollateral(net.minecraft.entity.player.PlayerEntity player, net.minecraft.entity.Entity target) {
+    static boolean defenseHasSweepCollateral(net.minecraft.world.World world, net.minecraft.entity.player.PlayerEntity player, net.minecraft.entity.Entity target) {
         java.util.List<net.minecraft.entity.LivingEntity> nearby = new java.util.ArrayList<>();
-        player.getEntityWorld().collectEntitiesByType(net.minecraft.util.TypeFilter.instanceOf(net.minecraft.entity.LivingEntity.class),
+        world.collectEntitiesByType(net.minecraft.util.TypeFilter.instanceOf(net.minecraft.entity.LivingEntity.class),
                 target.getBoundingBox().expand(1.0, 0.25, 1.0), living -> living != player && living != target, nearby, 17);
         if (nearby.size() >= 17) return true;
         for (var living : nearby) {

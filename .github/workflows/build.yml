@@ -102,7 +102,7 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: gradle
       - name: Compile, check and package the exact game adapter
-        run: ./scripts/build-version.sh '${{ matrix.minecraft }}' --no-daemon
+        run: ./scripts/build-version.sh '${{ matrix.minecraft }}' --no-daemon ':${{ matrix.module }}:verificationClasses'
       - name: Preserve regression failure details
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
