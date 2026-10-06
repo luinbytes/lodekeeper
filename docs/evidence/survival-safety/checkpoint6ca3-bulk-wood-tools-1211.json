@@ -1,0 +1,32 @@
+{
+  "runId":"2026-10-06T09-03-37-787313Z-1e4bbfc1",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":false,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":null,
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"bulk_wood",
+  "elapsedMillis":300020,
+  "clientTicks":5884,
+  "failure":"verification exceeded the five-minute limit",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"bulk_wood_64","item":"minecraft:oak_log","expected":64,"serverObserved":64,"inventoryEmptyAtStart":true,"passed":false,"clientTicks":5685,"worldTicks":5685,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"verification exceeded the five-minute limit","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[69.25495775879837,64.0,0.49881439840326436],"screenshot":"screenshots/lodekeeper-2026-10-06T09-03-37-787313Z-1e4bbfc1-failed-bulk_wood_64.png","elapsedMillisFromCommand":284255,"completionClientTick":5884,"completionWorldTick":5766,"completionHealth":20.0,"finalOakLogCount":64,"fullServerInventory":{"minecraft:oak_log":64},"woodenAxeRemainingDurabilityPerStack":[]}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":80,
+  "woodToolsFlag":true,
+  "woodToolsEnabled":true,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}
