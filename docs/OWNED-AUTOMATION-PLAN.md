@@ -54,7 +54,17 @@ The completion predicate is all requested units implemented, reviewed, artifact-
 
 Preview.10 contains `META-INF/jars/baritone-api-fabric-1.11.3.jar`. Its supplied log ends with zero attacks, two retreats, no remaining dry retreat stance, and death. The ongoing contact fix killed both live contact zombies without hurting the cow on 1.21.1 and 26.3. Those controlled passes do not yet cover fresh-world weapon preparation.
 
-The `a5d3584` CI run compiled 21 profiles. Three older verification adapters failed because their Fabric API has no `AFTER_DAMAGE` event. Their production builds are not the failing step. Add a version-specific verification event adapter without weakening the 1.21.1 contact proof.
+The older verification event failure is resolved by a selected adapter. Commit `0ab5415` passed CI run `37516029585` on all 24 profiles. The 1.21.1 contact verifier retains its server damage event.
+
+### Settings, claims, and combat preparation foundation
+
+The pending foundation unit has passed the 1.21.1 and 26.3 production and verifier builds, 117 core tests, and 91 navigation tests. It adds 48 shared setting descriptors, isolated GUI drafts with save rollback, bounded claim storage, and optional cheap stone-sword preparation before ore gathering. The native GUI and claim enforcement are still pending. Claim storage refuses replacement when loading has failed.
+
+The config size review found that a legal navigation map could save beyond the old 64 KiB read limit. Read and write limits now agree at 256 KiB, and saving validates serialized UTF-8 bytes before replacement. The native verifier includes a maximum-size map round trip with block breaking disabled. That native probe has not run yet.
+
+The manual defense takeover verifier captures the exact pending request, observes physical-key preservation before clearing the introduced key, and then requires a later server request and server tick for conservation checks. It checks every native process and forced-input key. Native execution remains pending.
+
+The source-port prototype compiles and remaps 249 owned Java sources for 1.21.1. Its artifact has the required mixins and matching refmap, without a separate mod manifest or `baritone/` namespace. This is a build proof only. The lifecycle review found permanent cache workers occupying both executor threads, stale-search publication risks, and unsafe input teardown. A dedicated search lane, finite cache work, and owned session cancellation must pass review and native checks before integration.
 
 ## Sources
 

@@ -93,8 +93,28 @@ final class AutomationEngine {
     private static final int WOOD_TOOL_STATION_TICKS = 100;
     private static final int WOOD_TOOL_MINIMUM_SAVING_TICKS = 100;
     private static final ItemId WOODEN_AXE = ItemId.parse("minecraft:wooden_axe");
+    private static final ItemId STONE_SWORD = ItemId.parse("minecraft:stone_sword");
+    private static final ItemId STICK = ItemId.parse("minecraft:stick");
+    private static final ItemId CRAFTING_TABLE_ITEM = ItemId.parse("minecraft:crafting_table");
     private static final StationId CRAFTING_TABLE = StationId.parse("minecraft:crafting_table");
     private static final TagId LOGS_TAG = TagId.parse("minecraft:logs");
+    private static final TagId PLANKS_TAG = TagId.parse("minecraft:planks");
+    private static final List<SelectedToolRequirement> COMBAT_PREPARATION_PICKAXES = List.of(
+            new SelectedToolRequirement(ItemId.parse("minecraft:wooden_pickaxe"), 2, "ore mining"),
+            new SelectedToolRequirement(ItemId.parse("minecraft:stone_pickaxe"), 2, "ore mining"),
+            new SelectedToolRequirement(ItemId.parse("minecraft:iron_pickaxe"), 2, "ore mining"),
+            new SelectedToolRequirement(ItemId.parse("minecraft:diamond_pickaxe"), 2, "ore mining"),
+            new SelectedToolRequirement(ItemId.parse("minecraft:netherite_pickaxe"), 2, "ore mining"));
+    private static final Map<String, ItemId> COMBAT_GATHER_OUTPUTS = Map.of(
+            "minecraft:stone", ItemId.parse("minecraft:cobblestone"),
+            "minecraft:cobblestone", ItemId.parse("minecraft:cobblestone"),
+            "minecraft:deepslate", ItemId.parse("minecraft:cobbled_deepslate"),
+            "minecraft:cobbled_deepslate", ItemId.parse("minecraft:cobbled_deepslate"),
+            "minecraft:blackstone", ItemId.parse("minecraft:blackstone"));
+    private static final Set<String> COMBAT_PREPARATION_ORES = Set.of(
+            "minecraft:iron_ore", "minecraft:deepslate_iron_ore",
+            "minecraft:coal_ore", "minecraft:deepslate_coal_ore",
+            "minecraft:diamond_ore", "minecraft:deepslate_diamond_ore");
 
     private record Request(String name, ItemId item, int count, boolean anyLogs,
                            String maintenanceTaskId, ProjectRun project) {
@@ -116,6 +136,8 @@ final class AutomationEngine {
                                 HarvestInvestment.ToolDemand demand, Map<String, GatherLimit> localSources,
                                 Set<ItemId> localOutputs, Set<ItemId> goalLogItems, Set<String> nativeCraftSources,
                                 Set<String> allowedAxeCraftSources, HarvestInvestment.TickEstimates estimates) { }
+    private record CombatPreparationOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
+                                          InventorySnapshot knownInventory, boolean canPlaceStations) { }
 
     private static final class LocalReachScan {
         private final Object world;
@@ -1370,6 +1392,7 @@ final class AutomationEngine {
         HarvestOffer harvestOffer = gatheringEnabled && active.anyLogs && config.optimizeWoodTools
                 ? captureHarvestOffer(active.count - goalCount()) : null;
         CatalogSnapshot filteredSnapshot = snapshot;
+        CombatPreparationOffer combatOffer = captureCombatPreparationOffer(filteredSnapshot, inventory, knownInventory);
         PlanningPreferences preferences = nearbyResources.snapshot();
         pendingPlanPreferencesVersion = nearbyResources.version();
         pendingPlanGeneration = catalog.generation();
@@ -1440,13 +1463,19 @@ final class AutomationEngine {
                     if (steps.get(0).kind() == PlanKind.GATHER)
                         steps.set(0, ProjectGatherBatch.firstStep(planner, filteredSnapshot, inventory, steps,
                                 PlannerLimits.DEFAULT, preferences, gatherCapacity.getOrDefault(steps.get(0).output(), 0)));
-                    return new PlanningOutcome(new PlanResult(targetItem, targetCount, steps, List.of(),
-                            joint.optimal(), joint.expandedNodes(), joint.elapsedNanos()), false, false,
-                            steps.get(0) == first ? null : first);
+                    PlanResult basePlan = new PlanResult(targetItem, targetCount, steps, List.of(),
+                            joint.optimal(), joint.expandedNodes(), joint.elapsedNanos());
+                    PlanningOutcome combatPreparation = combatPreparationOutcome(basePlan, joint, combatOffer, preferences);
+                    if (combatPreparation != null) return combatPreparation;
+                    return new PlanningOutcome(basePlan, false, false, steps.get(0) == first ? null : first);
                 }
             }
             PlanResult filteredPlan = planWithStationFallback(filteredSnapshot, inventory, knownInventory,
                     targetItem, targetCount, preferences);
+            if (filteredPlan.success() && (joint == null || joint.success())) {
+                PlanningOutcome combatPreparation = combatPreparationOutcome(filteredPlan, joint, combatOffer, preferences);
+                if (combatPreparation != null) return combatPreparation;
+            }
             if (filteredPlan.success() && harvestOffer != null) {
                 try {
                     PlanResult investmentPlan = planner.planFast(harvestOffer.catalog(), harvestOffer.inventory(),
@@ -1482,6 +1511,123 @@ final class AutomationEngine {
             return new PlanningOutcome(filteredPlan,
                     ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
         }, plannerWorker);
+    }
+
+    private CombatPreparationOffer captureCombatPreparationOffer(CatalogSnapshot snapshot,
+                                                                  InventorySnapshot inventory,
+                                                                  InventorySnapshot knownInventory) {
+        if (!config.autoDefend || client.player == null || client.level == null || !client.player.isAlive()
+                || client.player.isCreative() || client.player.isSpectator()
+                || client.level.getDifficulty() == net.minecraft.world.Difficulty.PEACEFUL
+                || COMBAT_PREPARATION_PICKAXES.stream().noneMatch(actions::hasTool)
+                || gatherCapacity(STONE_SWORD) < 1 || threats.hasPreparedMeleeWeapon()) return null;
+
+        Set<ItemId> planks = Set.copyOf(catalog.tags.getOrDefault(PLANKS_TAG, List.of()));
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+        snapshot.itemDefinitions().values().forEach(builder::item);
+        catalog.tags.forEach(builder::tag);
+        for (AcquisitionSource source : catalog.sources) {
+            if (unavailableSources.contains(source.sourceId())) continue;
+            if (source instanceof CraftingSource crafting && isCombatPreparationCraftSource(crafting, planks)) {
+                builder.source(source);
+            } else if (config.allowBreaking && source instanceof GatherSource gather
+                    && isCombatPreparationGatherSource(gather)) {
+                builder.source(source);
+            }
+        }
+        return new CombatPreparationOffer(builder.build(), inventory, knownInventory, config.allowBuilding);
+    }
+
+    private boolean isCombatPreparationCraftSource(CraftingSource source, Set<ItemId> planks) {
+        if (!source.output().equals(STONE_SWORD) && !source.output().equals(STICK)
+                && !source.output().equals(CRAFTING_TABLE_ITEM) && !planks.contains(source.output())) return false;
+        if (source.requirements().stream().anyMatch(requirement ->
+                !(requirement instanceof StationRequirement station)
+                        || !station.station().equals(CRAFTING_TABLE)
+                        || !station.placementItem().equals(CRAFTING_TABLE_ITEM))) return false;
+
+        GameCatalog.RecipeWork recipe = catalog.recipes.get(source.sourceId());
+        if (recipe == null || recipe.cookTicks() != 0 || recipe.type() != source.recipeType()
+                || recipe.width() != source.width() || recipe.height() != source.height()
+                || !recipe.output().equals(GameCatalog.item(source.output()))) return false;
+        ItemStack output = recipe.resultStack();
+        return output.getCount() == source.outputCount()
+                && ItemStack.isSameItemSameComponents(output, GameCatalog.item(source.output()).getDefaultInstance());
+    }
+
+    private static boolean isCombatPreparationGatherSource(GatherSource source) {
+        if (source.outputCount() != 1 || source.blocks().size() != 1
+                || source.requirements().stream().anyMatch(requirement -> !(requirement instanceof ToolRequirement))) return false;
+        String block = source.blocks().get(0).toString();
+        return source.sourceId().equals("gather:" + block)
+                && source.output().equals(COMBAT_GATHER_OUTPUTS.get(block));
+    }
+
+    private PlanningOutcome combatPreparationOutcome(PlanResult basePlan, ProjectPlanResult project,
+                                                     CombatPreparationOffer offer,
+                                                     PlanningPreferences preferences) {
+        if (offer == null || !basePlan.success() || basePlan.steps().stream().noneMatch(step ->
+                step.kind() == PlanKind.GATHER && step.candidateBlocks().stream()
+                        .anyMatch(block -> COMBAT_PREPARATION_ORES.contains(block.toString())))) return null;
+        try {
+            InventorySnapshot protectedInventory = project == null ? offer.inventory()
+                    : ProjectMaterialReservations.protectOptionalWork(offer.inventory(), project);
+            InventorySnapshot protectedKnownInventory = project == null ? offer.knownInventory()
+                    : ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), project);
+            PlanResult preparation = planWithStationFallback(offer.catalog(), protectedInventory,
+                    protectedKnownInventory, STONE_SWORD, 1, preferences);
+            if (!isBoundedCombatPreparationPlan(preparation, offer.catalog(), offer.canPlaceStations())) return null;
+            List<PlanStep> markedSteps = preparation.steps().stream().map(candidate -> {
+                Map<String, String> attributes = new HashMap<>(candidate.attributes());
+                attributes.put("combatPreparation", "true");
+                return new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(),
+                        candidate.outputCount(), candidate.operationCount(), candidate.requirements(),
+                        candidate.candidateBlocks(), candidate.recipeType(), candidate.recipeWidth(),
+                        candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes);
+            }).toList();
+            PlanResult markedPlan = new PlanResult(preparation.target(), preparation.requestedCount(), markedSteps,
+                    preparation.blockedReasons(), preparation.optimal(), preparation.expandedNodes(), preparation.elapsedNanos());
+            return new PlanningOutcome(markedPlan, false, true);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static boolean isBoundedCombatPreparationPlan(PlanResult plan, CatalogSnapshot catalogSnapshot, boolean canPlaceStations) {
+        if (!plan.success() || plan.steps().isEmpty() || plan.steps().size() > 5) return false;
+        int gatherOperations = 0, gatheredBlocks = 0, craftingOperations = 0;
+        for (PlanStep step : plan.steps()) {
+            if (step.station() != null && !step.station().equals(CRAFTING_TABLE)) return false;
+            switch (step.kind()) {
+                case GATHER -> {
+                    AcquisitionSource selected = catalogSnapshot.sourcesFor(step.output()).stream()
+                            .filter(source -> source.sourceId().equals(step.sourceId())).findFirst().orElse(null);
+                    if (!(selected instanceof GatherSource gather) || !isCombatPreparationGatherSource(gather)
+                            || !gather.output().equals(step.output()) || !gather.blocks().containsAll(step.candidateBlocks())
+                            || step.operationCount() > 2 - gatherOperations || step.outputCount() > 2 - gatheredBlocks) return false;
+                    gatherOperations += step.operationCount();
+                    gatheredBlocks += step.outputCount();
+                }
+                case CRAFT -> {
+                    AcquisitionSource selected = catalogSnapshot.sourcesFor(step.output()).stream()
+                            .filter(source -> source.sourceId().equals(step.sourceId())).findFirst().orElse(null);
+                    if (!(selected instanceof CraftingSource crafting) || !crafting.output().equals(step.output())
+                            || crafting.recipeType() != step.recipeType() || crafting.width() != step.recipeWidth()
+                            || crafting.height() != step.recipeHeight()
+                            || crafting.requirements().stream().anyMatch(requirement ->
+                                    !(requirement instanceof StationRequirement station)
+                                            || !station.station().equals(CRAFTING_TABLE)
+                                            || !station.placementItem().equals(CRAFTING_TABLE_ITEM))
+                            || step.operationCount() > 4 - craftingOperations) return false;
+                    craftingOperations += step.operationCount();
+                }
+                case PLACE_STATION -> {
+                    if (!canPlaceStations || !CRAFTING_TABLE.equals(step.station())) return false;
+                }
+                case SMELT, CUSTOM -> { return false; }
+            }
+        }
+        return true;
     }
 
     private List<AcquisitionSource> preparationSources(CatalogSnapshot snapshot, FoodController.Preparation preparation) {
@@ -2811,8 +2957,13 @@ final class AutomationEngine {
 
     private void completeStep() {
         if (stopAfterStep) { stopNow(true); return; }
+        boolean prepareCombatWeapon = step != null && step.kind() == PlanKind.CRAFT
+                && step.output().equals(STONE_SWORD)
+                && Boolean.parseBoolean(step.attributes().getOrDefault("combatPreparation", "false"));
         resetAction();
         planningRetries = 0;
+        if (prepareCombatWeapon && config.autoDefend && !paused && movement.finishCancellation())
+            actions.select(GameCatalog.item(STONE_SWORD));
         if (applyDeferredUnmaintain()) return;
         if (foregroundYieldPending && active != null && active.maintained()) {
             if (canYieldMaintenanceNow()) yieldActiveMaintenance();

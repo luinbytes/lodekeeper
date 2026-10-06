@@ -62,6 +62,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -114,6 +115,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final String THREAT_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatContact");
     private static final boolean THREAT_CONTACT_MODE = "true".equals(THREAT_CONTACT_PROPERTY);
+    private static final String CONTACT_MANUAL_INPUT_PROPERTY = System.getProperty("lodekeeper.verify.threatContactManualInput");
+    private static final boolean CONTACT_MANUAL_INPUT_MODE = "true".equals(CONTACT_MANUAL_INPUT_PROPERTY);
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
@@ -141,6 +144,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final Field MOVEMENT_VALIDATED_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.MovementController", "validatedPathIndex");
     private static final Field MOVEMENT_INPUT_FIELD = findField("dev.lodekeeper.fabric.MovementController", "input");
     private static final Field BOT_INPUT_FORWARD_FIELD = findField("dev.lodekeeper.fabric.BotInput", "forward");
+    private static final boolean CONFIG_ROUND_TRIP_MODE = Boolean.getBoolean("lodekeeper.verify.configRoundTrip");
+    private JsonObject configRoundTripReceipt;
     private boolean resourceInitiallyLoaded;
     private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : MINING_REQUEST_LIMIT_MODE ? 7_200 : 6_000;
     private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L
@@ -287,6 +292,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     private PreparedSafetyPhase preparedSafetyPhase = PreparedSafetyPhase.NONE;
     private VerificationApi.PreparedSafetyThreatFixture preparedSafetyThreatFixture;
     private Map<String, String> activeInitialThreatReceipt = Map.of();
+    private Object contactOriginalInput;
+    private boolean contactManualKeyInjected;
+    private int contactManualInputTick;
+    private Object contactManualTaskIdentity;
+    private int contactManualGuardTick = -1, contactManualGuardServerTick = -1;
+    private long contactManualGuardObservationSequence = -1;
+    private Map<String, String> contactManualInputReceipt = Map.of();
     private VerificationApi.PreparedSafetyStationRoomFixture preparedSafetyStationRoomFixture;
     private String stationRoomSetupScreenshot;
     private Map<String, String> activeInitialStationRoomReceipt = Map.of();
@@ -879,14 +891,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         VerificationApi.startFlatWorld(loader, saveName, levelInfo, holder.generatorOptions());
     }
 
-    private void configureAutomation() {
+    private void configureAutomation() throws IOException {
         AutomationEngine engine = requireEngine();
         engine.stop();
+        if (CONFIG_ROUND_TRIP_MODE) configRoundTripReceipt = ConfigRoundTripVerification.verify(engine.config);
         engine.config.searchRadius = BULK_WOOD_MODE ? 96 : 48;
         engine.config.scanBlocksPerTick = 512;
-        engine.config.pathNodesPerTick = 128;
-        engine.config.pathNodeLimit = 16_000;
-        engine.config.pathMillisPerTick = 2;
         engine.config.actionTimeoutTicks = 1_200;
         engine.config.pauseBelowHealth = 6.0F;
         engine.config.allowBreaking = true;
@@ -2811,6 +2821,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static boolean invalidThreatContactMode() {
+        if (CONTACT_MANUAL_INPUT_PROPERTY != null && !"false".equals(CONTACT_MANUAL_INPUT_PROPERTY)
+                && (!CONTACT_MANUAL_INPUT_MODE || !THREAT_CONTACT_MODE)) return true;
         return THREAT_CONTACT_PROPERTY != null && !"false".equals(THREAT_CONTACT_PROPERTY)
             && (!THREAT_CONTACT_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
@@ -2891,7 +2903,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("prepared threat command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
+        activeCase = CONTACT_MANUAL_INPUT_MODE ? "contact_defense_manual_takeover"
+            : THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
             : THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
         activeItem = "minecraft:bucket";
         activeCount = 1;
@@ -2910,6 +2923,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.PREPARED_SAFETY;
         sendCommand("!lk get bucket 1");
         if (THREAT_CONTACT_MODE) {
+            contactOriginalInput = client.player.input;
             var server = client.getServer();
             if (server == null) throw new IllegalStateException("contact clock release requires integrated server");
             server.execute(() -> {
@@ -3100,13 +3114,109 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean baritoneNavigationStopped() {
         if (!BARITONE_MODE) return true;
         var upstream = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
-        return !upstream.getMineProcess().isActive() && !upstream.getFollowProcess().isActive()
-            && upstream.getFollowProcess().currentFilter() == null && !upstream.getCustomGoalProcess().isActive()
-            && !upstream.getPathingBehavior().hasPath() && !upstream.getPathingBehavior().isPathing()
-            && upstream.getPathingBehavior().getInProgress().isEmpty();
+        baritone.api.process.IBaritoneProcess[] processes = {
+                upstream.getMineProcess(), upstream.getFollowProcess(), upstream.getCustomGoalProcess(),
+                upstream.getBuilderProcess(), upstream.getExploreProcess(), upstream.getFarmProcess(),
+                upstream.getGetToBlockProcess(), upstream.getElytraProcess()
+        };
+        for (var process : processes) if (process.isActive()) return false;
+        for (var key : baritone.api.utils.input.Input.values())
+            if (upstream.getInputOverrideHandler().isInputForcedDown(key)) return false;
+        return upstream.getFollowProcess().currentFilter() == null
+                && !upstream.getPathingBehavior().hasPath() && !upstream.getPathingBehavior().isPathing()
+                && upstream.getPathingBehavior().getInProgress().isEmpty();
+    }
+
+    private void evaluateContactManualInput() {
+        String engineStatus = requireEngine().status();
+        if (!contactManualKeyInjected) {
+            if (engineStatus.startsWith("paused")) {
+                fail("contact defense paused before exposing the manual takeover condition: " + engineStatus);
+                return;
+            }
+            if (engineStatus.contains("timing a safe airborne defense attack") && !client.player.isOnGround()
+                    && client.player.input instanceof BotInput && client.player.input != contactOriginalInput) {
+                contactManualTaskIdentity = requireEngine().diagnosticTaskIdentity();
+                if (contactManualTaskIdentity == null) {
+                    fail("contact defense had no active bucket request before manual input");
+                    return;
+                }
+                client.options.forwardKey.setPressed(true);
+                contactManualKeyInjected = true;
+                contactManualInputTick = clientTicks;
+            }
+            if (clientTicks - caseStartedAtTick > 100)
+                fail("contact defense did not expose an owned airborne hop for manual input verification");
+            return;
+        }
+        if (!engineStatus.startsWith("paused")) {
+            if (contactManualGuardTick >= 0 || clientTicks - contactManualInputTick > 20) {
+                client.options.forwardKey.setPressed(false);
+                fail("manual input did not keep the owned defense hop paused within twenty client ticks");
+            }
+            return;
+        }
+        if (contactManualGuardTick < 0) {
+            boolean keyPreserved = client.options.forwardKey.isPressed();
+            boolean originalInputRestored = client.player.input == contactOriginalInput;
+            boolean taskPreserved = requireEngine().diagnosticTaskIdentity() == contactManualTaskIdentity;
+            boolean nativeStopped = baritoneNavigationStopped();
+            contactManualInputReceipt = Map.of(
+                    "physicalKeyPreserved", Boolean.toString(keyPreserved),
+                    "originalInputRestored", Boolean.toString(originalInputRestored),
+                    "requestPreserved", Boolean.toString(taskPreserved),
+                    "nativeNavigationStopped", Boolean.toString(nativeStopped),
+                    "injectedWhileAirborne", "true",
+                    "injectedClientTick", Integer.toString(contactManualInputTick),
+                    "guardClientTick", Integer.toString(clientTicks),
+                    "submittedBucketTarget", "1");
+            client.options.forwardKey.setPressed(false);
+            if (!engineStatus.contains("Manual input has priority over defense hop")
+                    || !keyPreserved || !originalInputRestored || !taskPreserved || !nativeStopped) {
+                fail("manual defense takeover lacked immediate physical key, original input, exact request, or native drain: " + engineStatus);
+                return;
+            }
+            contactManualGuardTick = clientTicks;
+            contactManualGuardServerTick = latestSnapshot.serverTick;
+            contactManualGuardObservationSequence = observationRequestSequence;
+        }
+        if (observationFuture == null) requestObservation();
+        if (latestObservationRequestSequence <= contactManualGuardObservationSequence
+                || latestSnapshot.serverTick <= contactManualGuardServerTick) {
+            if (clientTicks - contactManualGuardTick > 20)
+                fail("manual defense takeover did not obtain a fresh post-pause server observation");
+            return;
+        }
+        Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
+        boolean passed = engineStatus.contains("Manual input has priority over defense hop")
+                && requireEngine().diagnosticTaskIdentity() == contactManualTaskIdentity
+                && client.player.input == contactOriginalInput && baritoneNavigationStopped()
+                && latestSnapshot.inventory.equals(activeInitialResources) && latestSnapshot.serverCursorEmpty
+                && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.health > 0
+                && "true".equals(receipt.get("contactPlayerAlive"))
+                && "0".equals(receipt.get("contactPlayerDeaths"))
+                && "0".equals(receipt.get("contactShellChangedCells"))
+                && activeInitialThreatReceipt.get("cowHealth").equals(receipt.get("cowHealth"));
+        Map<String, String> completeReceipt = new LinkedHashMap<>(contactManualInputReceipt);
+        completeReceipt.put("observedClientTick", Integer.toString(clientTicks));
+        completeReceipt.put("observedServerTick", Integer.toString(latestSnapshot.serverTick));
+        completeReceipt.put("guardServerTick", Integer.toString(contactManualGuardServerTick));
+        completeReceipt.put("guardObservationSequence", Long.toString(contactManualGuardObservationSequence));
+        completeReceipt.put("observedRequestSequence", Long.toString(latestObservationRequestSequence));
+        contactManualInputReceipt = Map.copyOf(completeReceipt);
+        if (!passed) {
+            fail("post-pause server observation lacked preserved exact request, original input, inventory, cursor, shell, cow, survival, or stopped navigation: " + engineStatus);
+            return;
+        }
+        activeCount = 0;
+        String detail = "one forward-key press during a native airborne defense hop restored the original player input, preserved the key and exact bucket request, paused automation, and a later server observation confirmed inventory, cursor, shell, cow and survival with no native navigation work";
+        addResult(true, latestSnapshot.count(activeItem), detail, capture(activeCase));
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
     }
 
     private void evaluatePreparedSafetyCase() {
+        if (CONTACT_MANUAL_INPUT_MODE) { evaluateContactManualInput(); return; }
         if (requireEngine().status().startsWith("paused")) {
             fail("prepared safety automation paused during " + activeCase + ": " + requireEngine().status());
             return;
@@ -4063,7 +4173,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             json.append(",\n  \"miningRequestYieldEvidence\":\"native_debug_log_MINING_REQUEST_YIELD\"");
         }
+        if (configRoundTripReceipt != null) json.append(",\n  \"configRoundTripReceipt\":").append(configRoundTripReceipt);
         json.append(",\n  \"threatContact\":").append(THREAT_CONTACT_MODE);
+        json.append(",\n  \"threatContactManualInput\":").append(CONTACT_MANUAL_INPUT_MODE);
+        if (CONTACT_MANUAL_INPUT_MODE) {
+            json.append(",\n  \"manualInputReceipt\":");
+            appendStringStringMap(json, contactManualInputReceipt);
+        }
+        if (CONTACT_MANUAL_INPUT_MODE) json.append(",\n  \"verificationInputIntervention\":\"one forward-key press during the owned airborne hop; key cleared only after observing the manual-priority pause\"");
         if (THREAT_CONTACT_MODE) json.append(",\n  \"fixtureGrants\":\"full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65; clock frozen until ordinary bucket command\"");
         if (THREAT_WATER_RETREAT_MODE) json.append(",\n  \"fixtureGrants\":\"stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs\"");
         if (NEARBY_WOOD_MODE) {
@@ -4532,7 +4649,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
         if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
-        if (PREPARED_SAFETY_MODE != null) return THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
+        if (PREPARED_SAFETY_MODE != null) return CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
         if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";

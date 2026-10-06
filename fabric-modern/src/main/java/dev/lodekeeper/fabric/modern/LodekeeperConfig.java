@@ -2,74 +2,113 @@ package dev.lodekeeper.fabric.modern;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import dev.lodekeeper.core.AutomationSettings;
+import dev.lodekeeper.core.SettingSpec;
 import net.fabricmc.loader.api.FabricLoader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
-/** Small bounded config, independent of optional UI libraries. */
+/** Bounded config shared by local commands and the native settings screen. */
 public final class LodekeeperConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final int MAX_CONFIG_BYTES = 256 * 1024;
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("lodekeeper.json");
-    public String prefix = "!lk ";
-    public int searchRadius = 48;
-    public boolean allowExploration = true;
-    public int explorationAttempts = 32;
-    public int explorationDistance = 512;
-    public int scanBlocksPerTick = 512;
-    public int pathNodesPerTick = 128;
-    public int pathNodeLimit = 16000;
-    public int pathMillisPerTick = 2;
-    public int actionTimeoutTicks = 1200;
-    public float pauseBelowHealth = 6;
-    public boolean allowBreaking = true;
-    public boolean allowBuilding = true;
-    public boolean allowParkour = false;
-    public boolean allowContainers = false;
-    public boolean pauseOnScreen = true;
-    public boolean autoEat = true;
-    public boolean autoEquipArmor = true;
-    public boolean autoDefend = true;
-    public boolean optimizeWoodTools = true;
-    public boolean showPath = true;
-    public boolean showSearch = false;
-    public boolean showHud = true;
-    public boolean debugLogging = true;
+    private static final AutomationSettings.Codec<LodekeeperConfig> CODEC = AutomationSettings.codec(LodekeeperConfig.class);
+    public String prefix;
+    public int searchRadius;
+    public boolean allowExploration;
+    public int explorationAttempts;
+    public int explorationDistance;
+    public int scanBlocksPerTick;
+    public int actionTimeoutTicks;
+    public float pauseBelowHealth;
+    public boolean allowBreaking;
+    public boolean allowBuilding;
+    public boolean allowParkour;
+    public boolean allowParkourPlace;
+    public boolean allowSprint;
+    public boolean allowDiagonalAscend;
+    public boolean allowDiagonalDescend;
+    public int maxFallHeight;
+    public boolean allowWaterBucketFall;
+    public boolean allowContainers;
+    public boolean pauseOnScreen;
+    public boolean autoEat;
+    public boolean autoEquipArmor;
+    public boolean autoDefend;
+    public boolean optimizeWoodTools;
+    public boolean avoidance;
+    public int mobAvoidanceRadius;
+    public int spawnerAvoidanceRadius;
+    public int mineGoalUpdateTicks;
+    public int pathInitialSearchMillis;
+    public int pathInitialFailureMillis;
+    public int pathContinuationSearchMillis;
+    public int pathContinuationFailureMillis;
+    public boolean recoverPlacedStations;
+    public int stationRecoveryRange;
+    public boolean backfill;
+    public int backfillPendingLimit;
+    public boolean backfillEquivalentStone;
+    public boolean showPath;
+    public boolean showSearch;
+    public boolean showHud;
+    public boolean showNextBreak;
+    public boolean showNextPlace;
+    public boolean showParkour;
+    public boolean showClaims;
+    public boolean showStations;
+    public boolean showBackfill;
+    public int visualizationDistance;
+    public boolean debugLogging;
+    public Map<String, String> navigationPreferences;
+
+    public LodekeeperConfig() { CODEC.resetAll(this); }
+
+    public static List<SettingSpec> specs() { return AutomationSettings.specs(); }
+    public Object read(String key) { return CODEC.read(this, key); }
+    public void write(String key, String value) { CODEC.write(this, key, value); }
+    public void writeValue(String key, Object value) { CODEC.writeValue(this, key, value); }
+    public void reset(String key) { CODEC.reset(this, key); }
+    public void resetAll() { CODEC.resetAll(this); }
 
     public static LodekeeperConfig load() {
         LodekeeperConfig config = new LodekeeperConfig();
         if (Files.exists(PATH)) {
             try {
-                if (Files.size(PATH) > 65536) throw new IOException("config exceeds 64 KiB");
-                LodekeeperConfig parsed = GSON.fromJson(Files.readString(PATH), LodekeeperConfig.class);
-                if (parsed != null) config = parsed;
+                if (Files.size(PATH) > MAX_CONFIG_BYTES) throw new IOException("config exceeds 256 KiB");
+                JsonElement document = GSON.fromJson(Files.readString(PATH), JsonElement.class);
+                if (document == null || !document.isJsonObject()) throw new IOException("config root must be an object");
+                Map<String, Object> values = new LinkedHashMap<>();
+                for (var entry : document.getAsJsonObject().entrySet())
+                    values.put(entry.getKey(), GSON.fromJson(entry.getValue(), Object.class));
+                CODEC.importValues(config, values, LodekeeperConfig::warn);
             } catch (IOException | RuntimeException ex) {
-                System.err.println("[Lodekeeper] Config could not be read: " + ex.getMessage());
+                warn("Config could not be read: " + ex.getMessage());
             }
         }
         config.sanitize();
         return config;
     }
-    public void sanitize() {
-        if (prefix == null || prefix.isBlank() || prefix.length() > 16 || prefix.startsWith("/")) prefix = "!lk ";
-        searchRadius = clamp(searchRadius, 8, 96);
-        explorationAttempts = clamp(explorationAttempts, 1, 128);
-        explorationDistance = clamp(explorationDistance, 16, 2048);
-        scanBlocksPerTick = clamp(scanBlocksPerTick, 32, 2048);
-        pathNodesPerTick = clamp(pathNodesPerTick, 16, 512);
-        pathNodeLimit = clamp(pathNodeLimit, 512, 64000);
-        pathMillisPerTick = clamp(pathMillisPerTick, 1, 5);
-        actionTimeoutTicks = clamp(actionTimeoutTicks, 100, 6000);
-        if (!Float.isFinite(pauseBelowHealth)) pauseBelowHealth = 6;
-        pauseBelowHealth = Math.max(1, Math.min(20, pauseBelowHealth));
-    }
+
+    public void sanitize() { CODEC.sanitize(this, LodekeeperConfig::warn); }
+
     public void save() throws IOException {
         sanitize();
+        byte[] encoded = GSON.toJson(this).getBytes(StandardCharsets.UTF_8);
+        if (encoded.length > MAX_CONFIG_BYTES) throw new IOException("config exceeds 256 KiB");
         Files.createDirectories(PATH.getParent());
         Path temporary = PATH.resolveSibling("lodekeeper.json.tmp");
-        Files.writeString(temporary, GSON.toJson(this));
+        Files.write(temporary, encoded);
         try { Files.move(temporary, PATH, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE); }
         catch (java.nio.file.AtomicMoveNotSupportedException ex) { Files.move(temporary, PATH, java.nio.file.StandardCopyOption.REPLACE_EXISTING); }
     }
-    private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
+
+    private static void warn(String message) { System.err.println("[Lodekeeper] " + message); }
 }

@@ -60,6 +60,18 @@ final class ThreatResponseAction {
         return !active() && unsafeContextReason() == null && !nearbyThreats().isEmpty();
     }
 
+    boolean hasPreparedMeleeWeapon() {
+        if (client.player == null) return false;
+        for (int slot = 0; slot < 9; slot++) {
+            ItemStack weapon = client.player.getInventory().getStack(slot);
+            if (weapon.isEmpty() || !safeStack(weapon)) continue;
+            double damage = GameApi.defenseAttackDamage(client.player, weapon);
+            if (!Double.isFinite(damage)) continue;
+            if (GameApi.isSword(weapon) ? damage >= 5.0 : damage >= 7.0) return true;
+        }
+        return false;
+    }
+
     boolean begin() {
         if (!ready()) return false;
         ownerPlayer = client.player;

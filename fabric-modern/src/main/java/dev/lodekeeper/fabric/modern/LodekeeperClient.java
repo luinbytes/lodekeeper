@@ -351,49 +351,28 @@ public final class LodekeeperClient implements ClientModInitializer {
     private void configure(CommandParser.ConfigCommand command) throws java.io.IOException {
         LodekeeperConfig config = engine.config;
         if (command.key() == null) {
-            engine.message("prefix='" + config.prefix + "', searchRadius=" + config.searchRadius +
-                    ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
-                    ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", optimizeWoodTools=" + config.optimizeWoodTools + ", allowExploration=" + config.allowExploration
-                    + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance
-                    + ", showPath=" + config.showPath + ", showSearch=" + config.showSearch + ", showHud=" + config.showHud
-                    + ", debugLogging=" + config.debugLogging);
-            return;
-        }
-        String key = command.key(), value = command.value();
-        if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance, showPath, showSearch, showHud, debugLogging");
-            return;
-        }
-        switch (key) {
-            case "prefix" -> {
-                if (value.isBlank() || value.length() > 16 || value.startsWith("/"))
-                    throw new IllegalArgumentException("Prefix must be 1–16 characters and may not start with /");
-                config.prefix = value;
+            for (String category : LodekeeperConfig.specs().stream()
+                    .map(dev.lodekeeper.core.SettingSpec::category).distinct().toList()) {
+                engine.message(category + ": " + LodekeeperConfig.specs().stream()
+                        .filter(spec -> spec.category().equals(category))
+                        .map(spec -> spec.key() + "=" + config.read(spec.key()))
+                        .collect(java.util.stream.Collectors.joining(", ")));
             }
-            case "searchRadius" -> config.searchRadius = Integer.parseInt(value);
-            case "allowExploration" -> config.allowExploration = bool(value);
-            case "explorationAttempts" -> config.explorationAttempts = Integer.parseInt(value);
-            case "explorationDistance" -> config.explorationDistance = Integer.parseInt(value);
-            case "pauseBelowHealth" -> config.pauseBelowHealth = Float.parseFloat(value);
-            case "allowBreaking" -> config.allowBreaking = bool(value);
-            case "allowBuilding" -> config.allowBuilding = bool(value);
-            case "allowParkour" -> config.allowParkour = bool(value);
-            case "pauseOnScreen" -> config.pauseOnScreen = bool(value);
-            case "autoEat" -> config.autoEat = bool(value);
-            case "optimizeWoodTools" -> config.optimizeWoodTools = bool(value);
-            case "showPath" -> config.showPath = bool(value);
-            case "showSearch" -> config.showSearch = bool(value);
-            case "showHud" -> config.showHud = bool(value);
-            case "debugLogging" -> config.debugLogging = bool(value);
-            default -> throw new IllegalArgumentException("Unknown config key: " + key);
+            return;
         }
-        config.save();
-        engine.message("Saved " + key);
-    }
-
-    private static boolean bool(String text) {
-        if (!text.equalsIgnoreCase("true") && !text.equalsIgnoreCase("false"))
-            throw new IllegalArgumentException("Use true or false");
-        return Boolean.parseBoolean(text);
+        String key = command.key();
+        dev.lodekeeper.core.SettingSpec spec = dev.lodekeeper.core.AutomationSettings.spec(key);
+        if (command.value() == null) {
+            engine.message(spec.label() + " (" + key + ") = " + config.read(key) + ". " + spec.help());
+            return;
+        }
+        Object previous = config.read(key);
+        config.write(key, command.value());
+        try { config.save(); }
+        catch (java.io.IOException failure) {
+            config.writeValue(key, previous);
+            throw failure;
+        }
+        engine.message("Saved " + spec.label() + " = " + config.read(key));
     }
 }
