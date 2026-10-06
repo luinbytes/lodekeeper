@@ -263,6 +263,154 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void convertsHeldLogsIntoFuelAndKeepsHeldCoalAheadOfCrafting() {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId cooked = ItemId.parse("test:cooked");
+        ItemId coal = ItemId.parse("test:coal");
+        ItemId strippedLog = ItemId.parse("minecraft:stripped_oak_log");
+        ItemId wood = ItemId.parse("minecraft:oak_wood");
+        ItemId strippedWood = ItemId.parse("minecraft:stripped_oak_wood");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(raw, 0).item(cooked, 0)
+                .item(LOG, 0, 300).item(strippedLog, 0, 300).item(wood, 0, 300).item(strippedWood, 0, 300)
+                .item(PLANKS, 0, 300).item(coal, 0, 1_600)
+                .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPED, 1, 1,
+                        List.of(new RecipeSlot(0, Ingredient.choices(List.of(LOG, strippedLog, wood, strippedWood), 1))), List.of()))
+                .source(new SmeltingSource("smelt", cooked, 1, Ingredient.of(raw),
+                        List.of(ItemSelector.item(LOG), ItemSelector.item(strippedLog), ItemSelector.item(wood),
+                                ItemSelector.item(strippedWood), ItemSelector.item(PLANKS), ItemSelector.item(coal)), 200, List.of()))
+                .build();
+        for (PlanningPreferences preferences : List.of(PlanningPreferences.NONE,
+                new PlanningPreferences(Map.of("craft:planks", 100)))) {
+            PlanResult converted = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 3, LOG, 2)),
+                    cooked, 3, PlannerLimits.DEFAULT, preferences);
+            assertTrue(converted.success(), converted.blockedReasons().toString());
+            assertEquals(List.of(PlanKind.CRAFT, PlanKind.SMELT), converted.steps().stream().map(PlanStep::kind).toList());
+            assertEquals(4, converted.steps().get(0).outputCount());
+            assertEquals(List.of(new SelectedItemRequirement(LOG, 1, true, "recipe ingredient", 0)),
+                    converted.steps().get(0).requirements());
+            assertEquals(PLANKS, selectedFuel(converted).item());
+            assertEquals(2, selectedFuel(converted).count());
+
+            PlanResult stocked = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 3, LOG, 2, coal, 1)),
+                    cooked, 3, PlannerLimits.DEFAULT, preferences);
+            assertTrue(stocked.success());
+            assertEquals(List.of(PlanKind.SMELT), stocked.steps().stream().map(PlanStep::kind).toList());
+            assertEquals(coal, selectedFuel(stocked).item());
+            assertEquals(1, selectedFuel(stocked).count());
+        }
+    }
+
+    @Test
+    void fuelConversionRequiresAnUnambiguousRecipeAndAvailableStation() {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId cooked = ItemId.parse("test:cooked");
+        StationId table = StationId.parse("test:table");
+        ItemId tableItem = ItemId.parse("test:table");
+        for (String scenario : List.of("competing_gather", "missing_station", "effective_capacity")) {
+            List<Requirement> requirements = scenario.equals("missing_station")
+                    ? List.of(new StationRequirement(table, tableItem, "crafting table")) : List.of();
+            CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(raw, 0).item(cooked, 0)
+                    .item(LOG, 0, 300).item(PLANKS, 0, 300).item(tableItem, 0)
+                    .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPED, 1, 1,
+                            List.of(new RecipeSlot(0, Ingredient.of(LOG))), requirements));
+            if (scenario.equals("competing_gather")) builder.source(new GatherSource("gather:planks", PLANKS, 1,
+                    List.of(BlockId.parse("test:planks"))));
+            Map<ItemId, Long> capacities = Map.of(LOG, 300L, PLANKS, scenario.equals("effective_capacity") ? 50L : 300L);
+            CatalogSnapshot catalog = builder.source(new SmeltingSource("smelt", cooked, 1, Ingredient.of(raw),
+                    List.of(ItemSelector.item(LOG), ItemSelector.item(PLANKS)), 200, List.of(), capacities)).build();
+            PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of(raw, 3, LOG, 2)), cooked, 3);
+            assertTrue(result.success(), scenario + result.blockedReasons());
+            assertEquals(List.of(PlanKind.SMELT), result.steps().stream().map(PlanStep::kind).toList(), scenario);
+            assertEquals(LOG, selectedFuel(result).item(), scenario);
+            assertEquals(2, selectedFuel(result).count(), scenario);
+        }
+    }
+
+    @Test
+    void fuelConversionRespectsProtectedAndRoundedIngredientQuantities() {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId cooked = ItemId.parse("test:cooked");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(raw, 0).item(cooked, 0)
+                .item(LOG, 0, 100).item(PLANKS, 0, 300)
+                .source(new CraftingSource("craft:planks", PLANKS, 3, RecipeType.SHAPED, 1, 1,
+                        List.of(new RecipeSlot(0, Ingredient.of(2, LOG))), List.of()))
+                .source(new SmeltingSource("smelt", cooked, 1, Ingredient.of(raw),
+                        List.of(ItemSelector.item(LOG), ItemSelector.item(PLANKS)), 200, List.of()))
+                .build();
+        InventorySnapshot protectedStock = new InventorySnapshot(Map.of(raw, 4, LOG, 3), Set.of(), Map.of(), Map.of(LOG, 1));
+        PlanResult sufficient = planner().planFast(catalog, protectedStock, cooked, 4);
+        assertTrue(sufficient.success(), sufficient.blockedReasons().toString());
+        assertEquals(3, sufficient.steps().get(0).outputCount());
+        assertEquals(List.of(new SelectedItemRequirement(LOG, 2, true, "recipe ingredient", 0)),
+                sufficient.steps().get(0).requirements());
+        assertEquals(PLANKS, selectedFuel(sufficient).item());
+        assertEquals(3, selectedFuel(sufficient).count());
+        PlanResult insufficient = planner().planFast(catalog,
+                new InventorySnapshot(Map.of(raw, 4, LOG, 2), Set.of(), Map.of(), Map.of(LOG, 1)), cooked, 4);
+        assertFalse(insufficient.success());
+    }
+
+    @Test
+    void storedStationRecipeUsesHeldMaterialsWithoutOvercountingOrProtectedStock() {
+        ItemId furnace = ItemId.parse("minecraft:furnace");
+        ItemId cobble = ItemId.parse("minecraft:cobblestone");
+        ItemId deepCobble = ItemId.parse("minecraft:cobbled_deepslate");
+        ItemId tableItem = ItemId.parse("minecraft:crafting_table");
+        StationId table = StationId.parse("minecraft:crafting_table");
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(furnace, 0).item(cobble, 0)
+                .item(deepCobble, 0).item(tableItem, 0);
+        Ingredient stones = Ingredient.choices(List.of(cobble, deepCobble), 1);
+        List<RecipeSlot> slots = java.util.stream.IntStream.range(0, 8)
+                .mapToObj(index -> new RecipeSlot(-1, stones)).toList();
+        CatalogSnapshot catalog = builder.source(new CraftingSource("furnace", furnace, 1,
+                RecipeType.SHAPELESS, 0, 0, slots, List.of(new StationRequirement(table, tableItem, "craft")))).build();
+        assertTrue(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(cobble, 4, deepCobble, 4, tableItem, 1)), furnace, () -> 0L));
+        assertTrue(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(cobble, 8), Set.of(table), Map.of()), furnace, () -> 0L));
+        assertFalse(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(cobble, 7, tableItem, 1)), furnace, () -> 0L));
+        assertFalse(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(cobble, 8)), furnace, () -> 0L));
+        assertFalse(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(cobble, 8, tableItem, 1), Set.of(), Map.of(), Map.of(cobble, 1)),
+                furnace, () -> 0L));
+        assertTrue(StoredCrafting.canSupplyOne(catalog, new InventorySnapshot(Map.of(furnace, 1)), furnace, () -> 0L));
+        assertFalse(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(furnace, 1), Set.of(), Map.of(), Map.of(furnace, 1)), furnace, () -> 0L));
+    }
+
+    @Test
+    void storedStationProofCannotSpendTheSameCarriedStationAsAnIngredient() {
+        ItemId output = ItemId.parse("test:station");
+        ItemId tableItem = ItemId.parse("test:table");
+        StationId table = StationId.parse("test:table");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(output, 0).item(tableItem, 0)
+                .source(new CraftingSource("station", output, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(tableItem))),
+                        List.of(new StationRequirement(table, tableItem, "craft")))).build();
+        assertFalse(StoredCrafting.canSupplyOne(catalog, new InventorySnapshot(Map.of(tableItem, 1)), output, () -> 0L));
+        assertTrue(StoredCrafting.canSupplyOne(catalog, new InventorySnapshot(Map.of(tableItem, 2)), output, () -> 0L));
+        assertTrue(StoredCrafting.canSupplyOne(catalog,
+                new InventorySnapshot(Map.of(tableItem, 1), Set.of(table), Map.of()), output, () -> 0L));
+    }
+
+    @Test
+    void storedStationProofFallsBackOnAmbiguousSourcesAndExpiredBudget() {
+        ItemId output = ItemId.parse("test:station");
+        CraftingSource craft = new CraftingSource("station", output, 1, RecipeType.SHAPELESS, 0, 0,
+                List.of(new RecipeSlot(-1, Ingredient.of(LOG))), List.of());
+        CatalogSnapshot simple = CatalogSnapshot.builder().item(output, 0).item(LOG, 0).source(craft).build();
+        InventorySnapshot stock = new InventorySnapshot(Map.of(LOG, 1));
+        var reads = new java.util.concurrent.atomic.AtomicInteger();
+        assertFalse(StoredCrafting.canSupplyOne(simple, stock, output,
+                () -> reads.getAndIncrement() == 0 ? 0L : 1_000_000L));
+        CatalogSnapshot ambiguous = CatalogSnapshot.builder().item(output, 0).item(LOG, 0).source(craft)
+                .source(new GatherSource("mine:station", output, 1, List.of(BlockId.parse("test:station")))).build();
+        assertFalse(StoredCrafting.canSupplyOne(ambiguous, stock, output, () -> 0L));
+    }
+
+    @Test
     void stationSpecificFuelProgressControlsTheWholeBatchAndKeepsLegacyCapacity() {
         ItemId coal = ItemId.parse("test:coal");
         ItemId output = ItemId.parse("test:smelted");

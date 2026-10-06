@@ -1,0 +1,9 @@
+{
+  "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "790ca94e86d4b4f1fac6ee8938930cb22c94246cb858414b81c0b245b341d722",
+  "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "3c167e36d0b530cb41dd48cc25a505b40c2ecafe5b2deaccfa5516b3c6c59a7e",
+  "fabric/src/main/java/dev/lodekeeper/fabric/PassiveFoodAction.java": "2f5e852a4575969d7e26e143f3e5bfc5090c1a4492191b1737ba13df90696ed2",
+  "fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperConfig.java": "11c09d802b74326fed3f6fbb8c59591ce7650e9b89d9d7bb975d6f4ad06cb22a",
+  "core/src/main/java/dev/lodekeeper/core/ProjectGatherBatch.java": "29c999af3cfc10466433c17e4840cace27f571a88a4cecaaa2a627758dff1626",
+  "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "0699e0961ee57e67f535900a055bec0ca33051dc2c24bc5bfe400ed6a8d51748",
+  "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "a5df84e767a02166ff215e6f71ffa8457fcd8ae031620d84736fa9cc38cb4924"
+}

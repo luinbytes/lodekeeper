@@ -20,6 +20,7 @@ public final class AcquisitionPlanner {
     private static final int MAX_PROJECT_ORDER_WORK = 100_000;
     private static final int MAX_STORED_SEED_NODES = 256;
     private static final int MAX_STORED_SEED_MILLIS = 2;
+    private static final int MAX_FUEL_CONVERSION_WORK = 512;
     private enum SourceScope { ALL, STORED_MATERIALS }
     private final LongSupplier clock;
 
@@ -830,10 +831,13 @@ public final class AcquisitionPlanner {
                 return List.of();
             }
             var next = new ArrayList<Prepared>();
+            int[] conversionWork = {0};
             for (Prepared candidate : prepared) {
+                FuelConversions conversions = heldFuelConversions(availableFuels, source, totalTicks,
+                        candidate.state, conversionWork);
                 Comparator<ItemId> order;
                 if (preferences.isEmpty()) {
-                    // Preserve legacy fuel ordering when no advisory ranks were supplied.
+                    // Advisory-free ordering remains the fallback for unproved conversions.
                     order = Comparator.comparingInt((ItemId fuel) -> {
                         long needed = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
                         int held = candidate.state.spendableCount(fuel);
@@ -852,6 +856,14 @@ public final class AcquisitionPlanner {
                                     ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel))))
                             .thenComparingLong(fuel -> ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)))
                             .thenComparing(Comparator.naturalOrder());
+                }
+                if (!conversions.outputs().isEmpty()) {
+                    order = Comparator.comparingInt((ItemId fuel) -> {
+                        long needed = ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel));
+                        if (candidate.state.spendableCount(fuel) >= needed && !conversions.inputs().contains(fuel)) return 0;
+                        if (conversions.outputs().contains(fuel)) return 1;
+                        return candidate.state.spendableCount(fuel) >= needed ? 2 : 3;
+                    }).thenComparing(order);
                 }
                 List<ItemId> fuels = availableFuels.stream().sorted(order)
                         .limit(limits.maximumCandidatesPerBranch()).toList();
@@ -873,6 +885,63 @@ public final class AcquisitionPlanner {
                 }
             }
             return trimPrepared(next);
+        }
+
+        private record FuelConversions(Set<ItemId> inputs, Set<ItemId> outputs) {
+            private static final FuelConversions NONE = new FuelConversions(Set.of(), Set.of());
+        }
+
+        private FuelConversions heldFuelConversions(Set<ItemId> fuels, SmeltingSource smelting,
+                                                     long totalTicks, State state, int[] work) {
+            Set<ItemId> inputs = new HashSet<>(), outputs = new HashSet<>();
+            for (ItemId output : fuels) {
+                if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                List<AcquisitionSource> sources = catalog.sourcesFor(output);
+                if (sources.size() != 1 || !(sources.get(0) instanceof CraftingSource craft)
+                        || craft.slots().size() != 1) continue;
+                Ingredient ingredient = craft.slots().get(0).ingredient();
+                boolean readyStation = true;
+                for (Requirement requirement : craft.requirements()) {
+                    if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                    if (!(requirement instanceof StationRequirement station) || !state.stations.contains(station.station())) {
+                        readyStation = false;
+                        break;
+                    }
+                }
+                if (!readyStation) continue;
+                long outputTicks = smelting.effectiveFuelTicks(catalog, output);
+                long needed = ceilDivLong(totalTicks, outputTicks);
+                long missing = Math.max(0L, needed - state.spendableCount(output));
+                long operations = ceilDivLong(missing, craft.outputCount());
+                if (missing == 0 || needed > limits.maximumRequestedCount()
+                        || operations > limits.maximumRequestedCount()) continue;
+                long requiredInput = operations * ingredient.count();
+                if (operations * craft.outputCount() > limits.maximumRequestedCount()
+                        || requiredInput > limits.maximumRequestedCount()) continue;
+                Set<ItemId> eligibleInputs = new HashSet<>();
+                boolean enoughHeld = false, safeHeldChoices = true;
+                for (ItemSelector selector : ingredient.alternatives()) {
+                    for (ItemId input : catalog.expand(selector)) {
+                        if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                        int held = state.spendableCount(input);
+                        if (held < ingredient.count()) continue;
+                        long inputTicks = smelting.effectiveFuelTicks(catalog, input);
+                        if (input.equals(output) || !fuels.contains(input)
+                                || outputTicks * craft.outputCount() <= inputTicks * ingredient.count()
+                                || requiredInput > ceilDivLong(totalTicks, inputTicks)) {
+                            safeHeldChoices = false;
+                            break;
+                        }
+                        eligibleInputs.add(input);
+                        enoughHeld |= held >= requiredInput;
+                    }
+                    if (!safeHeldChoices) break;
+                }
+                if (!safeHeldChoices || !enoughHeld) continue;
+                inputs.addAll(eligibleInputs);
+                outputs.add(output);
+            }
+            return new FuelConversions(Set.copyOf(inputs), Set.copyOf(outputs));
         }
 
         private int fuelStockPriority(State state, ItemId fuel, long needed) {

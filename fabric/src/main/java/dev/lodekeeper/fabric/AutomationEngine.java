@@ -772,11 +772,12 @@ final class AutomationEngine {
         ItemId item = name == null ? active != null ? active.item : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item : queue.peekFirst().item : resolve(name);
         if (item == null) { message("No active or queued goal"); return; }
         CatalogSnapshot snapshot = planningCatalog(config.allowBreaking); InventorySnapshot inventory = inventorySnapshot(item);
+        InventorySnapshot knownInventory = withKnownStations(inventory);
         var previewWorld = client.world;
         PlanningPreferences preferences = nearbyResources.snapshot();
         long previewGeneration = catalog.generation();
         previewPending = true;
-        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, item, count, preferences), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
+        CompletableFuture.supplyAsync(() -> previewPlan(snapshot, inventory, knownInventory, item, count, preferences), plannerWorker).whenComplete((result, failure) -> client.execute(() -> {
             previewPending = false;
             if (client.world != previewWorld || catalog == null) return;
             if (!catalog.ready() || catalog.generation() != previewGeneration) { message("Recipe catalog changed; try plan again"); return; }
@@ -788,11 +789,11 @@ final class AutomationEngine {
             }
         }));
     }
-    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, ItemId item, int count, PlanningPreferences preferences) {
-        PlanResult result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
+    private PlanResult previewPlan(CatalogSnapshot snapshot, InventorySnapshot inventory, InventorySnapshot knownInventory, ItemId item, int count, PlanningPreferences preferences) {
+        PlanResult result = planWithStationFallback(snapshot, inventory, knownInventory, item, count, preferences);
         for (int retry = 0; retry < 4 && !result.success()
                 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT); retry++) {
-            result = planner.planFast(snapshot, inventory, item, count, PlannerLimits.DEFAULT, preferences);
+            result = planWithStationFallback(snapshot, inventory, knownInventory, item, count, preferences);
         }
         return result;
     }
@@ -829,6 +830,23 @@ final class AutomationEngine {
         Set<StationId> stations = new HashSet<>();
         ownedStations.forEach((id, pos) -> { if (client.world.getBlockState(pos).getBlock() == Registries.BLOCK.get(GameApi.identifier(id.toString()))) stations.add(id); });
         Map<ItemId, Integer> protectedCounts = protectedCounts(counts, activeTarget);
+        if (config.allowBuilding && !stations.isEmpty()) {
+            Set<StationId> localStations = new HashSet<>();
+            ownedStations.forEach((id, pos) -> {
+                if (stations.contains(id) && pos.getSquaredDistance(client.player.getBlockPos()) <= 256) localStations.add(id);
+            });
+            InventorySnapshot localStock = new InventorySnapshot(counts, localStations, durability,
+                    protectedCounts, durabilityLots, toolLots);
+            for (StationId id : new HashSet<>(stations)) {
+                if (localStations.contains(id)) continue;
+                ItemId placementItem = GameCatalog.id(Registries.BLOCK.get(GameApi.identifier(id.toString())).asItem());
+                if (StoredCrafting.canSupplyOne(catalog.snapshot(), localStock, placementItem)) {
+                    stations.remove(id);
+                    if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] STATION_POLICY decision=replace_distant station={} position={}", id, ownedStations.get(id));
+                }
+            }
+        }
         return new InventorySnapshot(counts, stations, durability, protectedCounts, durabilityLots, toolLots);
     }
 
@@ -976,6 +994,24 @@ final class AutomationEngine {
         Map<ItemId, Integer> counts = new TreeMap<>();
         actions.heldInventory().forEach((name, count) -> counts.put(ItemId.parse(name), count));
         return Map.copyOf(counts);
+    }
+
+    private InventorySnapshot withKnownStations(InventorySnapshot preferred) {
+        Set<StationId> stations = new HashSet<>(preferred.availableStations());
+        ownedStations.forEach((id, pos) -> { if (client.world.getBlockState(pos).getBlock() == Registries.BLOCK.get(GameApi.identifier(id.toString()))) stations.add(id); });
+        if (stations.equals(preferred.availableStations())) return preferred;
+        return new InventorySnapshot(preferred.counts(), stations, preferred.remainingDurability(),
+                preferred.protectedCounts(), preferred.durabilityLots(), preferred.toolLots());
+    }
+
+    private PlanResult planWithStationFallback(CatalogSnapshot snapshot, InventorySnapshot preferred,
+                                               InventorySnapshot existing, ItemId target, int count,
+                                               PlanningPreferences preferences) {
+        PlanResult result = planner.planFast(snapshot, preferred, target, count, PlannerLimits.DEFAULT, preferences);
+        if (!result.success() && !preferred.availableStations().equals(existing.availableStations())) {
+            return planner.planFast(snapshot, existing, target, count, PlannerLimits.DEFAULT, preferences);
+        }
+        return result;
     }
 
     private Map<ItemId, Integer> protectedCounts(Map<ItemId, Integer> counts, ItemId activeTarget) {
@@ -1169,6 +1205,7 @@ final class AutomationEngine {
                 .map(GatherSource::sourceId).collect(java.util.stream.Collectors.toUnmodifiableSet());
         boolean explorationEnabled = gatheringEnabled && config.allowExploration;
         InventorySnapshot inventory = inventorySnapshot(active.item);
+        InventorySnapshot knownInventory = withKnownStations(inventory);
         int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item)
                 : Math.max(1, active.count - Math.max(0, goalCount() - inventory.count(item)));
         final ItemId targetItem = item; final int targetCount = requested;
@@ -1190,13 +1227,15 @@ final class AutomationEngine {
                 : preparationSources(filteredSnapshot, preparation);
         InventorySnapshot cookingInventory = cookingSources.isEmpty() ? inventory
                 : protectedFoodInventory(inventory);
+        InventorySnapshot knownCookingInventory = cookingSources.isEmpty() ? knownInventory
+                : protectedFoodInventory(knownInventory);
         boolean debugPlanning = config.debugLogging;
         Set<ItemId> logMaterials = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
         pendingPlan = CompletableFuture.supplyAsync(() -> {
             if (preparation != null && !cookingSources.isEmpty()) {
                 CatalogSnapshot cookingCatalog = filteredSnapshot.withOutputSources(preparation.item(), cookingSources);
-                PlanResult cooking = planner.planFast(cookingCatalog, cookingInventory, preparation.item(),
-                        preparation.targetCount(), PlannerLimits.DEFAULT, preferences);
+                PlanResult cooking = planWithStationFallback(cookingCatalog, cookingInventory, knownCookingInventory,
+                        preparation.item(), preparation.targetCount(), preferences);
                 if (cooking.success() && !cooking.steps().isEmpty()) {
                     List<PlanStep> safeCooking = cooking.steps().stream().map(candidate -> {
                         Map<String, String> attributes = new HashMap<>(candidate.attributes());
@@ -1215,6 +1254,10 @@ final class AutomationEngine {
             if (project != null) {
                 ProjectPlanResult joint = planner.planProjectFast(filteredSnapshot, inventory, project,
                         PlannerLimits.DEFAULT, preferences);
+                if (!joint.success() && !inventory.availableStations().equals(knownInventory.availableStations())) {
+                    joint = planner.planProjectFast(filteredSnapshot, knownInventory, project,
+                            PlannerLimits.DEFAULT, preferences);
+                }
                 List<String> originalGathers = debugPlanning ? joint.steps().stream()
                         .filter(candidate -> candidate.kind() == PlanKind.GATHER)
                         .map(candidate -> candidate.sourceId() + ":" + candidate.outputCount()).toList() : List.of();
@@ -1239,7 +1282,8 @@ final class AutomationEngine {
                             steps.get(0) == first ? null : first);
                 }
             }
-            PlanResult filteredPlan = planner.planFast(filteredSnapshot, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
+            PlanResult filteredPlan = planWithStationFallback(filteredSnapshot, inventory, knownInventory,
+                    targetItem, targetCount, preferences);
             if (filteredPlan.success() && harvestOffer != null) {
                 try {
                     PlanResult investmentPlan = planner.planFast(harvestOffer.catalog(), harvestOffer.inventory(),
@@ -1271,7 +1315,7 @@ final class AutomationEngine {
                 return new PlanningOutcome(filteredPlan, false, false);
             }
             // Recovery has its own default fast-planner budget (20 ms); each planner call remains independently capped.
-            PlanResult fullPlan = planner.planFast(full, inventory, targetItem, targetCount, PlannerLimits.DEFAULT, preferences);
+            PlanResult fullPlan = planWithStationFallback(full, inventory, knownInventory, targetItem, targetCount, preferences);
             return new PlanningOutcome(filteredPlan,
                     ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
         }, plannerWorker);
@@ -2316,7 +2360,7 @@ final class AutomationEngine {
         if (stationDiscoveryDone) return null;
         stationDiscoveryDone = true;
         BlockPos known = ownedStations.get(step.station());
-        if (known != null && !unreachableStations.contains(known) && !rejectedStationSites.contains(known) && hasLoadedChunk(known) && client.world.getBlockState(known).isOf(block)) return known;
+        if (known != null && known.getSquaredDistance(client.player.getBlockPos()) <= 256 && !unreachableStations.contains(known) && !rejectedStationSites.contains(known) && hasLoadedChunk(known) && client.world.getBlockState(known).isOf(block)) return known;
         BlockPos player = client.player.getBlockPos();
         BlockPos closest = null;
         double closestDistance = Double.MAX_VALUE;

@@ -1,0 +1,24 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.9.jar",
+  "artifactSha256": "b6204c50fe0b5b54f8c2a98e858fc85843d48181550eefaead5cf973c31b4987",
+  "sourceCommit": null,
+  "sourceTreeState": "a5f8996",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.naturalGoal=gear_diamond",
+    "-Dlodekeeper.verify.naturalTimeoutSeconds=900",
+    "-Dlodekeeper.verify.candidateSha256=b6204c50fe0b5b54f8c2a98e858fc85843d48181550eefaead5cf973c31b4987"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview9-pursuit-strict-1211-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "confirmedProductionSourceCommit": "a5f89966daa4a1d74e0058315460cdf1a979dc3a",
+  "productionSourceConfirmation": "same exact candidate jar hash as the strict moving-cow fixture; seven recorded source file digests checked against this commit separately"
+}

@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "a5f89966daa4a1d74e0058315460cdf1a979dc3a",
+  "candidateSha256": "b6204c50fe0b5b54f8c2a98e858fc85843d48181550eefaead5cf973c31b4987",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37447398302",
+  "case": "fresh normal generated world, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "elapsedMillis": 900163,
+  "firstMovementMillis": 1372,
+  "failure": "natural request exceeded its 900 second wall timeout",
+  "minimumHealth": 20.0,
+  "endingHealth": 20.0,
+  "endingHunger": 20,
+  "deathsObserved": 0,
+  "heldTargets": {
+    "minecraft:diamond_pickaxe": 1,
+    "minecraft:diamond_axe": 1,
+    "minecraft:diamond_helmet": 1,
+    "minecraft:diamond_chestplate": 1,
+    "minecraft:diamond_boots": 1
+  },
+  "missingTargets": [
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_leggings"
+  ],
+  "remainingDiamonds": 2,
+  "lateAction": "mining and collecting minecraft:diamond \u00b7 2/12 \u00b7 3 foreground queued \u00b7 0 maintenance queued",
+  "naturalReceipt": "checkpoint-08-natural.json",
+  "artifactReceipt": "checkpoint-08-artifact.json",
+  "observations": [
+    "Iron smelting selected two birch logs as fuel despite a stored-material plank conversion yielding four times the burn capacity.",
+    "The second beef cooking request started at 11:16:23 local; project work resumed at 11:18:41 after a trip to the old furnace.",
+    "Full health and hunger remained at timeout."
+  ],
+  "scope": "Failed 15-minute target. Normal survival, no inventory grants, no post-spawn teleportation. No full-gear completion claim."
+}
