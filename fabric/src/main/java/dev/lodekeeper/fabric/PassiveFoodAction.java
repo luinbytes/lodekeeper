@@ -32,8 +32,8 @@ final class PassiveFoodAction {
     private static final double MAX_DISTANCE = 32.0;
     private static final double MAX_DISTANCE_SQUARED = MAX_DISTANCE * MAX_DISTANCE;
     private static final double DROP_RADIUS = 8.0;
-    private static final long MAX_DURATION_NANOS = 60_000_000_000L;
-    private static final long FAILED_APPROACH_COOLDOWN_NANOS = 30_000_000_000L;
+    private static final long MAX_DURATION_NANOS = 30_000_000_000L;
+    private static final long FAILED_APPROACH_COOLDOWN_NANOS = 120_000_000_000L;
     private static final int MAX_FAILED_APPROACHES = 128;
     private static final int MAX_FAILED_ROUTES = 4;
     private static final int MAX_ATTACKS = 32;
@@ -195,7 +195,9 @@ final class PassiveFoodAction {
             String reason = unsafeContextReason(recoveryMode);
             if (reason != null) throw new IllegalStateException(reason);
             if (System.nanoTime() - startedAtNanos >= MAX_DURATION_NANOS) {
-                throw new IllegalStateException("passive food action exceeded 60 seconds");
+                coolDownFailedTarget();
+                if (targetStillEligible()) logApproachFailure();
+                throw new IllegalStateException("passive food action exceeded 30 seconds");
             }
             if (!withinOrigin(client.player.getX(), client.player.getY(), client.player.getZ())) {
                 throw new IllegalStateException("passive food route exceeded 32 blocks from its start");
