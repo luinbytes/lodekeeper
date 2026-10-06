@@ -618,7 +618,7 @@ final class NaturalWorldVerification {
     }
 
     private void verifyScreenshotAsync(ScreenshotRequest request, String fileName) {
-        Path screenshot = evidenceDirectory.resolve(fileName);
+        Path screenshot = evidenceDirectory.resolve("screenshots").resolve(fileName);
         CompletableFuture.supplyAsync(() -> readablePng(screenshot)).whenComplete((readable, failure) ->
             client.execute(() -> {
                 screenshotWritesPending = Math.max(0, screenshotWritesPending - 1);
