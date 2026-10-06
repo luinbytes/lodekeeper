@@ -386,5 +386,10 @@
   "targetCommitish": "852b72f177befc1b55771cee86076544f39c9f9b",
   "url": "https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10",
   "verifiedTagCommit": "852b72f177befc1b55771cee86076544f39c9f9b",
-  "assetReadback": "All 27 local sizes and SHA-256 digests match GitHub asset metadata."
+  "assetReadback": "All 27 local sizes and SHA-256 digests match GitHub asset metadata.",
+  "publicDownloadReadback": {
+    "asset": "lodekeeper-1.21.1-0.1.0-preview.10.jar",
+    "sha256": "6adcfd50dc77f077695c94e4d635e1a447ab7045a78e25227f82ed3b0f75370f",
+    "matchesNativeTestedCandidate": true
+  }
 }

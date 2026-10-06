@@ -28,9 +28,11 @@
     },
     "26.3Build": "passed",
     "independentSourceReview": "pending",
-    "allVersionCi": "pending"
+    "allVersionCi": "queued",
+    "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999"
   },
   "releaseScope": "Preview 11 development only. Published Preview 10 artifacts and their 1.21.1/26.3 full-world timings remain unchanged.",
   "runtimeScope": "The new fuel choice has no post-fix native-game receipt yet.",
-  "sourceBefore": "852b72f177befc1b55771cee86076544f39c9f9b"
+  "sourceBefore": "852b72f177befc1b55771cee86076544f39c9f9b",
+  "sourceAfter": "dd2e51672eba887c2e261f2bcd1a3341afaae0e2"
 }
