@@ -1,0 +1,24 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.11.jar",
+  "artifactSha256": "75cb02611ca1e615cabdb324e84f3f5cec22889b6d09dcd965e20ccda2e05116",
+  "sourceCommit": "6171581aa30be6cee3d477f113afc463975a91aa",
+  "sourceTreeState": "committed",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=threat",
+    "-Dlodekeeper.verify.threatContact=true",
+    "-Dlodekeeper.verify.threatContactManualInput=true",
+    "-Dlodekeeper.verify.configRoundTrip=true",
+    "-Dlodekeeper.verify.candidateSha256=75cb02611ca1e615cabdb324e84f3f5cec22889b6d09dcd965e20ccda2e05116"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview11-foundation-artifacts-1211-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

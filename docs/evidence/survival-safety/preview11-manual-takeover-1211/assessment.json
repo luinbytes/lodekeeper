@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "sourceCommit": "0c4b67c1ebf8cebc58e0ce07d151f89fc61e9920",
+  "artifactSha256": "eac0cbbcdd686c91937cb788fef6d40debf8c5a8b1f0fbd0fdee93a00a94566d",
+  "scope": "Prepared contact fixture. One forward-key press during an owned airborne defense hop; key cleared only after observing the manual-priority pause. This tests manual takeover, not combat victory or bucket completion. The underlying embedded Baritone runtime has not yet been replaced in this foundation artifact.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "manualInputReceipt": {
+    "guardClientTick": "223",
+    "guardObservationSequence": "3",
+    "guardServerTick": "96",
+    "injectedClientTick": "222",
+    "injectedWhileAirborne": "true",
+    "nativeNavigationStopped": "true",
+    "observedClientTick": "224",
+    "observedRequestSequence": "4",
+    "observedServerTick": "97",
+    "originalInputRestored": "true",
+    "physicalKeyPreserved": "true",
+    "requestPreserved": "true",
+    "submittedBucketTarget": "1"
+  },
+  "configRoundTripReceipt": {
+    "passed": true,
+    "preferenceEntries": 128,
+    "serializedBytes": 68393,
+    "allowBreakingAfterReload": false,
+    "allOtherSettingsPreserved": true
+  },
+  "serverHealth": 17.0,
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "serverInventoryConserved": true,
+  "observation": "The unchanged probe confirms manual takeover, retained pause reason and exact task, original input restoration, stopped navigation, conserved server inventory, empty cursor, unchanged shell and cow, survival, and maximum-size config persistence."
+}

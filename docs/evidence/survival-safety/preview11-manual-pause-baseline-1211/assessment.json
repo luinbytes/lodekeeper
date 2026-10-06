@@ -1,0 +1,36 @@
+{
+  "status": "failed",
+  "sourceCommit": "6171581aa30be6cee3d477f113afc463975a91aa",
+  "artifactSha256": "75cb02611ca1e615cabdb324e84f3f5cec22889b6d09dcd965e20ccda2e05116",
+  "scope": "Prepared contact fixture. One forward-key press during an owned airborne defense hop; key cleared only after observing the manual-priority pause. This tests manual takeover, not combat victory or bucket completion. The underlying embedded Baritone runtime has not yet been replaced in this foundation artifact.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "manualInputReceipt": {
+    "guardClientTick": "209",
+    "guardObservationSequence": "2",
+    "guardServerTick": "90",
+    "injectedClientTick": "208",
+    "injectedWhileAirborne": "true",
+    "nativeNavigationStopped": "true",
+    "observedClientTick": "210",
+    "observedRequestSequence": "3",
+    "observedServerTick": "99",
+    "originalInputRestored": "true",
+    "physicalKeyPreserved": "true",
+    "requestPreserved": "true",
+    "submittedBucketTarget": "1"
+  },
+  "configRoundTripReceipt": {
+    "passed": true,
+    "preferenceEntries": 128,
+    "serializedBytes": 68393,
+    "allowBreakingAfterReload": false,
+    "allOtherSettingsPreserved": true
+  },
+  "serverHealth": 17.0,
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "serverInventoryConserved": true,
+  "failure": "post-pause server observation lacked preserved exact request, original input, inventory, cursor, shell, cow, survival, or stopped navigation: paused \u00b7 finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+  "observation": "The guarded takeover and fresh server observation succeeded. Engine.tick overwrote the manual pause reason during movement settlement, causing the unchanged verifier to fail."
+}
