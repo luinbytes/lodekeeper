@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "ccb01917bd70117d5d13b1af9dda7341d79fbc3e",
+  "candidateSha256": "e52cd5f953a84175b4460c331a8c51b9eb9ef995b3f3195ff75fe04fda1b66f5",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "passed",
+  "commandElapsedMillis": 835143,
+  "firstServerMovementElapsedMillis": 1521,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots"
+  ],
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "nativeInventoryAndEquippedArmorReceipt": true,
+  "navigationCancelledAtIdleReceipt": true,
+  "seed": 483920105,
+  "observations": [
+    "Compatible ordinary and deepslate ore blocks were mined under one gather request.",
+    "The bulk phase descended once and collected the remaining 32 diamonds.",
+    "A final log surface trip consumed over three minutes; the later fuel conversion change is intended to remove it."
+  ],
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37474066391",
+  "ciStatus": "cancelled after a later source push; this receipt proves native local candidate behavior, not a successful 24-profile CI run",
+  "naturalReceipt": "checkpoint-12-natural.json",
+  "artifactReceipt": "checkpoint-12-artifact.json",
+  "scope": "One tested seed on Minecraft 1.21.1; no grants or post-spawn teleports; no guarantee for every seed or mechanic."
+}

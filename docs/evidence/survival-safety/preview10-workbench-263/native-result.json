@@ -1,0 +1,220 @@
+{
+  "runId": "2026-10-06T14-17-04-521901Z-13fb4b47",
+  "status": "passed",
+  "minecraftVersion": "26.3",
+  "navigationBackend": "baritone",
+  "baritoneMiningObserved": true,
+  "worldKind": "isolated_superflat_fixture",
+  "preparedWorld": true,
+  "threatWaterRetreat": false,
+  "preparedSafetyProperty": "workbench",
+  "preparedWorkbench": {
+    "authority": "prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+    "fixtureGrants": "12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command",
+    "ownershipSetupCommand": "!lk get wooden_pickaxe 1",
+    "ownershipSetupExcludedFromCaseTiming": true,
+    "ownershipSetupServerTick": 319,
+    "ownershipSetupClientTick": 381,
+    "ownershipSetupEngineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+    "ownershipSetupScreenshot": "screenshots/lodekeeper-2026-10-06T14-17-04-521901Z-13fb4b47-prepared_owned_workbench_setup_complete.png",
+    "ownershipSetupStartingServerInventory": {
+      "minecraft:oak_planks": 12
+    },
+    "ownershipSetupServerInventory": {
+      "minecraft:oak_planks": 3,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:stick": 2
+    },
+    "initialServerReceipt": {
+      "bedrockShellCells": "9",
+      "horizontalDistance": "6.0",
+      "tablePresent": "true",
+      "tablePosition": "-1,64,0",
+      "playerFeetY": "64.0",
+      "blocked": "false",
+      "stonePresent": "true",
+      "stonePosition": "7,64,0",
+      "stoneAir": "false",
+      "tableAir": "false"
+    },
+    "finalServerReceipt": {
+      "bedrockShellCells": "9",
+      "horizontalDistance": "7.754936508001429",
+      "tablePresent": "false",
+      "tablePosition": "-1,64,0",
+      "playerFeetY": "64.0",
+      "blocked": "false",
+      "stonePresent": "false",
+      "stonePosition": "7,64,0",
+      "stoneAir": "true",
+      "tableAir": "true"
+    },
+    "approachObserved": true,
+    "recoveryEpisodes": 1,
+    "recoveryDurationMillis": 5316,
+    "nativeNavigationStopped": true,
+    "postForegroundFixtureMutations": 0,
+    "naturalClientTickStatusTransitions": [
+      {
+        "clientTick": 403,
+        "elapsedMillis": 68,
+        "engineStatus": "checking nearby crafting stations · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 404,
+        "elapsedMillis": 104,
+        "engineStatus": "planning · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 405,
+        "elapsedMillis": 186,
+        "engineStatus": "approaching the recorded owned crafting table · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 414,
+        "elapsedMillis": 602,
+        "engineStatus": "finishing movement before inventory actions · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 417,
+        "elapsedMillis": 781,
+        "engineStatus": "finishing movement before mining the owned crafting table · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 418,
+        "elapsedMillis": 809,
+        "engineStatus": "mining the recorded owned crafting table · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 495,
+        "elapsedMillis": 4669,
+        "engineStatus": "checking for the owned crafting-table drop · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 496,
+        "elapsedMillis": 4700,
+        "engineStatus": "collecting the crafting-table drop at the owned position · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 509,
+        "elapsedMillis": 5366,
+        "engineStatus": "finishing movement before inventory actions · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 512,
+        "elapsedMillis": 5502,
+        "engineStatus": "indexing local resource options · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 513,
+        "elapsedMillis": 6281,
+        "engineStatus": "mining and collecting minecraft:cobblestone · 0/1 · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 518,
+        "elapsedMillis": 6316,
+        "engineStatus": "mining and collecting minecraft:cobblestone · 0/1 · planning next route · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 526,
+        "elapsedMillis": 6402,
+        "engineStatus": "mining and collecting minecraft:cobblestone · 0/1 · 0 foreground queued · 0 maintenance queued"
+      },
+      {
+        "clientTick": 593,
+        "elapsedMillis": 9748,
+        "engineStatus": "idle · 0 foreground queued · 0 maintenance queued"
+      }
+    ]
+  },
+  "evidenceAuthority": "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+  "verificationMode": "prepared_safety_workbench",
+  "runDirectory": "/private/tmp/lodekeeper-preview10-workbench-corrected-263/run-verification",
+  "worldId": "run-bc01dbc9b6a94e25",
+  "elapsedMillis": 41237,
+  "clientTicks": 621,
+  "failure": "",
+  "serverTableOpened": true,
+  "serverFurnaceOpened": false,
+  "serverTableOpenings": 1,
+  "serverFurnaceOpenings": 0,
+  "ironPickaxeFixture": false,
+  "ironPickaxeEmptyDistantWoodFlag": false,
+  "nearbyWoodFlag": false,
+  "nearbyWoodGoal": "wood",
+  "nearbyWoodTerrain": "flat",
+  "coalRecoveryFixture": false,
+  "cases": [
+    {
+      "name": "prepared_owned_workbench_approach_cobblestone",
+      "item": "minecraft:cobblestone",
+      "expected": 1,
+      "serverObserved": 1,
+      "inventoryEmptyAtStart": false,
+      "passed": true,
+      "clientTicks": 199,
+      "worldTicks": 203,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "native approach recovered the self-created table from six blocks away, then mined the fixture stone into one cobblestone with the native table gone and every Baritone process stopped",
+      "serverHealth": 20.0,
+      "serverDifficulty": "NORMAL",
+      "serverCraftingTableOpenedDuringCase": false,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverIronPickaxeCount": 0,
+      "serverFoodLevelAtStart": 20,
+      "serverFoodLevelObserved": 20,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "7.254934063688857,64.0,0.5061571886137466",
+      "screenshot": "screenshots/lodekeeper-2026-10-06T14-17-04-521901Z-13fb4b47-prepared-safety-prepared_owned_workbench_approach_cobblestone.png",
+      "screenshotCaptureCallback": "Saved screenshot as lodekeeper-2026-10-06T14-17-04-521901Z-13fb4b47-prepared-safety-prepared_owned_workbench_approach_cobblestone.png",
+      "initialStorageInventory": {
+        "minecraft:oak_planks": 3,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2
+      },
+      "finalStorageInventory": {
+        "minecraft:crafting_table": 1,
+        "minecraft:cobblestone": 1,
+        "minecraft:oak_planks": 3,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2
+      },
+      "fullServerHeldInventory": {
+        "minecraft:crafting_table": 1,
+        "minecraft:cobblestone": 1,
+        "minecraft:oak_planks": 3,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2
+      },
+      "elapsedMillisFromCommand": 10152,
+      "baritoneCompletionGuardEnabled": true,
+      "baritoneNavigationStoppedAtReceipt": true,
+      "initialEquipmentSlotItems": {},
+      "serverEquipmentSlotItems": {},
+      "initialServerCursorEmpty": true,
+      "serverCursorEmpty": true,
+      "noMaintenanceQueuedBeforeForeground": true,
+      "maintainedReservationObservedBeforeForeground": false,
+      "maintainedReservationPresentAtCompletion": false,
+      "noMaintenanceQueued": true,
+      "initialPreparedThreatReceipt": {},
+      "serverPreparedThreatReceipt": {},
+      "initialPreparedStationRoomReceipt": {},
+      "serverPreparedStationRoomReceipt": {},
+      "initialPreparedPursuitReceipt": {},
+      "serverPreparedPursuitReceipt": {},
+      "initialPreparedAirReceipt": {},
+      "serverPreparedAirReceipt": {}
+    }
+  ],
+  "explorationFixture": false,
+  "diamondBootsFixture": false,
+  "bulkWoodFixtureLogCount": 0,
+  "woodToolsFlag": false,
+  "woodToolsEnabled": false,
+  "miningRequestLimit": false,
+  "miningZeroYield": false,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 0
+}

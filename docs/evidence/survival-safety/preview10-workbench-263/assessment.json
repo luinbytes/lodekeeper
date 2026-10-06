@@ -1,0 +1,25 @@
+{
+  "status": "passed_prepared_owned_workbench",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "commandElapsedMillis": 10152,
+  "blocked": "false",
+  "approachObserved": true,
+  "recoveryEpisodes": 1,
+  "recoveryDurationMillis": 5316,
+  "nativeNavigationStopped": true,
+  "postForegroundFixtureMutations": 0,
+  "finalNativeReceipt": {
+    "bedrockShellCells": "9",
+    "horizontalDistance": "7.754936508001429",
+    "tablePresent": "false",
+    "tablePosition": "-1,64,0",
+    "playerFeetY": "64.0",
+    "blocked": "false",
+    "stonePresent": "false",
+    "stonePosition": "7,64,0",
+    "stoneAir": "true",
+    "tableAir": "true"
+  },
+  "screenshotInspected": true
+}

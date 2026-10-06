@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T14-15-53-959199Z-15ae47cd",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"workbench-blocked",
+  "evidenceAuthority":"integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+  "verificationMode":"prepared_safety_workbench-blocked",
+  "elapsedMillis":32029,
+  "clientTicks":522,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "preparedWorkbench":{"authority":"prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status","fixtureGrants":"12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command","ownershipSetupCommand":"!lk get wooden_pickaxe 1","ownershipSetupExcludedFromCaseTiming":true,"ownershipSetupServerTick":310,"ownershipSetupClientTick":421,"ownershipSetupEngineStatus":"idle · 0 foreground queued · 0 maintenance queued","ownershipSetupScreenshot":"screenshots/lodekeeper-2026-10-06T14-15-53-959199Z-15ae47cd-prepared_owned_workbench_setup_complete.png","ownershipSetupStartingServerInventory":{"minecraft:oak_planks":12},"ownershipSetupServerInventory":{"minecraft:wooden_pickaxe":1,"minecraft:oak_planks":3,"minecraft:stick":2},"initialServerReceipt":{"tableAir":"false","stoneAir":"false","stonePosition":"7,64,0","stonePresent":"true","blocked":"true","playerFeetY":"64.0","tablePosition":"-1,64,0","tablePresent":"true","horizontalDistance":"6.0","bedrockShellCells":"26"},"finalServerReceipt":{"tableAir":"false","stoneAir":"true","stonePosition":"7,64,0","stonePresent":"false","blocked":"true","playerFeetY":"64.0","tablePosition":"-1,64,0","tablePresent":"true","horizontalDistance":"7.754954622560503","bedrockShellCells":"26"},"approachObserved":true,"recoveryEpisodes":1,"recoveryDurationMillis":537,"nativeNavigationStopped":true,"postForegroundFixtureMutations":0,"naturalClientTickStatusTransitions":[{"clientTick":443,"elapsedMillis":36,"engineStatus":"checking nearby crafting stations · 0 foreground queued · 0 maintenance queued"},{"clientTick":444,"elapsedMillis":105,"engineStatus":"planning · 0 foreground queued · 0 maintenance queued"},{"clientTick":445,"elapsedMillis":151,"engineStatus":"approaching the recorded owned crafting table · 0 foreground queued · 0 maintenance queued"},{"clientTick":456,"elapsedMillis":689,"engineStatus":"planning · 0 foreground queued · 0 maintenance queued"},{"clientTick":457,"elapsedMillis":1247,"engineStatus":"mining and collecting minecraft:cobblestone · 0/1 · 0 foreground queued · 0 maintenance queued"},{"clientTick":502,"elapsedMillis":2982,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued"}]},
+  "cases":[
+    {"name":"prepared_owned_workbench_blocked_cobblestone","item":"minecraft:cobblestone","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":60,"worldTicks":60,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"one bounded approach to the sealed self-created table ended, then native cobblestone arrived with the table and all 26 bedrock shell cells retained and every Baritone process stopped","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[7.254954049874616,64.0,0.49701968025135573],"screenshot":"screenshots/lodekeeper-2026-10-06T14-15-53-959199Z-15ae47cd-prepared_owned_workbench_blocked_cobblestone.png","initialStorageInventory":{"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"finalStorageInventory":{"minecraft:cobblestone":1,"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"fullServerHeldInventory":{"minecraft:cobblestone":1,"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"elapsedMillisFromCommand":2985,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{},"serverPreparedPursuitReceipt":{},"initialPreparedAirReceipt":{},"serverPreparedAirReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}
