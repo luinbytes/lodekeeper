@@ -1,5 +1,6 @@
 package dev.lodekeeper.fabric;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.mob.ZombieEntity;
@@ -693,6 +694,30 @@ final class VerificationApi {
         }
         PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
         fixture.contact = new ContactThreatObservation(second);
+        java.util.function.BiConsumer<net.minecraft.entity.LivingEntity, net.minecraft.entity.damage.DamageSource> confirmSwordDamage = (entity, source) -> {
+            ContactThreatObservation contact = fixture.contact;
+            int index = entity == fixture.zombie ? 0 : entity == contact.second ? 1 : -1;
+            if (index < 0) return;
+            ContactSwordAttempt attempt = contact.pendingSwordDamage[index];
+            contact.pendingSwordDamage[index] = null;
+            if (!contact.observing || attempt == null || attempt.source() != source
+                    || !(entity.getHealth() < attempt.healthBefore())) return;
+            if (attempt.airborne()) contact.airborneSwordDamageEvents++;
+            else contact.groundedSwordDamageEvents++;
+        };
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            ContactThreatObservation contact = fixture.contact;
+            int index = entity == fixture.zombie ? 0 : entity == contact.second ? 1 : -1;
+            if (index >= 0) {
+                contact.pendingSwordDamage[index] = contact.observing && source.getAttacker() == player
+                        && player.getMainHandStack().isOf(Items.DIAMOND_SWORD)
+                        ? new ContactSwordAttempt(!player.isOnGround(), entity.getHealth(), source) : null;
+            }
+            return true;
+        });
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damage, blocked) ->
+                confirmSwordDamage.accept(entity, source));
+        ServerLivingEntityEvents.AFTER_DEATH.register(confirmSwordDamage::accept);
         return fixture;
     }
 
@@ -731,16 +756,20 @@ final class VerificationApi {
         contact.lastPlayerHealth = player.getHealth();
     }
 
+    private record ContactSwordAttempt(boolean airborne, float healthBefore, net.minecraft.entity.damage.DamageSource source) { }
+
     private static final class ContactThreatObservation {
         private final ZombieEntity second;
         private final float[] lastHealth = new float[]{20.0F, 20.0F};
         private final int[] playerHits = new int[2];
+        private final ContactSwordAttempt[] pendingSwordDamage = new ContactSwordAttempt[2];
         private final int[] foreignDamage = new int[2];
         private final String[] lastDamage = new String[]{"", ""};
         private final boolean[] lastDamageByPlayer = new boolean[2];
         private float lastPlayerHealth = 20.0F;
         private int nativePlayerHits, observedServerTicks;
         private int airborneTicks, horizontalMotionTicks, mobHealthDropsWhilePlayerUnsettled;
+        private int airborneSwordDamageEvents, groundedSwordDamageEvents;
         private int releaseServerTick = -1;
         private boolean observing;
 
@@ -789,6 +818,8 @@ final class VerificationApi {
         result.put("contactCowPosition", fixture.cow.getX() + "," + fixture.cow.getY() + "," + fixture.cow.getZ());
         result.put("contactCowBlockCollision", Boolean.toString(player.getWorld().getBlockCollisions(fixture.cow, fixture.cow.getBoundingBox()).iterator().hasNext()));
         result.put("contactAirborneServerTicks", Integer.toString(contact.airborneTicks));
+        result.put("contactAirborneSwordDamageEvents", Integer.toString(contact.airborneSwordDamageEvents));
+        result.put("contactGroundedSwordDamageEvents", Integer.toString(contact.groundedSwordDamageEvents));
         result.put("contactHorizontalMotionServerTicks", Integer.toString(contact.horizontalMotionTicks));
         result.put("contactMobHealthDropsWhilePlayerUnsettled", Integer.toString(contact.mobHealthDropsWhilePlayerUnsettled));
         result.put("contactScope", "live_multi_threat_from_idle_no_prior_native_path");

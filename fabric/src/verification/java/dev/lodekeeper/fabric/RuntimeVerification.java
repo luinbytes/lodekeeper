@@ -2829,6 +2829,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 || !"true".equals(receipt.get("contactClockFrozen"))
                 || !"-1".equals(receipt.get("contactClockReleaseServerTick"))
                 || !"0".equals(receipt.get("contactObservedServerTicks"))
+                || !"0".equals(receipt.get("contactAirborneSwordDamageEvents"))
+                || !"0".equals(receipt.get("contactGroundedSwordDamageEvents"))
                 || !"true".equals(receipt.get("contactPlayerAlive")) || !"0".equals(receipt.get("contactPlayerDeaths"))
                 || !"0.5,64.0,0.5".equals(receipt.get("contactPlayerPosition"))
                 || !"-90.0".equals(receipt.get("contactPlayerYaw")) || !"0.0".equals(receipt.get("contactPlayerPitch"))
@@ -2865,6 +2867,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 || !"false".equals(receipt.get("contactClockFrozen"))
                 || Integer.parseInt(receipt.getOrDefault("contactClockReleaseServerTick", "-1")) < 0
                 || Integer.parseInt(receipt.getOrDefault("contactNativePlayerHits", "0")) < 1
+                || Integer.parseInt(receipt.getOrDefault("contactAirborneSwordDamageEvents", "0")) < 1
                 || pickaxeWear < 0 || pickaxeWear > 48 || pickaxeWear % 2 != 0
                 || swordWear < 0 || swordWear > 24 || weaponHits < 1 || weaponHits > 24
                 || !contactShellPreserved(receipt)) return false;
