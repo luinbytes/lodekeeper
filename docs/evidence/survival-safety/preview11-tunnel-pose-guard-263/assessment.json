@@ -1,0 +1,10 @@
+{
+  "status": "failed",
+  "case": "tunnel fixture setup camera synchronization",
+  "failure": "prepared safety fixture did not become server-ready within 400 ticks",
+  "productionMechanicExercised": false,
+  "reason": "The server-only camera assignments were overwritten by client rotation packets. The added readiness guard saw yaw and pitch zero and refused to issue the foreground command.",
+  "fix": "Set the translated camera pose on the client only during WAITING_FOR_EMPTY_SNAPSHOT, before the command, and retain the authoritative server pose guard.",
+  "nativeReceipt": "native-result.json",
+  "sourceCommit": "4506bda4a81393b0a972fd012f28aebd6210e04d"
+}

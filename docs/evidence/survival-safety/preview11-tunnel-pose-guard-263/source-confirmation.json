@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "4506bda4a81393b0a972fd012f28aebd6210e04d",
+  "allSourceHashesMatchCommittedTree": true,
+  "productionFiles": 158,
+  "verifierFiles": 26,
+  "artifacts": {
+    "1.21.1": {
+      "jar": "lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "950164d007b25c67be929db0b84f612ae1396fdba0c09fd3a65f7feb71a41b19",
+      "verifierClasses": "/tmp/lodekeeper-preview11-tunnel-baseline-frozen-1211-verifier"
+    },
+    "26.3": {
+      "jar": "lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "66b04b68c9565a1b6346ae7a84306cc23cd4666b6969d4877ffa2a2eaf9046e8",
+      "verifierClasses": "/tmp/lodekeeper-preview11-tunnel-baseline-frozen-263-verifier"
+    }
+  }
+}

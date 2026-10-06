@@ -1,0 +1,22 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.11.jar",
+  "artifactSha256": "66b04b68c9565a1b6346ae7a84306cc23cd4666b6969d4877ffa2a2eaf9046e8",
+  "sourceCommit": "4506bda4a81393b0a972fd012f28aebd6210e04d",
+  "sourceTreeState": "committed",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=station_room",
+    "-Dlodekeeper.verify.stationRoomTunnel=true",
+    "-Dlodekeeper.verify.candidateSha256=66b04b68c9565a1b6346ae7a84306cc23cd4666b6969d4877ffa2a2eaf9046e8"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview11-tunnel-baseline-frozen-263-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

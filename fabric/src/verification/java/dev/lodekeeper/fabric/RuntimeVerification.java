@@ -683,6 +683,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
                 if (PREPARED_SAFETY_MODE != null) {
+                    if (STATION_ROOM_TUNNEL_MODE) {
+                        client.player.setYaw(98.886902F);
+                        client.player.setPitch(-38.467983F);
+                    }
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (preparedSafetyFixtureReady()) {
                         int requiredReadyTicks = preparedSafetyPhase == PreparedSafetyPhase.AIR ? 1 : 20;
