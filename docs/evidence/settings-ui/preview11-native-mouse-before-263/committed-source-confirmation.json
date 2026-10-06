@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "dea840e0af43ba730f3db17aad21f44a70d2fc4a",
+  "allSourceHashesMatchCommittedTree": true,
+  "productionFiles": 205,
+  "verifierFiles": 46,
+  "artifacts": {
+    "1.21.1": {
+      "jar": "lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "be29325b3fabb02de87b8836e6349db63407cf3c75ac95f73b4661ec5a819b0e",
+      "verifierClasses": "/tmp/lodekeeper-preview11-settings-native-key-artifacts-1211-verifier"
+    },
+    "26.3": {
+      "jar": "lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "10ab8d332b35d9468d78efaf059e8c7cefdfc365f359d79e9653ab20fd155250",
+      "verifierClasses": "/tmp/lodekeeper-preview11-settings-native-key-artifacts-263-verifier"
+    }
+  }
+}

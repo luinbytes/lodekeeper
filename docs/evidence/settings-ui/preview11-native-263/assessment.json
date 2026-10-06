@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "sourceCommit": "ec7b94870c918d7e8ea4a7ff08c669a761e9cacd",
+  "artifactSha256": "10ab8d332b35d9468d78efaf059e8c7cefdfc365f359d79e9653ab20fd155250",
+  "authority": "native_screen_child_widgets_native_input_events_and_config_reload",
+  "chatCommandOpenedSettings": true,
+  "receipt": "settingsUi=PASS; steps=8/8; restored=true; framesHeld=2; captures=2; trace=PASS allowBreaking-search-filter-off-save-reload | PASS discard-preserves-saved-value | PASS dependency-disables-child-keeps-stored-value | PASS invalid-number-refuses-save | PASS per-row-reset | PASS navigation-map-open-editor-and-capture | PASS navigation-map-add-save-reload-remove | PASS all-original-values-restored",
+  "screenshots": {
+    "settings-open": {
+      "file": "settings-open.png",
+      "sha256": "8fec7b5ee239d0f9944277be6df1b7e826fa4a5cfb519c474a885113971e16dc",
+      "visuallyInspected": true
+    },
+    "navigation-map-editor": {
+      "file": "navigation-map-editor.png",
+      "sha256": "fd503caf0bb088b51142f5c10245d90978090f84f0a4c85fc4a9f1282b03bc7f",
+      "visuallyInspected": true
+    },
+    "final": {
+      "file": "final.png",
+      "sha256": "056ed9566322592afef349ddf8ba58339b92564bf503b31f0c82760f6c6a95b2",
+      "visuallyInspected": true
+    }
+  },
+  "scope": "Native client settings widgets, actual mouse/key/character events, saved config reload and restoration.",
+  "limitations": [
+    "Isolated development harness loading exact candidate jar; ordinary launcher acceptance remains pending.",
+    "Does not prove runtime behavior of every navigation preference, station provenance, claim enforcement or source-owned kernel integration."
+  ],
+  "failure": ""
+}

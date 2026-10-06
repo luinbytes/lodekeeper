@@ -1,0 +1,15 @@
+{
+  "status": "failed",
+  "sourceCommit": "db49f76010fe8be38d6d01daf27e8b1f77e6a17f",
+  "artifactSha256": "10ab8d332b35d9468d78efaf059e8c7cefdfc365f359d79e9653ab20fd155250",
+  "authority": "native_screen_child_widgets_native_input_events_and_config_reload",
+  "chatCommandOpenedSettings": false,
+  "receipt": null,
+  "screenshots": {},
+  "scope": "Native client settings widgets, actual mouse/key/character events, saved config reload and restoration.",
+  "limitations": [
+    "Isolated development harness loading exact candidate jar; ordinary launcher acceptance remains pending.",
+    "Does not prove runtime behavior of every navigation preference, station provenance, claim enforcement or source-owned kernel integration."
+  ],
+  "failure": "native config chat command did not open settings within 20 ticks"
+}

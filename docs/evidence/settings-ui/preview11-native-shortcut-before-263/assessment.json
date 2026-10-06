@@ -1,0 +1,15 @@
+{
+  "status": "failed",
+  "sourceCommit": "174aa293105b3e63e86557ba5833792071e13c68",
+  "artifactSha256": "10ab8d332b35d9468d78efaf059e8c7cefdfc365f359d79e9653ab20fd155250",
+  "authority": "native_screen_child_widgets_native_input_events_and_config_reload",
+  "chatCommandOpenedSettings": true,
+  "receipt": "settingsUi=FAIL; steps=2/8; restored=true; framesHeld=2; captures=1; trace=PASS allowBreaking-search-filter-off-save-reload | PASS discard-preserves-saved-value | FAIL dependency-disables-child-keeps-stored-value IllegalStateException: setting is not on the visible first page: allowParkourPlace; failures=dependency-disables-child-keeps-stored-value: java.lang.IllegalStateException: setting is not on the visible first page: allowParkourPlace",
+  "screenshots": {},
+  "scope": "Native client settings widgets, actual mouse/key/character events, saved config reload and restoration.",
+  "limitations": [
+    "Isolated development harness loading exact candidate jar; ordinary launcher acceptance remains pending.",
+    "Does not prove runtime behavior of every navigation preference, station provenance, claim enforcement or source-owned kernel integration."
+  ],
+  "failure": "settings UI verification failed or config restoration was incomplete: settingsUi=FAIL; steps=2/8; restored=true; framesHeld=2; captures=1; trace=PASS allowBreaking-search-filter-off-save-reload | PASS discard-preserves-saved-value | FAIL dependency-disables-child-keeps-stored-value IllegalStateException: setting is not on the visible first page: allowParkourPlace; failures=dependency-disables-child-keeps-stored-value: java.lang.IllegalStateException: setting is not on the visible first page: allowParkourPlace"
+}
