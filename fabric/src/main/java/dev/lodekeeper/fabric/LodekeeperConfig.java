@@ -32,6 +32,7 @@ public final class LodekeeperConfig {
     public boolean showPath = true;
     public boolean showSearch = false;
     public boolean showHud = true;
+    public boolean debugLogging = true;
 
     public static LodekeeperConfig load() {
         LodekeeperConfig config = new LodekeeperConfig();

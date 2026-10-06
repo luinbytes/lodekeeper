@@ -1,0 +1,27 @@
+{
+  "runId":"2026-10-06T00-35-14-218423Z-b38f17e6",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"exploration",
+  "elapsedMillis":77101,
+  "clientTicks":1441,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"explore_to_unloaded_wood_8","item":"minecraft:oak_log","expected":8,"serverObserved":8,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":1208,"worldTicks":1208,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server inventory reached target and engine returned idle","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[86.8080476753669,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T00-35-14-218423Z-b38f17e6-explore_to_unloaded_wood_8.png"}
+  ],
+  "explorationFixture":true,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":2
+}

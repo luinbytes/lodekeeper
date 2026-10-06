@@ -20,6 +20,8 @@ import dev.lodekeeper.core.PlanResult;
 import dev.lodekeeper.core.PlanStep;
 import dev.lodekeeper.core.ProjectCatalog;
 import dev.lodekeeper.core.ProjectSpec;
+import dev.lodekeeper.core.ItemSelector;
+import dev.lodekeeper.core.Requirement;
 import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.core.StationId;
 import dev.lodekeeper.core.StationRequirement;
@@ -67,6 +69,10 @@ final class AutomationEngine {
     private static final int INVENTORY_SAMPLE_INTERVAL_TICKS = 10;
     private static final int MAX_STATION_PLACEMENT_ATTEMPTS = 24;
     private static final int MAX_LOCAL_LOG_POSITIONS = 512;
+    private static final int LOCAL_REACH_RADIUS = 6;
+    private static final int LOCAL_REACH_MAX_PROBES_PER_ADVANCE = 256;
+    private static final long DISCOVERY_BUDGET_NANOS = 1_000_000L;
+    private static final long LOCAL_NEGATIVE_TTL_NANOS = 1_000_000_000L;
     private static final int MIN_FREE_SLOTS_FOR_WOOD_TOOL_OFFER = 4;
     private static final int WOOD_TOOL_CRAFT_TICKS = 100;
     private static final int WOOD_TOOL_STATION_TICKS = 100;
@@ -80,6 +86,8 @@ final class AutomationEngine {
         boolean maintained() { return maintenanceTaskId != null; }
     }
 
+    private enum LocalReachPurpose { LOG_CHOICE, RECIPE_WOOD, GATHER }
+
     private record PlanningOutcome(PlanResult result, boolean explorationProven, boolean auxiliaryInvestment) { }
     private record GatherLimit(ItemId output, int localPositions) { }
     private record LocalLogEvidence(Map<String, GatherLimit> sources, Set<ItemId> outputs,
@@ -88,6 +96,100 @@ final class AutomationEngine {
                                 HarvestInvestment.ToolDemand demand, Map<String, GatherLimit> localSources,
                                 Set<ItemId> localOutputs, Set<ItemId> goalLogItems, Set<String> nativeCraftSources,
                                 Set<String> allowedAxeCraftSources, HarvestInvestment.TickEstimates estimates) { }
+
+    private static final class LocalReachScan {
+        private final Object world;
+        private final Object dimension;
+        private final Request request;
+        private final long generation;
+        private final Set<Block> blocks;
+        private final Set<String> sources;
+        private final Set<BlockPos> rejected;
+        private final BlockPos origin;
+        private final List<BlockPos> positions;
+        private int cursor;
+        private BlockPos result;
+        private boolean complete;
+        private long completedAtNanos;
+
+        LocalReachScan(Object world, Object dimension, Request request, long generation,
+                       Set<Block> blocks, Set<String> sources, Set<BlockPos> rejected,
+                       BlockPos origin, double eyeX, double eyeY, double eyeZ) {
+            this.world = world;
+            this.dimension = dimension;
+            this.request = request;
+            this.generation = generation;
+            this.blocks = Set.copyOf(blocks);
+            this.sources = Set.copyOf(sources);
+            this.rejected = Set.copyOf(rejected);
+            this.origin = origin.immutable();
+            BlockPos eyeBlock = new BlockPos((int) Math.floor(eyeX), (int) Math.floor(eyeY), (int) Math.floor(eyeZ));
+            List<BlockPos> candidates = new ArrayList<>(LOCAL_REACH_RADIUS * LOCAL_REACH_RADIUS * LOCAL_REACH_RADIUS * 4);
+            for (int x = -LOCAL_REACH_RADIUS; x <= LOCAL_REACH_RADIUS; x++) {
+                for (int y = -LOCAL_REACH_RADIUS; y <= LOCAL_REACH_RADIUS; y++) {
+                    for (int z = -LOCAL_REACH_RADIUS; z <= LOCAL_REACH_RADIUS; z++) {
+                        BlockPos position = eyeBlock.offset(x, y, z);
+                        double nearX = Math.max(position.getX(), Math.min(eyeX, position.getX() + 1));
+                        double nearY = Math.max(position.getY(), Math.min(eyeY, position.getY() + 1));
+                        double nearZ = Math.max(position.getZ(), Math.min(eyeZ, position.getZ() + 1));
+                        double dx = nearX - eyeX, dy = nearY - eyeY, dz = nearZ - eyeZ;
+                        if (dx * dx + dy * dy + dz * dz <= LOCAL_REACH_RADIUS * LOCAL_REACH_RADIUS) candidates.add(position);
+                    }
+                }
+            }
+            candidates.sort(Comparator.comparingDouble((BlockPos position) -> distanceSquared(position, eyeX, eyeY, eyeZ))
+                    .thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
+            positions = List.copyOf(candidates);
+        }
+
+        boolean matches(Object world, Object dimension, Request request, long generation,
+                        Set<Block> blocks, Set<String> sources, Set<BlockPos> rejected, BlockPos origin) {
+            return this.world == world && java.util.Objects.equals(this.dimension, dimension) && this.request == request
+                    && this.generation == generation && this.blocks.equals(blocks) && this.sources.equals(sources)
+                    && this.rejected.equals(rejected) && this.origin.equals(origin);
+        }
+
+        BlockPos advance(AutomationEngine engine, long deadlineNanos) {
+            if (complete) return null;
+            int probes = 0;
+            while (cursor < positions.size() && probes++ < LOCAL_REACH_MAX_PROBES_PER_ADVANCE
+                    && System.nanoTime() < deadlineNanos) {
+                BlockPos position = positions.get(cursor++);
+                if (rejected.contains(position) || !engine.hasLoadedChunk(position)) continue;
+                if (blocks.contains(engine.client.level.getBlockState(position).getBlock())
+                        && engine.actions.hit(position) != null) {
+                    result = position;
+                    return result;
+                }
+            }
+            if (!complete && cursor == positions.size()) {
+                complete = true;
+                completedAtNanos = System.nanoTime();
+            }
+            return null;
+        }
+
+        private static double distanceSquared(BlockPos position, double x, double y, double z) {
+            double dx = Math.max(position.getX(), Math.min(x, position.getX() + 1)) - x;
+            double dy = Math.max(position.getY(), Math.min(y, position.getY() + 1)) - y;
+            double dz = Math.max(position.getZ(), Math.min(z, position.getZ() + 1)) - z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        BlockPos result() { return result; }
+        boolean complete() { return complete; }
+        boolean negativeExpired(long nowNanos) {
+            return complete && result == null && nowNanos - completedAtNanos >= LOCAL_NEGATIVE_TTL_NANOS;
+        }
+        long progressToken() { return cursor; }
+        String progressDescription() { return Math.min(cursor, positions.size()) + "/" + positions.size() + " positions"; }
+        void restart() { cursor = 0; result = null; complete = false; completedAtNanos = 0; }
+        void skipResult() { result = null; }
+    }
+
+    private record LocalReachHint(Object world, Object dimension, Request request, long generation,
+                                  Set<BlockPos> rejected, BlockPos origin, String sourceId,
+                                  BlockPos position, Block block) { }
 
     private static final class ProjectRun {
         final ProjectSpec spec;
@@ -132,18 +234,28 @@ final class AutomationEngine {
     private long pendingPlanGeneration;
     private BlockSearch scan;
     private BlockSearch logScan;
+    private LocalReachScan localLogReachScan, localIngredientWoodReachScan, localGatherReachScan;
+    private LocalReachHint localReachHint;
     private BlockSearch ingredientWoodScan;
     private Request ingredientWoodRequest;
     private long ingredientWoodGeneration = -1;
     private BlockPos ingredientWoodOrigin;
     private int ingredientWoodRejectedCount;
     private final Map<Block, List<GatherSource>> ingredientWoodSources = new LinkedHashMap<>();
+    private final Map<Block, List<GatherSource>> localIngredientWoodSources = new LinkedHashMap<>();
     private final Set<String> ingredientWoodSourceIds = new HashSet<>();
+    private final Set<String> localIngredientWoodSourceIds = new HashSet<>();
     private final Set<BlockPos> ingredientWoodExamined = new HashSet<>();
     private final Map<String, BlockPos> ingredientWoodPublished = new HashMap<>();
     private long logScanGeneration;
     private final Map<Block,GatherSource> logSources = new HashMap<>();
+    private final Map<Block,GatherSource> localLogSources = new HashMap<>();
     private final Deque<ItemId> logCandidates = new ArrayDeque<>();
+    private final Set<ItemId> attemptedLogCandidates = new HashSet<>();
+    private Request logScanRequest;
+    private ItemId localLogCandidateOutput;
+    private String localLogCandidateSourceId;
+    private boolean logScanComplete;
     private ItemId droppedLogCandidate;
     private ExplorationFrontier frontier;
     private boolean exploring, explorationMoving;
@@ -169,6 +281,8 @@ final class AutomationEngine {
     private boolean foodReplanPending;
     private boolean inventoryFingerprintInitialized;
     private long lastInventoryFingerprint;
+    private long discoveryDeadlineNanos;
+    private boolean discoveryBudgetStarted;
     private Map<ItemId, Integer> observedInventory = Map.of();
     private long lastSmeltProgress;
     private String status = "idle";
@@ -185,9 +299,13 @@ final class AutomationEngine {
     }
 
     void tick() {
+        discoveryBudgetStarted = false;
+        discoveryDeadlineNanos = 0;
         if (client.level != world) {
             stopNow(false);
             world = client.level;
+            localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null;
+            localReachHint = null;
             nearbyResources.reset();
             ownedStations.clear();
             unavailableSources.clear();
@@ -524,7 +642,7 @@ final class AutomationEngine {
                 return;
             }
             unavailableSources.clear();
-            frontier = null; rejectedResources.clear(); lastResourceFailure = null; logCandidates.clear();
+            frontier = null; rejectedResources.clear(); lastResourceFailure = null; resetLogDiscovery();
             planningRetries = 0;
             requestPlan();
         }
@@ -694,7 +812,12 @@ final class AutomationEngine {
         ItemId item = active.item;
         if (active.anyLogs) {
             item = chooseLogs();
-            if (item == null) { if (logScan == null) beginExploration(); return; }
+            if (item == null) {
+                LocalReachScan logReachScan = localReachScan(LocalReachPurpose.LOG_CHOICE);
+                boolean localPending = !localLogSources.isEmpty() && (logReachScan == null || !logReachScan.complete());
+                if (logScan == null && !localPending && (logSources.isEmpty() || logScanComplete)) beginExploration();
+                return;
+            }
         }
         CatalogSnapshot full = catalog.snapshot();
         CatalogSnapshot snapshot = full;
@@ -1023,11 +1146,16 @@ final class AutomationEngine {
                 || active.item.equals(step.output())
                 || !catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) return false;
         List<BlockPos> known = discoveredSources.get(step.sourceId());
-        if (known != null && known.stream().anyMatch(pos -> !rejectedResources.contains(pos)
-                && hasLoadedChunk(pos) && step.candidateBlocks().stream().anyMatch(id ->
-                    BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString())) == client.level.getBlockState(pos).getBlock()))) return false;
-        boolean missingPublishedHint = ingredientWoodPublished.remove(step.sourceId()) != null;
-        if (missingPublishedHint) ingredientWoodExamined.clear();
+        boolean validSelectedHint = known != null && selectedGatherToolAvailable()
+                && known.stream().anyMatch(this::liveSelectedGatherHint);
+        if (validSelectedHint && known.stream().anyMatch(pos -> liveSelectedGatherHint(pos)
+                && actions.hit(pos) != null)) return false;
+        BlockPos publishedHint = ingredientWoodPublished.get(step.sourceId());
+        boolean missingPublishedHint = publishedHint != null && !liveSelectedGatherHint(publishedHint);
+        if (missingPublishedHint) {
+            ingredientWoodPublished.remove(step.sourceId());
+            ingredientWoodExamined.clear();
+        }
         BlockPos feet = client.player.blockPosition();
         if (ingredientWoodRequest != active || ingredientWoodGeneration != catalog.generation()
                 || ingredientWoodOrigin == null || feet.distSqr(ingredientWoodOrigin) > 256
@@ -1037,7 +1165,9 @@ final class AutomationEngine {
             ingredientWoodOrigin = feet.immutable();
             ingredientWoodRejectedCount = rejectedResources.size();
             ingredientWoodScan = null;
-            ingredientWoodSources.clear(); ingredientWoodSourceIds.clear();
+            localIngredientWoodReachScan = null;
+            ingredientWoodSources.clear(); localIngredientWoodSources.clear();
+            ingredientWoodSourceIds.clear(); localIngredientWoodSourceIds.clear();
             ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
             Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()));
             int captured = 0;
@@ -1053,6 +1183,13 @@ final class AutomationEngine {
                     if (sources.size() < 32) {
                         sources.add(gather);
                         ingredientWoodSourceIds.add(gather.sourceId());
+                        if (gather.sourceId().startsWith("gather:") && hasSatisfiedToolRequirements(gather)) {
+                            List<GatherSource> localSources = localIngredientWoodSources.computeIfAbsent(block, ignored -> new ArrayList<>());
+                            if (localSources.size() < 32) {
+                                localSources.add(gather);
+                                localIngredientWoodSourceIds.add(gather.sourceId());
+                            }
+                        }
                     }
                 }
             }
@@ -1060,12 +1197,49 @@ final class AutomationEngine {
                     ingredientWoodSources.keySet(), config.searchRadius, rejectedResources, true);
         }
         if (ingredientWoodScan == null || !ingredientWoodSourceIds.contains(step.sourceId())) return false;
+        while (!localIngredientWoodSources.isEmpty()) {
+            BlockPos local = findLocalReachable(localIngredientWoodSources.keySet(), localIngredientWoodSourceIds,
+                    LocalReachPurpose.RECIPE_WOOD);
+            LocalReachScan recipeWoodScan = localReachScan(LocalReachPurpose.RECIPE_WOOD);
+            if (local == null) break;
+            Block block = client.level.getBlockState(local).getBlock();
+            List<GatherSource> sources = localIngredientWoodSources.get(block);
+            if (sources == null) {
+                recipeWoodScan.skipResult();
+                continue;
+            }
+            boolean foundNewSource = false;
+            for (GatherSource source : sources) {
+                BlockPos previous = ingredientWoodPublished.get(source.sourceId());
+                if (previous != null && previous.equals(local)) continue;
+                rememberDiscoveredSource(source.sourceId(), local, block);
+                ingredientWoodPublished.put(source.sourceId(), local.immutable());
+                if (source.sourceId().equals(step.sourceId())) {
+                    localReachHint = new LocalReachHint(client.level, client.level.dimension(), active,
+                            catalog.generation(), Set.copyOf(rejectedResources), client.player.blockPosition(),
+                            source.sourceId(), local.immutable(), block);
+                }
+                foundNewSource = true;
+            }
+            if (foundNewSource) {
+                resetAction(); requestPlan(); return true;
+            }
+            recipeWoodScan.skipResult();
+        }
+        LocalReachScan recipeWoodScan = localReachScan(LocalReachPurpose.RECIPE_WOOD);
+        if (!localIngredientWoodSources.isEmpty() && recipeWoodScan != null && !recipeWoodScan.complete()) {
+            status = "finding nearby recipe wood · local " + recipeWoodScan.progressDescription();
+            return true;
+        }
+        if (validSelectedHint) return false;
         if (ingredientWoodScan.complete() && missingPublishedHint) {
             ingredientWoodScan = new BlockSearch(client, ingredientWoodSources.keySet(), config.searchRadius, rejectedResources, true);
             ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
         }
+        startDiscoveryBudget();
         long before = ingredientWoodScan.progressToken();
-        boolean complete = ingredientWoodScan.advance(config.scanBlocksPerTick, 1_000_000L);
+        boolean complete = ingredientWoodScan.advance(config.scanBlocksPerTick,
+                Math.max(0, discoveryDeadlineNanos - System.nanoTime()));
         if (before != ingredientWoodScan.progressToken()) actionTicks = 0;
         status = "finding nearby recipe wood · " + ingredientWoodScan.progressDescription();
         boolean foundNewSource = false;
@@ -1141,40 +1315,96 @@ final class AutomationEngine {
         return !complete;
     }
 
+    private boolean liveSelectedGatherHint(BlockPos pos) {
+        return !rejectedResources.contains(pos) && hasLoadedChunk(pos)
+                && step.candidateBlocks().stream().anyMatch(id ->
+                    BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString())) == client.level.getBlockState(pos).getBlock());
+    }
+
+    private void resetLogDiscovery() {
+        logScan = null; localLogReachScan = null; localReachHint = null;
+        logSources.clear(); localLogSources.clear(); logCandidates.clear(); attemptedLogCandidates.clear();
+        droppedLogCandidate = null; localLogCandidateOutput = null; localLogCandidateSourceId = null;
+        logScanComplete = false; logScanRequest = null; logScanGeneration = -1;
+    }
+
     private ItemId chooseLogs() {
-        if (logScanGeneration != catalog.generation()) { logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; }
+        if (logScanRequest != active || logScanGeneration != catalog.generation()) {
+            resetLogDiscovery();
+            logScanRequest = active;
+            logScanGeneration = catalog.generation();
+        }
         if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
-        if (logScan == null) {
-            logSources.clear();
-            Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"),List.of()));
+        if (logSources.isEmpty()) {
+            localLogSources.clear();
+            Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()));
             for (AcquisitionSource source : catalog.sources) {
                 if (!(source instanceof GatherSource gather) || !logs.contains(source.output())
                         || unavailableSources.contains(source.sourceId())) continue;
                 for (BlockId id : gather.blocks()) {
                     Block block = GameCatalog.block(id);
-                    if (block != Blocks.AIR) logSources.putIfAbsent(block,gather);
+                    if (block == Blocks.AIR) continue;
+                    logSources.putIfAbsent(block, gather);
+                    if (gather.sourceId().startsWith("gather:") && hasSatisfiedToolRequirements(gather))
+                        localLogSources.putIfAbsent(block, gather);
                 }
             }
-            if (logSources.isEmpty()) return null;
-            var eligibleLogs = logSources.values().stream().map(source -> GameCatalog.item(source.output()))
-                .collect(java.util.stream.Collectors.toSet());
-            ItemEntity dropped = client.level.getEntities(EntityTypeTest.forClass(ItemEntity.class),
-                client.player.getBoundingBox().inflate(12), entity -> entity.isAlive()
-                    && (entity.onGround() || entity.isInWater()) && entity.getItem().is(ItemTags.LOGS)
-                    && eligibleLogs.contains(entity.getItem().getItem()))
-                .stream().min(Comparator.comparingDouble(client.player::distanceToSqr)).orElse(null);
-            droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getItem().getItem());
-            logScan = new BlockSearch(client,logSources.keySet(),config.searchRadius,rejectedResources);
-            logScanGeneration = catalog.generation();
         }
-        long priorProgress = logScan.progressToken();
-        boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,1_000_000);
-        if (logScan.progressToken() != priorProgress) actionTicks = 0;
-        status = "discovering nearby logs · " + logScan.progressDescription();
-        if (!discoveryComplete && !logScan.hasCandidates()) {
+        if (logSources.isEmpty()) return null;
+        if (localLogSources.isEmpty()) localReachScan(LocalReachPurpose.LOG_CHOICE, null);
+        Set<String> sourceIds = localLogSources.values().stream().map(GatherSource::sourceId)
+                .collect(java.util.stream.Collectors.toSet());
+        while (!localLogSources.isEmpty() && (!discoveryBudgetStarted || discoveryBudgetAvailable())) {
+            BlockPos local = findLocalReachable(localLogSources.keySet(), sourceIds, LocalReachPurpose.LOG_CHOICE);
+            LocalReachScan logReachScan = localReachScan(LocalReachPurpose.LOG_CHOICE);
+            if (local == null) break;
+            Block block = client.level.getBlockState(local).getBlock();
+            GatherSource source = localLogSources.get(block);
+            if (source == null) {
+                logReachScan.skipResult();
+                continue;
+            }
+            rememberDiscoveredSource(source.sourceId(), local, block);
+            localReachHint = new LocalReachHint(client.level, client.level.dimension(), active,
+                    catalog.generation(), Set.copyOf(rejectedResources), client.player.blockPosition(),
+                    source.sourceId(), local.immutable(), block);
+            if (!attemptedLogCandidates.contains(source.output())) {
+                localLogCandidateOutput = source.output();
+                localLogCandidateSourceId = source.sourceId();
+                if (!logCandidates.contains(source.output())) logCandidates.addLast(source.output());
+                return logCandidates.peekFirst();
+            }
+            localReachHint = null;
+            logReachScan.skipResult();
+        }
+        LocalReachScan logReachScan = localReachScan(LocalReachPurpose.LOG_CHOICE);
+        if (!localLogSources.isEmpty() && logReachScan != null && !logReachScan.complete()) {
+            status = "discovering locally reachable logs · " + logReachScan.progressDescription();
             return null;
         }
-        Map<String,List<BlockPos>> grouped = new LinkedHashMap<>();
+        if (logScanComplete) return null;
+        if (logScan == null) {
+            var eligibleLogs = logSources.values().stream().map(source -> GameCatalog.item(source.output()))
+                    .collect(java.util.stream.Collectors.toSet());
+            ItemEntity dropped = client.level.getEntities(EntityTypeTest.forClass(ItemEntity.class),
+                    client.player.getBoundingBox().inflate(12), entity -> entity.isAlive()
+                            && (entity.onGround() || entity.isInWater()) && entity.getItem().is(ItemTags.LOGS)
+                            && eligibleLogs.contains(entity.getItem().getItem()))
+                    .stream().min(Comparator.comparingDouble(client.player::distanceToSqr)).orElse(null);
+            droppedLogCandidate = dropped == null ? null : GameCatalog.id(dropped.getItem().getItem());
+            logScan = new BlockSearch(client, logSources.keySet(), config.searchRadius, rejectedResources);
+        }
+        startDiscoveryBudget();
+        if (!discoveryBudgetAvailable()) {
+            status = "discovering nearby logs · local reach checked";
+            return null;
+        }
+        long priorProgress = logScan.progressToken();
+        boolean discoveryComplete = logScan.advance(config.scanBlocksPerTick,
+                Math.max(0, discoveryDeadlineNanos - System.nanoTime()));
+        if (logScan.progressToken() != priorProgress) actionTicks = 0;
+        status = "discovering nearby logs · " + logScan.progressDescription();
+        Map<String, List<BlockPos>> grouped = new LinkedHashMap<>();
         Set<ItemId> outputs = new LinkedHashSet<>();
         if (droppedLogCandidate != null) outputs.add(droppedLogCandidate);
         for (BlockPos position : logScan.results()) {
@@ -1182,33 +1412,47 @@ final class AutomationEngine {
             GatherSource source = logSources.get(client.level.getBlockState(position).getBlock());
             if (source == null) continue;
             if (outputs.size() < 64) outputs.add(source.output());
-            grouped.computeIfAbsent(source.sourceId(),ignored -> new ArrayList<>()).add(position);
+            grouped.computeIfAbsent(source.sourceId(), ignored -> new ArrayList<>()).add(position);
         }
         for (var entry : grouped.entrySet()) {
-            if (discoveredSources.size() >= 64 && !discoveredSources.containsKey(entry.getKey())) {
+            if (!discoveredSources.containsKey(entry.getKey()) && discoveredSources.size() >= 64)
                 discoveredSources.remove(discoveredSources.keySet().iterator().next());
-            }
-            discoveredSources.put(entry.getKey(),entry.getValue());
+            List<BlockPos> known = discoveredSources.computeIfAbsent(entry.getKey(), ignored -> new ArrayList<>());
+            for (BlockPos position : entry.getValue()) if (!known.contains(position) && known.size() < 512) known.add(position);
         }
-        logCandidates.addAll(outputs);
+        for (ItemId output : outputs) {
+            if (!attemptedLogCandidates.contains(output) && !logCandidates.contains(output)) logCandidates.addLast(output);
+        }
         // Presence is independent of the nearest-512 position cache; dense forests must not hide rare variants.
         for (GatherSource source : new HashSet<>(logSources.values())) {
             if (source.output().equals(droppedLogCandidate)) continue;
             boolean present = source.blocks().stream().anyMatch(id -> logScan.found(GameCatalog.block(id)));
             if (logScan.complete() && !present) unavailableSources.add(source.sourceId());
         }
-        droppedLogCandidate = null;
-        logScan = null; logSources.clear();
+        if (discoveryComplete) {
+            droppedLogCandidate = null;
+            logScan = null;
+            logScanComplete = true;
+        }
         return logCandidates.peekFirst();
     }
 
     private boolean tryNextLogPlan(PlanResult result) {
-        if (!active.anyLogs || logCandidates.size() < 2 || result.blockedReasons().isEmpty()
+        if (!active.anyLogs || logCandidates.isEmpty() || result.blockedReasons().isEmpty()
                 || !result.blockedReasons().stream().allMatch(reason -> switch (reason.code()) {
                     case NO_SOURCE, CYCLE, EMPTY_TAG, UNREACHABLE_REQUIREMENT, UNSUPPORTED_SOURCE -> true;
                     default -> false;
                 })) return false;
-        logCandidates.removeFirst();
+        ItemId rejectedCandidate = logCandidates.removeFirst();
+        attemptedLogCandidates.add(rejectedCandidate);
+        if (rejectedCandidate.equals(localLogCandidateOutput)) {
+            LocalReachScan logReachScan = localReachScan(LocalReachPurpose.LOG_CHOICE);
+            if (logReachScan != null && java.util.Objects.equals(localReachHint == null ? null : localReachHint.sourceId(), localLogCandidateSourceId))
+                logReachScan.skipResult();
+            localReachHint = null;
+            localLogCandidateOutput = null;
+            localLogCandidateSourceId = null;
+        }
         planningRetries = 0;
         requestPlan();
         return true;
@@ -1387,7 +1631,7 @@ final class AutomationEngine {
                             || feetY16 == GameTerrain.INVALID_FEET_Y16 || feetY16 != waypoint.feetY16()) {
                         throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
                     }
-                    movement.stop(); unavailableSources.clear(); resetAction(); planningRetries = 0; requestPlan();
+                    movement.stop(); unavailableSources.clear(); resetLogDiscovery(); resetAction(); planningRetries = 0; requestPlan();
                 }
             } catch (MovementController.NavigationFailure blocked) { retryExploration(); }
             return;
@@ -1414,8 +1658,8 @@ final class AutomationEngine {
     }
     private void rejectResource(String reason) {
         lastResourceFailure = target.getX() + "," + target.getY() + "," + target.getZ() + ": " + reason;
-        System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
-            "Rejected resource " + lastResourceFailure);
+        if (config.debugLogging)
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] RESOURCE_REJECT reason={}", lastResourceFailure);
         movement.stop(); actions.cancel(); moving = false;
         if (rejectedResources.size() >= 128) throw new IllegalStateException("Resource approach retry limit reached");
         rejectedResources.add(target.immutable()); target = null; scan = null; clearGatherAttempt(); actionTicks = 0;
@@ -1451,6 +1695,106 @@ final class AutomationEngine {
         return client.level != null && client.level.getChunk(
                 position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
     }
+    private void startDiscoveryBudget() {
+        if (discoveryBudgetStarted) return;
+        discoveryBudgetStarted = true;
+        discoveryDeadlineNanos = System.nanoTime() + DISCOVERY_BUDGET_NANOS;
+    }
+    private boolean discoveryBudgetAvailable() {
+        return discoveryBudgetStarted && System.nanoTime() < discoveryDeadlineNanos;
+    }
+    private LocalReachScan localReachScan(LocalReachPurpose purpose) {
+        return switch (purpose) {
+            case LOG_CHOICE -> localLogReachScan;
+            case RECIPE_WOOD -> localIngredientWoodReachScan;
+            case GATHER -> localGatherReachScan;
+        };
+    }
+    private void localReachScan(LocalReachPurpose purpose, LocalReachScan scan) {
+        switch (purpose) {
+            case LOG_CHOICE -> localLogReachScan = scan;
+            case RECIPE_WOOD -> localIngredientWoodReachScan = scan;
+            case GATHER -> localGatherReachScan = scan;
+        }
+    }
+    private BlockPos findLocalReachable(Set<Block> blocks, Set<String> sourceIds, LocalReachPurpose purpose) {
+        if (client.level == null || client.player == null || active == null || catalog == null) return null;
+        BlockPos origin = client.player.blockPosition();
+        var eye = client.player.getEyePosition();
+        Set<BlockPos> rejected = Set.copyOf(rejectedResources);
+        LocalReachScan localReachScan = localReachScan(purpose);
+        if (localReachScan == null || !localReachScan.matches(client.level, client.level.dimension(), active,
+                catalog.generation(), blocks, sourceIds, rejected, origin)) {
+            localReachScan = new LocalReachScan(client.level, client.level.dimension(), active, catalog.generation(),
+                    blocks, sourceIds, rejected, origin, eye.x, eye.y, eye.z);
+            localReachScan(purpose, localReachScan);
+        }
+        startDiscoveryBudget();
+        if (localReachScan.result() != null) {
+            if (isCurrentLocalCandidate(localReachScan.result(), blocks)) return localReachScan.result();
+            localReachScan.restart();
+        }
+        if (localReachScan.negativeExpired(System.nanoTime())) localReachScan.restart();
+        long before = localReachScan.progressToken();
+        BlockPos result = localReachScan.advance(this, discoveryDeadlineNanos);
+        if (before != localReachScan.progressToken()) actionTicks = 0;
+        return result;
+    }
+    private boolean isCurrentLocalCandidate(BlockPos position, Set<Block> blocks) {
+        return !rejectedResources.contains(position) && sourceStillAvailable(position, blocks) && actions.hit(position) != null;
+    }
+    private boolean hasSatisfiedToolRequirements(GatherSource source) {
+        for (Requirement requirement : source.requirements()) {
+            if (!(requirement instanceof ToolRequirement tool)) continue;
+            boolean satisfied = false;
+            for (ItemSelector selector : tool.tools().alternatives()) {
+                List<ItemId> choices = selector instanceof ItemSelector.Exact exact
+                        ? List.of(exact.item())
+                        : catalog.tags.getOrDefault(((ItemSelector.Tag) selector).tag(), List.of());
+                for (ItemId item : choices) {
+                    if (actions.hasTool(new SelectedToolRequirement(item, tool.minimumDurability(), tool.purpose()))) {
+                        satisfied = true;
+                        break;
+                    }
+                }
+                if (satisfied) break;
+            }
+            if (!satisfied) return false;
+        }
+        return true;
+    }
+    private boolean selectedGatherToolAvailable() {
+        SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance)
+                .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
+        return tool == null || actions.hasTool(tool);
+    }
+    private BlockPos localReachHint(Set<Block> blocks, String sourceId) {
+        LocalReachHint hint = localReachHint;
+        if (hint == null) return null;
+        Set<BlockPos> rejected = Set.copyOf(rejectedResources);
+        if (client.level == null || client.player == null || catalog == null || hint.world() != client.level
+                || !java.util.Objects.equals(hint.dimension(), client.level.dimension()) || hint.request() != active
+                || hint.generation() != catalog.generation() || !hint.rejected().equals(rejected)
+                || !hint.origin().equals(client.player.blockPosition())) {
+            localReachHint = null;
+            return null;
+        }
+        if (!hint.sourceId().equals(sourceId)) return null;
+        if (!blocks.contains(hint.block()) || !isCurrentLocalCandidate(hint.position(), blocks)) {
+            localReachHint = null;
+            return null;
+        }
+        return hint.position();
+    }
+    private void rememberDiscoveredSource(String sourceId, BlockPos position, Block block) {
+        if (!discoveredSources.containsKey(sourceId) && discoveredSources.size() >= 64)
+            discoveredSources.remove(discoveredSources.keySet().iterator().next());
+        List<BlockPos> known = discoveredSources.computeIfAbsent(sourceId, ignored -> new ArrayList<>());
+        known.remove(position);
+        known.add(0, position.immutable());
+        while (known.size() > 512) known.remove(known.size() - 1);
+        nearbyResources.observeDiscoveredSource(sourceId, position, block);
+    }
     private void gather() {
         Set<Block> blocks = new HashSet<>();
         step.candidateBlocks().forEach(id -> blocks.add(GameCatalog.block(id)));
@@ -1473,7 +1817,24 @@ final class AutomationEngine {
         if (!config.allowBreaking) {
             throw new IllegalStateException("Gathering requires breaking blocks, but allowBreaking=false; enable it with config allowBreaking true");
         }
-        if (target == null && scan == null && prepareIngredientWood()) return;
+        if (target == null) {
+            if (scan == null && prepareIngredientWood()) return;
+            target = localReachHint(blocks, step.sourceId());
+            if (target == null) {
+                target = findLocalReachable(blocks, Set.of(step.sourceId()), LocalReachPurpose.GATHER);
+                LocalReachScan gatherReachScan = localReachScan(LocalReachPurpose.GATHER);
+                if (target != null) {
+                    Block block = client.level.getBlockState(target).getBlock();
+                    rememberDiscoveredSource(step.sourceId(), target, block);
+                    localReachHint = new LocalReachHint(client.level, client.level.dimension(), active,
+                            catalog.generation(), Set.copyOf(rejectedResources), client.player.blockPosition(),
+                            step.sourceId(), target.immutable(), block);
+                } else if (gatherReachScan != null && !gatherReachScan.complete()) {
+                    status = "discovering locally reachable " + step.output() + " · " + gatherReachScan.progressDescription();
+                    return;
+                }
+            }
+        }
         if (target == null) {
             List<BlockPos> known = discoveredSources.get(step.sourceId());
             if (known != null) {
@@ -1489,18 +1850,26 @@ final class AutomationEngine {
         }
         if (target == null) {
             if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
+            startDiscoveryBudget();
+            if (!discoveryBudgetAvailable()) {
+                status = "discovering " + step.output() + " · " + scan.progressDescription();
+                return;
+            }
             long priorProgress = scan.progressToken();
-            boolean discoveryComplete = scan.advance(config.scanBlocksPerTick, 1_000_000);
+            boolean discoveryComplete = scan.advance(config.scanBlocksPerTick,
+                    Math.max(0, discoveryDeadlineNanos - System.nanoTime()));
             if (scan.progressToken() != priorProgress) actionTicks = 0;
             status = "discovering " + step.output() + " · " + scan.progressDescription();
             if (!discoveryComplete && !scan.hasCandidates()) {
                 return;
             }
-            target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos)).findFirst().orElse(null);
+            target = scan.results().stream().filter(position -> !rejectedResources.contains(position)
+                    && sourceStillAvailable(position, blocks)).findFirst().orElse(null);
             if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
             discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
-            scan = null;
-            if (target == null) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
+            if (discoveryComplete) scan = null;
+            if (target == null && discoveryComplete) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
+            if (target == null) return;
         }
         if (!sourceStillAvailable(target, blocks)) { target = null; actions.cancel(); clearGatherAttempt(); return; }
         SelectedToolRequirement tool = step.requirements().stream()
@@ -1509,8 +1878,11 @@ final class AutomationEngine {
         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
         Block sourceBlock = client.level.getBlockState(target).getBlock();
         if (actions.mine(target, tool)) {
+            boolean changedTarget = gatherMineTarget == null || !gatherMineTarget.equals(target);
             gatherMineTarget = target.immutable();
             gatherMineBlock = sourceBlock;
+            if (changedTarget) status = "mining " + step.output() + " at "
+                    + target.getX() + "," + target.getY() + "," + target.getZ();
         } else {
             try { movement.startInteraction(target); moving = true; }
             catch (MovementController.NavigationFailure blocked) { rejectResource(blocked.getMessage()); }
@@ -1749,7 +2121,8 @@ final class AutomationEngine {
         catch (RuntimeException exception) { message("Movement cancellation: " + exception.getMessage()); }
         finally {
             crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
-            step = null; scan = null; logScan = null; logSources.clear(); logCandidates.clear(); droppedLogCandidate = null; target = null; verifyTicks = 0;
+            step = null; scan = null; localGatherReachScan = null;
+            target = null; verifyTicks = 0;
             clearGatherAttempt();
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }
@@ -1797,8 +2170,12 @@ final class AutomationEngine {
 
     private void stopNow(boolean announce) {
         ingredientWoodScan = null; ingredientWoodRequest = null; ingredientWoodOrigin = null;
-        ingredientWoodSources.clear(); ingredientWoodSourceIds.clear();
+        ingredientWoodSources.clear(); localIngredientWoodSources.clear();
+        ingredientWoodSourceIds.clear(); localIngredientWoodSourceIds.clear();
         ingredientWoodExamined.clear(); ingredientWoodPublished.clear();
+        localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null;
+        localReachHint = null;
+        resetLogDiscovery();
         if (pendingPlan != null) pendingPlan.cancel(false);
         pendingPlan = null;
         maintained.unmaintainAll();
@@ -1834,6 +2211,13 @@ final class AutomationEngine {
         return visualizationActive() && !visualizationPaused() && (moving || explorationMoving)
                 ? movement.visualization(includeNodes) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
     }
+    Object diagnosticTaskIdentity() { return active; }
+    dev.lodekeeper.nav.NavigationSnapshot diagnosticNavigation() {
+        return (moving || explorationMoving) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
+    }
+    BlockPos diagnosticTarget() { return target; }
+    dev.lodekeeper.nav.Goal diagnosticRouteGoal() { return movement.diagnosticGoal(); }
+    int diagnosticRouteGoalCandidateCount() { return movement.diagnosticGoalCandidateCount(); }
 
     String status() {
         String waiting = foregroundYieldPending && active != null && active.maintained()

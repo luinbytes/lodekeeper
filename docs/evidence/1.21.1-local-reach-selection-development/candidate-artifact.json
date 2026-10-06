@@ -1,0 +1,20 @@
+{
+  "kind": "development-source-and-packaging-receipt",
+  "baseCommit": "e176ccad1b499be37264af3847966c4e2459fb86",
+  "version": "0.1.0-preview.5",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.5.jar",
+  "artifactSha256": "b11051af4e251f2ed3b572f75afea7bb7b5dab3cca30c937fc3bab682d81fede",
+  "sourceSha256": {
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "cb92fbf4b68c5454609cf8d261858c52112d2550d77566d17555bf1c4a45f507",
+    "fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperClient.java": "1dba734c425ad305f3d91f0218dc2f8fc8423e3cce8d37f6c7d878c2d0b20342",
+    "fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperConfig.java": "7304525c55f7b66dd8640fdb1179483b18bb158e6df2cac584a8baab828a4a23",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "aedf2a922e966bffd611b24b6c0da539ab9acd72cbfc44e61db163ae91146cf5",
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "45520031b6e8326f66caf4d59f6a6dc66ca1f5c5cdcad16c4d7fc326c5aab72f",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "755b792b0be23256fd9dab8fc237dc3f56f1371ac77bec3eddad04355fa73689",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java": "683135489902a596bbfdeee23843488968f6b043858cae89c6a61be8d859bdab",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperConfig.java": "5c0e084452bf93c1879aca3982371f35b596b66c7cc751101a91e33550535def",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "4a5f2b13372bafd297c678433496f10831ff3da01981fdf48fdafc1f8bcc5375"
+  },
+  "authority": "development classes in isolated native clients; release jar gameplay proof recorded separately",
+  "review": "Independent Sol review cleared local discovery fallback, scoped diagnostics, and final phase labels."
+}

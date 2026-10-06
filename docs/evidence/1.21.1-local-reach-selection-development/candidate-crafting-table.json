@@ -1,0 +1,30 @@
+{
+  "runId":"2026-10-06T00-33-33-843355Z-6cf46179",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"nearby_wood_local_decoy",
+  "elapsedMillis":27314,
+  "clientTicks":441,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "nearbyWoodTerrain":"local_decoy",
+  "nearbyWoodLocalDecoyFixture":{"visibleLogPosition":"3,64,0","decoyLogPosition":"-6,64,-6","fixtureReadyAtCommandStart":true,"nativeRouteBenchmarkSkipped":true,"serverProofAuthority":"integrated_server_block_state","firstEngineTargetAuthority":"client_engine_selection","firstEngineTarget":{"position":[3,64,0],"clientTick":216,"elapsedMillisFromCommand":283},"firstGatherMineTargetAuthority":"client_mining_intent","firstGatherMineTarget":{"position":[3,64,0],"clientTick":216,"elapsedMillisFromCommand":283},"firstServerVisibleLogRemovalObservation":{"authority":"integrated_server_snapshot","serverTick":155,"worldTime":155,"clientObservedClientTick":280},"serverVisibleOakLogPresent":false,"serverDecoyOakLogPresent":true,"serverDecoyShellBedrockFacesPresent":{"down":true,"up":true,"north":true,"south":true,"east":true,"west":true}},
+  "cases":[
+    {"name":"nearby_crafting_table_local_decoy","item":"minecraft:crafting_table","expected":1,"serverObserved":1,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":211,"worldTicks":212,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server observed the visible oak log removed, the enclosed decoy and six bedrock faces unchanged, exact inventory, full health, and idle engine","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[3.3024139299397506,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T00-33-33-843355Z-6cf46179-nearby_crafting_table_local_decoy.png","elapsedMillisFromCommand":10534,"liveRouteScreenshot":null,"firstServerMovementMillisFromCommand":4073,"nativeRouteBenchmark":null,"walkArrivalInputEvidence":{"evidenceAuthority":"client_bot_input_intent","serverTimingIncluded":false,"observationLimit":64,"eligibleWalkArrivalCount":2,"zeroForwardIntentArrivalCount":0,"positiveForwardIntentArrivalCount":2,"recordedObservationCount":2,"observations":[{"pathGeneration":0,"previousPathIndex":1,"pathIndex":2,"reachedPathIndex":1,"validatedPathIndex":2,"clientTick":295,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":0,"x":0,"feetY16":1024,"z":0,"movement":"START","actions":[]},"reached":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}},{"pathGeneration":0,"previousPathIndex":2,"pathIndex":3,"reachedPathIndex":2,"validatedPathIndex":3,"clientTick":300,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"reached":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":3,"x":3,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}}]},"activeTaskScreenshot":"screenshots/lodekeeper-2026-10-06T00-33-33-843355Z-6cf46179-nearby_crafting_table_local_decoy-active-mining.png"}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "nearbyWoodWalkArrivalInputEvidence":{"evidenceAuthority":"client_bot_input_intent","serverTimingIncluded":false,"observationLimit":64,"eligibleWalkArrivalCount":2,"zeroForwardIntentArrivalCount":0,"positiveForwardIntentArrivalCount":2,"recordedObservationCount":2,"observations":[{"pathGeneration":0,"previousPathIndex":1,"pathIndex":2,"reachedPathIndex":1,"validatedPathIndex":2,"clientTick":295,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":0,"x":0,"feetY16":1024,"z":0,"movement":"START","actions":[]},"reached":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}},{"pathGeneration":0,"previousPathIndex":2,"pathIndex":3,"reachedPathIndex":2,"validatedPathIndex":3,"clientTick":300,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"reached":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":3,"x":3,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}}]},
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

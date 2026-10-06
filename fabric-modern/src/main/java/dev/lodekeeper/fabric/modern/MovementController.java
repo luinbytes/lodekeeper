@@ -602,8 +602,8 @@ final class MovementController {
         return false;
     }
     private void retry(String reason) {
-        if (replans == 0 || replans == 8) System.getLogger("lodekeeper").log(System.Logger.Level.INFO,
-            "Navigation retry " + (replans + 1) + ": " + reason + " at "
+        if (config.debugLogging && (replans == 0 || replans == 8)) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+            "[Lodekeeper] Navigation retry " + (replans + 1) + ": " + reason + " at "
                 + (client.player == null ? "unknown position" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ())
                 + retryStanceDetail());
         input.idle(); actions.cancel();
@@ -640,6 +640,9 @@ final class MovementController {
         return planner == null ? NavigationSnapshot.EMPTY
                 : planner.snapshot(pathIndex, searchNanos, searchTicks, replans, includeNodes);
     }
+
+    Goal diagnosticGoal() { return goal; }
+    int diagnosticGoalCandidateCount() { return goal != null && goal.kind == Goal.Kind.ANY ? goalCandidateCount : 0; }
 
     String status() { return surfaceRecovery.active() ? "recovering from fractional surface"
             : path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }

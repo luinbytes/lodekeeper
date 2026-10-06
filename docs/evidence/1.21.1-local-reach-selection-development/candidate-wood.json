@@ -1,0 +1,30 @@
+{
+  "runId":"2026-10-06T00-36-50-672199Z-12efec7e",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"nearby_wood_local_decoy",
+  "elapsedMillis":21676,
+  "clientTicks":325,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "nearbyWoodTerrain":"local_decoy",
+  "nearbyWoodLocalDecoyFixture":{"visibleLogPosition":"3,64,0","decoyLogPosition":"-6,64,-6","fixtureReadyAtCommandStart":true,"nativeRouteBenchmarkSkipped":true,"serverProofAuthority":"integrated_server_block_state","firstEngineTargetAuthority":"client_engine_selection","firstEngineTarget":{"position":[3,64,0],"clientTick":214,"elapsedMillisFromCommand":245},"firstGatherMineTargetAuthority":"client_mining_intent","firstGatherMineTarget":{"position":[3,64,0],"clientTick":214,"elapsedMillisFromCommand":245},"firstServerVisibleLogRemovalObservation":{"authority":"integrated_server_snapshot","serverTick":158,"worldTime":158,"clientObservedClientTick":280},"serverVisibleOakLogPresent":false,"serverDecoyOakLogPresent":true,"serverDecoyShellBedrockFacesPresent":{"down":true,"up":true,"north":true,"south":true,"east":true,"west":true}},
+  "cases":[
+    {"name":"nearby_wood_local_decoy","item":"minecraft:oak_log","expected":1,"serverObserved":1,"inventoryEmptyAtStart":true,"passed":true,"clientTicks":96,"worldTicks":96,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"server observed the visible oak log removed, the enclosed decoy and six bedrock faces unchanged, exact inventory, full health, and idle engine","serverHealth":20.0,"serverDifficulty":"PEACEFUL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[2.6164344837033724,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T00-36-50-672199Z-12efec7e-nearby_wood_local_decoy.png","elapsedMillisFromCommand":4795,"liveRouteScreenshot":null,"firstServerMovementMillisFromCommand":4015,"nativeRouteBenchmark":null,"walkArrivalInputEvidence":{"evidenceAuthority":"client_bot_input_intent","serverTimingIncluded":false,"observationLimit":64,"eligibleWalkArrivalCount":1,"zeroForwardIntentArrivalCount":0,"positiveForwardIntentArrivalCount":1,"recordedObservationCount":1,"observations":[{"pathGeneration":0,"previousPathIndex":1,"pathIndex":2,"reachedPathIndex":1,"validatedPathIndex":2,"clientTick":293,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":0,"x":0,"feetY16":1024,"z":0,"movement":"START","actions":[]},"reached":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}}]},"activeTaskScreenshot":"screenshots/lodekeeper-2026-10-06T00-36-50-672199Z-12efec7e-nearby_wood_local_decoy-active-mining.png"}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "nearbyWoodWalkArrivalInputEvidence":{"evidenceAuthority":"client_bot_input_intent","serverTimingIncluded":false,"observationLimit":64,"eligibleWalkArrivalCount":1,"zeroForwardIntentArrivalCount":0,"positiveForwardIntentArrivalCount":1,"recordedObservationCount":1,"observations":[{"pathGeneration":0,"previousPathIndex":1,"pathIndex":2,"reachedPathIndex":1,"validatedPathIndex":2,"clientTick":293,"botInputForwardIntent":1.0,"eligible":true,"incomingDirectionXZ":[1,0],"outgoingDirectionXZ":[1,0],"source":{"pathIndex":0,"x":0,"feetY16":1024,"z":0,"movement":"START","actions":[]},"reached":{"pathIndex":1,"x":1,"feetY16":1024,"z":0,"movement":"WALK","actions":[]},"outgoing":{"pathIndex":2,"x":2,"feetY16":1024,"z":0,"movement":"WALK","actions":[]}}]},
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

@@ -1,0 +1,8 @@
+{
+  "kind": "focused_development_reflection_check",
+  "minecraftVersion": "1.21.1",
+  "exitCode": 0,
+  "consoleOutput": "[01:33:19] [main/INFO]: [Lodekeeper] ROUTE_SEARCH elapsed_ms=0\n[01:33:19] [main/INFO]: [Lodekeeper] ROUTE_TRAVEL elapsed_ms=0\n[01:33:19] [main/INFO]: [Lodekeeper] RETRY elapsed_ms=0\nPASS diagnostics allowance, delayed transitions, overflow, task reset, elapsed clock, phase labels and goal counts dev.lodekeeper.fabric\n",
+  "scope": "diagnostic helper allowance, queued transitions, overflow, reset, monotonic timer and current goal-kind counts",
+  "gameplayAcceptance": false
+}

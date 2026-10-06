@@ -2,6 +2,7 @@ package dev.lodekeeper.fabric.modern;
 
 import dev.lodekeeper.core.CommandParser;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -13,17 +14,39 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import dev.lodekeeper.nav.Goal;
+import dev.lodekeeper.nav.NavigationSnapshot;
+
+import java.util.ArrayDeque;
+import java.util.Locale;
+import java.util.Objects;
 
 /** Client-only entry point. Prefix commands are canceled before chat leaves the client. */
 public final class LodekeeperClient implements ClientModInitializer {
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger("lodekeeper");
     static AutomationEngine engine;
     private final CommandParser parser = new CommandParser();
     private String[] panelLines = new String[0];
     private int panelTicks;
+    private Object clockTask;
+    private long taskStartedNanos, lastProgressLogNanos;
+    private String taskLabel = "unknown", currentTargetInfo = "none", lastTaskDetail = "idle";
+    private BlockPos observedTarget;
+    private boolean targetObserved, pendingTargetLog, wasSearching, stopRequested;
+    private boolean taskBeginLogged, beginDeferred;
+    private int lastRouteRetries, immediateEventCount;
+    private long eventWindowStartNanos;
+    private final ArrayDeque<String> pendingRouteEvents = new ArrayDeque<>(16);
+    private int droppedRouteEvents;
 
     @Override public void onInitializeClient() {
         Minecraft client = Minecraft.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());
+        if (engine.config.debugLogging) logInfo("INIT mod=" + metadataVersion("lodekeeper")
+                + " minecraft=" + metadataVersion("minecraft"));
         WorldVisualization.register(client, engine);
         KeyMapping stop = KeyMappingHelper.registerKeyMapping(GameApi.keyMapping(
                 "key.lodekeeper.stop", InputConstants.KEY_K, KeyMapping.Category.MISC));
@@ -35,8 +58,9 @@ public final class LodekeeperClient implements ClientModInitializer {
             return false;
         });
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
-            while (stop.consumeClick()) engine.stop();
+            while (stop.consumeClick()) { stopRequested = true; engine.stop(); }
             engine.tick();
+            syncDiagnostics(client);
             updatePanel();
         });
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x(), chunk.getPos().z()));
@@ -62,15 +86,226 @@ public final class LodekeeperClient implements ClientModInitializer {
             panelLines = new String[0]; panelTicks = 0; return;
         }
         if (panelTicks++ % 4 != 0 && panelLines.length != 0) return;
-        var route = engine.visualizationNavigation(false);
+        var route = engine.diagnosticNavigation();
         String metrics = route.searching()
                 ? "Searching · " + route.expanded() + " checked · " + route.open() + " open"
                 : route.path() == null ? "K to stop · " + engine.config.prefix.trim() + " status for details"
                 : "Route " + route.nextStep() + "/" + Math.max(1, route.path().length() - 1)
                     + " · " + route.searchNanos() / 1_000_000L + " ms search";
         if (route.retries() > 0) metrics += " · retry " + route.retries();
-        panelLines = new String[]{"LODEKEEPER · " + (engine.visualizationPaused() ? "PAUSED" : "WORKING"),
+        String elapsed = clockTask == null ? "0:00:00" : elapsedLabel(System.nanoTime() - taskStartedNanos);
+        panelLines = new String[]{"LODEKEEPER · " + (engine.visualizationPaused() ? "PAUSED" : "WORKING") + " · " + elapsed,
                 engine.visualizationGoal(), engine.visualizationDetail(), metrics};
+    }
+
+    private void syncDiagnostics(Minecraft client) {
+        long now = System.nanoTime();
+        Object active = engine.diagnosticTaskIdentity();
+        String detail = safeField(engine.visualizationDetail(), 120);
+        if (detail.contains("stopping_after")) stopRequested = true;
+        if (active != clockTask) {
+            if (clockTask != null) {
+                String reason = active != null ? "replaced"
+                        : client.player == null || client.level == null ? "disconnected"
+                        : stopRequested ? "stopped" : "idle";
+                endTask(reason, now, active == null ? detail : lastTaskDetail);
+            }
+            clockTask = active;
+            resetTaskDiagnostics();
+            if (active != null) {
+                taskStartedNanos = now;
+                lastProgressLogNanos = now;
+                beginDeferred = !engine.config.debugLogging;
+                stopRequested = false;
+            } else {
+                taskStartedNanos = 0;
+                lastProgressLogNanos = 0;
+                stopRequested = false;
+            }
+        }
+        if (clockTask == null) return;
+        lastTaskDetail = detail;
+        if (!engine.config.debugLogging || client.player == null || client.level == null) return;
+        if (!taskBeginLogged) beginTask(client, now);
+
+        BlockPos target = engine.diagnosticTarget();
+        if (!targetObserved || !Objects.equals(target, observedTarget)) {
+            targetObserved = true;
+            observedTarget = target == null ? null : target.immutable();
+            if (observedTarget != null || currentTargetInfo.equals("none")) {
+                currentTargetInfo = describeTarget(client, observedTarget);
+                pendingTargetLog = observedTarget != null;
+            } else {
+                currentTargetInfo = "none";
+                pendingTargetLog = true;
+            }
+        }
+        if (pendingTargetLog && allowImmediateLog(now)) {
+            logInfo("TARGET target=" + currentTargetInfo);
+            pendingTargetLog = false;
+        }
+
+        NavigationSnapshot route = engine.diagnosticNavigation();
+        if (route.searching() && !wasSearching) queueRouteEvent(routeSearchEvent(), now);
+        if (wasSearching && !route.searching() && route.path() != null) {
+            queueRouteEvent("ROUTE_TRAVEL path_index=" + route.nextStep() + " path_length=" + route.path().length()
+                    + " target=" + currentTargetInfo, now);
+        }
+        if (route.retries() > lastRouteRetries) {
+            queueRouteEvent("RETRY count=" + route.retries() + " target=" + currentTargetInfo + " status=" + detail, now);
+        }
+        wasSearching = route.searching();
+        lastRouteRetries = route.retries();
+        flushRouteEvents(now);
+
+        if (now - lastProgressLogNanos >= 2_000_000_000L) {
+            lastProgressLogNanos = now;
+            logProgress(route, detail, now);
+        }
+    }
+
+    private void beginTask(Minecraft client, long now) {
+        String summary = engine.visualizationGoal();
+        int separator = summary.lastIndexOf(" · ");
+        taskLabel = separator < 0 ? summary : summary.substring(0, separator);
+        String counts = separator < 0 ? "unknown/unknown" : summary.substring(separator + 3);
+        int slash = counts.indexOf('/');
+        String inventory = slash < 0 ? "unknown" : counts.substring(0, slash);
+        String goal = slash < 0 ? counts : counts.substring(slash + 1);
+        BlockPos feet = client.player == null ? null : client.player.blockPosition();
+        String startFeet = feet == null ? "unknown" : feet.getX() + "," + feet.getY() + "," + feet.getZ();
+        logInfo("BEGIN label=" + safeField(taskLabel, 80) + " goal=" + safeField(goal, 24)
+                + " inventory=" + safeField(inventory, 24) + " startfeet=" + startFeet
+                + " elapsed_ms=" + elapsedMillis(now) + " continued=" + beginDeferred);
+        taskBeginLogged = true;
+        beginDeferred = false;
+    }
+
+    private void endTask(String reason, long now, String detail) {
+        if (engine.config.debugLogging && taskBeginLogged) {
+            logInfo("task_end reason=" + reason + " label=" + safeField(taskLabel, 80)
+                    + " elapsed_ms=" + elapsedMillis(now) + " pending_route_events=" + pendingRouteEvents.size()
+                    + " dropped_route_events=" + droppedRouteEvents + " status=" + safeField(detail, 120));
+        }
+    }
+
+    private String routeSearchEvent() {
+        Goal goal = engine.diagnosticRouteGoal();
+        String anchor = goal == null ? "unknown" : goal.x + "," + goal.y + "," + goal.z;
+        String kind = goal == null ? "unknown" : goal.kind.name().toLowerCase(Locale.ROOT);
+        int feetY16 = goal == null ? 0 : goal.feetY16;
+        return "ROUTE_SEARCH kind=" + kind + " anchor=" + anchor + " feet_y16=" + feetY16
+                + " candidates=" + engine.diagnosticRouteGoalCandidateCount() + " target=" + currentTargetInfo;
+    }
+
+    private void logProgress(NavigationSnapshot route, String detail, long now) {
+        String phase = phase(engine.visualizationPaused(), route, detail);
+        logInfo("PROGRESS elapsed_ms=" + elapsedMillis(now) + " phase=" + phase
+                + " target=" + currentTargetInfo + " search_cpu_ms=" + route.searchNanos() / 1_000_000L
+                + " search_ticks=" + route.searchTicks() + " expanded=" + route.expanded()
+                + " discovered=" + route.discovered() + " open=" + route.open()
+                + " path_index=" + route.nextStep() + " path_length=" + (route.path() == null ? 0 : route.path().length())
+                + " retries=" + route.retries() + " pending_route_events=" + pendingRouteEvents.size()
+                + " dropped_route_events=" + droppedRouteEvents + " status=" + safeField(detail, 120));
+    }
+
+    private static String phase(boolean paused, NavigationSnapshot route, String detail) {
+        if (paused) return "paused";
+        if (route.searching()) return "searching";
+        if (route.path() != null) return "traveling";
+        String lower = detail.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("tool_investment_")) lower = lower.substring("tool_investment_".length()).replaceFirst("^_+", "");
+        if (lower.startsWith("exploring_") || lower.startsWith("finding_a_safe_exploration_")
+                || lower.startsWith("trying_another_safe_exploration_")) return "exploring";
+        if (lower.startsWith("eating_")) return "eating";
+        if (lower.startsWith("craft_")) return "crafting";
+        if (lower.startsWith("smelt_")) return "smelting";
+        if (lower.startsWith("mining_") || lower.startsWith("gather_")) return "gathering";
+        if (lower.startsWith("place_station_")) return "station";
+        if (lower.startsWith("discovering_") || lower.startsWith("finding_nearby_")
+                || lower.startsWith("indexing_")) return "discovering";
+        if (lower.startsWith("planning")) return "planning";
+        if (lower.startsWith("waiting_") || lower.startsWith("foreground_queued_")
+                || lower.startsWith("maintenance_waiting_")) return "waiting";
+        return "working";
+    }
+
+    private String describeTarget(Minecraft client, BlockPos target) {
+        if (target == null) return "none";
+        String coords = target.getX() + "," + target.getY() + "," + target.getZ();
+        if (client.level == null || client.level.getChunk(
+                target.getX() >> 4, target.getZ() >> 4, ChunkStatus.FULL, false) == null) return coords + " block=unknown";
+        return coords + " block=" + safeField(BuiltInRegistries.BLOCK.getKey(client.level.getBlockState(target).getBlock()).toString(), 128);
+    }
+
+    private void queueRouteEvent(String event, long now) {
+        if (pendingRouteEvents.size() == 16) {
+            pendingRouteEvents.removeFirst();
+            if (droppedRouteEvents < Integer.MAX_VALUE) droppedRouteEvents++;
+        }
+        pendingRouteEvents.addLast(event + " elapsed_ms=" + elapsedMillis(now));
+    }
+
+    private void flushRouteEvents(long now) {
+        while (!pendingRouteEvents.isEmpty() && allowImmediateLog(now)) logInfo(pendingRouteEvents.removeFirst());
+    }
+
+    private boolean allowImmediateLog(long now) {
+        if (eventWindowStartNanos == 0 || now - eventWindowStartNanos >= 1_000_000_000L) {
+            eventWindowStartNanos = now;
+            immediateEventCount = 0;
+        }
+        if (immediateEventCount >= 8) return false;
+        immediateEventCount++;
+        return true;
+    }
+
+    private void resetTaskDiagnostics() {
+        taskLabel = "unknown";
+        currentTargetInfo = "none";
+        lastTaskDetail = "idle";
+        observedTarget = null;
+        targetObserved = false;
+        pendingTargetLog = false;
+        wasSearching = false;
+        lastRouteRetries = 0;
+        taskBeginLogged = false;
+        beginDeferred = false;
+        eventWindowStartNanos = 0;
+        immediateEventCount = 0;
+        pendingRouteEvents.clear();
+        droppedRouteEvents = 0;
+    }
+
+    private static String metadataVersion(String modId) {
+        return FabricLoader.getInstance().getModContainer(modId)
+                .map(container -> container.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
+    }
+
+    private long elapsedMillis(long now) { return Math.max(0L, now - taskStartedNanos) / 1_000_000L; }
+
+    private static String elapsedLabel(long elapsedNanos) {
+        long seconds = Math.max(0L, elapsedNanos) / 1_000_000_000L;
+        long hours = seconds / 3600;
+        long minutes = seconds / 60 % 60;
+        long remainder = seconds % 60;
+        return hours + ":" + twoDigits(minutes) + ":" + twoDigits(remainder);
+    }
+
+    private static String twoDigits(long value) { return value < 10 ? "0" + value : Long.toString(value); }
+
+    private static String safeField(String value, int limit) {
+        if (value == null || value.isBlank()) return "unknown";
+        StringBuilder safe = new StringBuilder(Math.min(value.length(), limit));
+        for (int i = 0; i < value.length() && safe.length() < limit; i++) {
+            char c = value.charAt(i);
+            safe.append(Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '.' || c == ':' || c == '/' ? c : '_');
+        }
+        return safe.toString();
+    }
+
+    private static void logInfo(String event) {
+        LOGGER.info("[Lodekeeper] {}", event);
     }
 
     private void command(String body) {
@@ -83,7 +318,7 @@ public final class LodekeeperClient implements ClientModInitializer {
         try {
             if (command instanceof CommandParser.HelpCommand) showHelp();
             else if (command instanceof CommandParser.GetCommand get) engine.enqueue(get.item(), get.count());
-            else if (command instanceof CommandParser.StopCommand) engine.stop();
+            else if (command instanceof CommandParser.StopCommand) { stopRequested = true; engine.stop(); }
             else if (command instanceof CommandParser.PauseCommand) engine.pause("requested");
             else if (command instanceof CommandParser.ResumeCommand) engine.resume();
             else if (command instanceof CommandParser.StatusCommand) engine.message(engine.status());
@@ -117,12 +352,13 @@ public final class LodekeeperClient implements ClientModInitializer {
                     ", allowBreaking=" + config.allowBreaking + ", allowBuilding=" + config.allowBuilding +
                     ", allowParkour=" + config.allowParkour + ", autoEat=" + config.autoEat + ", optimizeWoodTools=" + config.optimizeWoodTools + ", allowExploration=" + config.allowExploration
                     + ", explorationAttempts=" + config.explorationAttempts + ", explorationDistance=" + config.explorationDistance
-                    + ", showPath=" + config.showPath + ", showSearch=" + config.showSearch + ", showHud=" + config.showHud);
+                    + ", showPath=" + config.showPath + ", showSearch=" + config.showSearch + ", showHud=" + config.showHud
+                    + ", debugLogging=" + config.debugLogging);
             return;
         }
         String key = command.key(), value = command.value();
         if (value == null) {
-            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance, showPath, showSearch, showHud");
+            engine.message("Use config <key> <value>. Editable: prefix, searchRadius, allowBreaking, allowBuilding, allowParkour, pauseBelowHealth, pauseOnScreen, autoEat, optimizeWoodTools, allowExploration, explorationAttempts, explorationDistance, showPath, showSearch, showHud, debugLogging");
             return;
         }
         switch (key) {
@@ -145,6 +381,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             case "showPath" -> config.showPath = bool(value);
             case "showSearch" -> config.showSearch = bool(value);
             case "showHud" -> config.showHud = bool(value);
+            case "debugLogging" -> config.debugLogging = bool(value);
             default -> throw new IllegalArgumentException("Unknown config key: " + key);
         }
         config.save();
