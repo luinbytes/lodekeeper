@@ -62,7 +62,7 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
     @Override public Object currentScreen() { return GameApi.screen(client); }
     @Override public void openSettingsScreen() { GameApi.setScreen(client, settingsScreen.get()); }
     @Override public String nativeEventReceipt() {
-        return "MouseButtonEvent(x,y,MouseButtonInfo(0,0)) -> Screen.mouseClicked(event,false)/mouseReleased(event), "
+        return "MouseButtonEvent(x,y,MouseButtonInfo(native left button,0)) -> Screen.mouseClicked(event,false)/mouseReleased(event), "
                 + "KeyEvent(key,scanCode,modifiers) -> Screen.keyPressed(event), "
                 + "CharacterEvent(codePoint) -> Screen.charTyped(event)";
     }
@@ -81,7 +81,8 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
     @Override public void dispatchMouseClick(double x, double y) {
         Screen screen = GameApi.screen(client);
         if (screen == null) throw new IllegalStateException("no screen for mouse click");
-        MouseButtonEvent event = new MouseButtonEvent(x, y, new MouseButtonInfo(0, 0));
+        MouseButtonEvent event = new MouseButtonEvent(x, y,
+                new MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT, 0));
         screen.mouseClicked(event, false);
         screen.mouseReleased(event);
     }
