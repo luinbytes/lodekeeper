@@ -131,6 +131,7 @@ final class ThreatResponseAction {
                     if (selectedSlot != slot || ClientAccess.selectedSlot(client.player.getInventory()) != slot) {
                         if (!actions.selectSlot(slot)) throw new IllegalStateException("safe defense selection failed");
                         selectedSlot = slot;
+                        logAttackDecision("select", slot);
                         return false;
                     }
                     // The native attribute and attack cooldown tick must observe the selected hand first.
@@ -139,6 +140,7 @@ final class ThreatResponseAction {
                         stopForRetreat();
                         return false;
                     }
+                    logAttackDecision("attack", slot);
                     actions.look(target.getBoundingBox().getCenter());
                     client.interactionManager.attackEntity(client.player, target);
                     client.player.swingHand(Hand.MAIN_HAND);
@@ -400,6 +402,15 @@ final class ThreatResponseAction {
         target = null;
         ownerPlayer = ownerWorld = null;
         originalSlot = selectedSlot = -1;
+    }
+
+    private void logAttackDecision(String outcome, int slot) {
+        if (!movement.debugLogging()) return;
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetHealth={} sweepCollateral={} playerHealth={}",
+                outcome, ticks, slot, GameCatalog.id(client.player.getMainHandStack().getItem()),
+                client.player.getAttackCooldownProgress(0.0f), target.getId(), target.getHealth(),
+                GameApi.defenseHasSweepCollateral(client.world, client.player, target), client.player.getHealth());
     }
 
     private void log(String outcome) {
