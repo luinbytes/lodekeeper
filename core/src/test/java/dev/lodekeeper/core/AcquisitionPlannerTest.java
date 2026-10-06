@@ -340,29 +340,32 @@ final class AcquisitionPlannerTest {
                 .source(new SmeltingSource("smelt", ingot, 1, Ingredient.of(raw),
                         List.of(ItemSelector.item(LOG), ItemSelector.item(PLANKS)), 200, List.of()))
                 .build();
-        for (PlanningPreferences preferences : List.of(PlanningPreferences.NONE,
-                new PlanningPreferences(Map.of("gather:planks", 0, "craft:planks", 100)))) {
-            InventorySnapshot stock = new InventorySnapshot(Map.of(raw, 3, LOG, 2, PLANKS, 1));
-            PlanResult fuel = planner().planFast(catalog, stock, ingot, 3, PlannerLimits.DEFAULT, preferences);
-            assertTrue(fuel.success(), fuel.blockedReasons().toString());
-            assertEquals(List.of("craft:planks", "smelt"), fuel.steps().stream().map(PlanStep::sourceId).toList());
-            assertEquals(PLANKS, selectedFuel(fuel).item());
-            assertEquals(2, selectedFuel(fuel).count());
-            Map<ItemId, Integer> remaining = new HashMap<>(stock.counts());
-            for (PlanStep step : fuel.steps()) {
-                for (SelectedRequirement requirement : step.requirements())
-                    if (requirement instanceof SelectedItemRequirement item && item.consumed())
-                        remaining.merge(item.item(), -item.count(), Integer::sum);
-                remaining.merge(step.output(), step.outputCount(), Integer::sum);
+        for (int heldPlanks : List.of(1, 3)) {
+            for (PlanningPreferences preferences : List.of(PlanningPreferences.NONE,
+                    new PlanningPreferences(Map.of("gather:planks", 0, "craft:planks", 100)))) {
+                InventorySnapshot stock = new InventorySnapshot(Map.of(raw, 3, LOG, 2, PLANKS, heldPlanks));
+                PlanResult fuel = planner().planFast(catalog, stock, ingot, 3, PlannerLimits.DEFAULT, preferences);
+                assertTrue(fuel.success(), fuel.blockedReasons().toString());
+                assertEquals(heldPlanks < 2 ? List.of("craft:planks", "smelt") : List.of("smelt"),
+                        fuel.steps().stream().map(PlanStep::sourceId).toList());
+                assertEquals(PLANKS, selectedFuel(fuel).item());
+                assertEquals(2, selectedFuel(fuel).count());
+                Map<ItemId, Integer> remaining = new HashMap<>(stock.counts());
+                for (PlanStep step : fuel.steps()) {
+                    for (SelectedRequirement requirement : step.requirements())
+                        if (requirement instanceof SelectedItemRequirement item && item.consumed())
+                            remaining.merge(item.item(), -item.count(), Integer::sum);
+                    remaining.merge(step.output(), step.outputCount(), Integer::sum);
+                }
+                remaining.entrySet().removeIf(entry -> entry.getValue() == 0);
+                assertEquals(heldPlanks < 2 ? 1 : 2, remaining.get(LOG));
+                assertEquals(heldPlanks + (heldPlanks < 2 ? 4 : 0) - 2, remaining.get(PLANKS));
+                PlanResult handles = planner().plan(catalog, new InventorySnapshot(remaining), STICKS, 8);
+                assertTrue(handles.success(), handles.blockedReasons().toString());
+                assertTrue(handles.steps().stream().noneMatch(step -> step.kind() == PlanKind.GATHER));
+                assertEquals(1, handles.steps().stream().filter(step -> step.sourceId().equals("craft:planks"))
+                        .mapToInt(PlanStep::operationCount).sum());
             }
-            remaining.entrySet().removeIf(entry -> entry.getValue() == 0);
-            assertEquals(1, remaining.get(LOG));
-            assertEquals(3, remaining.get(PLANKS));
-            PlanResult handles = planner().plan(catalog, new InventorySnapshot(remaining), STICKS, 8);
-            assertTrue(handles.success(), handles.blockedReasons().toString());
-            assertTrue(handles.steps().stream().noneMatch(step -> step.kind() == PlanKind.GATHER));
-            assertEquals(1, handles.steps().stream().filter(step -> step.sourceId().equals("craft:planks"))
-                    .mapToInt(PlanStep::operationCount).sum());
         }
     }
 

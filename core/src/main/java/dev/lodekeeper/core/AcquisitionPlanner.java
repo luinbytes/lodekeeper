@@ -934,7 +934,8 @@ public final class AcquisitionPlanner {
                 long needed = ceilDivLong(totalTicks, outputTicks);
                 long missing = Math.max(0L, needed - state.spendableCount(output));
                 long operations = ceilDivLong(missing, craft.outputCount());
-                if (missing == 0 || needed > limits.maximumRequestedCount()
+                // Held output still proves which convertible input should be kept for later recipes.
+                if (needed > limits.maximumRequestedCount()
                         || operations > limits.maximumRequestedCount()) continue;
                 long requiredInput = operations * ingredient.count();
                 if (operations * craft.outputCount() > limits.maximumRequestedCount()

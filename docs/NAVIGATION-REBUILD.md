@@ -185,3 +185,10 @@ The world was generated normally with seed 483920105, an empty inventory, normal
 [Checkpoint 15](evidence/navigation-rebuild/checkpoint-15.json) passes the full project in 573,306 ms (9 minutes 33 seconds). The jar from source `852b72f177befc1b55771cee86076544f39c9f9b` is byte-identical to the 26.3 CI artifact. First server movement occurs after 238 ms. The integrated server confirms all five tools, all four equipped armor pieces, health 20 throughout, no deaths and idle, cancelled navigation.
 
 This fresh normal-survival world starts empty with seed 483920105, normal difficulty, no cheats and no bonus chest. Iron smelting selects two spruce planks, and further wood is gathered before descending. The final screenshot was inspected. This is one world per primary version; it is not a comparison with other mods, a guarantee for other seeds or a complete Minecraft mechanic test.
+
+
+## Next development fuel preference
+
+The [held-fuel regression](evidence/planning/held-fuel-priority-2026-10-06.json) reproduces the 1.21.1 fuel waste with two logs and three planks. The original rule skipped conversion proofs whenever enough output fuel was already held. Both fuels then tied on immediate stock and quantity, allowing logs to win by item order. Keeping the same value proof for held outputs lets the planner burn the planks and retain the logs for later recipes. It does not add a craft when the fuel is already held.
+
+The expanded existing regression failed before this change and passes afterward. Both exact 1.21.1 and 26.3 development builds pass with 104 core and 91 navigation tests. Protected inventory, recipe ambiguity, station readiness and scan bounds remain checked by the existing proof. This work is versioned as Preview 11 development. Its native repeat, independent source review and full-version CI remain separate gates; Preview 10's immutable tag and binaries retain the recorded gameplay scope above.

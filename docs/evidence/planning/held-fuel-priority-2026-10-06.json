@@ -1,0 +1,36 @@
+{
+  "failureOrigin": "Exact Preview 10 1.21.1 natural run selected two birch logs for iron smelting despite three held planks.",
+  "nativeReceipt": "../navigation-rebuild/checkpoint-14.json",
+  "regression": "AcquisitionPlannerTest.heldFuelConversionAvoidsMiningPlanksAndLeavesWoodForLaterTools",
+  "before": {
+    "status": "failed",
+    "expectedFuel": "minecraft:oak_planks",
+    "actualFuel": "minecraft:oak_log",
+    "heldLogs": 2,
+    "heldPlanks": 3,
+    "smeltOperations": 3,
+    "xmlSha256": "2989103a4f5ac3d1c6e2baa6ebd14baf7885b3e699809ad46c07f943f3ad8e0c"
+  },
+  "fix": "Retain the proved conversion-value preference when the output fuel is already sufficiently held. Existing quantity, station, protected-stock, ambiguity and work bounds still apply.",
+  "after": {
+    "1.21.1Build": "passed",
+    "regressions": {
+      "core": {
+        "tests": 104,
+        "failures": 0,
+        "errors": 0
+      },
+      "nav": {
+        "tests": 91,
+        "failures": 0,
+        "errors": 0
+      }
+    },
+    "26.3Build": "passed",
+    "independentSourceReview": "pending",
+    "allVersionCi": "pending"
+  },
+  "releaseScope": "Preview 11 development only. Published Preview 10 artifacts and their 1.21.1/26.3 full-world timings remain unchanged.",
+  "runtimeScope": "The new fuel choice has no post-fix native-game receipt yet.",
+  "sourceBefore": "852b72f177befc1b55771cee86076544f39c9f9b"
+}
