@@ -1,0 +1,18 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.5.jar",
+  "artifactSha256": "de7424c973e922f9557ce2a83a1bdc764509469e31b37d5b9b6871f94a089c83",
+  "sourceCommit": "97a3b046bde700e738daf3672abac51afca9fa54",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37395076854",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.nearbyWood=true",
+    "-Dlodekeeper.verify.nearbyWoodGoal=crafting_table",
+    "-Dlodekeeper.verify.nearbyWoodTerrain=meadow"
+  ],
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

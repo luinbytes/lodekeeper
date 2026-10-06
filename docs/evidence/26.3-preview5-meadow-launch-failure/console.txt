@@ -1,0 +1,171 @@
+[01:41:39] [Render thread/INFO] (lodekeeper) [Lodekeeper] INIT mod=0.1.0-preview.5 minecraft=26.3
+[01:41:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] BEGIN label=crafting_table goal=1 inventory=0 startfeet=0,64,0 elapsed_ms=0 continued=false
+[01:41:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=20,67,0 block=minecraft:oak_log
+[01:41:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=18,67,-2 feet_y16=1072 candidates=20 target=20,67,0 block=minecraft:oak_log elapsed_ms=1534
+[01:41:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=2003 phase=searching target=20,67,0 block=minecraft:oak_log search_cpu_ms=21 search_ticks=9 expanded=36 discovered=92 open=56 path_index=1 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_TRAVEL path_index=1 path_length=14 target=20,67,0 block=minecraft:oak_log elapsed_ms=2547
+[01:42:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=4009 phase=traveling target=20,67,0 block=minecraft:oak_log search_cpu_ms=50 search_ticks=20 expanded=65 discovered=152 open=87 path_index=6 path_length=14 retries=0 pending_route_events=0 dropped_route_events=0 status=route_6/14
+[01:42:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=18,67,-2 feet_y16=1072 candidates=20 target=20,67,0 block=minecraft:oak_log elapsed_ms=5796
+[01:42:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=20,67,0 block=minecraft:oak_log status=route_12/14 elapsed_ms=5796
+[01:42:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=6062 phase=searching target=20,67,0 block=minecraft:oak_log search_cpu_ms=15 search_ticks=5 expanded=8 discovered=67 open=59 path_index=1 path_length=0 retries=1 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=6495
+[01:42:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=7032
+[01:42:05] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=7637
+[01:42:06] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=8110 phase=searching target=20,67,0 block=minecraft:oak_log search_cpu_ms=24 search_ticks=9 expanded=13 discovered=88 open=75 path_index=1 path_length=0 retries=4 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:06] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=8310
+[01:42:06] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=8904
+[01:42:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=9401
+[01:42:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=20,67,0 block=minecraft:oak_log status=route_search elapsed_ms=9938
+[01:42:08] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=10132 phase=searching target=20,67,0 block=minecraft:oak_log search_cpu_ms=8 search_ticks=3 expanded=5 discovered=49 open=44 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:08] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:08] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=20,67,0: Route edge became unsafe (retry limit reached)
+[01:42:08] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:09] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=21,67,0 block=minecraft:oak_log
+[01:42:09] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=20,67,-2 feet_y16=1072 candidates=15 target=21,67,0 block=minecraft:oak_log elapsed_ms=11210
+[01:42:09] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:09] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=12052
+[01:42:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=12152 phase=searching target=21,67,0 block=minecraft:oak_log search_cpu_ms=5 search_ticks=2 expanded=3 discovered=31 open=28 path_index=1 path_length=0 retries=1 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=12697
+[01:42:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=13594
+[01:42:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=14163 phase=searching target=21,67,0 block=minecraft:oak_log search_cpu_ms=31 search_ticks=11 expanded=16 discovered=100 open=84 path_index=1 path_length=0 retries=3 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=14568
+[01:42:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=15402
+[01:42:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=16214 phase=searching target=21,67,0 block=minecraft:oak_log search_cpu_ms=49 search_ticks=16 expanded=29 discovered=146 open=117 path_index=1 path_length=0 retries=5 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=16249
+[01:42:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=17085
+[01:42:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=21,67,0 block=minecraft:oak_log status=route_search elapsed_ms=17991
+[01:42:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=18260 phase=searching target=21,67,0 block=minecraft:oak_log search_cpu_ms=14 search_ticks=5 expanded=8 discovered=67 open=59 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=21,67,0: Route edge became unsafe (retry limit reached)
+[01:42:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=22,67,0 block=minecraft:oak_log
+[01:42:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=20,68,0 feet_y16=1088 candidates=16 target=22,67,0 block=minecraft:oak_log elapsed_ms=19637
+[01:42:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=20308 phase=searching target=22,67,0 block=minecraft:oak_log search_cpu_ms=36 search_ticks=13 expanded=23 discovered=116 open=93 path_index=1 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=20409
+[01:42:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=21251
+[01:42:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=21884
+[01:42:20] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=22355 phase=searching target=22,67,0 block=minecraft:oak_log search_cpu_ms=25 search_ticks=9 expanded=14 discovered=97 open=83 path_index=1 path_length=0 retries=3 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:20] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=22657
+[01:42:21] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=23461
+[01:42:22] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=24297
+[01:42:22] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=24400 phase=searching target=22,67,0 block=minecraft:oak_log search_cpu_ms=5 search_ticks=2 expanded=3 discovered=31 open=28 path_index=1 path_length=0 retries=6 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:22] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=24939
+[01:42:23] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=22,67,0 block=minecraft:oak_log status=route_search elapsed_ms=25709
+[01:42:24] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=26413 phase=searching target=22,67,0 block=minecraft:oak_log search_cpu_ms=35 search_ticks=14 expanded=17 discovered=105 open=88 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:24] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:24] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=22,67,0: Route edge became unsafe (retry limit reached)
+[01:42:24] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:25] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=23,67,0 block=minecraft:oak_log
+[01:42:25] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=21,68,0 feet_y16=1088 candidates=16 target=23,67,0 block=minecraft:oak_log elapsed_ms=27394
+[01:42:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=28161
+[01:42:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=28462 phase=searching target=23,67,0 block=minecraft:oak_log search_cpu_ms=18 search_ticks=6 expanded=10 discovered=85 open=75 path_index=1 path_length=0 retries=1 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=28896
+[01:42:27] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=29800
+[01:42:28] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=30509 phase=searching target=23,67,0 block=minecraft:oak_log search_cpu_ms=39 search_ticks=14 expanded=24 discovered=123 open=99 path_index=1 path_length=0 retries=3 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:28] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=30541
+[01:42:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=31346
+[01:42:30] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=32158
+[01:42:30] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=32557 phase=searching target=23,67,0 block=minecraft:oak_log search_cpu_ms=26 search_ticks=8 expanded=16 discovered=107 open=91 path_index=1 path_length=0 retries=6 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:30] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=32857
+[01:42:31] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=23,67,0 block=minecraft:oak_log status=route_search elapsed_ms=33759
+[01:42:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=34599 phase=searching target=23,67,0 block=minecraft:oak_log search_cpu_ms=46 search_ticks=17 expanded=23 discovered=122 open=99 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=23,67,0: Route edge became unsafe (retry limit reached)
+[01:42:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=24,67,0 block=minecraft:oak_log
+[01:42:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=22,68,0 feet_y16=1088 candidates=16 target=24,67,0 block=minecraft:oak_log elapsed_ms=35506
+[01:42:34] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:34] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=36345
+[01:42:34] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=36614 phase=searching target=24,67,0 block=minecraft:oak_log search_cpu_ms=15 search_ticks=5 expanded=9 discovered=74 open=65 path_index=1 path_length=0 retries=1 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=37150
+[01:42:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=37856
+[01:42:36] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=38594
+[01:42:36] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=38664 phase=searching target=24,67,0 block=minecraft:oak_log search_cpu_ms=2 search_ticks=1 expanded=1 discovered=10 open=9 path_index=1 path_length=0 retries=4 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:37] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=39535
+[01:42:38] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=40509
+[01:42:38] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=40712 phase=searching target=24,67,0 block=minecraft:oak_log search_cpu_ms=14 search_ticks=4 expanded=6 discovered=58 open=52 path_index=1 path_length=0 retries=6 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:39] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=41447
+[01:42:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=24,67,0 block=minecraft:oak_log status=route_search elapsed_ms=42453
+[01:42:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=42756 phase=searching target=24,67,0 block=minecraft:oak_log search_cpu_ms=18 search_ticks=6 expanded=10 discovered=85 open=75 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=24,67,0: Route edge became unsafe (retry limit reached)
+[01:42:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=25,67,0 block=minecraft:oak_log
+[01:42:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=23,68,0 feet_y16=1088 candidates=16 target=25,67,0 block=minecraft:oak_log elapsed_ms=44100
+[01:42:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=44803 phase=searching target=25,67,0 block=minecraft:oak_log search_cpu_ms=46 search_ticks=14 expanded=19 discovered=114 open=95 path_index=1 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=44908
+[01:42:43] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=45640
+[01:42:44] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=46545
+[01:42:44] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=46849 phase=searching target=25,67,0 block=minecraft:oak_log search_cpu_ms=18 search_ticks=6 expanded=10 discovered=85 open=75 path_index=1 path_length=0 retries=3 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:45] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=47386
+[01:42:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=48158
+[01:42:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=48863 phase=searching target=25,67,0 block=minecraft:oak_log search_cpu_ms=40 search_ticks=14 expanded=24 discovered=123 open=99 path_index=1 path_length=0 retries=5 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=48996
+[01:42:47] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=49904
+[01:42:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=25,67,0 block=minecraft:oak_log status=route_search elapsed_ms=50846
+[01:42:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=50921 phase=searching target=25,67,0 block=minecraft:oak_log search_cpu_ms=11 search_ticks=1 expanded=2 discovered=22 open=20 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:49] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:49] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=25,67,0: Route edge became unsafe (retry limit reached)
+[01:42:49] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:50] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=26,67,0 block=minecraft:oak_log
+[01:42:50] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=24,68,0 feet_y16=1088 candidates=15 target=26,67,0 block=minecraft:oak_log elapsed_ms=52487
+[01:42:50] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=52955 phase=searching target=26,67,0 block=minecraft:oak_log search_cpu_ms=27 search_ticks=9 expanded=17 discovered=109 open=92 path_index=1 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=53287
+[01:42:52] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=54195
+[01:42:52] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=54964 phase=searching target=26,67,0 block=minecraft:oak_log search_cpu_ms=40 search_ticks=15 expanded=20 discovered=117 open=97 path_index=1 path_length=0 retries=2 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:53] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=55199
+[01:42:54] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=56106
+[01:42:54] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=57014 phase=searching target=26,67,0 block=minecraft:oak_log search_cpu_ms=49 search_ticks=18 expanded=27 discovered=144 open=117 path_index=1 path_length=0 retries=4 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:54] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=57047
+[01:42:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=57987
+[01:42:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=58996
+[01:42:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=59062 phase=searching target=26,67,0 block=minecraft:oak_log search_cpu_ms=2 search_ticks=1 expanded=1 discovered=10 open=9 path_index=1 path_length=0 retries=7 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:42:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=26,67,0 block=minecraft:oak_log status=route_search elapsed_ms=59840
+[01:42:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:42:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=26,67,0: Route edge became unsafe (retry limit reached)
+[01:42:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:42:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=61110 phase=planning target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=planning
+[01:42:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=27,67,0 block=minecraft:oak_log
+[01:42:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=any anchor=25,68,0 feet_y16=1088 candidates=20 target=27,67,0 block=minecraft:oak_log elapsed_ms=61448
+[01:43:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 1: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:43:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=1 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=62384
+[01:43:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=63154 phase=searching target=27,67,0 block=minecraft:oak_log search_cpu_ms=41 search_ticks=15 expanded=22 discovered=120 open=98 path_index=1 path_length=0 retries=1 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:43:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=2 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=63290
+[01:43:02] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=3 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=64160
+[01:43:02] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=4 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=65032
+[01:43:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=65199 phase=searching target=27,67,0 block=minecraft:oak_log search_cpu_ms=8 search_ticks=3 expanded=4 discovered=40 open=36 path_index=1 path_length=0 retries=4 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:43:03] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=5 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=65940
+[01:43:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=6 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=66820
+[01:43:05] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=67213 phase=searching target=27,67,0 block=minecraft:oak_log search_cpu_ms=24 search_ticks=8 expanded=13 discovered=99 open=86 path_index=1 path_length=0 retries=6 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:43:05] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=7 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=67655
+[01:43:06] [Render thread/INFO] (lodekeeper) [Lodekeeper] RETRY count=8 target=27,67,0 block=minecraft:oak_log status=route_search elapsed_ms=68597
+[01:43:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=69236 phase=searching target=27,67,0 block=minecraft:oak_log search_cpu_ms=31 search_ticks=13 expanded=16 discovered=107 open=91 path_index=1 path_length=0 retries=8 pending_route_events=0 dropped_route_events=0 status=route_search
+[01:43:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] Navigation retry 9: Route edge became unsafe at 11.699999988079071,65.0,0.5 onGround=true live=true/true/false/0/true/true edge=11,65.0,0->12,66.0,0:JUMP
+[01:43:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] RESOURCE_REJECT reason=27,67,0: Route edge became unsafe (retry limit reached)
+[01:43:07] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[01:43:09] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=71246 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=finding_nearby_recipe_wood___chunk_21/49
+[01:43:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=73259 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=discovering_minecraft:oak_log___chunk_4/49
+[01:43:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=75307 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=discovering_locally_reachable_minecraft:oak_log___1024/1296_positions
+[01:43:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=exact anchor=-5,64,0 feet_y16=1024 candidates=0 target=none elapsed_ms=76112
+[01:43:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_TRAVEL path_index=1 path_length=17 target=none elapsed_ms=76346
+[01:43:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=77351 phase=traveling target=none search_cpu_ms=11 search_ticks=5 expanded=17 discovered=52 open=35 path_index=4 path_length=17 retries=0 pending_route_events=0 dropped_route_events=0 status=exploring_1/32___route_4/17
+[01:43:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=79397 phase=traveling target=none search_cpu_ms=11 search_ticks=5 expanded=17 discovered=52 open=35 path_index=11 path_length=17 retries=0 pending_route_events=0 dropped_route_events=0 status=exploring_1/32___route_10/17
+[01:43:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=81411 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=finding_nearby_recipe_wood___chunk_10/49
+[01:43:21] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=83454 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=finding_nearby_recipe_wood___local_768/1300_positions
+[01:43:23] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=85502 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=discovering_minecraft:oak_log___chunk_22/49
+[01:43:25] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=exact anchor=3,64,0 feet_y16=1024 candidates=0 target=none elapsed_ms=87244
+[01:43:25] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_TRAVEL path_index=1 path_length=9 target=none elapsed_ms=87345
+[01:43:25] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=87512 phase=traveling target=none search_cpu_ms=2 search_ticks=2 expanded=9 discovered=30 open=21 path_index=1 path_length=9 retries=0 pending_route_events=0 dropped_route_events=0 status=exploring_2/32___route_1/9
+[01:43:27] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=89561 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=finding_nearby_recipe_wood___local_1280/1300_positions
+[01:43:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=91603 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=discovering_minecraft:oak_log___chunk_20/49
+[01:43:31] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_SEARCH kind=exact anchor=-9,64,0 feet_y16=1024 candidates=0 target=none elapsed_ms=93415
+[01:43:31] [Render thread/INFO] (lodekeeper) [Lodekeeper] ROUTE_TRAVEL path_index=1 path_length=13 target=none elapsed_ms=93513
+[01:43:31] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=93612 phase=traveling target=none search_cpu_ms=3 search_ticks=2 expanded=13 discovered=42 open=29 path_index=1 path_length=13 retries=0 pending_route_events=0 dropped_route_events=0 status=exploring_3/32___route_1/13
+[01:43:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=95658 phase=traveling target=none search_cpu_ms=3 search_ticks=2 expanded=13 discovered=42 open=29 path_index=10 path_length=13 retries=0 pending_route_events=0 dropped_route_events=0 status=exploring_3/32___route_9/13
+[01:43:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=97706 phase=discovering target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=discovering_minecraft:oak_log___chunk_16/49
+[01:43:37] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=99749 phase=exploring target=none search_cpu_ms=0 search_ticks=0 expanded=0 discovered=0 open=0 path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=finding_a_safe_exploration_route

@@ -26,4 +26,6 @@ The [rendered route](candidate-distant-active-route.png) shows the path, target 
 
 The [exploration regression](candidate-exploration.json) starts empty with the resource chunk unloaded. Two exploration waypoints led to eight server-confirmed logs and an idle engine at health 20. Discovery resumed in the newly reached area.
 
+The [iron-pickaxe check](candidate-iron-pickaxe.json) starts empty with wood 20 blocks away. It gathered supplies, made tools, used native crafting and furnace menus, and finished with one iron pickaxe at health 20. The [console trace](candidate-iron-pickaxe-console.txt) includes the full chain and a task-end elapsed time of 116,973 ms. That duration includes mining, crafting and smelting.
+
 The [candidate artifact receipt](candidate-artifact.json) records the compiled jar and source hashes. These checks use development classes. Exact released-jar receipts remain separate. Broader natural-world performance and competitor comparisons remain open.

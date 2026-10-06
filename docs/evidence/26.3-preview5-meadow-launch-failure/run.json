@@ -1,0 +1,134 @@
+{
+  "runId": "2026-10-06T00-41-39-118747Z-13589521",
+  "status": "failed",
+  "minecraftVersion": "26.3",
+  "worldKind": "isolated_superflat_fixture",
+  "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+  "verificationMode": "nearby_wood",
+  "runDirectory": "/private/tmp/lodekeeper-preview5-exact-263/run-verification",
+  "worldId": "run-c79ea21d184b4829",
+  "elapsedMillis": 118893,
+  "clientTicks": 2175,
+  "failure": "automation paused during nearby_crafting_table_20_blocks_meadow: paused · No safe unexplored waypoint remains within the exploration bounds after 4 attempts; move to another area or adjust exploration limits · Last resource attempt: 27,67,0: Route edge became unsafe (retry limit reached). Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] · 0 foreground queued · 0 maintenance queued",
+  "serverTableOpened": false,
+  "serverFurnaceOpened": false,
+  "serverTableOpenings": 0,
+  "serverFurnaceOpenings": 0,
+  "ironPickaxeFixture": false,
+  "ironPickaxeEmptyDistantWoodFlag": false,
+  "nearbyWoodFlag": true,
+  "nearbyWoodGoal": "crafting_table",
+  "nearbyWoodTerrain": "meadow",
+  "nativeRouteBenchmark": [
+    {
+      "warmup": true,
+      "elapsedNanos": 214404455,
+      "advanceCalls": 40,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 97014374,
+      "advanceCalls": 31,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 63648231,
+      "advanceCalls": 25,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    },
+    {
+      "warmup": false,
+      "elapsedNanos": 57588710,
+      "advanceCalls": 21,
+      "expanded": 56,
+      "discovered": 187,
+      "status": "FOUND",
+      "pathSteps": 21
+    }
+  ],
+  "coalRecoveryFixture": false,
+  "cases": [
+    {
+      "name": "nearby_crafting_table_20_blocks_meadow",
+      "item": "minecraft:crafting_table",
+      "expected": 1,
+      "serverObserved": 0,
+      "inventoryEmptyAtStart": true,
+      "passed": false,
+      "clientTicks": 2012,
+      "worldTicks": 2013,
+      "engineStatus": "paused · No safe unexplored waypoint remains within the exploration bounds after 4 attempts; move to another area or adjust exploration limits · Last resource attempt: 27,67,0: Route edge became unsafe (retry limit reached). Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] · 0 foreground queued · 0 maintenance queued",
+      "detail": "automation paused during nearby_crafting_table_20_blocks_meadow: paused · No safe unexplored waypoint remains within the exploration bounds after 4 attempts; move to another area or adjust exploration limits · Last resource attempt: 27,67,0: Route edge became unsafe (retry limit reached). Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] · 0 foreground queued · 0 maintenance queued",
+      "serverHealth": 20.0,
+      "serverDifficulty": "PEACEFUL",
+      "serverCraftingTableOpenedDuringCase": false,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverIronPickaxeCount": 0,
+      "serverFoodLevelAtStart": 20,
+      "serverFoodLevelObserved": 20,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "-8.665371066647921,64.0,0.5",
+      "elapsedMillisFromCommand": 100195,
+      "firstServerMovementMillisFromCommand": 2725,
+      "liveRouteScreenshot": "screenshots/lodekeeper-2026-10-06T00-41-39-118747Z-13589521-nearby_crafting_table_20_blocks_meadow-active-route.png",
+      "nativeRouteBenchmark": [
+        {
+          "warmup": true,
+          "elapsedNanos": 214404455,
+          "advanceCalls": 40,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 97014374,
+          "advanceCalls": 31,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 63648231,
+          "advanceCalls": 25,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        },
+        {
+          "warmup": false,
+          "elapsedNanos": 57588710,
+          "advanceCalls": 21,
+          "expanded": 56,
+          "discovered": 187,
+          "status": "FOUND",
+          "pathSteps": 21
+        }
+      ],
+      "requiresEmptyAtStart": true
+    }
+  ],
+  "explorationFixture": false,
+  "diamondBootsFixture": false,
+  "bulkWoodFixtureLogCount": 0,
+  "woodToolsFlag": false,
+  "woodToolsEnabled": false,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 4
+}

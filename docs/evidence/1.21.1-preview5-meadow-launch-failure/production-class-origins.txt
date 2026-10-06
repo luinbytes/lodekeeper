@@ -1,0 +1,5 @@
+[17.463s][info][class,load] dev.lodekeeper.fabric.AutomationEngine source: file:/private/tmp/lodekeeper-preview5-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.5-64b5720b4b825f21.jar
+[17.580s][info][class,load] dev.lodekeeper.fabric.LodekeeperClient source: file:/private/tmp/lodekeeper-preview5-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.5-64b5720b4b825f21.jar
+[17.472s][info][class,load] dev.lodekeeper.fabric.MovementController source: file:/private/tmp/lodekeeper-preview5-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.5-64b5720b4b825f21.jar
+[17.474s][info][class,load] dev.lodekeeper.core.AcquisitionPlanner source: file:/private/tmp/lodekeeper-preview5-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.5-64b5720b4b825f21.jar
+[17.485s][info][class,load] dev.lodekeeper.nav.Planner source: file:/private/tmp/lodekeeper-preview5-exact-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.5-64b5720b4b825f21.jar
