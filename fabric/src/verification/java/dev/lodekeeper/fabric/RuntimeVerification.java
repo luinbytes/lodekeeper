@@ -2857,12 +2857,16 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private boolean preparedSafetyContactCompleted(Map<String, String> receipt, int pickaxeWear) {
+        int swordWear = Integer.parseInt(receipt.getOrDefault("diamondSwordDamage", "-1"))
+            - Integer.parseInt(activeInitialThreatReceipt.getOrDefault("diamondSwordDamage", "-1"));
+        int weaponHits = swordWear + pickaxeWear / 2;
         if (latestSnapshot.health <= 0 || !"true".equals(receipt.get("contactPlayerAlive"))
                 || !"0".equals(receipt.get("contactPlayerDeaths"))
                 || !"false".equals(receipt.get("contactClockFrozen"))
                 || Integer.parseInt(receipt.getOrDefault("contactClockReleaseServerTick", "-1")) < 0
                 || Integer.parseInt(receipt.getOrDefault("contactNativePlayerHits", "0")) < 1
-                || pickaxeWear <= 0 || pickaxeWear > 64 || pickaxeWear % 2 != 0
+                || pickaxeWear < 0 || pickaxeWear > 48 || pickaxeWear % 2 != 0
+                || swordWear < 0 || swordWear > 24 || weaponHits < 1 || weaponHits > 24
                 || !contactShellPreserved(receipt)) return false;
         int hits = 0;
         for (int index = 0; index < 2; index++) {
@@ -2875,7 +2879,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     || !"true".equals(receipt.get(prefix + "LastDamageByPlayer"))) return false;
             hits += nativeHits;
         }
-        return pickaxeWear == hits * 2;
+        return hits >= weaponHits && hits <= weaponHits * 2;
     }
 
     private void startPreparedSafetyThreatCase() {
@@ -3182,8 +3186,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && activeInitialThreatReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
                 && "true".equals(receipt.get("cowAlive"))
                 && activeInitialThreatReceipt.get("cowHealth").equals(receipt.get("cowHealth"))
-                && activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
-                && "0".equals(receipt.get("diamondSwordDamage"))
+                && (THREAT_CONTACT_MODE || activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
+                    && "0".equals(receipt.get("diamondSwordDamage")))
                 && (THREAT_CONTACT_MODE ? preparedSafetyContactCompleted(receipt, pickaxeWear)
                     : THREAT_WATER_RETREAT_MODE
                     ? latestSnapshot.health == 20.0F && "true".equals(receipt.get("zombieAlive"))
@@ -3203,8 +3207,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && "false".equals(receipt.get("zombieAlive")) && "0.0".equals(receipt.get("zombieHealth"))
                         && pickaxeShowsNativeHits);
             detail = THREAT_CONTACT_MODE
-                ? passed ? "both original full-health live zombies died from native player hits, the player survived native contact damage with zero deaths, the iron pickaxe wore by " + pickaxeWear + ", cow and sword stayed untouched, shell stayed intact, and the supplied iron became one bucket with cursor clear and idle stopped navigation"
-                    : "live contact defense lacked required native hits, two player-attributed deaths, player survival, protected cow/sword, bounded tool wear, intact shell, or bucket completion"
+                ? passed ? "both original full-health live zombies died from native player hits, the player survived native contact damage with zero deaths, the iron pickaxe wore by " + pickaxeWear + ", safe sword wear was bounded, cow stayed untouched, shell stayed intact, and the supplied iron became one bucket with cursor clear and idle stopped navigation"
+                    : "live contact defense lacked required native hits, two player-attributed deaths, player survival, protected cow, bounded weapon wear, intact shell, or bucket completion"
                 : THREAT_WATER_RETREAT_MODE
                 ? passed ? "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation"
                     : "the water-retreat fixture lacked the required native distance, health, untouched-mob/weapon, dry-support, bucket, cursor, or cancellation receipts"

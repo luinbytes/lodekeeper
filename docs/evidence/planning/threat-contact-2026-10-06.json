@@ -1,5 +1,5 @@
 {
-  "status": "reproduced_fix_in_progress",
+  "status": "live_contact_reproduced_weapon_selection_fix_in_progress",
   "sourceCommit": "a73679b13880f9bded9c01ae3d444db997b8a13d",
   "failureReceipt": "../navigation-rebuild/checkpoint-19.json",
   "observedMechanisms": [
@@ -26,5 +26,24 @@
     "Defense cancellation validates full ownership before mutation",
     "Retreat tick and suspend also validate full ownership",
     "Retreat tick never swaps scaffold stock into the hotbar"
-  ]
+  ],
+  "liveContactFailure": {
+    "sourceCommit": "6f8f5ed7bd37fbeb1c6107f31ad248af31100d09",
+    "receipt": "../survival-safety/preview11-contact-after-1211/assessment.json",
+    "result": "native attacks resume during knockback, but standing contact defense dies to two full-health zombies"
+  },
+  "diagnosticReplay": {
+    "sourceCommit": "12d950fb338ef0d710c02316372479cc6d2fe66c",
+    "receipt": "../survival-safety/preview11-contact-weapon-trace-1211/assessment.json",
+    "weaponSelections": 10,
+    "attackCalls": 6,
+    "mechanism": "Nearest-target-first selection alternates sword and pickaxe during native attack recharge. Minecraft resets its attack timer when the held item type changes. Native selected-slot synchronization precedes the attack packet."
+  },
+  "weaponChoiceDesign": {
+    "shape": "AttackChoice(target, hotbar slot, native damage)",
+    "policy": "Retain a safe selected weapon through recharge. Retarget a reachable hostile with that same weapon before switching. Jointly rank safe target/weapon pairs after an attack or when no safe target remains for the selected weapon. Revalidate collateral, reach and held stack before every native attack.",
+    "alternative": "Proactive combat movement requires separate terrain and input ownership design. First replay the proven cooldown fix.",
+    "limits": "Existing 15 second / 300 tick / 24 attack / 16 threat / 32 block budgets remain unchanged.",
+    "qaCorrection": "Moving mobs can make a sword attack safe. Permit bounded native sword wear in the live moving contact case while retaining cow health and player-attributed kill checks. The static sweep and water-retreat weapon guards remain unchanged."
+  }
 }
