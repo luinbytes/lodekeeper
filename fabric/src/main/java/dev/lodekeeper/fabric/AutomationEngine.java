@@ -2461,14 +2461,23 @@ final class AutomationEngine {
         BlockPos player = client.player.getBlockPos();
         BlockPos closest = null;
         double distance = Double.POSITIVE_INFINITY;
+        Map<String, Integer> refusals = config.debugLogging ? new TreeMap<>() : null;
         for (int dy = -1; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
             BlockPos candidate = player.add(dx, dy, dz);
             double nextDistance = candidate.getSquaredDistance(player);
-            if (nextDistance >= distance || rejectedStationSites.contains(candidate)
-                    || !stationRoom.canPrepareAt(candidate)) continue;
+            if (nextDistance >= distance || rejectedStationSites.contains(candidate)) continue;
+            String problem = stationRoom.preparationProblemAt(candidate);
+            if (problem != null) {
+                if (refusals != null) refusals.merge(problem, 1, Integer::sum);
+                continue;
+            }
             closest = candidate;
             distance = nextDistance;
         }
+        if (closest == null && refusals != null)
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] STATION_ROOM exhausted position={} allowBreaking={} refusals={}",
+                    client.player.getPos(), config.allowBreaking, refusals);
         return closest;
     }
 
@@ -2491,6 +2500,12 @@ final class AutomationEngine {
     }
 
     private void rejectStationSite(BlockPos rejected) {
+        if (config.debugLogging)
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] STATION_SITE rejected site={} player={} box={} overlap={} placeable={} roomProblem={}",
+                    rejected, client.player.getPos(), client.player.getBoundingBox(),
+                    client.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(rejected)), actions.canPlaceAt(rejected),
+                    stationRoom.preparationProblemAt(rejected));
         rejectedStationSites.add(rejected.toImmutable());
         stationPlacementFailures++;
         stationApproachTarget = null;

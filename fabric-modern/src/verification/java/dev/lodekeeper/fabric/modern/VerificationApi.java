@@ -685,14 +685,21 @@ final class VerificationApi {
     }
 
     static PreparedSafetyStationRoomFixture seedPreparedSafetyStationRoomFixture(ServerPlayer player, ServerLevel world) {
+        boolean tunnel = "true".equals(System.getProperty("lodekeeper.verify.stationRoomTunnel"));
         for (int x = -9; x <= 9; x++) for (int z = -9; z <= 9; z++) {
             world.setBlock(new BlockPos(x, 63, z), Blocks.BEDROCK.defaultBlockState(), 3);
             for (int y = 64; y <= 70; y++) {
-                world.setBlock(new BlockPos(x, y, z), Blocks.STONE.defaultBlockState(), 3);
+                world.setBlock(new BlockPos(x, y, z), (tunnel ? Blocks.DEEPSLATE : Blocks.STONE).defaultBlockState(), 3);
             }
         }
         world.setBlock(new BlockPos(0, 64, 0), Blocks.AIR.defaultBlockState(), 3);
         world.setBlock(new BlockPos(0, 65, 0), Blocks.AIR.defaultBlockState(), 3);
+        if (tunnel) {
+            for (int x = -2; x <= 0; x++) for (int y = 64; y <= 66; y++) {
+                world.setBlock(new BlockPos(x, y, 0), Blocks.AIR.defaultBlockState(), 3);
+            }
+            world.setBlock(new BlockPos(-1, 64, 0), Blocks.CRAFTING_TABLE.defaultBlockState(), 3);
+        }
         if (!player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))
                 || !player.getInventory().add(new ItemStack(Items.FURNACE))
                 || !player.getInventory().add(new ItemStack(Items.COAL))
@@ -700,14 +707,14 @@ final class VerificationApi {
             throw new IllegalStateException("could not seed the prepared station-room pickaxe, furnace, coal, and raw iron");
         }
         player.getInventory().setSelectedSlot(0);
-        BlockPos[] nearbyStoneCells = new BlockPos[73];
+        BlockPos[] nearbyStoneCells = new BlockPos[tunnel ? 66 : 73];
         int index = 0;
         for (int x = -2; x <= 2; x++) for (int y = 64; y <= 66; y++) for (int z = -2; z <= 2; z++) {
-            if (x == 0 && z == 0 && (y == 64 || y == 65)) continue;
+            if (tunnel ? x <= 0 && z == 0 : x == 0 && z == 0 && (y == 64 || y == 65)) continue;
             nearbyStoneCells[index++] = new BlockPos(x, y, z);
         }
         if (index != nearbyStoneCells.length) throw new IllegalStateException("station-room receipt cell count differs");
-        return new PreparedSafetyStationRoomFixture(nearbyStoneCells);
+        return new PreparedSafetyStationRoomFixture(nearbyStoneCells, tunnel);
     }
 
     static Map<String, String> preparedSafetyStationRoomReceipt(ServerPlayer player, ServerLevel world,
@@ -717,7 +724,7 @@ final class VerificationApi {
         StringBuilder changedPositions = new StringBuilder();
         for (BlockPos position : fixture.nearbyStoneCells) {
             var state = world.getBlockState(position);
-            if (state.is(Blocks.STONE)) {
+            if (state.is(fixture.tunnel ? Blocks.DEEPSLATE : Blocks.STONE)) {
                 stillStone++;
                 continue;
             }
@@ -726,6 +733,7 @@ final class VerificationApi {
                 .append(position.getZ()).append('=').append(BuiltInRegistries.BLOCK.getKey(state.getBlock()));
         }
         int nearbyFurnaces = 0;
+        int furnaceInput = 0, furnaceFuel = 0, furnaceOutput = 0;
         boolean allFurnaceFloorsBedrock = true;
         StringBuilder furnacePositions = new StringBuilder();
         for (int x = -2; x <= 2; x++) for (int y = 64; y <= 70; y++) for (int z = -2; z <= 2; z++) {
@@ -735,6 +743,14 @@ final class VerificationApi {
             if (nearbyFurnaces++ > 0) furnacePositions.append(';');
             furnacePositions.append(x).append(',').append(y).append(',').append(z);
             allFurnaceFloorsBedrock &= world.getBlockState(position.below()).is(Blocks.BEDROCK);
+            if (fixture.tunnel) {
+                if (!(world.getBlockEntity(position) instanceof net.minecraft.world.Container inventory)) {
+                    throw new IllegalStateException("native station-room furnace has no inventory");
+                }
+                furnaceInput += inventory.getItem(0).getCount();
+                furnaceFuel += inventory.getItem(1).getCount();
+                furnaceOutput += inventory.getItem(2).getCount();
+            }
         }
         Map<String, String> result = new LinkedHashMap<>();
         result.put("roomStoneCellCandidateCount", Integer.toString(fixture.nearbyStoneCells.length));
@@ -745,15 +761,44 @@ final class VerificationApi {
         result.put("nearbyFurnacePositions", furnacePositions.toString());
         result.put("playerSupportBedrock", Boolean.toString(world.getBlockState(new BlockPos(0, 63, 0)).is(Blocks.BEDROCK)));
         result.put("stationFloorBedrock", Boolean.toString(nearbyFurnaces > 0 && allFurnaceFloorsBedrock));
-        result.put("preparedRoomStartPosition", "0.5,64,0.5");
+        result.put("preparedRoomStartPosition", fixture.tunnel ? "0.367555,64,0.505802" : "0.5,64,0.5");
+        if (fixture.tunnel) {
+            int floorCells = 0, airCells = 0;
+            StringBuilder airPositions = new StringBuilder();
+            for (int x = -9; x <= 9; x++) for (int z = -9; z <= 9; z++) {
+                if (world.getBlockState(new BlockPos(x, 63, z)).is(Blocks.BEDROCK)) floorCells++;
+            }
+            for (int x = -2; x <= 0; x++) for (int y = 64; y <= 66; y++) {
+                if (x == -1 && y == 64) continue;
+                if (world.getBlockState(new BlockPos(x, y, 0)).is(Blocks.AIR)) {
+                    if (airCells++ > 0) airPositions.append(';');
+                    airPositions.append(x).append(',').append(y).append(",0");
+                }
+            }
+            result.put("stationRoomSubmode", "tunnel");
+            result.put("playerPosition", player.getX() + "," + player.getY() + "," + player.getZ());
+            result.put("playerYaw", Float.toString(player.getYRot()));
+            result.put("playerPitch", Float.toString(player.getXRot()));
+            result.put("stonePickaxeHeld", Boolean.toString(player.getMainHandItem().is(Items.STONE_PICKAXE)));
+            result.put("craftingTablePresent", Boolean.toString(world.getBlockState(new BlockPos(-1, 64, 0)).is(Blocks.CRAFTING_TABLE)));
+            result.put("tunnelAirCellCount", Integer.toString(airCells));
+            result.put("tunnelAirPositions", airPositions.toString());
+            result.put("roomFloorBedrockCellCount", Integer.toString(floorCells));
+            result.put("roomFloorBedrock", Boolean.toString(floorCells == 361));
+            result.put("furnaceInputCount", Integer.toString(furnaceInput));
+            result.put("furnaceFuelCount", Integer.toString(furnaceFuel));
+            result.put("furnaceOutputCount", Integer.toString(furnaceOutput));
+        }
         return Map.copyOf(result);
     }
 
     static final class PreparedSafetyStationRoomFixture {
         private final BlockPos[] nearbyStoneCells;
+        private final boolean tunnel;
 
-        private PreparedSafetyStationRoomFixture(BlockPos[] nearbyStoneCells) {
+        private PreparedSafetyStationRoomFixture(BlockPos[] nearbyStoneCells, boolean tunnel) {
             this.nearbyStoneCells = nearbyStoneCells.clone();
+            this.tunnel = tunnel;
         }
     }
 

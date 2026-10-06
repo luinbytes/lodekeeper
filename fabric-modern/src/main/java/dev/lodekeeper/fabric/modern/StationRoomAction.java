@@ -48,6 +48,10 @@ final class StationRoomAction {
         return preparationProblem(candidate, client.level, client.player) == null;
     }
 
+    String preparationProblemAt(BlockPos candidate) {
+        return preparationProblem(candidate, client.level, client.player);
+    }
+
     boolean begin(BlockPos candidate) {
         if (active()) {
             status = "station room preparation is already active";

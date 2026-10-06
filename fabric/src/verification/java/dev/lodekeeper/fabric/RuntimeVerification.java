@@ -108,6 +108,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean PROCESSING_MODE = COOKING_MODE || STONECUTTING_MODE;
     private static final String PROCESSING_STATION_MODE = STONECUTTING_MODE ? "stonecutter" : COOKING_STATION_MODE;
     private static final String PREPARED_SAFETY_MODE = System.getProperty("lodekeeper.verify.preparedSafety");
+    private static final String STATION_ROOM_TUNNEL_PROPERTY = System.getProperty("lodekeeper.verify.stationRoomTunnel");
+    private static final boolean STATION_ROOM_TUNNEL_MODE = "true".equals(STATION_ROOM_TUNNEL_PROPERTY);
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
@@ -283,6 +285,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private VerificationApi.PreparedSafetyThreatFixture preparedSafetyThreatFixture;
     private Map<String, String> activeInitialThreatReceipt = Map.of();
     private VerificationApi.PreparedSafetyStationRoomFixture preparedSafetyStationRoomFixture;
+    private String stationRoomSetupScreenshot;
     private Map<String, String> activeInitialStationRoomReceipt = Map.of();
     private VerificationApi.PreparedSafetyPursuitFixture preparedSafetyPursuitFixture;
     private Map<String, String> activeInitialPursuitReceipt = Map.of();
@@ -318,7 +321,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
         if (System.getProperty("lodekeeper.verify.naturalGoal") != null
-                && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
+                && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
                 && !"air".equals(PREPARED_SAFETY_MODE)) {
             NaturalWorldVerification.start(MinecraftClient.getInstance());
@@ -347,6 +350,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (invalidStationRoomTunnelMode()) {
+                failure = "stationRoomTunnel must be exactly true or false and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
             if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                     || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                     || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
@@ -1460,7 +1471,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                     }
                 }
                 double startFeetY = COAL_RAISED_FULL_DROP_MODE ? PLAYER_Y + 1.0 : PLAYER_Y;
-                if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
+                if (!VerificationApi.teleport(player, world,
+                        STATION_ROOM_TUNNEL_MODE ? 0.367555 : MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY,
+                        STATION_ROOM_TUNNEL_MODE ? 0.505802 : MIXED_NAVIGATION_COURSE ? 0.75 : 0.5,
+                        STATION_ROOM_TUNNEL_MODE ? 98.886902F : 0.0F, STATION_ROOM_TUNNEL_MODE ? -38.467983F : 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
                 }
                 if (preparedSafetyAirFixture != null) {
@@ -2398,13 +2412,14 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
                 && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
                 && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
-                && Math.abs(latestSnapshot.x - 0.5) < 0.001 && Math.abs(latestSnapshot.y - 64.0) < 0.001
-                && Math.abs(latestSnapshot.z - 0.5) < 0.001
-                && "73".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellCandidateCount"))
-                && "73".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && Math.abs(latestSnapshot.x - (STATION_ROOM_TUNNEL_MODE ? 0.367555 : 0.5)) < 0.001 && Math.abs(latestSnapshot.y - 64.0) < 0.001
+                && Math.abs(latestSnapshot.z - (STATION_ROOM_TUNNEL_MODE ? 0.505802 : 0.5)) < 0.001
+                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsStillStone"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("nearbyFurnaceCount"))
-                && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"));
+                && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"))
+                && (!STATION_ROOM_TUNNEL_MODE || stationRoomTunnelSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt));
             case AIR -> {
                 Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
                 int airSupply = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
@@ -2790,13 +2805,34 @@ public final class RuntimeVerification implements ClientModInitializer {
         sendCommand("!lk get bucket 1");
     }
 
+    private static boolean invalidStationRoomTunnelMode() {
+        return STATION_ROOM_TUNNEL_PROPERTY != null
+            && ((!"true".equals(STATION_ROOM_TUNNEL_PROPERTY) && !"false".equals(STATION_ROOM_TUNNEL_PROPERTY))
+                || !BARITONE_MODE || !"station_room".equals(PREPARED_SAFETY_MODE)
+                || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                || System.getProperty("lodekeeper.verify.naturalGoal") != null);
+    }
+
+    private static boolean stationRoomTunnelSetupReady(Map<String, String> receipt) {
+        return "tunnel".equals(receipt.get("stationRoomSubmode"))
+            && "0.367555,64.0,0.505802".equals(receipt.get("playerPosition"))
+            && Math.abs(Float.parseFloat(receipt.getOrDefault("playerYaw", "NaN")) - 98.886902F) < 0.0001F
+            && Math.abs(Float.parseFloat(receipt.getOrDefault("playerPitch", "NaN")) + 38.467983F) < 0.0001F
+            && "true".equals(receipt.get("stonePickaxeHeld"))
+            && "true".equals(receipt.get("craftingTablePresent"))
+            && "8".equals(receipt.get("tunnelAirCellCount"))
+            && "-2,64,0;-2,65,0;-2,66,0;-1,65,0;-1,66,0;0,64,0;0,65,0;0,66,0".equals(receipt.get("tunnelAirPositions"))
+            && "361".equals(receipt.get("roomFloorBedrockCellCount"))
+            && "true".equals(receipt.get("roomFloorBedrock"));
+    }
+
     private void startPreparedSafetyStationRoomCase() {
         String engineStatus = requireEngine().status();
         if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
             fail("prepared station-room command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = "prepared_station_room_iron_ingot";
+        activeCase = STATION_ROOM_TUNNEL_MODE ? "prepared_station_room_tunnel_iron_ingot" : "prepared_station_room_iron_ingot";
         activeItem = IRON_INGOT_ID;
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -2805,6 +2841,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
         activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
         activeInitialStationRoomReceipt = Map.copyOf(latestSnapshot.preparedSafetyStationRoomReceipt);
+        if (STATION_ROOM_TUNNEL_MODE) stationRoomSetupScreenshot = capture("prepared-safety-station-room-tunnel-setup");
         preparedSafetyForegroundStarted = true;
         preparedMaintenanceQueueEmptyBeforeForeground = true;
         preparedMaintenanceReservationObservedBeforeForeground = false;
@@ -3095,17 +3132,25 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
                 && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
                 && serverFurnaceOpenings > activeFurnaceOpeningsAtStart
-                && "73".equals(activeInitialStationRoomReceipt.get("roomStoneCellCandidateCount"))
-                && "73".equals(activeInitialStationRoomReceipt.get("roomStoneCellsStillStone"))
+                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(activeInitialStationRoomReceipt.get("roomStoneCellsStillStone"))
                 && "0".equals(activeInitialStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(activeInitialStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(activeInitialStationRoomReceipt.get("playerSupportBedrock"))
                 && "true".equals(receipt.get("playerSupportBedrock"))
                 && "true".equals(receipt.get("stationFloorBedrock"))
-                && "73".equals(receipt.get("roomStoneCellCandidateCount"))
+                && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(receipt.get("roomStoneCellCandidateCount"))
                 && Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1
-                && "0.5,64,0.5".equals(receipt.get("preparedRoomStartPosition"))
-                && changedStoneCells >= 1 && changedStoneCells <= 2;
+                && (STATION_ROOM_TUNNEL_MODE ? "0.367555,64,0.505802" : "0.5,64,0.5").equals(receipt.get("preparedRoomStartPosition"))
+                && changedStoneCells >= (STATION_ROOM_TUNNEL_MODE ? 0 : 1) && changedStoneCells <= 2
+                && (!STATION_ROOM_TUNNEL_MODE || (stationRoomTunnelSetupReady(activeInitialStationRoomReceipt)
+                    && latestSnapshot.storageCount(IRON_INGOT_ID) == 1
+                    && "true".equals(receipt.get("craftingTablePresent"))
+                    && "true".equals(receipt.get("roomFloorBedrock"))
+                    && "1".equals(receipt.get("nearbyFurnaceCount"))
+                    && "0".equals(receipt.get("furnaceInputCount"))
+                    && "0".equals(receipt.get("furnaceFuelCount"))
+                    && "0".equals(receipt.get("furnaceOutputCount"))));
             detail = passed
                 ? "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded " + changedStoneCells
                     + " changed native stone cell(s), with the original support and furnace floor still bedrock"
@@ -3542,6 +3587,19 @@ public final class RuntimeVerification implements ClientModInitializer {
     private record MovementClock(long startedAtNanos, double x, double z) { }
 
     private void finishRun() {
+        if (STATION_ROOM_TUNNEL_MODE) {
+            try {
+                if (stationRoomSetupScreenshot == null || screenshotWritesPending > 0
+                        || !Files.isRegularFile(evidenceDirectory.resolve(stationRoomSetupScreenshot))
+                        || javax.imageio.ImageIO.read(evidenceDirectory.resolve(stationRoomSetupScreenshot).toFile()) == null) {
+                    fail("Station-room tunnel setup screenshot was not saved as a readable image");
+                    return;
+                }
+            } catch (java.io.IOException exception) {
+                fail("Cannot verify station-room tunnel setup screenshot: " + exception.getMessage());
+                return;
+            }
+        }
         if (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
             if (firstMovementMillis < 0) {
                 fail("Server movement timestamp was not recorded");
@@ -3612,6 +3670,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"worldKind\":\"isolated_superflat_fixture\",\n")
             .append("  \"preparedWorld\":").append(PREPARED_SAFETY_MODE != null).append(",\n")
             .append("  \"threatWaterRetreat\":").append(THREAT_WATER_RETREAT_MODE).append(",\n")
+            .append("  \"stationRoomTunnel\":").append(STATION_ROOM_TUNNEL_MODE).append(",\n")
+            .append("  \"stationRoomSetupScreenshot\":").append(stationRoomSetupScreenshot == null ? "null" : "\"" + escape(stationRoomSetupScreenshot) + "\"").append(",\n")
             .append("  \"preparedSafetyProperty\":").append(PREPARED_SAFETY_MODE == null ? "null" : "\"" + escape(PREPARED_SAFETY_MODE) + "\"").append(",\n")
             .append("  \"evidenceAuthority\":\"")
             .append(HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
@@ -4276,6 +4336,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (invalidStationRoomTunnelMode()) return "invalid_station_room_tunnel";
         if (WORKBENCH_MODE && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_safety_workbench";
         if (("pursuit".equals(PREPARED_SAFETY_MODE) || "pursuit-tool".equals(PREPARED_SAFETY_MODE))
@@ -4312,6 +4373,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         if (COAL_RAISED_FULL_DROP_MODE && !COAL_RECOVERY_MODE) return "invalid_raised_full_requires_coal_recovery";
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
+        if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
         if (PREPARED_SAFETY_MODE != null) return THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";

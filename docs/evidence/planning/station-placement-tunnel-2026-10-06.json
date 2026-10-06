@@ -1,0 +1,61 @@
+{
+  "failureReceipt": "../navigation-rebuild/checkpoint-17.json",
+  "confirmedMechanism": "GoalGetToBlock includes an empty placement destination. The saved player position intersects the second furnace target, so native placement rejects it. The first arrival pose is unlogged.",
+  "unresolvedMechanism": "The existing trace does not explain why every bounded station-room candidate was refused. Diagnostics must expose those reasons before any safety guard changes.",
+  "savedPlayerPosition": [
+    -16.63244462171503,
+    -10.0,
+    42.50580193444986
+  ],
+  "savedGeometry": {
+    "craftingTable": [
+      -18,
+      -10,
+      42
+    ],
+    "airTargets": [
+      [
+        -19,
+        -10,
+        42
+      ],
+      [
+        -17,
+        -10,
+        42
+      ]
+    ],
+    "fullFloors": "deepslate",
+    "source": "read-only saved integrated-server player and region NBT"
+  },
+  "reproduction": {
+    "mode": "preparedSafety=station_room, stationRoomTunnel=true, baritone=true",
+    "versions": [
+      "1.21.1",
+      "26.3"
+    ],
+    "status": "pending native run",
+    "setup": "eight air cells around one preserved table, 66 nearby deepslate cells, all 361 bedrock floor cells, exact translated player pose and rotation, held pickaxe/furnace/raw iron/coal",
+    "command": "!lk get iron_ingot 1",
+    "completion": "server iron and native furnace slots, bounded terrain changes, preserved table and floor, health, empty cursor, idle and cancelled navigation"
+  },
+  "review": {
+    "materialFindings": 1,
+    "fixed": "Both runtime families now gate the saved yaw and pitch, in addition to position and geometry.",
+    "comments": "All 14 changed files inspected; no added comments or deletion candidates.",
+    "nativeScope": "Static review does not establish reproduction or gameplay success."
+  },
+  "designCandidates": [
+    {
+      "shape": "Immutable bounded exact stance goals",
+      "interface": "startPlacement(destination), face-specific placementHitFrom(destination, eye, bodyBox)",
+      "tradeoff": "Rejects unusable native ray geometry before routing; client-thread terrain and ray probes need count and time bounds."
+    },
+    {
+      "shape": "Arithmetic adjacency goal excluding the destination and rejected arrivals",
+      "interface": "startPlacement(destination), native client-tick completion, bounded failed-arrival exclusions",
+      "tradeoff": "Avoids predictive world scans; adjacency alone can still lack a usable face, requiring route retries."
+    }
+  ],
+  "throughputCheckpoint": "Freeze the reviewed diagnostic and fixture source before the native reproduction. Keep one owned JVM at a time. Verify the chosen production fix in this fixture on both primary versions, then repeat full fresh-world loadouts and all 24 CI builds before release."
+}
