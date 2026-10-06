@@ -1,0 +1,20 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.8.jar",
+  "artifactSha256": "9f644aa9697284c962140694475dcc284828d7da340caed8e5c2f1bb41437478",
+  "sourceCommit": "eae836c02c971bbd86596f3eca3d7d46db08f816",
+  "sourceTreeState": "committed",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.naturalGoal=iron_pickaxe",
+    "-Dlodekeeper.verify.naturalTimeoutSeconds=300"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview8-263-camp-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

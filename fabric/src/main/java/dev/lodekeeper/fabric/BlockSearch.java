@@ -43,6 +43,11 @@ final class BlockSearch {
 
     BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
                 boolean retainRepresentatives) {
+        this(client, blocks, radius, excluded, retainRepresentatives, null);
+    }
+
+    BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
+                boolean retainRepresentatives, List<ChunkPos> selectedChunks) {
         this.client = client; this.blocks = Set.copyOf(blocks);
         this.excluded = Set.copyOf(excluded); this.radius = radius;
         this.retainRepresentatives = retainRepresentatives;
@@ -52,6 +57,7 @@ final class BlockSearch {
         int chunkRadius = (radius + 15) / 16;
         ChunkPos center = new ChunkPos(origin);
         for (int x = -chunkRadius; x <= chunkRadius; x++) for (int z = -chunkRadius; z <= chunkRadius; z++) chunks.add(new ChunkPos(center.x + x, center.z + z));
+        if (selectedChunks != null) { chunks.clear(); chunks.addAll(selectedChunks); }
         chunks.sort(Comparator.comparingDouble(p -> Math.pow(p.getCenterX() - origin.getX(), 2) + Math.pow(p.getCenterZ() - origin.getZ(), 2)));
     }
     boolean advance(int blockBudget, long nanosBudget) {

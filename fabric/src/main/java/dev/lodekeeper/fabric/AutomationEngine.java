@@ -372,7 +372,8 @@ final class AutomationEngine {
             if (config.autoEat && foodAcquisitionCooldown == 0 && !stopAfterStep
                     && !transactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()
                     && client.currentScreen == null && !food.ready()
-                    && client.player.getHungerManager().getFoodLevel() <= 14
+                    && (client.player.getHungerManager().getFoodLevel() <= 14
+                        || needsMiningFoodStock())
                     && foodAcquisition.ready()) {
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
@@ -540,7 +541,15 @@ final class AutomationEngine {
         yieldMaintenanceForForeground();
         ProjectRun run = new ProjectRun(spec);
         projects.add(run);
-        spec.goals().forEach((item, count) -> {
+        Set<ItemId> gatheringTools = new HashSet<>();
+        for (AcquisitionSource source : catalog.sources) if (source instanceof GatherSource)
+            for (Requirement requirement : source.requirements()) if (requirement instanceof ToolRequirement tool)
+                tool.tools().alternatives().forEach(selector -> gatheringTools.addAll(snapshot.expand(selector)));
+        spec.goals().entrySet().stream()
+                .sorted(Comparator.comparingInt((Map.Entry<ItemId, Integer> entry) -> gatheringTools.contains(entry.getKey()) ? 0 : 1)
+                        .thenComparing(Map.Entry::getKey))
+                .forEach(entry -> {
+            ItemId item = entry.getKey(); int count = entry.getValue();
             run.pending.add(item);
             queue.addLast(new Request("project " + spec.name() + " · " + item, item, count, false, null, run));
         });
@@ -671,16 +680,19 @@ final class AutomationEngine {
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(observedInventory), durability = new HashMap<>();
         Map<ItemId, List<Integer>> durabilityLots = new HashMap<>();
+        Map<ItemId, List<InventoryToolLot>> toolLots = new HashMap<>();
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (!stack.isEmpty() && stack.isDamageable()) {
             ItemId item = GameCatalog.id(stack.getItem());
-            int remaining = GameApi.hasSilkTouch(stack) ? 0 : stack.getMaxDamage() - stack.getDamage();
+            int remaining = stack.getMaxDamage() - stack.getDamage();
             durability.merge(item, remaining, Math::max);
             durabilityLots.computeIfAbsent(item, ignored -> new ArrayList<>()).add(remaining);
+            toolLots.computeIfAbsent(item, ignored -> new ArrayList<>())
+                    .add(new InventoryToolLot(remaining, GameApi.hasSilkTouch(stack)));
         }
         Set<StationId> stations = new HashSet<>();
         ownedStations.forEach((id, pos) -> { if (client.world.getBlockState(pos).getBlock() == Registries.BLOCK.get(GameApi.identifier(id.toString()))) stations.add(id); });
         Map<ItemId, Integer> protectedCounts = protectedCounts(counts, activeTarget);
-        return new InventorySnapshot(counts, stations, durability, protectedCounts, durabilityLots);
+        return new InventorySnapshot(counts, stations, durability, protectedCounts, durabilityLots, toolLots);
     }
 
     private void startNextRequest() {
@@ -833,12 +845,29 @@ final class AutomationEngine {
         return Map.copyOf(protectedCounts);
     }
 
+    private boolean needsMiningFoodStock() {
+        if (step == null || step.kind() != PlanKind.GATHER || food.availableNutrition() >= 36) return false;
+        return step.candidateBlocks().stream().anyMatch(block -> {
+            String id = block.toString();
+            return id.equals("minecraft:iron_ore") || id.equals("minecraft:deepslate_iron_ore")
+                    || id.equals("minecraft:diamond_ore") || id.equals("minecraft:deepslate_diamond_ore")
+                    || id.equals("minecraft:coal_ore") || id.equals("minecraft:deepslate_coal_ore");
+        });
+    }
+
     private Map<ItemId, Integer> foodReservations() {
         Map<ItemId, Integer> result = new HashMap<>(maintained.reservedCounts());
         for (ProjectRun run : projects) if (!run.aborted)
             run.spec.goals().forEach((item, count) -> result.merge(item, count, Math::max));
         if (active != null) result.merge(active.item(), active.count(), Math::max);
         for (Request request : queue) result.merge(request.item(), request.count(), Math::max);
+        if (step != null) {
+            Map<ItemId, Integer> inputs = new HashMap<>();
+            for (SelectedRequirement requirement : step.requirements())
+                if (requirement instanceof SelectedItemRequirement item)
+                    inputs.merge(item.item(), item.count(), Math::addExact);
+            inputs.forEach((item, count) -> result.merge(item, count, Math::addExact));
+        }
         return Map.copyOf(result);
     }
 
@@ -1072,10 +1101,12 @@ final class AutomationEngine {
         Map<ItemId, Integer> counts = new HashMap<>(captured.counts());
         Map<ItemId, Integer> durability = new HashMap<>(captured.remainingDurability());
         Map<ItemId, List<Integer>> lots = new HashMap<>(captured.durabilityLots());
+        Map<ItemId, List<InventoryToolLot>> toolLots = new HashMap<>(captured.toolLots());
         Map<ItemId, Integer> protectedCounts = new HashMap<>(captured.protectedCounts());
         counts.remove(WOODEN_AXE);
         durability.remove(WOODEN_AXE);
         lots.remove(WOODEN_AXE);
+        toolLots.remove(WOODEN_AXE);
         protectedCounts.remove(WOODEN_AXE);
 
         List<Integer> knownLots = new ArrayList<>();
@@ -1094,9 +1125,10 @@ final class AutomationEngine {
             counts.put(WOODEN_AXE, knownCount);
             knownLots.sort(Integer::compareTo);
             lots.put(WOODEN_AXE, List.copyOf(knownLots));
+            toolLots.put(WOODEN_AXE, knownLots.stream().map(remaining -> new InventoryToolLot(remaining, false)).toList());
             durability.put(WOODEN_AXE, knownLots.get(knownLots.size() - 1));
         }
-        return new InventorySnapshot(counts, captured.availableStations(), durability, protectedCounts, lots);
+        return new InventorySnapshot(counts, captured.availableStations(), durability, protectedCounts, lots, toolLots);
     }
 
     private Set<String> validatedAxeCraftSources(ItemStack freshAxe, int freshDurability, int freshWear,
@@ -2203,18 +2235,18 @@ final class AutomationEngine {
     }
     boolean visualizationPaused() { return paused || config.pauseOnScreen && client.currentScreen != null
                 && crafting == null && stonecutting == null && smelting == null && !openingStation; }
-    String visualizationGoal() { return active == null ? "Idle" : active.name + " · " + goalCount() + "/" + active.count; }
+    String visualizationGoal() { return active == null ? "Idle" : (active.project() == null ? active.name : active.project().spec.name() + " · " + active.item().path()) + " · " + goalCount() + "/" + active.count; }
     String visualizationDetail() { return visualizationPaused() && !paused ? "Waiting for the screen to close" : status; }
-    BlockPos visualizationTarget() { return visualizationActive() && !visualizationPaused() ? target : null; }
+    BlockPos visualizationTarget() { return visualizationActive() && !visualizationPaused() ? diagnosticTarget() : null; }
     dev.lodekeeper.nav.NavigationSnapshot visualizationNavigation(boolean includeNodes) {
-        return visualizationActive() && !visualizationPaused() && (moving || explorationMoving)
+        return visualizationActive() && !visualizationPaused() && (moving || explorationMoving || foodAcquisition.active() || workbenchRecovery.active())
                 ? movement.visualization(includeNodes) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
     }
-    Object diagnosticTaskIdentity() { return active; }
+    Object diagnosticTaskIdentity() { return active == null ? null : active.project() == null ? active : active.project(); }
     dev.lodekeeper.nav.NavigationSnapshot diagnosticNavigation() {
-        return (moving || explorationMoving) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
+        return (moving || explorationMoving || foodAcquisition.active() || workbenchRecovery.active()) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
     }
-    BlockPos diagnosticTarget() { return target; }
+    BlockPos diagnosticTarget() { return target != null ? target : movement.miningTarget(); }
     dev.lodekeeper.nav.Goal diagnosticRouteGoal() { return movement.diagnosticGoal(); }
     int diagnosticRouteGoalCandidateCount() { return movement.diagnosticGoalCandidateCount(); }
 

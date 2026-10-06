@@ -1,0 +1,600 @@
+{
+  "bridge_policy": {
+    "field_descriptor": "Ljava/util/List;",
+    "limitations": [
+      "Native onTick may prune a discovery or blacklist the closest target after a calculation failure.",
+      "A merge preserves process fields but native goal revalidation can change the current path.",
+      "An inactive MineProcess requires a separately justified start; a List setter cannot activate it.",
+      "onLostControl calls mine(0,null), so switching away to descent still resets native mining state.",
+      "Setting the interval to zero does not stop an already queued asynchronous rescan; establish the lease before mining starts.",
+      "The metadata is bytecode/source evidence, not a Mixin compilation or native-runtime validation."
+    ],
+    "maximum_merged_targets": 64,
+    "requirements": [
+      "Select a mapping by the complete pinned artifact SHA-256, not a version string alone.",
+      "Generate exact-target getter/setter accessors for known locations and a blacklist getter.",
+      "Merge a new mutable List on the Minecraft main thread only while the owned MineProcess is active.",
+      "Retain current known targets in order; append fresh discoveries only when room remains under the cap.",
+      "Exclude blacklisted, duplicate, unloaded, changed, protected, and out-of-request-bound discoveries.",
+      "Keep mineGoalUpdateInterval zero so an asynchronous rescan cannot overwrite the merge.",
+      "Do not call mine or cancel to merge; the next native onTick prunes and revalidates the goal.",
+      "Unknown artifact or changed structure requires accessor regeneration and rebuild before use."
+    ],
+    "target_remap": false
+  },
+  "schema_version": 1,
+  "supported": [
+    {
+      "blacklistField": "b",
+      "class_major": 61,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "2ec4cb8f94d0655864090d38b7009aa014c294aa3c09e20069842be0054acc07",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 921,
+        "known_list_putfield_offsets": [
+          921
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "ed6c4600fb440ad6b243bba458220ac3e2295a9b0672b6f7a6c74cefe6f70a0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "fe63b7f4985afc42356c571bab15731413f37f35cc3e7cd95266adf145c27f2d",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "8b8949378ee712876ef5c774ff1521dc93788a5dbb4bae32c24b484ca10369e7",
+          "commit": "8c55ad0721d42a01a359834edc16aaa9b5bc587d",
+          "file": "baritone-8c55ad0721d42a01a359834edc16aaa9b5bc587d/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.en",
+      "version": "1.10.5"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 61,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "728b1868cbd68a0ca9ff537cac6551e2eb1b5b7964957b2862af7ee6d1274df0",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 921,
+        "known_list_putfield_offsets": [
+          921
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "ed6c4600fb440ad6b243bba458220ac3e2295a9b0672b6f7a6c74cefe6f70a0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "fe63b7f4985afc42356c571bab15731413f37f35cc3e7cd95266adf145c27f2d",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "97b0e28b3ad16662a5b269f502bcaeed6fb5cd5cc7dcfaf851800ce155699394",
+          "commit": "aa539ef96cb116abf3e8ae5016ae313cda2c5619",
+          "file": "baritone-aa539ef96cb116abf3e8ae5016ae313cda2c5619/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.en",
+      "version": "1.10.6"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 61,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "8844b852b71688431d38bfa95530c888f59b68ce7eb1ed7e3e0a05bc158b7c13",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 921,
+        "known_list_putfield_offsets": [
+          921
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "ed6c4600fb440ad6b243bba458220ac3e2295a9b0672b6f7a6c74cefe6f70a0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "fe63b7f4985afc42356c571bab15731413f37f35cc3e7cd95266adf145c27f2d",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "451ec3abcf68165c118803ec7b8b83ca888bc7a455a43083c3a48384e6814be2",
+          "commit": "e8379d711f4b397f4c6e682df2a513c3cc76338c",
+          "file": "baritone-e8379d711f4b397f4c6e682df2a513c3cc76338c/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.en",
+      "version": "1.10.7"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "edbea33d781e93da14bb75073622dfeb1653cdf3ccdcbc7fddfe8c7d0d3ddc02",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "f48216200dd38360a433b383923cfb194728b04daa8106101a068c8f9fa1cf0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "500e4a410dd98c911387c216a47d1dac35365afd8c9a9f116018c340deace925",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "8f948ccde2e6c5b15997b8e23f7c917ca26998190646c02bdcfb3255b10a236a",
+          "commit": "a9106b36fc8246aa955e73229ac3569db032a1c7",
+          "file": "baritone-a9106b36fc8246aa955e73229ac3569db032a1c7/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.10.8"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "f9a9b17a41d7d7ad22c759058b14fd01e3319663282e66f99e18153237fa6767",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "f48216200dd38360a433b383923cfb194728b04daa8106101a068c8f9fa1cf0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "500e4a410dd98c911387c216a47d1dac35365afd8c9a9f116018c340deace925",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "4678f9540bb457d167171cfdb1dc982f8446b36f7f8e847414bfec7bdbe78a46",
+          "commit": "10e65932e597ee5f11a654030f17798646f563f2",
+          "file": "baritone-10e65932e597ee5f11a654030f17798646f563f2/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.11.3"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "b3b36aa3d74c4df053d147ee9254b70c15f4d1e5e11a2766141a146eea3bd60b",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "f48216200dd38360a433b383923cfb194728b04daa8106101a068c8f9fa1cf0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "500e4a410dd98c911387c216a47d1dac35365afd8c9a9f116018c340deace925",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "2ec85054d0663869e3e44e583c4351bf8fb30c75b1c0f5897fde9cbfc2fb72ef",
+          "commit": "deae0f3094b145f2afd55ff4e4b573993ae2e5bb",
+          "file": "baritone-deae0f3094b145f2afd55ff4e4b573993ae2e5bb/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.12.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "bfb79c3cdb8fe1f7697999b1f9c7f08ea29775f3b69d48ad90c387690ee67b05",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "f48216200dd38360a433b383923cfb194728b04daa8106101a068c8f9fa1cf0b",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "a44778c5ab61a9fc1ac7d9a9713ecee280c131a18ec396766525256b730d3dcc",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "55af700899e145335d1719908c2d6a222db7e00ae49e940ceb53ad4cd4872dcf",
+          "commit": "a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3",
+          "file": "baritone-a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.ek",
+      "version": "1.13.1"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "e7c84733fa7c86d15743866cdd46e46eb27ce8285b1a21fbc95113c6a4d0b9d8",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "a8a3219253c53276a9e7584dcd5148f57c0d8541db5391baa477478538ee003c",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "5e673fc478e769160abe7943db4adc8f13d5993a10d706fab3f10d592dd2fd52",
+          "commit": "0ecbfdc585f67f9057e061f2a6cc7b5b4cc8ffde",
+          "file": "baritone-0ecbfdc585f67f9057e061f2a6cc7b5b4cc8ffde/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.ek",
+      "version": "1.14.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "c58ef35a133b6ffce96a74682138ac2ee818cbc063b7c62671db9f9d7d783ebb",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "a8a3219253c53276a9e7584dcd5148f57c0d8541db5391baa477478538ee003c",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "335f3173eaa6ddb7762acda7c2e89dbdf48dc0f37fc93d5793085567fc993ffc",
+          "commit": "612a8a6dc31edd13fa35123aa422e0cdca5c3389",
+          "file": "baritone-612a8a6dc31edd13fa35123aa422e0cdca5c3389/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.ek",
+      "version": "1.15.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "7a8c2d08fb6e66b2bc32dd6d78570c798186eed114e6e88f692af4e3742a2b46",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "341b6c3eeaa7be33a6040a2d43aa8b3a3e6a891cc30e0da9cae56f7d687f1881",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "23fd24a2bd403161182a15ab9ee5f65e5110c60683ed331e43dd4853657e6602",
+          "commit": "5bf45429eeb17020e90c1ae316f8bac4c62477d8",
+          "file": "baritone-5bf45429eeb17020e90c1ae316f8bac4c62477d8/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.16.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 65,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/class_2338;>;",
+      "jarSha256": "a1646893c2a6338ea6bf1a3bdecf2cd743ede61e31a4324bd79a82f3d03360f9",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "341b6c3eeaa7be33a6040a2d43aa8b3a3e6a891cc30e0da9cae56f7d687f1881",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "ffa2d50f0538da66038cac760d85193a208cbd900dd600f57682783bff69da66",
+          "commit": "23723891da460ef15797b02fe5b385b0c5b163cc",
+          "file": "baritone-23723891da460ef15797b02fe5b385b0c5b163cc/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.17.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 69,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/core/BlockPos;>;",
+      "jarSha256": "beec850e73591ab1dc81cb359d1d224ef3230a35d21dc6e72f8e8d287e7b79d2",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "3da0c8edfb47afe7d7c81c622a47a2853df39ddaf02ed552e9113fc5e67a6bd2",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "238f519a067daec95a33599c30c0fb1e47076f3267a786913a97db8c7a1a2603",
+          "commit": "016cc210434894f371baf0c327ac94907d12dcd3",
+          "file": "baritone-016cc210434894f371baf0c327ac94907d12dcd3/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.18.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 69,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/core/BlockPos;>;",
+      "jarSha256": "eca6e2fdf43c6657fe9fea10a8f9a7572d78dc91ad389b998b808bd28fa5b5d1",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "3da0c8edfb47afe7d7c81c622a47a2853df39ddaf02ed552e9113fc5e67a6bd2",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "57bf30cb266b150d8366ff441ed2251feb35d1c136d30c48d967643267190c61",
+          "commit": "9fadf7cf95293d7f6678981e77a939b4a7978373",
+          "file": "baritone-9fadf7cf95293d7f6678981e77a939b4a7978373/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.19.0"
+    },
+    {
+      "blacklistField": "b",
+      "class_major": 69,
+      "field_descriptor": "Ljava/util/List;",
+      "field_generic_signature": "Ljava/util/List<Lnet/minecraft/core/BlockPos;>;",
+      "jarSha256": "49adfc063cfbfd0b6f08e9d814359807baa2d1768c0d39d6c5968268547cbca6",
+      "knownField": "a",
+      "proof": {
+        "blacklist_contains_predicate_offset": 227,
+        "goal_updater": "inlined in onTick",
+        "known_list_goal_putfield_offset": 1223,
+        "known_list_putfield_offsets": [
+          800,
+          1223
+        ],
+        "list_reset_putfield_offsets": {
+          "a": 30,
+          "b": 41
+        },
+        "mine_code_sha256": "9cdc844bf19bb90a7edb1b367ab96c91b4dd2418eef657ceb5a66fa8000dc6a0",
+        "mine_descriptor": "(ILbaritone/api/utils/BlockOptionalMetaLookup;)V",
+        "on_tick_code_sha256": "3da0c8edfb47afe7d7c81c622a47a2853df39ddaf02ed552e9113fc5e67a6bd2",
+        "on_tick_descriptor": "(ZZ)Lbaritone/api/process/PathingCommand;",
+        "source": {
+          "archive_sha256": "b3ddbf081f5a0483dfb1cfc25fddcf787218b05d63c8c78c59bc4de8fdcbd9b7",
+          "commit": "25111daedf1d59e6a8dfb5a3e61885cdb8d953df",
+          "file": "baritone-25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/process/MineProcess.java",
+          "file_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+          "structure_line_numbers": {
+            "blacklist_declaration": 58,
+            "known_list_declaration": 57,
+            "native_goal_assigns_pruned_list": 189,
+            "native_goal_reads_known_list": 183,
+            "reset_blacklist": 513,
+            "reset_known_list": 512
+          }
+        }
+      },
+      "targetClass": "baritone.em",
+      "version": "1.20.0"
+    }
+  ],
+  "unavailable_releases": []
+}

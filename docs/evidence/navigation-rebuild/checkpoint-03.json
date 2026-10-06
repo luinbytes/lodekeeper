@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T05:06:06.575059+00:00",
+  "cases": [
+    {
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "eae836c02c971bbd86596f3eca3d7d46db08f816",
+      "artifactSha256": "a4ec7f70dee0ae2c0c3451c8676355ceae458619ed66d734aff0e08daab70d9d",
+      "status": "passed",
+      "clientExitCode": 0,
+      "commandElapsedMillis": 184130,
+      "firstServerMovementElapsedMillis": 1612,
+      "minimumHealth": 6.166668,
+      "finalHealth": 7.166668,
+      "finalHunger": 17,
+      "goalSatisfied": true,
+      "evidence": "natural-iron-camp-1211.json",
+      "artifact": "natural-iron-camp-1211-artifact.json"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "sourceCommit": "eae836c02c971bbd86596f3eca3d7d46db08f816",
+      "artifactSha256": "9f644aa9697284c962140694475dcc284828d7da340caed8e5c2f1bb41437478",
+      "status": "passed",
+      "clientExitCode": 0,
+      "commandElapsedMillis": 167556,
+      "firstServerMovementElapsedMillis": 2114,
+      "minimumHealth": 20.0,
+      "finalHealth": 20.0,
+      "finalHunger": 20,
+      "goalSatisfied": true,
+      "evidence": "natural-iron-camp-263.json",
+      "artifact": "natural-iron-camp-263-artifact.json"
+    }
+  ],
+  "comparison": "Two natural-world runs; no paired competitor speedup claim. Same seed but randomized spawn differs.",
+  "fullDiamondAcceptance": "not passed",
+  "nextChanges": "native mining discovery merge, budgeted palette cursor, physical Silk Touch forecasts, project timing, food preparation/healing and attack wear"
+}

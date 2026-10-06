@@ -837,6 +837,7 @@ final class AcquisitionPlannerTest {
 
         InventorySnapshot sevenUses = new InventorySnapshot(Map.of(pickaxe, 1), Set.of(), Map.of(pickaxe, 7), Map.of(),
                 Map.of(pickaxe, List.of(7)));
+        assertEquals(List.of(new InventoryToolLot(7, false)), sevenUses.toolLots().get(pickaxe));
         PlanResult smallBatch = planner().plan(catalog, sevenUses, ore, 6);
         assertTrue(smallBatch.success());
         assertEquals(6, smallBatch.steps().get(0).operationCount());
@@ -851,12 +852,85 @@ final class AcquisitionPlannerTest {
         // A legacy max-only snapshot proves one lot, never one lot per counted tool.
         InventorySnapshot legacyMaximum = new InventorySnapshot(Map.of(pickaxe, 2), Set.of(), Map.of(pickaxe, 2));
         assertEquals(List.of(2), legacyMaximum.durabilityLots().get(pickaxe));
+        assertEquals(List.of(new InventoryToolLot(2, false)), legacyMaximum.toolLots().get(pickaxe));
         assertFalse(planner().plan(catalog, legacyMaximum, ore, 2).success());
         assertThrows(IllegalArgumentException.class, () -> new InventorySnapshot(Map.of(pickaxe, 1), Set.of(),
                 Map.of(pickaxe, 2), Map.of(), Map.of(pickaxe, List.of())));
+        assertThrows(IllegalArgumentException.class, () -> new InventorySnapshot(Map.of(pickaxe, 1), Set.of(),
+                Map.of(), Map.of(), Map.of(), Map.of(pickaxe, List.of(
+                        new InventoryToolLot(1, false), new InventoryToolLot(1, true)))));
+        assertThrows(IllegalArgumentException.class, () -> new InventorySnapshot(Map.of(pickaxe, 37), Set.of(),
+                Map.of(), Map.of(), Map.of(), Map.of(pickaxe,
+                        java.util.Collections.nCopies(37, new InventoryToolLot(1, false)))));
+        assertThrows(IllegalArgumentException.class, () -> new InventoryToolLot(10_000_001, true));
 
         // A counts-only snapshot does not claim an unknown damageable tool is full.
         assertFalse(planner().plan(catalog, new InventorySnapshot(Map.of(pickaxe, 1)), ore, 1).success());
+    }
+
+    @Test
+    void silkTouchToolRequiresExplicitCompatibleGatherAndCanBeReplacedWithCraftedOrdinaryTool() {
+        ItemId pickaxe = ItemId.parse("minecraft:diamond_pickaxe");
+        ItemId diamond = ItemId.parse("minecraft:diamond");
+        ItemId sticks = ItemId.parse("minecraft:stick");
+        ItemId obsidian = ItemId.parse("minecraft:obsidian");
+        ItemId rawIron = ItemId.parse("minecraft:raw_iron");
+        ToolRequirement pickRequirement = new ToolRequirement(Ingredient.of(pickaxe), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 1561).item(diamond, 0).item(sticks, 0).item(obsidian, 0).item(rawIron, 0)
+                .source(new GatherSource("mine:obsidian", obsidian, 1, List.of(BlockId.parse("minecraft:obsidian")),
+                        List.of(pickRequirement), Map.of("silkTouchCompatible", "true")))
+                .source(new GatherSource("mine:raw_iron", rawIron, 1, List.of(BlockId.parse("minecraft:iron_ore")),
+                        List.of(pickRequirement)))
+                .source(new CraftingSource("craft:diamond_pickaxe", pickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(3, diamond)),
+                                new RecipeSlot(-1, Ingredient.of(2, sticks))), List.of()))
+                .build();
+        InventorySnapshot silkOnly = new InventorySnapshot(Map.of(pickaxe, 1), Set.of(), Map.of(pickaxe, 20), Map.of(),
+                Map.of(pickaxe, List.of(20)), Map.of(pickaxe, List.of(new InventoryToolLot(20, true))));
+
+        PlanResult obsidianPlan = planner().planFast(catalog, silkOnly, obsidian, 1);
+        PlanResult rawIronWithoutMaterials = planner().planFast(catalog, silkOnly, rawIron, 1);
+        InventorySnapshot craftableOrdinaryPick = new InventorySnapshot(
+                Map.of(pickaxe, 1, diamond, 3, sticks, 2), Set.of(), Map.of(pickaxe, 20), Map.of(),
+                Map.of(pickaxe, List.of(20)), Map.of(pickaxe, List.of(new InventoryToolLot(20, true))));
+        PlanResult rawIronWithMaterials = planner().planFast(catalog, craftableOrdinaryPick, rawIron, 1);
+
+        assertTrue(obsidianPlan.success(), obsidianPlan.blockedReasons().toString());
+        assertEquals("true", obsidianPlan.steps().get(0).attributes().get("silkTouchCompatible"));
+        assertFalse(rawIronWithoutMaterials.success());
+        assertTrue(rawIronWithMaterials.success(), rawIronWithMaterials.blockedReasons().toString());
+        assertTrue(rawIronWithMaterials.steps().stream().anyMatch(step -> step.sourceId().equals("craft:diamond_pickaxe")));
+    }
+
+    @Test
+    void harvestWearCapacitySeparatesSilkTouchLotsAndDebitsCompatibleLotsAcrossOperations() {
+        ItemId pickaxe = ItemId.parse("minecraft:diamond_pickaxe");
+        ItemId obsidian = ItemId.parse("minecraft:obsidian");
+        ItemId rawIron = ItemId.parse("minecraft:raw_iron");
+        ToolRequirement pickRequirement = new ToolRequirement(Ingredient.of(pickaxe), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 1561).item(obsidian, 0).item(rawIron, 0)
+                .source(new GatherSource("mine:obsidian", obsidian, 1, List.of(BlockId.parse("minecraft:obsidian")),
+                        List.of(pickRequirement), Map.of("silkTouchCompatible", "true")))
+                .source(new GatherSource("mine:raw_iron", rawIron, 1, List.of(BlockId.parse("minecraft:iron_ore")),
+                        List.of(pickRequirement)))
+                .build();
+        InventorySnapshot mixedTools = new InventorySnapshot(Map.of(pickaxe, 2), Set.of(), Map.of(pickaxe, 4), Map.of(),
+                Map.of(pickaxe, List.of(3, 4)), Map.of(pickaxe, List.of(
+                        new InventoryToolLot(4, false), new InventoryToolLot(3, true))));
+
+        PlanResult ordinaryCapacity = planner().planFast(catalog, mixedTools, rawIron, 3);
+        PlanResult ordinaryOverCapacity = planner().planFast(catalog, mixedTools, rawIron, 4);
+        PlanResult compatibleCapacity = planner().planFast(catalog, mixedTools, obsidian, 5);
+        PlanResult compatibleOverCapacity = planner().planFast(catalog, mixedTools, obsidian, 6);
+
+        assertTrue(ordinaryCapacity.success(), ordinaryCapacity.blockedReasons().toString());
+        assertEquals(3, ordinaryCapacity.steps().get(0).operationCount());
+        assertFalse(ordinaryOverCapacity.success());
+        assertTrue(compatibleCapacity.success(), compatibleCapacity.blockedReasons().toString());
+        assertEquals(5, compatibleCapacity.steps().get(0).operationCount());
+        assertFalse(compatibleOverCapacity.success());
     }
 
     @Test

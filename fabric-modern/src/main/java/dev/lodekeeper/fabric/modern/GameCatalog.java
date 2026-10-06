@@ -267,7 +267,8 @@ final class GameCatalog {
                 if (tools.length > 0) requirements.add(new ToolRequirement(Ingredient.choices(List.of(tools), 1), 2, "harvest " + blockId, 1));
             }
             sources.add(new dev.lodekeeper.core.GatherSource("gather:" + blockKey, id(drop), 1,
-                    List.of(BlockId.parse(blockId)), requirements));
+                    List.of(BlockId.parse(blockId)), requirements,
+                    Map.of("silkTouchCompatible", Boolean.toString(block.asItem() == drop))));
         }
     }
 

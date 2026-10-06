@@ -241,6 +241,12 @@ final class GameApi {
         return tool == null ? -1 : tool.damagePerBlock();
     }
 
+    static boolean isSword(ItemStack stack) { return stack.isIn(net.minecraft.registry.tag.ItemTags.SWORDS); }
+
+    static boolean isAxe(ItemStack stack) { return stack.isIn(net.minecraft.registry.tag.ItemTags.AXES); }
+
+    static int attackWear(ItemStack stack) { return WeaponWearApi.attackWear(stack); }
+
     static dev.lodekeeper.core.Ingredient ingredient(Ingredient ingredient) {
         List<ItemId> choices = new ArrayList<>();
         ingredient.getMatchingItems().forEach(entry -> choices.add(GameCatalog.id(entry.value())));

@@ -13,7 +13,8 @@ public record InventorySnapshot(
         Set<StationId> availableStations,
         Map<ItemId, Integer> remainingDurability,
         Map<ItemId, Integer> protectedCounts,
-        Map<ItemId, List<Integer>> durabilityLots
+        Map<ItemId, List<Integer>> durabilityLots,
+        Map<ItemId, List<InventoryToolLot>> toolLots
 ) {
     private static final int MAX_DURABILITY_LOTS_PER_ITEM = 36;
     private static final int MAX_DURABILITY = 10_000_000;
@@ -24,6 +25,7 @@ public record InventorySnapshot(
         Objects.requireNonNull(remainingDurability, "remainingDurability");
         Objects.requireNonNull(protectedCounts, "protectedCounts");
         Objects.requireNonNull(durabilityLots, "durabilityLots");
+        Objects.requireNonNull(toolLots, "toolLots");
         var countCopy = new TreeMap<ItemId, Integer>();
         counts.forEach((item, count) -> {
             Objects.requireNonNull(item, "inventory item");
@@ -72,6 +74,48 @@ public record InventorySnapshot(
             }
             durabilityCopy.put(item, actualMaximum);
         });
+
+        var toolLotCopy = new TreeMap<ItemId, List<InventoryToolLot>>();
+        toolLots.forEach((item, lots) -> {
+            Objects.requireNonNull(item, "tool lot item");
+            Objects.requireNonNull(lots, "tool lots");
+            if (lots.isEmpty()) {
+                if (durabilityCopy.containsKey(item) || lotCopy.containsKey(item)) {
+                    throw new IllegalArgumentException("Known durability was supplied without a tool lot for " + item);
+                }
+                return;
+            }
+            if (lots.size() > MAX_DURABILITY_LOTS_PER_ITEM) {
+                throw new IllegalArgumentException("Too many tool lots for " + item);
+            }
+            var copiedLots = new java.util.ArrayList<InventoryToolLot>(lots.size());
+            for (InventoryToolLot lot : lots) {
+                Objects.requireNonNull(lot, "tool lot");
+                if (lot.remainingDurability() < 0 || lot.remainingDurability() > MAX_DURABILITY) {
+                    throw new IllegalArgumentException("Durability tool lot out of range");
+                }
+                copiedLots.add(lot);
+            }
+            if (copiedLots.size() > countCopy.getOrDefault(item, 0)) {
+                throw new IllegalArgumentException("Tool lots exceed inventory stacks for " + item);
+            }
+            copiedLots.sort(java.util.Comparator.comparingInt(InventoryToolLot::remainingDurability)
+                    .thenComparing(InventoryToolLot::silkTouch));
+            List<Integer> projectedDurability = copiedLots.stream()
+                    .map(InventoryToolLot::remainingDurability).toList();
+            List<Integer> suppliedLots = lotCopy.get(item);
+            if (suppliedLots != null && !suppliedLots.equals(projectedDurability)) {
+                throw new IllegalArgumentException("Durability lots disagree with tool lots for " + item);
+            }
+            lotCopy.putIfAbsent(item, projectedDurability);
+            int actualMaximum = projectedDurability.get(projectedDurability.size() - 1);
+            Integer suppliedMaximum = durabilityCopy.get(item);
+            if (suppliedMaximum != null && suppliedMaximum != actualMaximum) {
+                throw new IllegalArgumentException("Maximum durability disagrees with tool lots for " + item);
+            }
+            durabilityCopy.put(item, actualMaximum);
+            toolLotCopy.put(item, List.copyOf(copiedLots));
+        });
         // Older callers expose only the best known stack. Preserve exactly one known lot,
         // never infer duplicate full-durability tools from the inventory count.
         durabilityCopy.forEach((item, durability) -> {
@@ -80,8 +124,11 @@ public record InventorySnapshot(
             }
             lotCopy.putIfAbsent(item, List.of(durability));
         });
+        lotCopy.forEach((item, lots) -> toolLotCopy.putIfAbsent(item,
+                lots.stream().map(durability -> new InventoryToolLot(durability, false)).toList()));
         remainingDurability = Map.copyOf(durabilityCopy);
         durabilityLots = Map.copyOf(lotCopy);
+        toolLots = Map.copyOf(toolLotCopy);
 
         var protectedCopy = new TreeMap<ItemId, Integer>();
         protectedCounts.forEach((item, count) -> {
@@ -94,6 +141,13 @@ public record InventorySnapshot(
             if (count > 0) protectedCopy.put(item, count);
         });
         protectedCounts = Map.copyOf(protectedCopy);
+    }
+
+    /** Compatibility constructor: durability-only lots represent ordinary, non-Silk-Touch tools. */
+    public InventorySnapshot(Map<ItemId, Integer> counts, Set<StationId> availableStations,
+                             Map<ItemId, Integer> remainingDurability, Map<ItemId, Integer> protectedCounts,
+                             Map<ItemId, List<Integer>> durabilityLots) {
+        this(counts, availableStations, remainingDurability, protectedCounts, durabilityLots, Map.of());
     }
 
     /** Compatibility constructor: a max-only durability view contributes one known lot per item type. */

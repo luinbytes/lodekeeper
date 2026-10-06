@@ -115,11 +115,17 @@ def main():
                 "and build instructions; native builds require the platform C++ toolchain.\n\n"
                 "Build the matching Baritone Fabric API jar, then build the matching Lodekeeper profile "
                 "with -Pbaritone_jar=/absolute/path/to/baritone-api-fabric.jar. "
-                "The included Gradle helper and fetch script validate and package the replacement. "
+                "A changed jar also needs reviewed SHA-selected mining bridge metadata via "
+                "-Pbaritone_bridge_metadata=/absolute/path/to/reviewed-mapping.json. "
+                "The included inspector and metadata document the field-role checks. "
+                "The Gradle helper and fetch script validate and package the replacement. "
                 "Lodekeeper source is available at https://github.com/luinbytes/lodekeeper.\n")
             for relative in ["third-party/baritone/dependencies.json", "third-party/baritone/NOTICE.md",
                              "third-party/baritone/licenses/COPYING", "third-party/baritone/licenses/COPYING.LESSER",
-                             "gradle/baritone.gradle", "scripts/fetch-baritone.py", "scripts/package-baritone-sources.py"]:
+                             "gradle/baritone.gradle", "scripts/fetch-baritone.py", "scripts/package-baritone-sources.py",
+                             "scripts/inspect-baritone-mining.py", "third-party/baritone/mining-bridge.json",
+                             "fabric/src/main/java/dev/lodekeeper/fabric/BaritoneMiningAccess.java",
+                             "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BaritoneMiningAccess.java"]:
                 bundle.write(ROOT / relative, relative)
         os.replace(temporary, options.output)
     finally:

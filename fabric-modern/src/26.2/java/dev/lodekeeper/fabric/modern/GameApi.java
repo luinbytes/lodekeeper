@@ -29,6 +29,16 @@ final class GameApi {
                 enchantment.is(Enchantments.SILK_TOUCH) && enchantments.getLevel(enchantment) > 0);
     }
 
+    static boolean isSword(ItemStack stack) { return stack.is(net.minecraft.tags.ItemTags.SWORDS); }
+
+    static boolean isAxe(ItemStack stack) { return stack.is(net.minecraft.tags.ItemTags.AXES); }
+
+    static int attackWear(ItemStack stack) {
+        if (!stack.isDamageableItem()) return 0;
+        var weapon = stack.get(net.minecraft.core.component.DataComponents.WEAPON);
+        return weapon == null ? -1 : weapon.itemDamagePerAttack();
+    }
+
     static double launchInputAcceleration(net.minecraft.client.player.LocalPlayer player, float friction) {
         if (player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FRICTION_MODIFIER) != 1
                 || player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.AIR_DRAG_MODIFIER) != 1) return Double.NaN;

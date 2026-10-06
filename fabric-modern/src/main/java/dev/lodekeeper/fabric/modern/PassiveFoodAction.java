@@ -109,6 +109,10 @@ final class PassiveFoodAction {
 
         originalSlot = player.getInventory().getSelectedSlot();
         int weaponSlot = chooseWeaponSlot(originalSlot);
+        if (weaponSlot < 0) {
+            status = "no safe weapon or empty hand slot is available";
+            return false;
+        }
         if (weaponSlot >= 0 && weaponSlot != originalSlot && !actions.selectSlot(weaponSlot)) {
             status = "could not safely select the existing weapon";
             return false;
@@ -149,9 +153,6 @@ final class PassiveFoodAction {
             }
             if (!withinOrigin(client.player.getX(), client.player.getY(), client.player.getZ())) {
                 throw new IllegalStateException("passive food route exceeded 32 blocks from its start");
-            }
-            if (client.player.getInventory().getSelectedSlot() != selectedSlot) {
-                throw new IllegalStateException("selected hotbar slot changed during passive food action");
             }
 
             return switch (phase) {
@@ -219,6 +220,10 @@ final class PassiveFoodAction {
             return false;
         }
 
+        int attackSlot = chooseWeaponSlot(client.player.getInventory().getSelectedSlot());
+        if (attackSlot < 0 || !actions.selectSlot(attackSlot))
+            throw new IllegalStateException("no safe attack stack remains available");
+        selectedSlot = client.player.getInventory().getSelectedSlot();
         actions.look(target.entity().getBoundingBox().getCenter());
         client.gameMode.attack(client.player, target.entity());
         GameApi.swing(client.player, InteractionHand.MAIN_HAND);
@@ -381,10 +386,10 @@ final class PassiveFoodAction {
         var inventory = client.player.getInventory();
         if (safeWeapon(inventory.getItem(selected))) return selected;
         for (int slot = 0; slot < 9; slot++) {
-            if (inventory.getItem(slot).is(net.minecraft.tags.ItemTags.SWORDS) && safeWeapon(inventory.getItem(slot))) return slot;
+            if (GameApi.isSword(inventory.getItem(slot)) && safeWeapon(inventory.getItem(slot))) return slot;
         }
         for (int slot = 0; slot < 9; slot++) {
-            if (inventory.getItem(slot).is(net.minecraft.tags.ItemTags.AXES) && safeWeapon(inventory.getItem(slot))) return slot;
+            if (GameApi.isAxe(inventory.getItem(slot)) && safeWeapon(inventory.getItem(slot))) return slot;
         }
         for (int slot = 0; slot < 9; slot++)
             if (inventory.getItem(slot).isEmpty() || !inventory.getItem(slot).isDamageableItem()) return slot;
@@ -393,8 +398,8 @@ final class PassiveFoodAction {
 
     private static boolean safeWeapon(ItemStack stack) {
         if (stack.isEmpty() || stack.isEnchanted()
-                || !(stack.is(net.minecraft.tags.ItemTags.SWORDS) || stack.is(net.minecraft.tags.ItemTags.AXES))) return false;
-        int wear = GameApi.blockBreakWear(stack);
+                || !(GameApi.isSword(stack) || GameApi.isAxe(stack))) return false;
+        int wear = GameApi.attackWear(stack);
         if (wear < 0) return false;
         return !stack.isDamageableItem() || stack.getMaxDamage() - stack.getDamageValue() > Math.max(2, wear);
     }

@@ -194,7 +194,8 @@ final class GameCatalog {
                 // Vanilla tool components charge one point for each successful block break.
                 requirements.add(new ToolRequirement(Ingredient.of(tools), 2, "harvest " + Registries.BLOCK.getId(block), 1));
             }
-            sources.add(new GatherSource("gather:" + Registries.BLOCK.getId(block), id(drop), 1, List.of(BlockId.parse(Registries.BLOCK.getId(block).toString())), requirements));
+            sources.add(new GatherSource("gather:" + Registries.BLOCK.getId(block), id(drop), 1, List.of(BlockId.parse(Registries.BLOCK.getId(block).toString())), requirements,
+                    Map.of("silkTouchCompatible", Boolean.toString(block.asItem() == drop))));
         }
     }
     CatalogSnapshot snapshot() {

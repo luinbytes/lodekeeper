@@ -1,5 +1,6 @@
 package dev.lodekeeper.fabric.modern;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -7,6 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -17,6 +19,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.level.storage.LevelStorageSource;
 
+import javax.imageio.ImageIO;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -26,6 +30,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Opt-in end-to-end request verifier for an untouched, normally generated survival world. */
 final class NaturalWorldVerification {
@@ -42,6 +49,9 @@ final class NaturalWorldVerification {
     private static final int WORLD_READY_TICKS = 60;
     private static final int COMPLETE_STABILITY_TICKS = 20;
     private static final int MAX_RECEIPTS = 512;
+    private static final int MAX_SCREENSHOTS = 12;
+    private static final long SCREENSHOT_INTERVAL_NANOS = 5_000_000_000L;
+    private static final long FINAL_SCREENSHOT_SAVE_GRACE_NANOS = 2_000_000_000L;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
     private static final List<String> DIAMOND_GEAR_IDS = List.of(
         "minecraft:diamond_pickaxe", "minecraft:diamond_axe", "minecraft:diamond_shovel",
@@ -57,13 +67,26 @@ final class NaturalWorldVerification {
     private final long initializedAtNanos = System.nanoTime();
     private final List<JsonObject> serverTargetReceipts = new ArrayList<>();
     private final JsonArray expectedItems = new JsonArray();
+    private final Object screenshotQueueLock = new Object();
+    private final ArrayDeque<ScreenshotRequest> screenshotQueue = new ArrayDeque<>();
+    private final List<String> screenshotFiles = new ArrayList<>();
 
     private volatile State state = State.OPENING_WORLD;
     private volatile UUID playerId;
     private volatile boolean commandStarted;
     private volatile boolean terminal;
+    private volatile boolean finalizing;
     private volatile ServerObservation latestObservation;
     private volatile int deathsObserved;
+    private String lastTaskScreenshotPhase = "";
+    private int screenshotSlotsReserved;
+    private int screenshotWritesPending;
+    private long lastScreenshotStartedAtNanos;
+    private long finalScreenshotStartedAtNanos;
+    private boolean finalScreenshotQueued;
+    private boolean finalScreenshotStarted;
+    private boolean finalScreenshotSettled;
+    private boolean evidenceWritten;
     private Path verificationRoot;
     private Path evidenceDirectory;
     private Path worldsDirectory;
@@ -191,6 +214,12 @@ final class NaturalWorldVerification {
 
     private void tick(Minecraft currentClient) {
         if (terminal) return;
+        if (finalizing) {
+            pumpScreenshotQueue();
+            advanceFinalization();
+            return;
+        }
+        pumpScreenshotQueue();
         long now = System.nanoTime();
         if (state != State.RUNNING && now - initializedAtNanos > WORLD_INIT_TIMEOUT_NANOS) {
             fail("normal-world initialization exceeded 120 seconds");
@@ -210,7 +239,7 @@ final class NaturalWorldVerification {
                 if (client.level != null && client.player != null) {
                     playerId = client.player.getUUID();
                     if (GameApi.screen(client) == null) {
-                        state = State.WAITING_FOR_PLAYER;
+                        transitionTo(State.WAITING_FOR_PLAYER);
                         worldReadyAtNanos = System.nanoTime();
                     }
                 }
@@ -235,7 +264,7 @@ final class NaturalWorldVerification {
                     throw new IllegalStateException("player was not alive at request start");
                 }
                 issueCommand(observation);
-                state = State.RUNNING;
+                transitionTo(State.RUNNING);
                 return;
             }
             if (state == State.RUNNING) {
@@ -253,6 +282,12 @@ final class NaturalWorldVerification {
                 if (observation.deaths > commandDeaths || observation.health <= 0) {
                     fail("player died during the natural request");
                     return;
+                }
+                String taskPhase = LodekeeperClient.engine.visualizationDetail().strip()
+                        .split("[ :·]", 2)[0].toLowerCase(java.util.Locale.ROOT);
+                if (!taskPhase.equals(lastTaskScreenshotPhase)) {
+                    lastTaskScreenshotPhase = taskPhase;
+                    requestScreenshot("task-" + taskPhase, false);
                 }
                 if (LodekeeperClient.engine.visualizationPaused()) {
                     fail("automation paused: " + LodekeeperClient.engine.status());
@@ -280,7 +315,7 @@ final class NaturalWorldVerification {
 
     private void queueWorldLaunch() {
         worldLaunchQueued = true;
-        state = State.WAITING_FOR_WORLD;
+        transitionTo(State.WAITING_FOR_WORLD);
         worldLaunchStartedAtNanos = System.nanoTime();
         net.minecraft.util.Util.backgroundExecutor().execute(() -> client.execute(() -> {
             if (state != State.WAITING_FOR_WORLD || worldCreationStarted || terminal) return;
@@ -310,7 +345,7 @@ final class NaturalWorldVerification {
     }
 
     private void serverTick(MinecraftServer server) {
-        if (terminal || playerId == null || server != client.getSingleplayerServer()) return;
+        if (terminal || finalizing || playerId == null || server != client.getSingleplayerServer()) return;
         ServerPlayer player = server.getPlayerList().getPlayer(playerId);
         if (player == null) return;
         ServerLevel world = player.level();
@@ -333,6 +368,7 @@ final class NaturalWorldVerification {
             recordReceipts(server.getTickCount(), heldCounts, logItems);
             if (firstServerMovementMillis < 0 && movedFromCommand(player)) {
                 firstServerMovementMillis = (int) Math.max(0, (System.nanoTime() - commandStartedAtNanos) / 1_000_000L);
+                requestScreenshot("first-movement", false);
             }
             if (!Double.isNaN(previousX)) {
                 double dx = player.getX() - previousX;
@@ -426,19 +462,135 @@ final class NaturalWorldVerification {
     }
 
     private void finish() {
+        if (terminal || finalizing) return;
+        finalizing = true;
+        state = State.TERMINAL;
+        requestScreenshot("final", true);
+        if (evidenceDirectory == null) {
+            finalScreenshotSettled = true;
+            completeFinalization();
+        }
+    }
+
+    private void completeFinalization() {
         if (terminal) return;
         terminal = true;
-        state = State.TERMINAL;
+        finalizing = false;
+        evidenceWritten = true;
         writeEvidence();
         System.out.println("[Lodekeeper natural verification] " + result + "; evidence: " + evidenceDirectory);
         client.stop();
     }
 
     private void fail(String reason) {
-        if (terminal) return;
+        if (terminal || finalizing) return;
         failure = reason;
         result = "failed";
         finish();
+    }
+
+    private void transitionTo(State next) {
+        if (state == next) return;
+        state = next;
+        requestScreenshot("phase-" + next.name().toLowerCase(java.util.Locale.ROOT), false);
+    }
+
+    private void requestScreenshot(String name, boolean finalCapture) {
+        if (evidenceDirectory == null) {
+            if (finalCapture) finalScreenshotSettled = true;
+            return;
+        }
+        synchronized (screenshotQueueLock) {
+            if (terminal || finalizing && !finalCapture) return;
+            if (finalCapture && finalScreenshotQueued) return;
+            int limit = finalCapture ? MAX_SCREENSHOTS : MAX_SCREENSHOTS - 1;
+            if (screenshotSlotsReserved >= limit) {
+                System.err.println("[Lodekeeper natural verification] Screenshot limit reached; omitted " + name);
+                if (finalCapture) finalScreenshotSettled = true;
+                return;
+            }
+            screenshotSlotsReserved++;
+            screenshotQueue.addLast(new ScreenshotRequest(name, finalCapture));
+            if (finalCapture) finalScreenshotQueued = true;
+        }
+    }
+
+    private void pumpScreenshotQueue() {
+        ScreenshotRequest request;
+        synchronized (screenshotQueueLock) {
+            request = screenshotQueue.peekFirst();
+        }
+        if (request == null) return;
+        long now = System.nanoTime();
+        if (lastScreenshotStartedAtNanos != 0
+                && now - lastScreenshotStartedAtNanos < SCREENSHOT_INTERVAL_NANOS) return;
+        synchronized (screenshotQueueLock) {
+            request = screenshotQueue.pollFirst();
+        }
+        if (request == null) return;
+        lastScreenshotStartedAtNanos = now;
+        if (request.finalCapture()) {
+            finalScreenshotStarted = true;
+            finalScreenshotStartedAtNanos = now;
+        }
+        captureScreenshot(request);
+    }
+
+    private void captureScreenshot(ScreenshotRequest request) {
+        String fileName = "lodekeeper-" + runId + "-" + request.name() + ".png";
+        screenshotWritesPending++;
+        AtomicBoolean completionClaimed = new AtomicBoolean();
+        try {
+            Screenshot.grab(evidenceDirectory.toFile(), fileName, (RenderTarget) getMainRenderTarget(), 1, message -> {
+                if (completionClaimed.compareAndSet(false, true)) verifyScreenshotAsync(request, fileName);
+            });
+        } catch (Exception exception) {
+            if (completionClaimed.compareAndSet(false, true)) {
+                screenshotWritesPending = Math.max(0, screenshotWritesPending - 1);
+                if (request.finalCapture()) finalScreenshotSettled = true;
+                System.err.println("[Lodekeeper natural verification] Native screenshot unavailable for "
+                    + request.name() + ": " + exception.getMessage());
+            }
+        }
+    }
+
+    private void verifyScreenshotAsync(ScreenshotRequest request, String fileName) {
+        Path screenshot = evidenceDirectory.resolve(fileName);
+        CompletableFuture.supplyAsync(() -> readablePng(screenshot)).whenComplete((readable, failure) ->
+            client.execute(() -> {
+                screenshotWritesPending = Math.max(0, screenshotWritesPending - 1);
+                if (Boolean.TRUE.equals(readable) && failure == null && !evidenceWritten) {
+                    screenshotFiles.add(evidenceDirectory.relativize(screenshot).toString()
+                        .replace(File.separatorChar, '/'));
+                } else {
+                    System.err.println("[Lodekeeper natural verification] Screenshot was not a readable PNG: " + fileName);
+                }
+                if (request.finalCapture()) finalScreenshotSettled = true;
+            }));
+    }
+
+    private static boolean readablePng(Path screenshot) {
+        try {
+            return Files.isRegularFile(screenshot) && Files.size(screenshot) > 0
+                && ImageIO.read(screenshot.toFile()) != null;
+        } catch (IOException | RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private void advanceFinalization() {
+        if (finalScreenshotSettled && screenshotWritesPending == 0) {
+            completeFinalization();
+            return;
+        }
+        if (finalScreenshotStarted
+                && System.nanoTime() - finalScreenshotStartedAtNanos >= FINAL_SCREENSHOT_SAVE_GRACE_NANOS) {
+            if (screenshotWritesPending != 0) {
+                System.err.println("[Lodekeeper natural verification] Screenshot save grace expired with "
+                    + screenshotWritesPending + " pending write(s)");
+            }
+            completeFinalization();
+        }
     }
 
     private void writeEvidence() {
@@ -496,6 +648,9 @@ final class NaturalWorldVerification {
                 evidence.add("commandStartPosition", startPosition);
             }
             evidence.add("expectedItems", expectedItems);
+            JsonArray verifiedScreenshots = new JsonArray();
+            screenshotFiles.forEach(verifiedScreenshots::add);
+            evidence.add("visualScreenshots", verifiedScreenshots);
             ServerObservation observation = latestObservation;
             if (observation != null) {
                 evidence.addProperty("serverDifficulty", observation.difficulty);
@@ -595,6 +750,8 @@ final class NaturalWorldVerification {
     private long elapsedMillis(long startedAt) {
         return Math.max(0, (System.nanoTime() - startedAt) / 1_000_000L);
     }
+
+    private record ScreenshotRequest(String name, boolean finalCapture) { }
 
     private record ServerObservation(int serverTick, Map<String, Integer> inventoryCounts,
                                      Map<String, Integer> armorCounts, Map<String, Integer> heldCounts,

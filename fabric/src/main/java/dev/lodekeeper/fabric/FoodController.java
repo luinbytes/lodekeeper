@@ -25,13 +25,34 @@ public final class FoodController {
         protectedCounts = java.util.Map.copyOf(counts);
     }
     boolean ready() { return !active && selectFood() >= 0; }
+    int availableNutrition() {
+        if (client.player == null) return 0;
+        var remainingReservations = new java.util.HashMap<>(protectedCounts);
+        long nutrition = 0;
+        for (int index = 0; index < 36; index++) {
+            var stack = client.player.getInventory().getStack(index);
+            if (stack.isEmpty()) continue;
+            var id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem());
+            if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
+            var food = GameApi.food(stack);
+            if (food == null || !food.safe() || food.nutrition() < 1) continue;
+            var item = GameCatalog.id(stack.getItem());
+            int reserved = remainingReservations.getOrDefault(item, 0);
+            int protectedInStack = Math.min(stack.getCount(), reserved);
+            remainingReservations.put(item, reserved - protectedInStack);
+            nutrition += (long) food.nutrition() * (stack.getCount() - protectedInStack);
+            if (nutrition >= 120) return 120;
+        }
+        return (int) nutrition;
+    }
+
     private int selectFood() {
         if (client.player == null || client.interactionManager == null || client.player.isUsingItem()
             || client.currentScreen != null || client.player.currentScreenHandler != client.player.playerScreenHandler
             || !client.player.playerScreenHandler.getCursorStack().isEmpty()
             || !client.player.isOnGround() && !client.player.isTouchingWater()) return -1;
         int missing = 20 - client.player.getHungerManager().getFoodLevel();
-        if (missing < 6) return -1;
+        if (missing < 1 || missing < 6 && client.player.getHealth() >= client.player.getMaxHealth()) return -1;
         float best = -Float.MAX_VALUE;
         int selected = -1;
         for (int index = 0; index < 36; index++) {

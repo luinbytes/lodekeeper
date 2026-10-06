@@ -48,6 +48,28 @@ public final class FoodController {
         protectedCounts = java.util.Map.copyOf(counts);
     }
     boolean ready() { return !active && selectFood() >= 0; }
+    int availableNutrition() {
+        if (client.player == null) return 0;
+        var remainingReservations = new java.util.HashMap<>(protectedCounts);
+        long nutrition = 0;
+        for (int index = 0; index < 36; index++) {
+            var stack = client.player.getInventory().getItem(index);
+            if (stack.isEmpty()) continue;
+            var id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
+            FoodProperties food = stack.get(DataComponents.FOOD);
+            Consumable consumable = stack.get(DataComponents.CONSUMABLE);
+            if (food == null || consumable == null || !safeEffects(consumable) || food.nutrition() < 1) continue;
+            var item = GameCatalog.id(stack.getItem());
+            int reserved = remainingReservations.getOrDefault(item, 0);
+            int protectedInStack = Math.min(stack.getCount(), reserved);
+            remainingReservations.put(item, reserved - protectedInStack);
+            nutrition += (long) food.nutrition() * (stack.getCount() - protectedInStack);
+            if (nutrition >= 120) return 120;
+        }
+        return (int) nutrition;
+    }
+
 
     private int selectFood() {
         if (client.player == null || client.level == null || client.gameMode == null || !client.player.isAlive()
@@ -58,7 +80,7 @@ public final class FoodController {
 
         FoodData hunger = client.player.getFoodData();
         int missing = 20 - hunger.getFoodLevel();
-        if (missing < 6) return -1;
+        if (missing < 1 || missing < 6 && client.player.getHealth() >= client.player.getMaxHealth()) return -1;
 
         float best = -Float.MAX_VALUE;
         int selected = -1;

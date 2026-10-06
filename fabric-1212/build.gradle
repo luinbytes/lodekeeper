@@ -25,6 +25,37 @@ java {
 tasks.withType(JavaCompile).configureEach { options.release = 21 }
 
 def generatedSharedSources = layout.buildDirectory.dir('generated/shared-main-java')
+def generatedWeaponWearSources = layout.buildDirectory.dir('generated/weapon-wear-java')
+def generatedWeaponWearFile = generatedWeaponWearSources.map { it.file('dev/lodekeeper/fabric/WeaponWearApi.java') }
+def vanillaAttackWearMethod = expectedInputApiFamily == '1215'
+    ? '''static int attackWear(net.minecraft.item.ItemStack stack) {
+        if (!stack.isDamageable()) return 0;
+        var weapon = stack.get(net.minecraft.component.DataComponentTypes.WEAPON);
+        return weapon == null ? -1 : weapon.itemDamagePerAttack();
+    }'''
+    : '''static int attackWear(net.minecraft.item.ItemStack stack) {
+        if (!stack.isDamageable()) return 0;
+        Class<?> type = stack.getItem().getClass();
+        if (type == net.minecraft.item.SwordItem.class) return 1;
+        if (type == net.minecraft.item.AxeItem.class) return 2;
+        return -1;
+    }'''
+def generateWeaponWearApi = tasks.register('generateWeaponWearApi') {
+    inputs.property('inputApiFamily', expectedInputApiFamily)
+    outputs.file(generatedWeaponWearFile)
+    doLast {
+        File output = generatedWeaponWearFile.get().asFile
+        output.parentFile.mkdirs()
+        output.setText("""package dev.lodekeeper.fabric;
+
+final class WeaponWearApi {
+    private WeaponWearApi() {}
+
+    ${vanillaAttackWearMethod}
+}
+""", 'UTF-8')
+    }
+}
 def copySharedSources = tasks.register('copySharedSources', Sync) {
     from(rootProject.file('fabric/src/main/java')) {
         exclude 'dev/lodekeeper/fabric/BotInput.java'
@@ -40,6 +71,7 @@ def copySharedSources = tasks.register('copySharedSources', Sync) {
 sourceSets {
     main {
         java.srcDirs = [generatedSharedSources, 'src/main/java']
+        java.srcDir generatedWeaponWearSources
         java.srcDir "src/${expectedInputApiFamily}/java"
         java.srcDir "src/client-${clientApiFamily}/java"
         if (renderApiFamily != null) java.srcDir "src/render-${renderApiFamily}/java"
@@ -58,7 +90,7 @@ sourceSets {
         resources.srcDirs = ['src/verification/resources']
     }
 }
-tasks.named('compileJava').configure { dependsOn copySharedSources }
+tasks.named('compileJava').configure { dependsOn copySharedSources, generateWeaponWearApi }
 
 dependencies {
     minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"

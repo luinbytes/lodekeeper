@@ -57,6 +57,19 @@ final class GameApi {
         return -1;
     }
 
+    static boolean isSword(ItemStack stack) { return stack.isIn(net.minecraft.registry.tag.ItemTags.SWORDS); }
+
+    static boolean isAxe(ItemStack stack) { return stack.isIn(net.minecraft.registry.tag.ItemTags.AXES); }
+
+    /** Vanilla swords lose 1 durability and axes lose 2 when their native attack hook succeeds. */
+    static int attackWear(ItemStack stack) {
+        if (!stack.isDamageable()) return 0;
+        Class<?> type = stack.getItem().getClass();
+        if (type == SwordItem.class) return 1;
+        if (type == AxeItem.class) return 2;
+        return -1;
+    }
+
 
     static ItemStack result(Recipe<?> recipe, DynamicRegistryManager registries) { return recipe.getResult(registries); }
 

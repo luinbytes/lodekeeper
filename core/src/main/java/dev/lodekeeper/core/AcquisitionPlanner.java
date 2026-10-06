@@ -101,6 +101,11 @@ public final class AcquisitionPlanner {
 
     private long elapsed(long started) { return Math.max(0, clock.getAsLong() - started); }
 
+    private static boolean silkTouchCompatible(AcquisitionSource source) {
+        return !(source instanceof GatherSource)
+                || Boolean.parseBoolean(source.attributes().getOrDefault("silkTouchCompatible", "false"));
+    }
+
     private static final class Search {
         private static final int MAX_DERIVATION_DEPTH = 8;
         private static final int MAX_DERIVATION_VISITS = 512;
@@ -461,12 +466,13 @@ public final class AcquisitionPlanner {
                 if (heldGatherOnly) {
                     // A held tool can gather replacement materials even when the outer
                     // request needs the same material. Never recurse to acquire bootstrap
-                    // requirements: permit only ordinary gathering with a proven held tool.
+                    // requirements: permit only simple gathering with a compatible held tool.
                     if (!(source instanceof GatherSource) || source.requirements().size() > 1) continue;
                     if (!source.requirements().isEmpty()) {
                         if (!(source.requirements().get(0) instanceof ToolRequirement tool)
                                 || expanded(tool.tools(), path).stream().noneMatch(candidate ->
-                                    state.canUseTool(candidate, tool, operations, catalog))) continue;
+                                    state.canUseTool(candidate, tool, operations, catalog,
+                                            silkTouchCompatible(source)))) continue;
                     }
                 }
                 long outputLong = (long) operations * source.outputCount();
@@ -481,7 +487,8 @@ public final class AcquisitionPlanner {
                     prepared = prepareSmelting(prepared, smelting, operations, path, depth);
                 }
                 if (prepared.isEmpty()) continue;
-                prepared = prepareRequirements(prepared, source.requirements(), operations, path, depth);
+                prepared = prepareRequirements(prepared, source.requirements(), operations,
+                        silkTouchCompatible(source), path, depth);
                 for (Prepared candidate : prepared) {
                     if (candidate.state.steps.size() >= limits.maximumSteps()) {
                         fail(BlockedReason.Code.STEP_LIMIT, item, "Plan exceeds " + limits.maximumSteps() + " steps", pathWith(path, item));
@@ -718,14 +725,16 @@ public final class AcquisitionPlanner {
             return sources.stream().anyMatch(GatherSource.class::isInstance) ? 0 : 1;
         }
 
-        private List<Prepared> prepareRequirements(List<Prepared> initial, List<Requirement> requirements, int operations, Set<ItemId> path, int depth) {
+        private List<Prepared> prepareRequirements(List<Prepared> initial, List<Requirement> requirements,
+                                                   int operations, boolean silkTouchCompatible,
+                                                   Set<ItemId> path, int depth) {
             List<Prepared> prepared = initial;
             for (Requirement requirement : requirements) {
                 if (requirement instanceof ItemRequirement item) {
                     int amount = multiplyCount(item.ingredient().count(), operations, null, path);
                     prepared = chooseIngredient(prepared, item.ingredient(), amount, item.consume(), item.purpose(), -1, path, depth);
                 } else if (requirement instanceof ToolRequirement tool) {
-                    prepared = chooseTool(prepared, tool, operations, path, depth);
+                    prepared = chooseTool(prepared, tool, operations, silkTouchCompatible, path, depth);
                 } else if (requirement instanceof StationRequirement station) {
                     prepared = ensureStation(prepared, station, path, depth);
                 }
@@ -752,13 +761,15 @@ public final class AcquisitionPlanner {
         }
 
         private List<Prepared> chooseTool(List<Prepared> initial, ToolRequirement requirement, int operations,
-                                          Set<ItemId> path, int depth) {
+                                          boolean silkTouchCompatible, Set<ItemId> path, int depth) {
             var next = new ArrayList<Prepared>();
             for (Prepared candidate : initial) {
                 List<ItemId> held = expanded(requirement.tools(), path).stream()
-                        .filter(item -> candidate.state.canUseTool(item, requirement, operations, catalog))
+                        .filter(item -> candidate.state.canUseTool(item, requirement, operations, catalog,
+                                silkTouchCompatible))
                         .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.count(item)).reversed()
-                                .thenComparing(Comparator.comparingLong((ItemId item) -> candidate.state.toolCapacity(item, requirement, catalog)).reversed())
+                                .thenComparing(Comparator.comparingLong((ItemId item) -> candidate.state.toolCapacity(
+                                        item, requirement, catalog, silkTouchCompatible)).reversed())
                                 .thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 List<ItemId> choices = held.isEmpty()
@@ -772,11 +783,12 @@ public final class AcquisitionPlanner {
                 }
                 for (ItemId item : choices) {
                     if (!visit(item, path, depth + 1)) break;
-                    for (State ready : ensureTool(item, requirement, operations, candidate.state, path, depth + 1)) {
+                    for (State ready : ensureTool(item, requirement, operations, silkTouchCompatible,
+                            candidate.state, path, depth + 1)) {
                         State forecast = ready.copy();
                         if (requirement.wearPerOperation() > 0 && catalog.maximumDurability(item) > 0) {
-                            forecast.durabilityLots.get(item).consumeOperations(
-                                    operations, requirement.minimumDurability(), requirement.wearPerOperation());
+                            forecast.toolLots.get(item).consumeOperations(operations,
+                                    requirement.minimumDurability(), requirement.wearPerOperation(), silkTouchCompatible);
                         }
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedToolRequirement(item, requirement.minimumDurability(), requirement.purpose()));
@@ -789,18 +801,19 @@ public final class AcquisitionPlanner {
         }
 
         private List<State> ensureTool(ItemId item, ToolRequirement requirement, int operations,
-                                       State state, Set<ItemId> path, int depth) {
+                                       boolean silkTouchCompatible, State state, Set<ItemId> path, int depth) {
             if (!visit(item, path, depth)) return List.of();
             int currentCount = state.count(item);
             int maximumDurability = catalog.maximumDurability(item);
             if (requirement.wearPerOperation() > 0) {
-                if (currentCount > 0 && state.canUseTool(item, requirement, operations, catalog)) return List.of(state.copy());
+                if (currentCount > 0 && state.canUseTool(item, requirement, operations, catalog,
+                        silkTouchCompatible)) return List.of(state.copy());
                 if (maximumDurability == 0) {
                     if (currentCount > 0) return List.of(state.copy());
                     return satisfy(item, 1, false, state, path, depth + 1, "tool", -1);
                 }
 
-                long currentCapacity = state.toolCapacity(item, requirement, catalog);
+                long currentCapacity = state.toolCapacity(item, requirement, catalog, silkTouchCompatible);
                 long missingOperations = Math.max(0L, (long) operations - currentCapacity);
                 long fullToolCapacity = ToolLots.operationsFor(maximumDurability,
                         requirement.minimumDurability(), requirement.wearPerOperation());
@@ -829,18 +842,19 @@ public final class AcquisitionPlanner {
                 }
                 var valid = new ArrayList<State>();
                 for (State candidate : candidates) {
-                    if (candidate.canUseTool(item, requirement, operations, catalog)) valid.add(candidate);
-                    else if (candidate.toolCapacity(item, requirement, catalog) > currentCapacity) {
+                    if (candidate.canUseTool(item, requirement, operations, catalog, silkTouchCompatible)) valid.add(candidate);
+                    else if (candidate.toolCapacity(item, requirement, catalog, silkTouchCompatible) > currentCapacity) {
                         // Producing a replacement may itself consume mining charges. Recompute
                         // the shortfall from the resulting state under the same search limits.
-                        valid.addAll(ensureTool(item, requirement, operations, candidate, path, depth + 1));
+                        valid.addAll(ensureTool(item, requirement, operations, silkTouchCompatible,
+                                candidate, path, depth + 1));
                     } else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item,
                             "Making replacement tools does not increase safe mining capacity", pathWith(path, item));
                 }
                 return trim(valid);
             }
 
-            int currentDurability = state.remainingDurability(item, catalog);
+            int currentDurability = state.remainingDurability(item, catalog, silkTouchCompatible);
             if (currentCount > 0 && currentDurability >= requirement.minimumDurability()) return List.of(state.copy());
             List<State> candidates;
             if (currentCount > 0) {
@@ -854,7 +868,7 @@ public final class AcquisitionPlanner {
             }
             var valid = new ArrayList<State>();
             for (State candidate : candidates) {
-                int durability = candidate.remainingDurability(item, catalog);
+                int durability = candidate.remainingDurability(item, catalog, silkTouchCompatible);
                 if (durability >= requirement.minimumDurability()) valid.add(candidate);
                 else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item, "Available item does not meet required tool durability", pathWith(path, item));
             }
@@ -949,7 +963,7 @@ public final class AcquisitionPlanner {
         private PlanStep makeStep(AcquisitionSource source, int operations, int outputCount, List<SelectedRequirement> selected) {
             if (source instanceof GatherSource gather) {
                 return new PlanStep(PlanKind.GATHER, source.sourceId(), source.output(), outputCount, operations, selected,
-                        gather.blocks(), null, 0, 0, null, null, Map.of());
+                        gather.blocks(), null, 0, 0, null, null, gather.attributes());
             }
             if (source instanceof CraftingSource craft) {
                 StationId station = selected.stream().filter(SelectedStationRequirement.class::isInstance)
@@ -1094,7 +1108,7 @@ public final class AcquisitionPlanner {
         private final Map<ItemId, Integer> inventory;
         private final Map<ItemId, Integer> protectedHeld;
         private final Set<StationId> stations;
-        private final Map<ItemId, ToolLots> durabilityLots;
+        private final Map<ItemId, ToolLots> toolLots;
         private final List<PlanStep> steps;
         private final List<Integer> preferenceTrail;
         private long operations;
@@ -1104,8 +1118,8 @@ public final class AcquisitionPlanner {
             inventory = new HashMap<>(snapshot.counts());
             protectedHeld = new HashMap<>(snapshot.protectedCounts());
             stations = new HashSet<>(snapshot.availableStations());
-            durabilityLots = new HashMap<>();
-            snapshot.durabilityLots().forEach((item, lots) -> durabilityLots.put(item, ToolLots.from(lots)));
+            toolLots = new HashMap<>();
+            snapshot.toolLots().forEach((item, lots) -> toolLots.put(item, ToolLots.from(lots)));
             steps = new ArrayList<>();
             preferenceTrail = new ArrayList<>();
         }
@@ -1114,8 +1128,8 @@ public final class AcquisitionPlanner {
             inventory = new HashMap<>(source.inventory);
             protectedHeld = new HashMap<>(source.protectedHeld);
             stations = new HashSet<>(source.stations);
-            durabilityLots = new HashMap<>();
-            source.durabilityLots.forEach((item, lots) -> durabilityLots.put(item, lots.copy()));
+            toolLots = new HashMap<>();
+            source.toolLots.forEach((item, lots) -> toolLots.put(item, lots.copy()));
             steps = new ArrayList<>(source.steps);
             preferenceTrail = new ArrayList<>(source.preferenceTrail);
             operations = source.operations;
@@ -1126,27 +1140,29 @@ public final class AcquisitionPlanner {
         private int count(ItemId item) { return inventory.getOrDefault(item, 0); }
         private int spendableCount(ItemId item) { return count(item) - protectedHeld.getOrDefault(item, 0); }
 
-        private int remainingDurability(ItemId item, CatalogSnapshot catalog) {
+        private int remainingDurability(ItemId item, CatalogSnapshot catalog, boolean silkTouchCompatible) {
             if (catalog.maximumDurability(item) == 0) return Integer.MAX_VALUE;
-            ToolLots lots = durabilityLots.get(item);
-            return lots == null ? -1 : lots.maximumRemaining();
+            ToolLots lots = toolLots.get(item);
+            return lots == null ? -1 : lots.maximumRemaining(silkTouchCompatible);
         }
 
-        private long toolCapacity(ItemId item, ToolRequirement requirement, CatalogSnapshot catalog) {
+        private long toolCapacity(ItemId item, ToolRequirement requirement, CatalogSnapshot catalog,
+                                  boolean silkTouchCompatible) {
             if (count(item) <= 0) return 0;
             if (catalog.maximumDurability(item) == 0) return Long.MAX_VALUE;
-            ToolLots lots = durabilityLots.get(item);
+            ToolLots lots = toolLots.get(item);
             if (lots == null) return 0;
-            if (requirement.wearPerOperation() == 0) return lots.maximumRemaining();
-            return lots.operationCapacity(requirement.minimumDurability(), requirement.wearPerOperation());
+            if (requirement.wearPerOperation() == 0) return lots.maximumRemaining(silkTouchCompatible);
+            return lots.operationCapacity(requirement.minimumDurability(), requirement.wearPerOperation(), silkTouchCompatible);
         }
 
-        private boolean canUseTool(ItemId item, ToolRequirement requirement, int operations, CatalogSnapshot catalog) {
+        private boolean canUseTool(ItemId item, ToolRequirement requirement, int operations, CatalogSnapshot catalog,
+                                   boolean silkTouchCompatible) {
             if (count(item) <= 0) return false;
             if (requirement.wearPerOperation() == 0) {
-                return remainingDurability(item, catalog) >= requirement.minimumDurability();
+                return remainingDurability(item, catalog, silkTouchCompatible) >= requirement.minimumDurability();
             }
-            return toolCapacity(item, requirement, catalog) >= operations;
+            return toolCapacity(item, requirement, catalog, silkTouchCompatible) >= operations;
         }
 
         private void take(ItemId item, int amount) {
@@ -1154,10 +1170,10 @@ public final class AcquisitionPlanner {
             if (available < amount) throw new IllegalStateException("Planner inventory underflow for " + item);
             int left = count(item) - amount;
             if (left == 0) inventory.remove(item); else inventory.put(item, left);
-            ToolLots lots = durabilityLots.get(item);
+            ToolLots lots = toolLots.get(item);
             if (lots != null) {
                 lots.removeCopies(amount);
-                if (lots.isEmpty()) durabilityLots.remove(item);
+                if (lots.isEmpty()) toolLots.remove(item);
             }
         }
 
@@ -1166,7 +1182,8 @@ public final class AcquisitionPlanner {
             if (total > 1_000_000_000) throw new IllegalStateException("Planner inventory exceeded limit");
             inventory.put(item, (int) total);
             if (maximumDurability > 0) {
-                durabilityLots.computeIfAbsent(item, ignored -> new ToolLots()).add(maximumDurability, amount);
+                toolLots.computeIfAbsent(item, ignored -> new ToolLots())
+                        .add(new InventoryToolLot(maximumDurability, false), amount);
             }
         }
 
@@ -1176,13 +1193,16 @@ public final class AcquisitionPlanner {
         }
     }
 
-    /** Run-length encoded durability lots: crafted batches never allocate one object per tool. */
+    /** Run-length encoded physical tool lots: crafted batches never allocate one object per tool. */
     private static final class ToolLots {
-        private final TreeMap<Integer, Long> counts = new TreeMap<>();
+        private static final Comparator<InventoryToolLot> ORDER = Comparator
+                .comparingInt(InventoryToolLot::remainingDurability)
+                .thenComparing(InventoryToolLot::silkTouch);
+        private final TreeMap<InventoryToolLot, Long> counts = new TreeMap<>(ORDER);
 
-        private static ToolLots from(List<Integer> values) {
+        private static ToolLots from(List<InventoryToolLot> values) {
             ToolLots lots = new ToolLots();
-            for (int durability : values) lots.add(durability, 1);
+            for (InventoryToolLot lot : values) lots.add(lot, 1);
             return lots;
         }
 
@@ -1194,16 +1214,22 @@ public final class AcquisitionPlanner {
 
         private boolean isEmpty() { return counts.isEmpty(); }
 
-        private int maximumRemaining() { return counts.isEmpty() ? -1 : counts.lastKey(); }
-
-        private void add(int remaining, long count) {
-            if (count > 0) counts.merge(remaining, count, Long::sum);
+        private int maximumRemaining(boolean silkTouchCompatible) {
+            for (InventoryToolLot lot : counts.descendingKeySet()) {
+                if (silkTouchCompatible || !lot.silkTouch()) return lot.remainingDurability();
+            }
+            return -1;
         }
 
-        private long operationCapacity(int minimumDurability, int wearPerOperation) {
+        private void add(InventoryToolLot lot, long count) {
+            if (count > 0) counts.merge(lot, count, Long::sum);
+        }
+
+        private long operationCapacity(int minimumDurability, int wearPerOperation, boolean silkTouchCompatible) {
             long total = 0;
-            for (Map.Entry<Integer, Long> entry : counts.entrySet()) {
-                long perTool = operationsFor(entry.getKey(), minimumDurability, wearPerOperation);
+            for (Map.Entry<InventoryToolLot, Long> entry : counts.entrySet()) {
+                if (!silkTouchCompatible && entry.getKey().silkTouch()) continue;
+                long perTool = operationsFor(entry.getKey().remainingDurability(), minimumDurability, wearPerOperation);
                 long copies = entry.getValue();
                 if (perTool == 0) continue;
                 if (copies > (Long.MAX_VALUE - total) / perTool) return Long.MAX_VALUE;
@@ -1217,14 +1243,17 @@ public final class AcquisitionPlanner {
             return ((long) remaining - minimumDurability) / wearPerOperation + 1;
         }
 
-        private void consumeOperations(long operations, int minimumDurability, int wearPerOperation) {
+        private void consumeOperations(long operations, int minimumDurability, int wearPerOperation,
+                                       boolean silkTouchCompatible) {
             long remainingOperations = operations;
-            if (operationCapacity(minimumDurability, wearPerOperation) < operations) {
+            if (operationCapacity(minimumDurability, wearPerOperation, silkTouchCompatible) < operations) {
                 throw new IllegalStateException("Planner consumed more tool wear than its reserved durability lots");
             }
-            for (Map.Entry<Integer, Long> entry : new ArrayList<>(counts.entrySet())) {
+            for (Map.Entry<InventoryToolLot, Long> entry : new ArrayList<>(counts.entrySet())) {
                 if (remainingOperations == 0) break;
-                int startingDurability = entry.getKey();
+                InventoryToolLot startingLot = entry.getKey();
+                if (!silkTouchCompatible && startingLot.silkTouch()) continue;
+                int startingDurability = startingLot.remainingDurability();
                 long copies = entry.getValue();
                 long operationsPerTool = operationsFor(startingDurability, minimumDurability, wearPerOperation);
                 if (operationsPerTool == 0) continue;
@@ -1233,15 +1262,15 @@ public final class AcquisitionPlanner {
                 long fullyUsedCopies = usedOperations / operationsPerTool;
                 long partialOperations = usedOperations % operationsPerTool;
                 long untouchedCopies = copies - fullyUsedCopies - (partialOperations == 0 ? 0 : 1);
-                counts.remove(startingDurability);
-                add(startingDurability, untouchedCopies);
+                counts.remove(startingLot);
+                add(startingLot, untouchedCopies);
                 if (fullyUsedCopies > 0) {
                     int wear = Math.toIntExact(operationsPerTool * wearPerOperation);
-                    add(startingDurability - wear, fullyUsedCopies);
+                    add(new InventoryToolLot(startingDurability - wear, startingLot.silkTouch()), fullyUsedCopies);
                 }
                 if (partialOperations > 0) {
                     int wear = Math.toIntExact(partialOperations * wearPerOperation);
-                    add(startingDurability - wear, 1);
+                    add(new InventoryToolLot(startingDurability - wear, startingLot.silkTouch()), 1);
                 }
                 remainingOperations -= usedOperations;
             }
@@ -1251,7 +1280,7 @@ public final class AcquisitionPlanner {
         /** Removes the least durable known stacks first when a recipe consumes this item type. */
         private void removeCopies(int copiesToRemove) {
             long remaining = copiesToRemove;
-            for (Map.Entry<Integer, Long> entry : new ArrayList<>(counts.entrySet())) {
+            for (Map.Entry<InventoryToolLot, Long> entry : new ArrayList<>(counts.entrySet())) {
                 if (remaining == 0) break;
                 long removed = Math.min(remaining, entry.getValue());
                 long left = entry.getValue() - removed;

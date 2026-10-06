@@ -7,8 +7,12 @@ import baritone.api.event.events.PathEvent;
 import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.pathing.calc.IPath;
 import baritone.api.pathing.goals.GoalBlock;
+import baritone.api.pathing.goals.GoalComposite;
+import baritone.api.utils.interfaces.IGoalRenderPos;
 import baritone.api.pathing.goals.GoalGetToBlock;
 import baritone.api.pathing.goals.GoalNear;
+import baritone.api.pathing.goals.GoalRunAway;
+import baritone.api.pathing.goals.GoalYLevel;
 import baritone.api.utils.BlockOptionalMetaLookup;
 import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.nav.ExplorationFrontier;
@@ -21,11 +25,14 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
 import net.minecraft.util.math.BlockPos;
 
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.chunk.ChunkStatus;
+
 import java.util.*;
 
 /** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
-    private enum Mode { IDLE, MOVE, MINE, PICKUP, SUSPENDED }
+    private enum Mode { IDLE, MOVE, MINE, DESCEND, PICKUP, SUSPENDED }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
@@ -45,10 +52,15 @@ final class MovementController {
     private long progressToken, startedNanos;
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
-    private int requestTicks, failedCalculations, nextRescanTick, rescanAttempts, lastBreakTick;
-    private int waitingTicks, rescanFailedCalculations, rescanInventoryCount, rescanChunkX, rescanChunkZ;
+    private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
+    private int miningY = Integer.MIN_VALUE, lastDiscoveryMergeTick = -100, lastScanLogTick = -20;
+    private BlockSearch miningDiscovery;
+    private final Set<Long> scannedMiningChunks = new HashSet<>();
+    private final Set<BlockPos> rejectedMiningTargets = new LinkedHashSet<>();
+    private final Set<BlockPos> discoveredMiningTargets = new LinkedHashSet<>();
+    private final Set<BlockPos> pendingMiningTargets = new LinkedHashSet<>();
     private NavigationFailure pendingBreakFailure;
-    private BlockPos lastLoggedBreakPosition;
+    private BlockPos lastLoggedBreakPosition, miningTarget;
     private Item lastLoggedBreakTool;
     private List<Item> scaffoldItems = List.of();
     private NavigationSnapshot observation = NavigationSnapshot.EMPTY;
@@ -103,9 +115,7 @@ final class MovementController {
             throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Required mining tool is unavailable or worn: " + tool.item());
         }
         mode = Mode.MINE;
-        rescanInventoryCount = actions.count(output);
-        rescanChunkX = (int) Math.floor(client.player.getX()) >> 4;
-        rescanChunkZ = (int) Math.floor(client.player.getZ()) >> 4;
+        miningY = miningLevel();
         launch();
     }
 
@@ -130,16 +140,20 @@ final class MovementController {
             });
         }
         input.release(); actions.cancel();
-        startedNanos = System.nanoTime(); requestTicks = failedCalculations = rescanAttempts = 0;
-        nextRescanTick = 100; lastBreakTick = -100; waitingTicks = rescanFailedCalculations = 0;
+        startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
+        lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
+        phaseStartedTick = 0; miningY = Integer.MIN_VALUE;
+        scannedMiningChunks.clear(); rejectedMiningTargets.clear(); miningDiscovery = null;
+        discoveredMiningTargets.clear(); pendingMiningTargets.clear();
         requestX = client.player.getX(); requestZ = client.player.getZ();
         routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null;
         observation = NavigationSnapshot.EMPTY; positionObserved = false; pendingBreakFailure = null;
-        lastLoggedBreakPosition = null; lastLoggedBreakTool = null;
+        lastLoggedBreakPosition = miningTarget = null; lastLoggedBreakTool = null;
     }
 
     private void launch() {
         input.release();
+        phaseStartedTick = requestTicks;
         lease = new SettingsLease();
         Settings settings = BaritoneAPI.getSettings();
         lease.set(settings.allowBreak, config.allowBreaking);
@@ -160,25 +174,25 @@ final class MovementController {
         lease.set(settings.exploreForBlocks, config.allowExploration);
         lease.set(settings.legitMine, false);
         lease.set(settings.mineGoalUpdateInterval, 0);
-        lease.set(settings.primaryTimeoutMS, 250L); lease.set(settings.failureTimeoutMS, 1500L);
-        lease.set(settings.planAheadPrimaryTimeoutMS, 750L); lease.set(settings.planAheadFailureTimeoutMS, 2000L);
+        lease.set(settings.primaryTimeoutMS, 500L); lease.set(settings.failureTimeoutMS, 2000L);
+        lease.set(settings.planAheadPrimaryTimeoutMS, 4000L); lease.set(settings.planAheadFailureTimeoutMS, 5000L);
         applyProtection();
         actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
             case MOVE -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
             case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.isOf(output));
+            case DESCEND -> bot.getCustomGoalProcess().setGoalAndPath(new GoalYLevel(miningY));
             case MINE -> {
-                boolean diamond = Arrays.asList(mineBlocks).contains(Blocks.DIAMOND_ORE)
-                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_DIAMOND_ORE);
-                int exploreY = (int) Math.floor(client.player.getY());
-                if (diamond) exploreY = -55;
-                else if (Arrays.asList(mineBlocks).contains(Blocks.IRON_ORE)
-                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_IRON_ORE)) exploreY = 16;
-                else if (Arrays.asList(mineBlocks).contains(Blocks.COAL_ORE)
-                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_COAL_ORE)) exploreY = 48;
-                lease.set(settings.legitMineYLevel, exploreY);
-                // Upstream quantity includes several possible drops. Lodekeeper checks the exact output itself.
+                lease.set(settings.legitMineYLevel, miningY == Integer.MIN_VALUE ? (int) Math.floor(client.player.getY()) : miningY);
+                // Native quantity counts several drops. The request checks its exact output itself.
+                long scanStarted = System.nanoTime();
                 bot.getMineProcess().mine(0, new BlockOptionalMetaLookup(mineBlocks));
+                var access = miningAccess();
+                access.lodekeeper$blacklistedMiningTargets().addAll(rejectedMiningTargets);
+                if (!rejectedMiningTargets.isEmpty())
+                    access.lodekeeper$knownMiningTargets(new ArrayList<>(access.lodekeeper$knownMiningTargets().stream()
+                            .filter(position -> !rejectedMiningTargets.contains(position)).toList()));
+                logMiningScan("native-mine", System.nanoTime() - scanStarted, -1);
             }
             default -> throw new IllegalStateException("No navigation request to launch");
         }
@@ -197,75 +211,208 @@ final class MovementController {
     }
 
     boolean tick() {
-        if (cancelling) return finishCancellation();
-        if (mode == Mode.SUSPENDED) { mode = resumeMode; resumeMode = Mode.IDLE; launch(); }
-        if (mode == Mode.IDLE) return true;
+        if (mode == Mode.IDLE && !cancelling) return true;
         if (client.player == null || client.world == null) { stop(); return false; }
-        input.release(); requestTicks++;
+        if (mode != Mode.IDLE || resumeMode != Mode.IDLE) requestTicks++;
+        boolean miningRequest = mode == Mode.MINE || mode == Mode.DESCEND
+                || mode == Mode.SUSPENDED && (resumeMode == Mode.MINE || resumeMode == Mode.DESCEND);
         if (pendingBreakFailure != null) {
             NavigationFailure failure = pendingBreakFailure; pendingBreakFailure = null;
             stop(); throw failure;
         }
-        if (mode == Mode.MINE) {
+        if (miningRequest) {
             double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
             double dx = client.player.getX() - requestX, dz = client.player.getZ() - requestZ;
-            if (dx * dx + dz * dz > limit * limit
-                    || requestTicks > Math.max(config.actionTimeoutTicks, config.explorationAttempts * 200)) {
+            int maxTicks = Math.max(config.actionTimeoutTicks, config.explorationAttempts * 200);
+            if (dx * dx + dz * dz > limit * limit || requestTicks > maxTicks
+                    || System.nanoTime() - startedNanos > maxTicks * 50_000_000L) {
                 stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
                         "Mining reached its configured exploration distance or request-time limit");
             }
+            if (!config.allowBreaking || !config.allowExploration
+                    && (mode == Mode.DESCEND || resumeMode == Mode.DESCEND)) {
+                stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                        "Mining or depth exploration was disabled during the request");
+            }
+            if (tool != null && !actions.hasTool(tool)) {
+                stop(); throw new NavigationFailure(NavigationFailure.Kind.TOOL,
+                        "Mining tool reached its safe wear reserve: " + tool.item());
+            }
         }
+        if (cancelling) {
+            boolean finished = finishCancellation();
+            return finished && mode == Mode.IDLE && resumeMode == Mode.IDLE;
+        }
+        if (mode == Mode.SUSPENDED) { mode = resumeMode; resumeMode = Mode.IDLE; launch(); }
+        if (mode == Mode.IDLE) return true;
+        input.release();
         observeConfirmedProgress();
         if (requestTicks % 4 == 0) samplePath();
         actions.prepareScaffoldHotbar(scaffoldItems);
-        if (mode == Mode.MINE && tool != null && !actions.hasTool(tool)) {
-            stop(); throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Mining tool reached its safe wear reserve: " + tool.item());
-        }
         boolean satisfied = mode == Mode.MOVE
                 ? routeGoal.isInGoal(client.player.getBlockPos())
                 : actions.count(output) >= targetCount;
         if (satisfied) { stop(); return finishCancellation(); }
+        if (mode == Mode.DESCEND && new GoalYLevel(miningY).isInGoal(client.player.getBlockPos())) {
+            changeMiningPhase(Mode.MINE);
+            return false;
+        }
         boolean active = switch (mode) {
-            case MOVE -> bot.getCustomGoalProcess().isActive();
+            case MOVE, DESCEND -> bot.getCustomGoalProcess().isActive();
             case MINE -> bot.getMineProcess().isActive();
             case PICKUP -> bot.getFollowProcess().isActive();
             default -> false;
         };
         var pathing = bot.getPathingBehavior();
         boolean waiting = !pathing.hasPath() && pathing.getInProgress().isEmpty();
-        if (!active && requestTicks > 10 && waiting) {
-            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                    "Navigation process ended before its target was reached");
-        }
-        waitingTicks = waiting ? waitingTicks + 1 : 0;
-        if (mode == Mode.MINE && requestTicks >= nextRescanTick && requestTicks - lastBreakTick > 20) {
-            boolean exploring = pathing.getGoal() instanceof baritone.api.pathing.goals.GoalRunAway;
-            if (exploring || waitingTicks >= 20) {
-                int chunkX = (int) Math.floor(client.player.getX()) >> 4;
-                int chunkZ = (int) Math.floor(client.player.getZ()) >> 4;
-                int held = actions.count(output);
-                if (failedCalculations > rescanFailedCalculations && held <= rescanInventoryCount
-                        && chunkX == rescanChunkX && chunkZ == rescanChunkZ) {
-                    stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                            "Mining failed to reach targets in this scan region");
-                }
-                if (++rescanAttempts > Math.max(1, config.explorationAttempts)) {
-                    stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                            "Mining exhausted its configured discovery attempts");
-                }
-                nextRescanTick = requestTicks + 100;
-                rescanFailedCalculations = failedCalculations;
-                rescanInventoryCount = held; rescanChunkX = chunkX; rescanChunkZ = chunkZ;
-                waitingTicks = 0;
-                // No asynchronous scans survive into another request. Retain this request's limits.
-                if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                        "[Lodekeeper] NAV backend=baritone rescan={} requestTicks={} exploring={}",
-                        rescanAttempts, requestTicks, exploring);
-                suspend();
+        boolean exploring = mode == Mode.MINE && active && pathing.getGoal() instanceof GoalRunAway
+                && requestTicks - phaseStartedTick >= 5;
+        if (miningY != Integer.MIN_VALUE && (mode == Mode.MINE || mode == Mode.DESCEND)) {
+            if (mode == Mode.MINE && active) rememberRejectedMiningTargets();
+            scanOneMiningChunk();
+            pendingMiningTargets.removeIf(position -> !validMiningDiscovery(position)
+                    || rejectedMiningTargets.contains(position));
+            if (mode == Mode.MINE && active && requestTicks - lastDiscoveryMergeTick >= 4)
+                mergeMiningDiscoveries();
+            if ((mode == Mode.DESCEND || mode == Mode.MINE && !active) && !pendingMiningTargets.isEmpty()) {
+                changeMiningPhase(Mode.MINE);
                 return false;
             }
         }
+        if (exploring && miningAccess().lodekeeper$knownMiningTargets().isEmpty()
+                && config.allowExploration && miningY != Integer.MIN_VALUE
+                && Math.abs((int) Math.floor(client.player.getY()) - miningY) > 8) {
+            changeMiningPhase(Mode.DESCEND);
+            return false;
+        }
+        if (!active && requestTicks - phaseStartedTick > 10 && waiting) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Navigation process ended before its target was reached");
+        }
         return false;
+    }
+
+    private int miningLevel() {
+        List<Block> blocks = Arrays.asList(mineBlocks);
+        if (!List.of(Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE, Blocks.COAL_ORE,
+                Blocks.DEEPSLATE_COAL_ORE, Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE).containsAll(blocks)) {
+            return Integer.MIN_VALUE;
+        }
+        if (blocks.contains(Blocks.DIAMOND_ORE) || blocks.contains(Blocks.DEEPSLATE_DIAMOND_ORE)) return -55;
+        if (blocks.contains(Blocks.IRON_ORE) || blocks.contains(Blocks.DEEPSLATE_IRON_ORE)) return 16;
+        if (blocks.contains(Blocks.COAL_ORE) || blocks.contains(Blocks.DEEPSLATE_COAL_ORE)) return 48;
+        return Integer.MIN_VALUE;
+    }
+
+    private void changeMiningPhase(Mode next) {
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] NAV phase={} -> {} targetY={} requestTicks={}", mode, next, miningY, requestTicks);
+        if (mode == Mode.MINE && bot.getMineProcess().isActive()) rememberRejectedMiningTargets();
+        resumeMode = next; mode = Mode.SUSPENDED;
+        cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
+    }
+
+    private static long miningChunkKey(int x, int z) {
+        return ((long) x << 32) | (z & 0xffffffffL);
+    }
+
+    private boolean validMiningDiscovery(BlockPos position) {
+        if (client.world.getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) == null) return false;
+        double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
+        double dx = position.getX() + .5 - requestX, dz = position.getZ() + .5 - requestZ;
+        if (dx * dx + dz * dz > limit * limit) return false;
+        var state = client.world.getBlockState(position);
+        return Arrays.asList(mineBlocks).contains(state.getBlock()) && !state.hasBlockEntity()
+                && !protectedBlocks.contains(state.getBlock()) && state.getHardness(client.world, position) >= 0;
+    }
+
+    private BaritoneMiningAccess miningAccess() {
+        if (!(bot.getMineProcess() instanceof BaritoneMiningAccess access))
+            throw new NavigationFailure("The verified mining bridge is unavailable");
+        return access;
+    }
+
+    private void rememberRejectedMiningTargets() {
+        for (BlockPos position : miningAccess().lodekeeper$blacklistedMiningTargets()) {
+            if (rejectedMiningTargets.size() == 512) break;
+            rejectedMiningTargets.add(position.toImmutable());
+        }
+    }
+
+    private void mergeMiningDiscoveries() {
+        if (pendingMiningTargets.isEmpty()) return;
+        var access = miningAccess();
+        LinkedHashSet<BlockPos> merged = new LinkedHashSet<>();
+        for (BlockPos existing : access.lodekeeper$knownMiningTargets()) {
+            if (merged.size() == 64) break;
+            if (!rejectedMiningTargets.contains(existing)) merged.add(existing);
+        }
+        int previousSize = merged.size();
+        for (BlockPos fresh : pendingMiningTargets) {
+            if (merged.size() == 64) break;
+            if (!rejectedMiningTargets.contains(fresh) && validMiningDiscovery(fresh)) merged.add(fresh);
+        }
+        pendingMiningTargets.removeAll(merged);
+        if (merged.size() == previousSize) return;
+        access.lodekeeper$knownMiningTargets(new ArrayList<>(merged));
+        lastDiscoveryMergeTick = requestTicks;
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] NAV discovered={} retained={} rejected={} requestTicks={} phase={}",
+                merged.size() - previousSize, merged.size(), rejectedMiningTargets.size(), requestTicks, mode);
+    }
+
+    private void scanOneMiningChunk() {
+        if (requestTicks % 20 == 0)
+            discoveredMiningTargets.removeIf(position -> !validMiningDiscovery(position) || rejectedMiningTargets.contains(position));
+        if (miningDiscovery == null) {
+            if (scannedMiningChunks.size() >= Math.min(128, Math.max(1, config.explorationAttempts) * 4)
+                    || discoveredMiningTargets.size() >= 512) return;
+            int playerChunkX = (int) Math.floor(client.player.getX()) >> 4;
+            int playerChunkZ = (int) Math.floor(client.player.getZ()) >> 4;
+            double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
+            int radius = Math.min(8, (int) Math.ceil(limit / 16) + 1);
+            long nearest = Long.MIN_VALUE;
+            double bestDistance = Double.POSITIVE_INFINITY;
+            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                int cx = playerChunkX + dx, cz = playerChunkZ + dz;
+                long key = miningChunkKey(cx, cz);
+                if (scannedMiningChunks.contains(key)) continue;
+                double x = cx * 16.0 + 8, z = cz * 16.0 + 8;
+                double originX = x - requestX, originZ = z - requestZ;
+                if (originX * originX + originZ * originZ > (limit + 12) * (limit + 12)) continue;
+                double px = x - client.player.getX(), pz = z - client.player.getZ();
+                double distance = px * px + pz * pz;
+                if (distance >= bestDistance || client.world.getChunk(cx, cz, ChunkStatus.FULL, false) == null) continue;
+                nearest = key; bestDistance = distance;
+            }
+            if (nearest == Long.MIN_VALUE) return;
+            int chunkX = (int) (nearest >> 32), chunkZ = (int) nearest;
+            scannedMiningChunks.add(nearest);
+            miningDiscovery = new BlockSearch(client, Set.copyOf(Arrays.asList(mineBlocks)),
+                    (int) Math.ceil(limit), Set.of(), false, List.of(new ChunkPos(chunkX, chunkZ)));
+        }
+        long scanStarted = System.nanoTime();
+        boolean complete = miningDiscovery.advance(4096, 1_000_000L);
+        int added = 0;
+        for (BlockPos position : miningDiscovery.results()) {
+            if (added == 32 || discoveredMiningTargets.size() == 512) break;
+            if (validMiningDiscovery(position) && !rejectedMiningTargets.contains(position)
+                    && discoveredMiningTargets.add(position)) {
+                pendingMiningTargets.add(position); added++;
+            }
+        }
+        if (complete && miningDiscovery.results().stream().noneMatch(position ->
+                !discoveredMiningTargets.contains(position) && !rejectedMiningTargets.contains(position)
+                        && validMiningDiscovery(position))) miningDiscovery = null;
+        logMiningScan("loaded-chunk-budgeted", System.nanoTime() - scanStarted, added);
+    }
+
+    private void logMiningScan(String source, long nanos, int hits) {
+        if (config.debugLogging && nanos > 2_000_000L && requestTicks - lastScanLogTick >= 20) {
+            lastScanLogTick = requestTicks;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] NAV scan={} durationNanos={} hits={} requestTicks={}", source, nanos, hits, requestTicks);
+        }
     }
 
     /** Native destroy HEAD gate: runs before the selected-slot sync and destroy packet. */
@@ -281,8 +428,9 @@ final class MovementController {
                     "Navigation refused a protected block at " + position);
             return false;
         }
-        SelectedToolRequirement required = mode == Mode.MINE && Arrays.asList(mineBlocks).contains(state.getBlock()) ? tool : null;
-        if (!actions.prepareMiningTool(required, state, mode == Mode.MINE && Arrays.asList(mineBlocks).contains(state.getBlock()) ? output : null)) {
+        boolean requestedOre = (mode == Mode.MINE || mode == Mode.DESCEND) && Arrays.asList(mineBlocks).contains(state.getBlock());
+        SelectedToolRequirement required = requestedOre ? tool : null;
+        if (!actions.prepareMiningTool(required, state, requestedOre ? output : null)) {
             pendingBreakFailure = new NavigationFailure(required == null
                     ? NavigationFailure.Kind.PROCESS_ENDED : NavigationFailure.Kind.TOOL,
                     "No safe harvest tool for " + state.getBlock() + " at " + position);
@@ -311,14 +459,20 @@ final class MovementController {
     void stop() {
         resumeMode = Mode.IDLE;
         if (bot != null && (mode != Mode.IDLE || cancelling || lease != null)) {
-            mode = Mode.IDLE; cancelling = true; bot.getPathingBehavior().cancelEverything();
+            mode = Mode.IDLE;
+            if (!cancelling) {
+                cancelling = true;
+                bot.getPathingBehavior().cancelEverything();
+            }
         }
-        input.release(); observation = NavigationSnapshot.EMPTY;
+        input.release(); observation = NavigationSnapshot.EMPTY; miningTarget = null;
     }
 
     boolean finishCancellation() {
         if (!cancelling) return true;
-        boolean cancelled = bot.getPathingBehavior().cancelEverything();
+        var pathing = bot.getPathingBehavior();
+        boolean hasWork = pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent();
+        boolean cancelled = !hasWork || pathing.cancelEverything();
         if (client.player != null && client.world != null) {
             if (!cancelled || bot.getPathingBehavior().hasPath() || bot.getPathingBehavior().isPathing()
                     || bot.getPathingBehavior().getInProgress().isPresent()) return false;
@@ -374,6 +528,8 @@ final class MovementController {
         int index = pathing.getCurrent() == null ? 0 : pathing.getCurrent().getPosition();
         var calculation = pathing.getInProgress();
         boolean searching = calculation.isPresent();
+        miningTarget = mode == Mode.MINE && upstream != null
+                ? miningTarget(upstream.getGoal(), upstream.getDest(), 0) : null;
         Path path = null;
         if (upstream != null) {
             var positions = upstream.positions();
@@ -390,13 +546,33 @@ final class MovementController {
                 requestTicks, failedCalculations, searching, new long[0], new byte[0], new boolean[0]);
     }
 
+    private BlockPos miningTarget(baritone.api.pathing.goals.Goal goal, BlockPos destination, int depth) {
+        if (depth > 2 || goal == null || !goal.isInGoal(destination)) return null;
+        if (goal instanceof GoalComposite composite) {
+            for (var child : composite.goals()) {
+                BlockPos result = miningTarget(child, destination, depth + 1);
+                if (result != null) return result;
+            }
+        } else if (goal instanceof IGoalRenderPos rendered) {
+            BlockPos position = rendered.getGoalPos();
+            if (client.world.getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) == null) return null;
+            for (int dy : new int[]{0, 1, -1, 2}) {
+                BlockPos candidate = position.add(0, dy, 0);
+                if (Arrays.asList(mineBlocks).contains(client.world.getBlockState(candidate).getBlock())) return candidate.toImmutable();
+            }
+        }
+        return null;
+    }
+
+    BlockPos miningTarget() { return miningTarget; }
+
     NavigationSnapshot visualization(boolean includeNodes) { return observation; }
     dev.lodekeeper.nav.Goal diagnosticGoal() { return diagnosticGoal; }
     int diagnosticGoalCandidateCount() { return diagnosticGoal == null ? 0 : 1; }
     String status() {
         if (cancelling) return "finishing movement safely";
         if (mode == Mode.SUSPENDED) return "movement suspended";
-        if (mode == Mode.MINE) return "mining and collecting " + output + " · " + actions.count(output) + "/" + targetCount
+        if (mode == Mode.MINE || mode == Mode.DESCEND) return (mode == Mode.DESCEND ? "seeking mining depth " + miningY + " for " : "mining and collecting ") + output + " · " + actions.count(output) + "/" + targetCount
                 + (observation.searching() ? " · planning next route" : "");
         if (mode == Mode.PICKUP) return "collecting dropped " + output;
         return observation.searching() ? "planning route" : "following route";
