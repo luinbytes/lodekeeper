@@ -16,6 +16,9 @@ import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import net.minecraft.world.level.entity.EntityTypeTest;
 
@@ -76,6 +79,8 @@ final class OwnedStationRecoveryAction {
     private final PlayerActions actions;
     private final MovementController movement;
     private final Predicate<BlockPos> mayBreak;
+    private final Function<BlockPos, OptionalLong> serverRemovalSequence;
+    private final Function<Item, Optional<PlacementProvenance.ServerInventoryReceipt>> inventoryReceipt;
 
     private Phase phase = Phase.IDLE;
     private String status = "owned station recovery idle";
@@ -89,17 +94,23 @@ final class OwnedStationRecoveryAction {
     private ItemEntity drop;
     private Map<ItemEntity, Integer> startingNearbyDrops = Map.of();
     private int highestObservedDropCount;
-    private int startingItemCount;
+    private PlacementProvenance.ServerInventoryReceipt startingInventoryReceipt;
+    private long exactStationRemovalSequence;
+    private long dropObservedIncreaseSequence = -1;
     private long startedAtNanos;
     private boolean miningStarted, contentsVerifiedEmpty, collectedBeforeDropObserved;
 
     OwnedStationRecoveryAction(Minecraft client, LodekeeperConfig config, PlayerActions actions,
-                               MovementController movement, Predicate<BlockPos> mayBreak) {
+                               MovementController movement, Predicate<BlockPos> mayBreak,
+                               Function<BlockPos, OptionalLong> serverRemovalSequence,
+                               Function<Item, Optional<PlacementProvenance.ServerInventoryReceipt>> inventoryReceipt) {
         this.client = Objects.requireNonNull(client, "client");
         this.config = Objects.requireNonNull(config, "config");
         this.actions = Objects.requireNonNull(actions, "actions");
         this.movement = Objects.requireNonNull(movement, "movement");
         this.mayBreak = Objects.requireNonNull(mayBreak, "mayBreak");
+        this.serverRemovalSequence = Objects.requireNonNull(serverRemovalSequence, "serverRemovalSequence");
+        this.inventoryReceipt = Objects.requireNonNull(inventoryReceipt, "inventoryReceipt");
     }
 
     boolean begin(BlockPos position, Block block) {
@@ -137,9 +148,11 @@ final class OwnedStationRecoveryAction {
         ownerWorld = client.level;
         originalHandler = client.player.containerMenu;
         originalScreen = currentScreen();
-        startingItemCount = actions.count(blockItem);
         startingNearbyDrops = Map.of();
         highestObservedDropCount = 0;
+        startingInventoryReceipt = null;
+        exactStationRemovalSequence = 0;
+        dropObservedIncreaseSequence = -1;
         drop = null;
         miningStarted = contentsVerifiedEmpty = collectedBeforeDropObserved = false;
         startedAtNanos = System.nanoTime();
@@ -318,6 +331,12 @@ final class OwnedStationRecoveryAction {
         if (miningStarted && client.level.hasChunkAt(ownedPosition)
                 && client.level.getBlockState(ownedPosition).isAir()) {
             actions.cancel();
+            OptionalLong removalSequence = serverRemovalSequence.apply(ownedPosition);
+            if (removalSequence.isEmpty()) {
+                status = "waiting for the server station removal receipt";
+                return false;
+            }
+            exactStationRemovalSequence = removalSequence.getAsLong();
             phase = Phase.PICKUP;
             status = "checking for the owned " + stationKind.name + " drop";
             return false;
@@ -329,10 +348,6 @@ final class OwnedStationRecoveryAction {
         if (actions.hit(ownedPosition) == null) {
             throw new IllegalStateException("owned station is no longer reachable");
         }
-        if (!miningStarted) {
-            startingNearbyDrops = snapshotNearbyDrops(ownedPosition);
-            miningStarted = true;
-        }
         boolean allowed;
         try {
             allowed = mayBreak.test(ownedPosition);
@@ -341,6 +356,16 @@ final class OwnedStationRecoveryAction {
         }
         if (!allowed) throw new IllegalStateException("owned station is inside a protected claim");
         if (!hasRoomForStation()) throw new IllegalStateException("inventory has no room for the recovered station");
+        if (!miningStarted) {
+            startingNearbyDrops = snapshotNearbyDrops(ownedPosition);
+            Optional<PlacementProvenance.ServerInventoryReceipt> baseline = inventoryReceipt.apply(blockItem);
+            if (baseline.isEmpty()) {
+                status = "waiting for the server inventory baseline before mining the owned " + stationKind.name;
+                return false;
+            }
+            startingInventoryReceipt = baseline.get();
+            miningStarted = true;
+        }
         if (!actions.mine(ownedPosition, null)) {
             throw new IllegalStateException("native mining refused: " + actions.mineFailure());
         }
@@ -352,32 +377,43 @@ final class OwnedStationRecoveryAction {
         requireOriginalContext();
         if (!miningStarted) throw new IllegalStateException("owned station disappeared before recovery started mining it");
         if (drop == null) {
-            drop = nearestBlockDrop();
-            if (drop == null) {
-                if (hasInventoryGain()) {
+            ItemEntity candidate = nearestBlockDrop();
+            if (candidate == null) {
+                if (hasInventoryGainAfterStationRemoval()) {
                     collectedBeforeDropObserved = true;
                     return startFinishing();
+                }
+                if (hasInventoryGain()) {
+                    status = "server inventory increase predates the owned station removal; waiting for the exact drop";
+                    return false;
                 }
                 status = "waiting for the owned " + stationKind.name + " drop";
                 return false;
             }
+            Optional<PlacementProvenance.ServerInventoryReceipt> receipt = inventoryReceipt.apply(blockItem);
+            if (receipt.isEmpty()) {
+                status = "waiting for the server inventory receipt before collecting the exact drop";
+                return false;
+            }
+            drop = candidate;
+            dropObservedIncreaseSequence = receipt.get().increaseSequence();
             highestObservedDropCount = drop.getItem().getCount();
             status = "collecting the owned " + stationKind.name + " drop";
             movement.startPickup(drop);
             return false;
         }
         boolean collectedDrop = dropWasCollected();
-        if (hasInventoryGain()) {
+        if (hasInventoryGainAfterDropObservation()) {
             if (!collectedDrop) {
                 throw new IllegalStateException("station item count increased while its owned drop remained untouched");
             }
             return startFinishing();
         }
         if (!drop.isAlive()) {
-            throw new IllegalStateException("owned station drop disappeared without an inventory receipt");
+            throw new IllegalStateException("owned station drop disappeared without a post-removal inventory receipt");
         }
         if (!movement.tick()) return false;
-        if (!hasInventoryGain() || !dropWasCollected()) {
+        if (!hasInventoryGainAfterDropObservation() || !dropWasCollected()) {
             throw new IllegalStateException("pickup route ended without inventory and entity receipts for the owned station");
         }
         return startFinishing();
@@ -392,7 +428,7 @@ final class OwnedStationRecoveryAction {
             status = "station item gained; finishing movement cancellation";
             return false;
         }
-        if (!hasInventoryGain() || !dropWasCollected()) {
+        if (!hasVerifiedInventoryGain() || !dropWasCollected()) {
             throw new IllegalStateException("owned station recovery lost its inventory or entity receipt");
         }
         ownerPlayer = ownerWorld = null;
@@ -455,7 +491,31 @@ final class OwnedStationRecoveryAction {
         return false;
     }
 
-    private boolean hasInventoryGain() { return actions.count(blockItem) > startingItemCount; }
+    private Optional<PlacementProvenance.ServerInventoryReceipt> inventoryGain() {
+        if (startingInventoryReceipt == null) return Optional.empty();
+        return inventoryReceipt.apply(blockItem).filter(receipt ->
+                receipt.count() > startingInventoryReceipt.count()
+                        && receipt.increaseSequence() > startingInventoryReceipt.increaseSequence());
+    }
+
+    private boolean hasInventoryGain() { return inventoryGain().isPresent(); }
+
+    private boolean hasInventoryGainAfterStationRemoval() {
+        Optional<PlacementProvenance.ServerInventoryReceipt> receipt = inventoryGain();
+        return exactStationRemovalSequence > 0 && receipt.isPresent()
+                && receipt.get().increaseSequence() > exactStationRemovalSequence;
+    }
+
+    private boolean hasInventoryGainAfterDropObservation() {
+        Optional<PlacementProvenance.ServerInventoryReceipt> receipt = inventoryGain();
+        return dropObservedIncreaseSequence >= 0 && receipt.isPresent()
+                && receipt.get().increaseSequence() > dropObservedIncreaseSequence;
+    }
+
+    private boolean hasVerifiedInventoryGain() {
+        return dropObservedIncreaseSequence >= 0
+                ? hasInventoryGainAfterDropObservation() : hasInventoryGainAfterStationRemoval();
+    }
 
     private boolean isExpectedBlock(BlockPos position, Block block) {
         return client.level != null && client.level.hasChunkAt(position)
@@ -473,6 +533,11 @@ final class OwnedStationRecoveryAction {
     }
 
     private void requireClearedTarget() {
+        OptionalLong removalSequence = serverRemovalSequence.apply(ownedPosition);
+        if (exactStationRemovalSequence <= 0 || removalSequence.isEmpty()
+                || removalSequence.getAsLong() != exactStationRemovalSequence) {
+            throw new IllegalStateException("owned station removal receipt changed during recovery");
+        }
         if (client.level == null || !client.level.hasChunkAt(ownedPosition)
                 || !client.level.getBlockState(ownedPosition).isAir()) {
             throw new IllegalStateException("owned station position changed or unloaded after mining");
@@ -580,7 +645,10 @@ final class OwnedStationRecoveryAction {
         originalScreen = stationScreen = null;
         drop = null;
         startingNearbyDrops = Map.of();
-        highestObservedDropCount = startingItemCount = 0;
+        highestObservedDropCount = 0;
+        startingInventoryReceipt = null;
+        exactStationRemovalSequence = 0;
+        dropObservedIncreaseSequence = -1;
         miningStarted = contentsVerifiedEmpty = collectedBeforeDropObserved = false;
     }
 

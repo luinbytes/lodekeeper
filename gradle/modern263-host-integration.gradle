@@ -1,0 +1,92 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def enabled = rootProject.findProperty('owned_kernel_modern_263')?.toString() == 'true'
+if (!enabled) {
+    throw new GradleException('Apply this integration only with -Powned_kernel_modern_263=true')
+}
+if (project.path != ':fabric-modern'
+        || rootProject.minecraft_version.toString() != '26.3'
+        || (rootProject.findProperty('modern_api_family')?.toString() ?: '26.3') != '26.3') {
+    throw new GradleException('Owned modern kernel integration requires adapter modern / Minecraft 26.3')
+}
+
+def kernelProjectPath = ':owned-kernel-modern-263'
+evaluationDependsOn(kernelProjectPath)
+def kernelProject = project(kernelProjectPath)
+def compileOwnedKernel = kernelProject.tasks.named('compileOwnedKernel')
+def sourceManifest = kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json')
+def sourceLockFile = kernelProject.layout.projectDirectory.file('source-lock.json').asFile
+def overrideManifestFile = kernelProject.layout.projectDirectory
+        .file('overrides/lifecycle-overrides.sha256').asFile
+def inspectorFile = kernelProject.layout.projectDirectory
+        .file('scripts/inspect_owned_kernel_jar.py').asFile
+def mixinConfigName = 'mixins.lodekeeper-kernel.json'
+
+def ownedKernelOutputs = files(
+        kernelProject.sourceSets.api.output,
+        kernelProject.sourceSets.schematica_api.output,
+        kernelProject.sourceSets.main.output,
+        kernelProject.sourceSets.launch.output)
+ownedKernelOutputs.builtBy(compileOwnedKernel)
+dependencies.add('implementation', ownedKernelOutputs)
+
+tasks.named('compileJava').configure {
+    dependsOn compileOwnedKernel
+}
+
+tasks.named('processResources').configure {
+    inputs.file(rootProject.file('fabric-modern/src/main/resources/fabric.mod.json'))
+    inputs.property('ownedKernelMixinConfig', mixinConfigName)
+    doLast {
+        File manifestFile = new File(destinationDir, 'fabric.mod.json')
+        Map manifest = new JsonSlurper().parse(manifestFile) as Map
+        if (manifest.mixins != null && !(manifest.mixins instanceof List)) {
+            throw new GradleException('fabric.mod.json mixins must be a list')
+        }
+        List mixins = manifest.mixins == null ? [] : new ArrayList(manifest.mixins)
+        mixins.remove('lodekeeper-baritone.mixins.json')
+        if (!mixins.contains(mixinConfigName)) {
+            mixins.add(mixinConfigName)
+        }
+        manifest.mixins = mixins
+        manifestFile.setText(JsonOutput.prettyPrint(JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
+}
+
+tasks.named('jar').configure {
+    dependsOn compileOwnedKernel
+    from(ownedKernelOutputs) {
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/MANIFEST.MF'
+        exclude '**/*.jar'
+    }
+    from(sourceLockFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+    from(overrideManifestFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+    from(sourceManifest) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+}
+
+tasks.register('inspectOwnedKernelHostJar', Exec) {
+    dependsOn tasks.named('jar'), compileOwnedKernel
+    inputs.file(tasks.named('jar').flatMap { it.archiveFile })
+    inputs.file(sourceManifest)
+    inputs.file(sourceLockFile)
+    inputs.file(overrideManifestFile)
+    commandLine 'python3',
+            inspectorFile.absolutePath,
+            '--jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', sourceManifest.get().asFile.absolutePath,
+            '--source-lock', sourceLockFile.absolutePath,
+            '--override-manifest', overrideManifestFile.absolutePath,
+            '--host-jar'
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('inspectOwnedKernelHostJar')
+}

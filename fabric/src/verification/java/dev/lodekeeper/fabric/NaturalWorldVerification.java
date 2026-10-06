@@ -282,7 +282,7 @@ final class NaturalWorldVerification {
                     fail("automation paused: " + LodekeeperClient.engine.status());
                     return;
                 }
-                var pathing = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior();
+                var pathing = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone().getPathingBehavior();
                 boolean navigationStopped = !pathing.hasPath() && !pathing.isPathing()
                         && pathing.getInProgress().isEmpty();
                 boolean satisfied = goalSatisfied(observation.heldCounts) && observation.cursorCount == 0

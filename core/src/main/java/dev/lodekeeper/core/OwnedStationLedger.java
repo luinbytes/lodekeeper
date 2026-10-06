@@ -180,6 +180,24 @@ public final class OwnedStationLedger {
     }
 
     /**
+     * Forgets this exact record when the adapter loses observation of its chunk. This is not
+     * evidence of pickup or replacement; it only stops claiming ownership until the station is
+     * observed and attributed again.
+     */
+    public boolean forget(Session session, StationRecord record) {
+        Objects.requireNonNull(session, "session");
+        Objects.requireNonNull(record, "record");
+        if (!currentSession.equals(session)) return false;
+        for (int index = 0; index < records.size(); index++) {
+            if (records.get(index) == record) {
+                records.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Removes this exact record after the adapter receives server evidence that this station was
      * picked up. Equivalent record data from another ledger does not authorize removal.
      */

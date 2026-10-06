@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.PriorityQueue;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /** Palette-pruned, incremental discovery. Reads loaded chunks only and never loads a chunk. */
 final class BlockSearch {
@@ -20,6 +22,8 @@ final class BlockSearch {
     private final MinecraftClient client;
     private final Set<Block> blocks;
     private final Set<BlockPos> excluded;
+    private final Predicate<BlockPos> candidateFilter;
+    private final Consumer<ChunkPos> chunkObserver;
     private final Set<Block> matchedBlocks = new java.util.HashSet<>();
     private final BlockPos origin;
     private final int radius;
@@ -48,17 +52,37 @@ final class BlockSearch {
 
     BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
                 boolean retainRepresentatives, List<ChunkPos> selectedChunks) {
+        this(client, blocks, radius, excluded, retainRepresentatives, selectedChunks,
+                position -> true, ignored -> {}, false);
+    }
+
+    BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
+                List<ChunkPos> selectedChunks, Predicate<BlockPos> candidateFilter,
+                Consumer<ChunkPos> chunkObserver) {
+        this(client, blocks, radius, excluded, true, selectedChunks, candidateFilter, chunkObserver, true);
+    }
+
+    private BlockSearch(MinecraftClient client, Set<Block> blocks, int radius, Set<BlockPos> excluded,
+                        boolean retainRepresentatives, List<ChunkPos> selectedChunks,
+                        Predicate<BlockPos> candidateFilter, Consumer<ChunkPos> chunkObserver,
+                        boolean selectedChunksOrdered) {
         this.client = client; this.blocks = Set.copyOf(blocks);
         this.excluded = Set.copyOf(excluded); this.radius = radius;
+        this.candidateFilter = candidateFilter;
+        this.chunkObserver = chunkObserver;
         this.retainRepresentatives = retainRepresentatives;
         this.representatives = retainRepresentatives ? new java.util.HashMap<>() : Map.of();
         origin = client.player.getBlockPos();
         candidates = new PriorityQueue<>(Comparator.comparingDouble((BlockPos pos) -> pos.getSquaredDistance(origin)).reversed());
-        int chunkRadius = (radius + 15) / 16;
-        ChunkPos center = new ChunkPos(origin);
-        for (int x = -chunkRadius; x <= chunkRadius; x++) for (int z = -chunkRadius; z <= chunkRadius; z++) chunks.add(new ChunkPos(center.x + x, center.z + z));
-        if (selectedChunks != null) { chunks.clear(); chunks.addAll(selectedChunks); }
-        chunks.sort(Comparator.comparingDouble(p -> Math.pow(p.getCenterX() - origin.getX(), 2) + Math.pow(p.getCenterZ() - origin.getZ(), 2)));
+        if (selectedChunks == null) {
+            int chunkRadius = (radius + 15) / 16;
+            ChunkPos center = new ChunkPos(origin);
+            for (int x = -chunkRadius; x <= chunkRadius; x++) for (int z = -chunkRadius; z <= chunkRadius; z++) chunks.add(new ChunkPos(center.x + x, center.z + z));
+            chunks.sort(Comparator.comparingDouble(p -> Math.pow(p.getCenterX() - origin.getX(), 2) + Math.pow(p.getCenterZ() - origin.getZ(), 2)));
+        } else {
+            chunks.addAll(selectedChunks);
+            if (!selectedChunksOrdered) chunks.sort(Comparator.comparingDouble(p -> Math.pow(p.getCenterX() - origin.getX(), 2) + Math.pow(p.getCenterZ() - origin.getZ(), 2)));
+        }
     }
     boolean advance(int blockBudget, long nanosBudget) {
         if (done || client.world == null) return true;
@@ -68,6 +92,7 @@ final class BlockSearch {
             if (chunk == null) {
                 if (chunkIndex == chunks.size()) { done = true; break; }
                 ChunkPos pos = chunks.get(chunkIndex++);
+                chunkObserver.accept(pos);
                 chunk = client.world.getChunkManager().getChunk(pos.x, pos.z, ChunkStatus.FULL, false);
                 sectionCursor = 0; cellIndex = 0;
                 if (chunk == null) continue;
@@ -88,7 +113,7 @@ final class BlockSearch {
                 if (horizontal <= radius * radius) {
                     Block matched = section.getBlockState(x, y, z).getBlock();
                     matchedBlocks.add(matched);
-                    if (excluded.contains(pos)) {
+                    if (excluded.contains(pos) || !candidateFilter.test(pos)) {
                         probes++;
                         if (++cellIndex == 4096) { cellIndex = 0; sectionCursor++; }
                         continue;

@@ -175,6 +175,7 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/ConfigRoundTripVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NavigationSettingsVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java')
 ]
 if (!['1.21.9', '1.21.10'].contains(minecraftVersion)) {

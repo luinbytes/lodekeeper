@@ -1,25 +1,30 @@
 package dev.lodekeeper.fabric;
 
-import baritone.api.BaritoneAPI;
-import baritone.api.IBaritone;
-import baritone.api.Settings;
-import baritone.api.event.events.PathEvent;
-import baritone.api.event.listener.AbstractGameEventListener;
-import baritone.api.pathing.calc.IPath;
-import baritone.api.pathing.goals.GoalBlock;
-import baritone.api.pathing.goals.GoalComposite;
-import baritone.api.process.IBaritoneProcess;
-import baritone.api.process.ICustomGoalProcess;
-import baritone.api.utils.interfaces.IGoalRenderPos;
-import baritone.api.pathing.goals.GoalGetToBlock;
-import baritone.api.pathing.goals.GoalNear;
-import baritone.api.pathing.goals.GoalRunAway;
-import baritone.api.pathing.goals.GoalYLevel;
-import baritone.api.utils.BlockOptionalMetaLookup;
+import dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI;
+import dev.lodekeeper.navigation.kernel.api.IBaritone;
+import dev.lodekeeper.navigation.kernel.api.Settings;
+import dev.lodekeeper.navigation.kernel.api.event.events.PathEvent;
+import dev.lodekeeper.navigation.kernel.api.event.listener.AbstractGameEventListener;
+import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPath;
+import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPathFinder;
+import dev.lodekeeper.navigation.kernel.api.pathing.movement.IMovement;
+import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
+import dev.lodekeeper.navigation.kernel.pathing.movement.movements.MovementParkour;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalBlock;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalComposite;
+import dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess;
+import dev.lodekeeper.navigation.kernel.api.process.ICustomGoalProcess;
+import dev.lodekeeper.navigation.kernel.api.utils.interfaces.IGoalRenderPos;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalGetToBlock;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalNear;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalRunAway;
+import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalYLevel;
+import dev.lodekeeper.navigation.kernel.api.utils.BlockOptionalMetaLookup;
 import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.core.MiningDepthPolicy;
 import dev.lodekeeper.nav.ExplorationFrontier;
 import dev.lodekeeper.nav.NavigationSnapshot;
+import dev.lodekeeper.nav.NavigationSceneSnapshot;
 import dev.lodekeeper.nav.Path;
 import dev.lodekeeper.nav.StanceProbe;
 import net.minecraft.block.Block;
@@ -56,13 +61,13 @@ final class MovementController {
             {0, 1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}
     };
 
-    private static final class PlacementGoal implements baritone.api.pathing.goals.Goal, IGoalRenderPos {
+    private static final class PlacementGoal implements dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal, IGoalRenderPos {
         private final BlockPos destination;
         private final GoalComposite stances;
 
         PlacementGoal(BlockPos destination) {
             this.destination = destination.toImmutable();
-            baritone.api.pathing.goals.Goal[] goals = new baritone.api.pathing.goals.Goal[12];
+            dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[] goals = new dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[12];
             int index = 0;
             for (int dy = -1; dy <= 1; dy++) {
                 goals[index++] = new GoalBlock(this.destination.add(1, dy, 0));
@@ -73,15 +78,15 @@ final class MovementController {
             stances = new GoalComposite(goals);
         }
 
-        private PlacementGoal(BlockPos destination, baritone.api.pathing.goals.Goal[] goals) {
+        private PlacementGoal(BlockPos destination, dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[] goals) {
             this.destination = destination;
             stances = new GoalComposite(goals);
         }
 
         PlacementGoal withoutStance(BlockPos rejected) {
-            baritone.api.pathing.goals.Goal[] remaining = Arrays.stream(stances.goals())
+            dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[] remaining = Arrays.stream(stances.goals())
                     .filter(goal -> !goal.isInGoal(rejected))
-                    .toArray(baritone.api.pathing.goals.Goal[]::new);
+                    .toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new);
             return remaining.length == 0 ? null : new PlacementGoal(destination, remaining);
         }
 
@@ -133,8 +138,8 @@ final class MovementController {
     private IBaritoneProcess cancellationProcess;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
     private boolean cancelling, followCancellationPending, retreatRequest, defenseSettlingPending;
-    private baritone.api.pathing.goals.Goal routeGoal;
-    private baritone.api.pathing.goals.Goal airRecoveryGoal;
+    private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal routeGoal;
+    private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal airRecoveryGoal;
     private BlockPos lastAirRecoveryDestination;
     private BlockPos airSwimOrigin;
     private boolean airRecoveryCancellationPending;
@@ -252,7 +257,7 @@ final class MovementController {
         }
         if (goals.isEmpty()) throw new NavigationFailure(NavigationFailure.Kind.NO_RETREAT_STANCE,
                 "No safe dry retreat stance remains within the bounded search");
-        routeGoal = new GoalComposite(goals.stream().map(GoalBlock::new).toArray(baritone.api.pathing.goals.Goal[]::new));
+        routeGoal = new GoalComposite(goals.stream().map(GoalBlock::new).toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new));
         diagnosticGoal = null;
         mode = Mode.MOVE;
         retreatRequest = true;
@@ -283,7 +288,7 @@ final class MovementController {
         checkAirRecoveryOwnership();
         prepare();
         airRecoveryGoal = new GoalComposite(goals.stream().map(GoalBlock::new)
-                .toArray(baritone.api.pathing.goals.Goal[]::new));
+                .toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new));
         lastAirRecoveryDestination = null;
         routeGoal = airRecoveryGoal;
         diagnosticGoal = null;
@@ -413,7 +418,7 @@ final class MovementController {
     List<BlockPos> airSwimRoute() {
         checkAirRecoveryOwnership();
         if (client.player == null || client.world == null) throw new NavigationFailure("World unavailable");
-        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        IBaritone activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
         var pathing = activeBot.getPathingBehavior();
         if (mode != Mode.IDLE || resumeMode != Mode.IDLE || cancelling || cancellationProcess != null
                 || airRecoveryCancellationPending || lease != null || pathing.hasPath() || pathing.isPathing()
@@ -611,7 +616,7 @@ final class MovementController {
                 "[Lodekeeper] STATION_ROUTE event=start destination={} stances=12", target);
     }
 
-    private void startMove(baritone.api.pathing.goals.Goal goal, dev.lodekeeper.nav.Goal diagnostic) {
+    private void startMove(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal goal, dev.lodekeeper.nav.Goal diagnostic) {
         prepare(); routeGoal = goal; diagnosticGoal = diagnostic; mode = Mode.MOVE;
         launch();
     }
@@ -650,7 +655,7 @@ final class MovementController {
         boolean vanillaDiamonds = output == Items.DIAMOND && Arrays.stream(mineBlocks)
                 .allMatch(block -> block == Blocks.DIAMOND_ORE || block == Blocks.DEEPSLATE_DIAMOND_ORE);
         miningDepthPolicy = MiningDepthPolicy.select(deficit, vanillaDiamonds, config.allowExploration,
-                client.world.getBottomY(), BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+                client.world.getBottomY(), OwnedKernelAPI.getSettings().maxYLevelWhileMining.value);
         rejectedMiningTargets.removeIf(position -> !withinMiningDepth(position));
         miningY = miningDepthPolicy.bulkDiamonds() ? miningDepthPolicy.desiredY() : miningLevel();
         mode = miningDepthPolicy.shouldDescend((int) Math.floor(client.player.getY())) ? Mode.DESCEND : Mode.MINE;
@@ -665,13 +670,14 @@ final class MovementController {
         stop();
         if (!finishCancellation()) throw new NavigationFailure("Finishing previous movement before starting a new route");
         if (bot == null) {
-            bot = BaritoneAPI.getProvider().getPrimaryBaritone();
+            bot = OwnedKernelAPI.getProvider().getPrimaryBaritone();
+            if (bot == null) throw new NavigationFailure("Owned navigation is unavailable");
             bot.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
                 @Override public void onPathEvent(PathEvent event) {
                     if (mode == Mode.IDLE && !cancelling) return;
                     if (event == PathEvent.CALC_FAILED) failedCalculations++;
                     if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                            "[Lodekeeper] NAV backend=baritone mode={} event={} elapsedMs={}",
+                            "[Lodekeeper] NAV backend=owned-navigation mode={} event={} elapsedMs={}",
                             mode, event, (System.nanoTime() - startedNanos) / 1_000_000);
                     if (config.debugLogging && event == PathEvent.CALC_STARTED && client.player != null)
                         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
@@ -694,27 +700,47 @@ final class MovementController {
         lastLoggedBreakPosition = miningTarget = null; lastLoggedBreakTool = null;
     }
 
+    private long nativeDebugWindow;
+    private int nativeDebugMessages;
+    private void logNativeDebug(String message) {
+        long now = System.nanoTime();
+        if (now - nativeDebugWindow >= 2_000_000_000L) {
+            nativeDebugWindow = now;
+            nativeDebugMessages = 0;
+        }
+        if (nativeDebugMessages++ < 8)
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] KERNEL {}", message);
+    }
+
     private void launch() {
         if (mode == Mode.MINE || mode == Mode.DESCEND) {
             refreshMiningDepth();
             if (miningDepthPolicy.bulkDiamonds() && (int) Math.floor(client.player.getY())
-                    > miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value))
+                    > miningDepthPolicy.effectiveMaximumY(OwnedKernelAPI.getSettings().maxYLevelWhileMining.value))
                 mode = Mode.DESCEND;
         }
         input.release();
         phaseStartedTick = requestTicks;
         lease = new SettingsLease();
-        Settings settings = BaritoneAPI.getSettings();
+        Settings settings = OwnedKernelAPI.getSettings();
+        lease.set(settings.chatDebug, config.debugLogging);
+        lease.set(settings.logger, message -> logNativeDebug(message.getString()));
         boolean airRecovery = mode == Mode.AIR;
         lease.set(settings.allowBreak, !airRecovery && !retreatRequest && config.allowBreaking);
         lease.set(settings.allowPlace, !airRecovery && !retreatRequest && config.allowBuilding);
         lease.set(settings.allowInventory, false);
         lease.set(settings.allowParkour, !airRecovery && config.allowParkour);
-        lease.set(settings.allowParkourPlace, !airRecovery && !retreatRequest && config.allowParkour && config.allowBuilding);
-        lease.set(settings.allowSprint, true);
+        lease.set(settings.allowParkourPlace, !airRecovery && !retreatRequest
+                && config.allowParkour && config.allowParkourPlace && config.allowBuilding);
+        lease.set(settings.allowSprint, config.allowSprint);
+        lease.set(settings.allowDiagonalAscend, !airRecovery && config.allowDiagonalAscend);
+        lease.set(settings.allowDiagonalDescend, !airRecovery && config.allowDiagonalDescend);
+        lease.set(settings.avoidance, !airRecovery && !retreatRequest && config.avoidance);
+        lease.set(settings.mobAvoidanceRadius, config.mobAvoidanceRadius);
+        lease.set(settings.mobSpawnerAvoidanceRadius, config.spawnerAvoidanceRadius);
         lease.set(settings.allowWaterBucketFall, false);
         if (airRecovery) lease.set(settings.assumeWalkOnWater, false);
-        lease.set(settings.maxFallHeightNoWater, 3);
+        lease.set(settings.maxFallHeightNoWater, config.maxFallHeight);
         lease.set(settings.autoTool, true);
         lease.set(settings.assumeExternalAutoTool, true);
         lease.set(settings.itemSaver, true);
@@ -727,9 +753,11 @@ final class MovementController {
         if (miningDepthPolicy != null && miningDepthPolicy.bulkDiamonds())
             lease.set(settings.maxYLevelWhileMining,
                     miningDepthPolicy.effectiveMaximumY(settings.maxYLevelWhileMining.value));
-        lease.set(settings.mineGoalUpdateInterval, 0);
-        lease.set(settings.primaryTimeoutMS, 500L); lease.set(settings.failureTimeoutMS, 2000L);
-        lease.set(settings.planAheadPrimaryTimeoutMS, 4000L); lease.set(settings.planAheadFailureTimeoutMS, 5000L);
+        lease.set(settings.mineGoalUpdateInterval, config.mineGoalUpdateTicks);
+        lease.set(settings.primaryTimeoutMS, (long) config.pathInitialSearchMillis);
+        lease.set(settings.failureTimeoutMS, (long) Math.max(config.pathInitialSearchMillis, config.pathInitialFailureMillis));
+        lease.set(settings.planAheadPrimaryTimeoutMS, (long) config.pathContinuationSearchMillis);
+        lease.set(settings.planAheadFailureTimeoutMS, (long) Math.max(config.pathContinuationSearchMillis, config.pathContinuationFailureMillis));
         applyProtection();
         if (!airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
@@ -747,10 +775,17 @@ final class MovementController {
                 // Native quantity counts several drops. The request checks its exact output itself.
                 long scanStarted = System.nanoTime();
                 bot.getMineProcess().mine(0, new BlockOptionalMetaLookup(mineBlocks));
-                var access = miningAccess();
-                access.lodekeeper$blacklistedMiningTargets().addAll(rejectedMiningTargets);
-                access.lodekeeper$knownMiningTargets(new ArrayList<>(access.lodekeeper$knownMiningTargets().stream()
-                        .filter(position -> withinMiningDepth(position) && !rejectedMiningTargets.contains(position)).toList()));
+                LinkedHashSet<BlockPos> seed = new LinkedHashSet<>();
+                for (BlockPos position : discoveredMiningTargets) {
+                    if (seed.size() == 64) break;
+                    if (validMiningDiscovery(position) && !rejectedMiningTargets.contains(position)) seed.add(position.toImmutable());
+                }
+                for (BlockPos position : pendingMiningTargets) {
+                    if (seed.size() == 64) break;
+                    if (validMiningDiscovery(position) && !rejectedMiningTargets.contains(position)) seed.add(position.toImmutable());
+                }
+                var admission = ownedMiningTargets().replaceOwnedMiningTargets(seed, rejectedMiningTargets);
+                if (admission.isEmpty()) throw new NavigationFailure("Mining process has no current owned world session");
                 logMiningScan("native-mine", System.nanoTime() - scanStarted, -1);
             }
             default -> throw new IllegalStateException("No navigation request to launch");
@@ -758,7 +793,7 @@ final class MovementController {
     }
 
     private void applyProtection() {
-        Settings settings = BaritoneAPI.getSettings();
+        Settings settings = OwnedKernelAPI.getSettings();
         List<Item> scaffold = new ArrayList<>();
         for (Item item : List.of(Blocks.DIRT.asItem(), Blocks.COBBLESTONE.asItem(),
                 Blocks.NETHERRACK.asItem(), Blocks.STONE.asItem())) if (!reserved.contains(item)) scaffold.add(item);
@@ -818,7 +853,7 @@ final class MovementController {
             refreshMiningDepth();
             if (miningDepthPolicy.bulkDiamonds()) {
                 boolean aboveCeiling = (int) Math.floor(client.player.getY())
-                        > miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+                        > miningDepthPolicy.effectiveMaximumY(OwnedKernelAPI.getSettings().maxYLevelWhileMining.value);
                 if (mode == Mode.SUSPENDED) {
                     if (aboveCeiling) resumeMode = Mode.DESCEND;
                 } else if (previousMiningY != miningY) {
@@ -895,7 +930,7 @@ final class MovementController {
             }
         }
         if (exploring && !miningDepthPolicy.bulkDiamonds()
-                && miningAccess().lodekeeper$knownMiningTargets().isEmpty()
+                && knownMiningTargets().isEmpty()
                 && config.allowExploration && miningY != Integer.MIN_VALUE
                 && Math.abs((int) Math.floor(client.player.getY()) - miningY) > 8) {
             changeMiningPhase(Mode.DESCEND);
@@ -909,14 +944,14 @@ final class MovementController {
     }
 
     private void refreshMiningDepth() {
-        int maximumY = miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+        int maximumY = miningDepthPolicy.effectiveMaximumY(OwnedKernelAPI.getSettings().maxYLevelWhileMining.value);
         if (maximumY <= client.world.getBottomY()) {
             stop();
             throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
                     "Mining ceiling leaves no usable depth above the world floor");
         }
         if (miningDepthPolicy.bulkDiamonds())
-            miningY = miningDepthPolicy.effectiveDesiredY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+            miningY = miningDepthPolicy.effectiveDesiredY(OwnedKernelAPI.getSettings().maxYLevelWhileMining.value);
     }
 
     private int miningLevel() {
@@ -945,7 +980,7 @@ final class MovementController {
     }
 
     private boolean withinMiningDepth(BlockPos position) {
-        int maximumY = BaritoneAPI.getSettings().maxYLevelWhileMining.value;
+        int maximumY = OwnedKernelAPI.getSettings().maxYLevelWhileMining.value;
         if (miningDepthPolicy != null && miningDepthPolicy.bulkDiamonds())
             maximumY = miningDepthPolicy.effectiveMaximumY(maximumY);
         return position.getY() <= maximumY;
@@ -962,41 +997,50 @@ final class MovementController {
                 && !protectedBlocks.contains(state.getBlock()) && state.getHardness(client.world, position) >= 0;
     }
 
-    private BaritoneMiningAccess miningAccess() {
-        if (!(bot.getMineProcess() instanceof BaritoneMiningAccess access))
-            throw new NavigationFailure("The verified mining bridge is unavailable");
+    private dev.lodekeeper.navigation.kernel.api.process.OwnedMiningTargets ownedMiningTargets() {
+        if (!(bot.getMineProcess() instanceof dev.lodekeeper.navigation.kernel.api.process.OwnedMiningTargets access))
+            throw new NavigationFailure("The owned mining API is unavailable");
         return access;
     }
 
     private void rememberRejectedMiningTargets() {
-        for (BlockPos position : miningAccess().lodekeeper$blacklistedMiningTargets()) {
-            if (rejectedMiningTargets.size() == 512) break;
+        var snapshot = ownedMiningTargets().ownedMiningTargetsSnapshot();
+        if (snapshot.isEmpty()) return;
+        for (BlockPos position : snapshot.get().rejections()) {
             if (!withinMiningDepth(position)) continue;
-            rejectedMiningTargets.add(position.toImmutable());
+            BlockPos immutable = position.toImmutable();
+            rejectedMiningTargets.remove(immutable);
+            rejectedMiningTargets.add(immutable);
+            if (rejectedMiningTargets.size() > 512) rejectedMiningTargets.remove(rejectedMiningTargets.iterator().next());
         }
     }
 
     private void mergeMiningDiscoveries() {
-        if (pendingMiningTargets.isEmpty()) return;
-        var access = miningAccess();
-        List<BlockPos> existingTargets = access.lodekeeper$knownMiningTargets();
+        var access = ownedMiningTargets();
+        var before = access.ownedMiningTargetsSnapshot();
+        if (before.isEmpty()) return;
+        List<BlockPos> existingTargets = before.get().targets();
         LinkedHashSet<BlockPos> merged = new LinkedHashSet<>();
         for (BlockPos existing : existingTargets) {
             if (merged.size() == 64) break;
             if (withinMiningDepth(existing) && !rejectedMiningTargets.contains(existing)) merged.add(existing);
         }
-        int previousSize = merged.size();
+        LinkedHashSet<BlockPos> attempted = new LinkedHashSet<>();
         for (BlockPos fresh : pendingMiningTargets) {
             if (merged.size() == 64) break;
-            if (!rejectedMiningTargets.contains(fresh) && validMiningDiscovery(fresh)) merged.add(fresh);
+            if (!rejectedMiningTargets.contains(fresh) && validMiningDiscovery(fresh) && merged.add(fresh)) attempted.add(fresh);
         }
-        pendingMiningTargets.removeAll(merged);
-        if (merged.size() == previousSize && merged.size() == existingTargets.size()) return;
-        access.lodekeeper$knownMiningTargets(new ArrayList<>(merged));
+        var after = access.admitOwnedMiningTargets(attempted, rejectedMiningTargets);
+        if (after.isEmpty()) return;
+        Set<BlockPos> admittedTargets = Set.copyOf(after.get().targets());
+        Set<BlockPos> rejectedTargets = Set.copyOf(after.get().rejections());
+        pendingMiningTargets.removeIf(position -> rejectedMiningTargets.contains(position)
+                || admittedTargets.contains(position) || rejectedTargets.contains(position));
         lastDiscoveryMergeTick = requestTicks;
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] NAV discovered={} retained={} rejected={} requestTicks={} phase={}",
-                merged.size() - previousSize, merged.size(), rejectedMiningTargets.size(), requestTicks, mode);
+                (int) after.get().targets().stream().filter(position -> !existingTargets.contains(position)).count(),
+                after.get().targets().size(), rejectedMiningTargets.size(), requestTicks, mode);
     }
 
     private void scanOneMiningChunk() {
@@ -1058,7 +1102,7 @@ final class MovementController {
         if (foreignFollowOwnsProcess()) pendingOwnershipFailure = releaseLostFollowOwnership();
         if (pendingOwnershipFailure != null) return true;
         if (lease == null || bot == null
-                || !bot.getInputOverrideHandler().isInputForcedDown(baritone.api.utils.input.Input.CLICK_LEFT)) return true;
+                || !bot.getInputOverrideHandler().isInputForcedDown(dev.lodekeeper.navigation.kernel.api.utils.input.Input.CLICK_LEFT)) return true;
         if (cancelling || retreatRequest || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
         if (client.world == null || client.player == null) return false;
         if (config.pauseOnScreen && client.currentScreen != null) return false;
@@ -1086,8 +1130,29 @@ final class MovementController {
             lastLoggedBreakPosition = position.toImmutable();
             lastLoggedBreakTool = stack.getItem();
         }
+        if (ownsNativeBreak(position)) actions.recordOwnedNavigationBreak(position);
         lastBreakTick = requestTicks;
         return true;
+    }
+
+    private boolean ownsNativeBreak(BlockPos position) {
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (owner == null || !owner.isCurrent(session) || session.world() != client.world
+                || bot != owner.getPrimaryBaritone() || lease == null || cancelling || retreatRequest
+                || mode == Mode.IDLE || mode == Mode.SUSPENDED || pendingOwnershipFailure != null
+                || !bot.getInputOverrideHandler().isInputForcedDown(dev.lodekeeper.navigation.kernel.api.utils.input.Input.CLICK_LEFT)) return false;
+        var expected = expectedProcessForMode(bot, mode);
+        if (expected == null || !expected.isActive() || hasForeignActiveProcess(bot, expected)) return false;
+        var controlling = bot.getPathingControlManager().mostRecentInControl();
+        return controlling.isPresent() && controlling.get() == expected
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executeBreak(owner, position);
+    }
+
+    boolean backfillInputClear() { return !defenseHopManualInput(); }
+
+    boolean backfillIdle() {
+        return defenseHopNativeDrained() && !defenseHopManualInput() && defenseHopPhysicalStartReady();
     }
 
     void suspend() {
@@ -1219,7 +1284,7 @@ final class MovementController {
         if (!defenseHopCameraReady() || mode != Mode.IDLE || resumeMode != Mode.IDLE || cancelling
                 || cancellationProcess != null || followCancellationPending || airRecoveryCancellationPending
                 || lease != null) return false;
-        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        IBaritone activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
         var pathing = activeBot.getPathingBehavior();
         if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) return false;
         IBaritoneProcess[] processes = {
@@ -1228,7 +1293,7 @@ final class MovementController {
                 activeBot.getGetToBlockProcess(), activeBot.getElytraProcess()
         };
         for (IBaritoneProcess process : processes) if (process.isActive()) return false;
-        for (baritone.api.utils.input.Input key : baritone.api.utils.input.Input.values())
+        for (dev.lodekeeper.navigation.kernel.api.utils.input.Input key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
             if (activeBot.getInputOverrideHandler().isInputForcedDown(key)) return false;
         return true;
     }
@@ -1273,7 +1338,7 @@ final class MovementController {
 
     void checkAirRecoveryOwnership() {
         checkFollowOwnership();
-        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        IBaritone activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
         var custom = activeBot.getCustomGoalProcess();
         IBaritoneProcess expected = cancellationProcess != null
                 ? cancellationProcess : expectedProcessForMode(activeBot, mode);
@@ -1292,7 +1357,7 @@ final class MovementController {
             throw releaseLostAirRecoveryOwnership();
     }
 
-    private boolean matchesOwnedCustomGoal(ICustomGoalProcess custom, baritone.api.pathing.goals.Goal expectedGoal) {
+    private boolean matchesOwnedCustomGoal(ICustomGoalProcess custom, dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal expectedGoal) {
         return expectedGoal != null && (custom.getGoal() == expectedGoal
                 || custom.getGoal() == null && !custom.isActive() && custom.mostRecentGoal() == expectedGoal);
     }
@@ -1383,7 +1448,7 @@ final class MovementController {
         else checkFollowOwnership();
         if (!cancelling) {
             if (defenseOnly) {
-                var activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+                var activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
                 var pathing = activeBot.getPathingBehavior();
                 if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) {
                     logDefenseCancellation("native-work");
@@ -1432,7 +1497,7 @@ final class MovementController {
         long now = System.nanoTime();
         if (!config.debugLogging || now - lastDefenseCancellationLog < 1_000_000_000L) return;
         lastDefenseCancellationLog = now;
-        var activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        var activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
         var pathing = activeBot.getPathingBehavior();
         var velocity = client.player.getVelocity();
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
@@ -1441,36 +1506,18 @@ final class MovementController {
                 client.player.isOnGround(), Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z));
     }
 
-    void shutdownUpstream() {
+    void shutdownOwnedNavigation() {
         stopDefenseHop();
-        IBaritone primary = BaritoneAPI.getProvider().getPrimaryBaritone();
-        primary.getPathingBehavior().cancelEverything();
-        primary.getInputOverrideHandler().clearAllKeys();
-        Class<?> implementation = primary.getClass();
-        if (!implementation.getName().startsWith("baritone.")) return;
-        java.util.concurrent.ThreadPoolExecutor executor = null;
-        try {
-            for (var field : implementation.getDeclaredFields()) {
-                if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())
-                        || field.getType() != java.util.concurrent.ThreadPoolExecutor.class) continue;
-                if (executor != null) throw new IllegalStateException("Ambiguous upstream executor ownership");
-                field.setAccessible(true);
-                executor = (java.util.concurrent.ThreadPoolExecutor) field.get(null);
-            }
-            // The pinned API jars expose no lifecycle hook. Close their pool only when Minecraft quits.
-            if (executor != null) executor.shutdownNow();
-        } catch (ReflectiveOperationException | RuntimeException failure) {
-            org.slf4j.LoggerFactory.getLogger("lodekeeper").warn("[Lodekeeper] Upstream shutdown failed", failure);
-        }
+        dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.shutdown();
     }
 
     List<BlockPos> knownMiningTargets() {
         if (mode != Mode.MINE || bot == null || !bot.getMineProcess().isActive()) return List.of();
-        Set<BlockPos> known = new LinkedHashSet<>();
-        int inspected = 0;
-        for (BlockPos position : miningAccess().lodekeeper$knownMiningTargets()) {
-            if (inspected++ >= 512) break;
-            if (position != null && withinMiningDepth(position) && !rejectedMiningTargets.contains(position))
+        var snapshot = ownedMiningTargets().ownedMiningTargetsSnapshot();
+        if (snapshot.isEmpty()) return List.of();
+        LinkedHashSet<BlockPos> known = new LinkedHashSet<>();
+        for (BlockPos position : snapshot.get().targets()) {
+            if (withinMiningDepth(position) && !rejectedMiningTargets.contains(position))
                 known.add(position.toImmutable());
         }
         return List.copyOf(known);
@@ -1500,9 +1547,13 @@ final class MovementController {
         int index = pathing.getCurrent() == null ? 0 : pathing.getCurrent().getPosition();
         var calculation = pathing.getInProgress();
         boolean searching = calculation.isPresent();
+        IPathFinder.SearchPreview searchPreview = calculation
+                .map(pathfinder -> pathfinder.searchPreview())
+                .orElse(IPathFinder.SearchPreview.EMPTY);
         miningTarget = mode == Mode.MINE && upstream != null
                 ? miningTarget(upstream.getGoal(), upstream.getDest(), 0) : null;
         Path path = null;
+        NavigationSceneSnapshot scene = NavigationSceneSnapshot.EMPTY;
         if (upstream != null) {
             var positions = upstream.positions();
             int first = Math.max(0, Math.min(index, positions.size() - 1));
@@ -1513,12 +1564,54 @@ final class MovementController {
                 coordinates[i * 3] = position.getX(); coordinates[i * 3 + 1] = position.getY(); coordinates[i * 3 + 2] = position.getZ();
             }
             path = Path.observation(coordinates);
+            var movements = upstream.movements();
+            int movementCount = Math.min(NavigationSceneSnapshot.MAX_MOVEMENTS,
+                    Math.min(Math.max(0, size - 1), Math.max(0, movements.size() - first)));
+            byte[] movementKinds = new byte[movementCount];
+            ArrayList<NavigationSceneSnapshot.WorldAction> nativeActions = new ArrayList<>(NavigationSceneSnapshot.MAX_ACTIONS);
+            for (int i = 0; i < movementCount; i++) {
+                IMovement movement = movements.get(first + i);
+                if (movement instanceof MovementParkour) movementKinds[i] = NavigationSceneSnapshot.MOVEMENT_PARKOUR;
+                if (i != 0 || !(movement instanceof Movement nativeMovement)) continue;
+                // The path executor's populated caches already contain its checked next targets.
+                if (nativeMovement.toBreakCached != null) {
+                    for (var position : nativeMovement.toBreakCached) {
+                        if (nativeActions.size() == NavigationSceneSnapshot.MAX_ACTIONS) break;
+                        nativeActions.add(new NavigationSceneSnapshot.WorldAction(
+                                dev.lodekeeper.nav.Position.pack(position.getX(), position.getY(), position.getZ()),
+                                NavigationSceneSnapshot.ActionKind.BREAK,
+                                NavigationSceneSnapshot.ActionEvidence.PLANNED_NATIVE));
+                    }
+                }
+                if (nativeMovement.toPlaceCached != null) {
+                    for (var position : nativeMovement.toPlaceCached) {
+                        if (nativeActions.size() == NavigationSceneSnapshot.MAX_ACTIONS) break;
+                        nativeActions.add(new NavigationSceneSnapshot.WorldAction(
+                                dev.lodekeeper.nav.Position.pack(position.getX(), position.getY(), position.getZ()),
+                                NavigationSceneSnapshot.ActionKind.PLACE,
+                                NavigationSceneSnapshot.ActionEvidence.PLANNED_NATIVE));
+                    }
+                }
+            }
+            scene = new NavigationSceneSnapshot(movementKinds,
+                    nativeActions.toArray(NavigationSceneSnapshot.WorldAction[]::new),
+                    new NavigationSceneSnapshot.Marker[0]);
         }
-        observation = new NavigationSnapshot(path, 0, 0, 0, 0, System.nanoTime() - startedNanos,
-                requestTicks, failedCalculations, searching, new long[0], new byte[0], new boolean[0]);
+        int searchNodeCount = searchPreview.nodeCount();
+        long[] nodePositions = new long[searchNodeCount];
+        byte[] nodeFractions = new byte[searchNodeCount];
+        boolean[] nodeClosed = new boolean[searchNodeCount];
+        for (int i = 0; i < searchNodeCount; i++) {
+            nodePositions[i] = dev.lodekeeper.nav.Position.pack(
+                    searchPreview.nodeX(i), searchPreview.nodeY(i), searchPreview.nodeZ(i));
+            nodeClosed[i] = !searchPreview.nodeIsOpen(i);
+        }
+        observation = new NavigationSnapshot(path, 0, searchPreview.expandedNodes(),
+                searchPreview.discoveredNodes(), searchPreview.frontierSize(), System.nanoTime() - startedNanos,
+                requestTicks, failedCalculations, searching, nodePositions, nodeFractions, nodeClosed, scene);
     }
 
-    private BlockPos miningTarget(baritone.api.pathing.goals.Goal goal, BlockPos destination, int depth) {
+    private BlockPos miningTarget(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal goal, BlockPos destination, int depth) {
         if (depth > 2 || goal == null || !goal.isInGoal(destination)) return null;
         if (goal instanceof GoalComposite composite) {
             for (var child : composite.goals()) {

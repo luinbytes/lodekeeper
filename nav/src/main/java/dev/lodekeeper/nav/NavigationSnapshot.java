@@ -3,14 +3,23 @@ package dev.lodekeeper.nav;
 /** Immutable client-thread observation; never drives navigation or samples terrain while rendering. */
 public record NavigationSnapshot(Path path, int nextStep, long expanded, int discovered, int open,
                                  long searchNanos, int searchTicks, int retries, boolean searching,
-                                 long[] nodePositions, byte[] nodeFractions, boolean[] nodeClosed) {
+                                 long[] nodePositions, byte[] nodeFractions, boolean[] nodeClosed,
+                                 NavigationSceneSnapshot scene) {
     public static final NavigationSnapshot EMPTY = new NavigationSnapshot(null, 0, 0, 0, 0,
-            0, 0, 0, false, new long[0], new byte[0], new boolean[0]);
+            0, 0, 0, false, new long[0], new byte[0], new boolean[0], NavigationSceneSnapshot.EMPTY);
+
+    public NavigationSnapshot(Path path, int nextStep, long expanded, int discovered, int open,
+                              long searchNanos, int searchTicks, int retries, boolean searching,
+                              long[] nodePositions, byte[] nodeFractions, boolean[] nodeClosed) {
+        this(path, nextStep, expanded, discovered, open, searchNanos, searchTicks, retries,
+                searching, nodePositions, nodeFractions, nodeClosed, NavigationSceneSnapshot.EMPTY);
+    }
 
     public NavigationSnapshot {
         if (nodePositions == null || nodeFractions == null || nodeClosed == null
                 || nodePositions.length != nodeFractions.length || nodePositions.length != nodeClosed.length
                 || nodePositions.length > 256) throw new IllegalArgumentException("Invalid bounded node observation");
+        if (scene == null) scene = NavigationSceneSnapshot.EMPTY;
         nodePositions = nodePositions.clone();
         nodeFractions = nodeFractions.clone();
         nodeClosed = nodeClosed.clone();
@@ -18,6 +27,10 @@ public record NavigationSnapshot(Path path, int nextStep, long expanded, int dis
     @Override public long[] nodePositions() { return nodePositions.clone(); }
     @Override public byte[] nodeFractions() { return nodeFractions.clone(); }
     @Override public boolean[] nodeClosed() { return nodeClosed.clone(); }
+    public NavigationSnapshot withScene(NavigationSceneSnapshot value) {
+        return new NavigationSnapshot(path, nextStep, expanded, discovered, open, searchNanos,
+                searchTicks, retries, searching, nodePositions, nodeFractions, nodeClosed, value);
+    }
     public int nodeCount() { return nodePositions.length; }
     public int nodeX(int index) { return Position.x(nodePositions[index]); }
     public double nodeY(int index) { return Position.y(nodePositions[index]) + nodeFractions[index] / 16.0; }

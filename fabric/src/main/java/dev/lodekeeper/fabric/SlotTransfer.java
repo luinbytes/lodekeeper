@@ -100,5 +100,5 @@ final class SlotTransfer {
     private void requireHandler() {
         if (client.player == null || client.interactionManager == null || client.player.currentScreenHandler != handler) throw new IllegalStateException("Container changed during transfer");
     }
-    private void click(int slot, int button) { client.interactionManager.clickSlot(handler.syncId, slot, button, SlotActionType.PICKUP, client.player); }
+    private void click(int slot, int button) { OwnedClickReceipts.inventoryClick(client, handler.syncId, slot, button, SlotActionType.PICKUP, client.player); }
 }

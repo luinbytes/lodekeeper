@@ -1,12 +1,16 @@
 package dev.lodekeeper.fabric;
 
+import dev.lodekeeper.core.ClaimBox;
 import dev.lodekeeper.core.SettingSpec;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,15 +21,20 @@ import java.util.function.Supplier;
 final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
     private final MinecraftClient client;
     private final LodekeeperConfig config;
+    private final WorldProtection protection;
+    private final Path claimsPath;
     private final Supplier<Screen> settingsScreen;
     private final Consumer<String> capture;
     private final Consumer<String> log;
     private final BooleanSupplier engineIdle;
 
     NativeSettingsUiAccess(MinecraftClient client, LodekeeperConfig config, Supplier<Screen> settingsScreen,
+                           WorldProtection protection,
                            Consumer<String> capture, Consumer<String> log, BooleanSupplier engineIdle) {
         this.client = client;
         this.config = config;
+        this.protection = protection;
+        this.claimsPath = isolatedClaimsPath(client.runDirectory.toPath());
         this.settingsScreen = settingsScreen;
         this.capture = capture;
         this.log = log;
@@ -56,8 +65,13 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
 
     @Override public Object currentScreen() { return client.currentScreen; }
     @Override public void openSettingsScreen() { client.setScreen(settingsScreen.get()); }
+    @Override public boolean isClaimsScreen(Object screen) { return screen instanceof ClaimsScreen; }
+    @Override public void resizeCurrentScreen(int width, int height) {
+        if (client.currentScreen == null) throw new IllegalStateException("no screen to resize");
+        client.currentScreen.resize(client, width, height);
+    }
     @Override public String nativeEventReceipt() {
-        return "Screen.mouseClicked(double,double,int=0), Screen.keyPressed(int,int,int), Screen.charTyped(char,int=0)";
+        return "Screen.mouseClicked(double,double,int=0), Screen.keyPressed(int,int,int), Screen.charTyped(char,int=0), Screen.resize(client,width,height)";
     }
     @Override public int screenWidth() { return client.currentScreen == null ? 0 : client.currentScreen.width; }
     @Override public int screenHeight() { return client.currentScreen == null ? 0 : client.currentScreen.height; }
@@ -123,6 +137,43 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
     @SuppressWarnings("unchecked")
     @Override public Map<String, String> navigationPreferences() {
         return (Map<String, String>) config.read("navigationPreferences");
+    }
+
+    @Override public SettingsUiVerification.PlotState plotState() {
+        var live = protection.capture();
+        ClaimStore.View disk = new ClaimStore(claimsPath).view();
+        return new SettingsUiVerification.PlotState(live.locked(), disk.locked(), live.scope(),
+                plots(live.claims().all()), plots(disk.claims().all()), corner(true), corner(false));
+    }
+
+    @Override public void removePlotClaim(String id) { protection.removeClaim(id); }
+    @Override public void clearPlotSelection() { protection.clearSelection(); }
+
+    private SettingsUiVerification.Corner corner(boolean first) {
+        int[] position = protection.selectionCoordinates(first);
+        return position == null ? null : new SettingsUiVerification.Corner(position[0], position[1], position[2]);
+    }
+
+    private static List<SettingsUiVerification.Plot> plots(List<ClaimBox> claims) {
+        return claims.stream().map(claim -> new SettingsUiVerification.Plot(claim.id(), claim.name(), claim.scope(),
+                claim.minX(), claim.minY(), claim.minZ(), claim.maxX(), claim.maxY(), claim.maxZ(),
+                claim.preferredStations())).toList();
+    }
+
+    private static Path isolatedClaimsPath(Path runDirectory) {
+        try {
+            Path run = runDirectory.toRealPath();
+            Path configDirectory = FabricLoader.getInstance().getConfigDir().toRealPath();
+            if (!configDirectory.startsWith(run) || configDirectory.equals(run)
+                    || !"config".equals(configDirectory.getFileName().toString()))
+                throw new IOException("verification config is outside the isolated game directory");
+            Path claims = configDirectory.resolve("lodekeeper-claims.json").normalize();
+            if (!claims.startsWith(configDirectory) || Files.isSymbolicLink(claims))
+                throw new IOException("verification claims path is not a regular isolated path");
+            return claims;
+        } catch (IOException failure) {
+            throw new IllegalStateException("plot UI probe requires an isolated claims store", failure);
+        }
     }
 
     @Override public void requestCapture(String label) { capture.accept(label); }

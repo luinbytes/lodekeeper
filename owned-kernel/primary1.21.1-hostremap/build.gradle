@@ -1,0 +1,57 @@
+plugins {
+    id 'fabric-loom' version '1.8.13'
+}
+
+group = 'dev.lodekeeper.navigation'
+version = '1.21.1-source-owned'
+
+base {
+    archivesName = 'lodekeeper-owned-navigation-kernel-primary-1211'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+}
+
+loom {
+    mixin {
+        defaultRefmapName = 'lodekeeper-owned-kernel-refmap.json'
+    }
+}
+
+def kernelProjectPath = rootProject.findProperty('owned_kernel_project_path')?.toString()
+        ?: ':owned-kernel-primary-1211'
+evaluationDependsOn(kernelProjectPath)
+def kernelProject = project(kernelProjectPath)
+def intermediaryKernelJar = kernelProject.tasks.named('remapJar')
+def remapTaskType = tasks.named('remapJar').get().class.superclass
+
+tasks.register('remapOwnedKernelForHost', remapTaskType) {
+    inputFile.set(intermediaryKernelJar.flatMap { it.archiveFile })
+    archiveBaseName.set('lodekeeper-owned-navigation-kernel-primary-1211')
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set('host-named')
+    destinationDirectory.set(layout.buildDirectory.dir('owned-kernel'))
+    sourceNamespace.set('intermediary')
+    targetNamespace.set('named')
+    classpath.setFrom([])
+    addNestedDependencies.set(false)
+}

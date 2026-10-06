@@ -1,0 +1,170 @@
+plugins {
+    id 'fabric-loom' version '1.8.13'
+}
+
+group = 'dev.lodekeeper.navigation'
+version = '1.21.1-source-owned'
+
+base {
+    archivesName = 'lodekeeper-owned-navigation-kernel-primary-1211'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+def sourceLockFile = layout.projectDirectory.file('source-lock.json').asFile
+def sourceLock = new groovy.json.JsonSlurper().parse(sourceLockFile)
+def sourceArchive = rootProject.file(".cache/baritone/sources/${sourceLock.archive_filename}")
+def sourceDirectory = layout.buildDirectory.dir("upstream/${sourceLock.source_root}")
+def generatedRoot = layout.buildDirectory.dir('generated/owned-kernel')
+def generatedSourceRoot = generatedRoot.map { it.dir('src') }
+
+def fetchOwnedKernelSource = tasks.register('fetchOwnedKernelSource', Exec) {
+    inputs.file(sourceLockFile)
+    inputs.file(layout.projectDirectory.file('scripts/fetch_pinned_source.py'))
+    inputs.property('sourceCommit', sourceLock.source_commit)
+    inputs.property('sourceArchiveSha256', sourceLock.archive_sha256)
+    outputs.file(sourceArchive)
+    outputs.dir(sourceDirectory)
+    commandLine 'python3',
+            layout.projectDirectory.file('scripts/fetch_pinned_source.py').asFile.absolutePath,
+            '--lock', sourceLockFile.absolutePath,
+            '--archive', sourceArchive.absolutePath,
+            '--source-dir', sourceDirectory.get().asFile.absolutePath
+}
+
+def generateOwnedKernelSources = tasks.register('generateOwnedKernelSources', Exec) {
+    dependsOn fetchOwnedKernelSource
+    inputs.dir(sourceDirectory)
+    inputs.file(layout.projectDirectory.file('prepare_sources.py'))
+    inputs.dir(layout.projectDirectory.dir('lifecycle-overrides'))
+    inputs.file(layout.projectDirectory.file('lifecycle-overrides.sha256'))
+    inputs.file(sourceLockFile)
+    outputs.dir(generatedRoot)
+    commandLine 'python3',
+            layout.projectDirectory.file('prepare_sources.py').asFile.absolutePath,
+            '--source-root', sourceDirectory.get().asFile.absolutePath
+}
+
+sourceSets {
+    api {
+        java.srcDir(generatedSourceRoot.map { it.dir('api/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('api/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    schematica_api {
+        java.srcDir(generatedSourceRoot.map { it.dir('schematica_api/java') })
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    main {
+        java.setSrcDirs([generatedSourceRoot.map { it.dir('main/java') }])
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('main/resources') }])
+        compileClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+    }
+    test {
+        compileClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+    }
+    launch {
+        java.srcDir(generatedSourceRoot.map { it.dir('launch/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('launch/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        compileClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${sourceLock.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    compileOnly 'net.fabricmc:sponge-mixin:0.17.4+mixin.0.8.7'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    compileOnly 'org.ow2.asm:asm:9.7'
+}
+
+loom {
+    mixin {
+        defaultRefmapName = 'lodekeeper-owned-kernel-refmap.json'
+    }
+    mods {
+        ownedKernelBuildSources {
+            sourceSet sourceSets.api
+            sourceSet sourceSets.schematica_api
+            sourceSet sourceSets.main
+            sourceSet sourceSets.launch
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn generateOwnedKernelSources
+}
+
+[
+        'processApiResources',
+        'processSchematica_apiResources',
+        'processResources',
+        'processLaunchResources'
+].each { taskName ->
+    tasks.named(taskName).configure {
+        dependsOn generateOwnedKernelSources
+    }
+}
+
+tasks.named('jar') {
+    dependsOn tasks.named('compileApiJava')
+    dependsOn tasks.named('compileSchematica_apiJava')
+    dependsOn tasks.named('compileLaunchJava')
+    from sourceSets.api.output
+    from sourceSets.schematica_api.output
+    from sourceSets.launch.output
+    from(sourceLockFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+        rename { 'source-lock.json' }
+    }
+    from(layout.projectDirectory.file('lifecycle-overrides.sha256')) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+    from(generatedRoot.map { it.file('source-manifest.json') }) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+}
+
+tasks.named('remapJar') {
+    sourceNamespace = 'named'
+    targetNamespace = 'intermediary'
+    addNestedDependencies = false
+}
+
+tasks.register('inspectOwnedKernelJar', Exec) {
+    dependsOn tasks.named('remapJar'), generateOwnedKernelSources
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    inputs.file(generatedRoot.map { it.file('source-manifest.json') })
+    commandLine 'python3',
+            layout.projectDirectory.file('scripts/inspect_owned_kernel_jar.py').asFile.absolutePath,
+            '--jar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', generatedRoot.map { it.file('source-manifest.json') }.get().asFile.absolutePath,
+            '--namespace', 'intermediary'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('inspectOwnedKernelJar')
+}

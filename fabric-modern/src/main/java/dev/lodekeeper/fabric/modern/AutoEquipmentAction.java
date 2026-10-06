@@ -64,7 +64,7 @@ final class AutoEquipmentAction {
             waitTicks = 0;
             status = "waiting for armor quick-move receipt";
             try {
-                client.gameMode.handleContainerInput(menu.containerId, index, 0, ContainerInput.QUICK_MOVE, client.player);
+                OwnedClickReceipts.inventoryClick(client, menu.containerId, index, 0, ContainerInput.QUICK_MOVE, client.player);
             } catch (RuntimeException failure) {
                 throw fail("native armor quick-move failed: " + failure.getClass().getSimpleName());
             }

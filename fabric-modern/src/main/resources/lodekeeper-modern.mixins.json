@@ -7,7 +7,8 @@
     "AutomationUseMixin",
     "ContainerInputReceiptMixin",
     "OwnedClickPacketMixin",
-    "NavigationMiningMixin"
+    "NavigationMiningMixin",
+    "PlacementProvenanceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -14,7 +14,7 @@ public final class CommandParser {
 
     public sealed interface Command permits HelpCommand, GetCommand, StopCommand, PauseCommand, ResumeCommand,
             StatusCommand, QueueCommand, ClearCommand, PlanCommand, ConfigCommand,
-            ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand { }
+            ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand, ClaimCommand { }
 
     public record GetCommand(String item, int count) implements Command {
         public GetCommand {
@@ -68,6 +68,22 @@ public final class CommandParser {
         public boolean all() { return item.equals("all"); }
     }
     public record MaintainedCommand() implements Command { }
+    public enum ClaimAction { POS1, POS2, ADD, LIST, REMOVE, PREFER, CLEAR_SELECTION }
+
+    public record ClaimCommand(ClaimAction action, String name, boolean preferred) implements Command {
+        public ClaimCommand {
+            Objects.requireNonNull(action, "action");
+            if (action == ClaimAction.ADD || action == ClaimAction.REMOVE || action == ClaimAction.PREFER) {
+                name = validateClaimName(name);
+            } else if (name != null) {
+                throw new IllegalArgumentException("This claim action takes no name.");
+            }
+            if (preferred && action != ClaimAction.ADD && action != ClaimAction.PREFER) {
+                throw new IllegalArgumentException("This claim action takes no preferred setting.");
+            }
+        }
+    }
+
     public record ParseError(String message, String usage) {
         public ParseError {
             Objects.requireNonNull(message, "message");
@@ -83,7 +99,7 @@ public final class CommandParser {
         public static ParseResult error(String message) { return new ParseResult(null, new ParseError(message, USAGE)); }
     }
 
-    public static final String USAGE = "Commands: help, get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]]";
+    public static final String USAGE = "Commands: help, get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]], claim pos1|pos2|list|clear, claim add <name> [preferred], claim remove <name>, claim prefer <name> <true|false>";
 
     /** Returns the local command body, or null when chat does not match the exact prefix. */
     public static String clientCommandBody(String message, String prefix) {
@@ -120,6 +136,7 @@ public final class CommandParser {
                 case "clear" -> noArguments(tokens, new ClearCommand(), "clear takes no arguments.");
                 case "plan" -> parsePlan(tokens);
                 case "config" -> parseConfig(tokens);
+                case "claim" -> parseClaim(tokens);
                 case "project" -> parseProject(tokens);
                 case "projects" -> noArguments(tokens, new ProjectsCommand(), "projects takes no arguments.");
                 case "maintain" -> parseMaintain(tokens);
@@ -166,6 +183,49 @@ public final class CommandParser {
     private static ParseResult parseUnmaintain(List<String> tokens) {
         if (tokens.size() != 2) return ParseResult.error("Usage: unmaintain <item|all>");
         return ParseResult.command(new UnmaintainCommand(tokens.get(1)));
+    }
+
+    private static ParseResult parseClaim(List<String> tokens) {
+        if (tokens.size() < 2) return ParseResult.error("Usage: claim pos1|pos2|add|list|remove|prefer|clear");
+        String action = tokens.get(1).toLowerCase(Locale.ROOT);
+        return switch (action) {
+            case "pos1", "pos2", "list", "clear" -> {
+                if (tokens.size() != 2) yield ParseResult.error("claim " + action + " takes no arguments.");
+                ClaimAction kind = switch (action) {
+                    case "pos1" -> ClaimAction.POS1;
+                    case "pos2" -> ClaimAction.POS2;
+                    case "list" -> ClaimAction.LIST;
+                    default -> ClaimAction.CLEAR_SELECTION;
+                };
+                yield ParseResult.command(new ClaimCommand(kind, null, false));
+            }
+            case "add" -> {
+                if (tokens.size() < 3 || tokens.size() > 4
+                        || tokens.size() == 4 && !tokens.get(3).equalsIgnoreCase("preferred"))
+                    yield ParseResult.error("Usage: claim add <name> [preferred]");
+                yield ParseResult.command(new ClaimCommand(ClaimAction.ADD, tokens.get(2), tokens.size() == 4));
+            }
+            case "remove" -> tokens.size() == 3
+                    ? ParseResult.command(new ClaimCommand(ClaimAction.REMOVE, tokens.get(2), false))
+                    : ParseResult.error("Usage: claim remove <name or id>");
+            case "prefer" -> {
+                if (tokens.size() != 4 || !tokens.get(3).equalsIgnoreCase("true")
+                        && !tokens.get(3).equalsIgnoreCase("false"))
+                    yield ParseResult.error("Usage: claim prefer <name> <true|false>");
+                yield ParseResult.command(new ClaimCommand(ClaimAction.PREFER, tokens.get(2),
+                        Boolean.parseBoolean(tokens.get(3))));
+            }
+            default -> ParseResult.error("Unknown claim action: " + tokens.get(1));
+        };
+    }
+
+    private static String validateClaimName(String name) {
+        Objects.requireNonNull(name, "name");
+        String value = name.strip();
+        if (value.isEmpty() || value.length() > ClaimBox.MAX_NAME_LENGTH
+                || value.codePoints().anyMatch(Character::isISOControl))
+            throw new IllegalArgumentException("Claim name must be 1..128 characters without control characters.");
+        return value;
     }
 
     private static ParseResult noArguments(List<String> tokens, Command command, String error) {

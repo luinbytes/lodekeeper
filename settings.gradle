@@ -8,10 +8,34 @@ pluginManagement {
 }
 rootProject.name = 'lodekeeper'
 include 'core', 'nav'
-switch (providers.gradleProperty('adapter').getOrElse('legacy')) {
-    case 'modern': include 'fabric-modern'; break
+def adapterProfile = providers.gradleProperty('adapter').getOrElse('legacy')
+def ownedKernelPrimary1211 = providers.gradleProperty('owned_kernel_primary_1211').getOrElse('false') == 'true'
+def ownedKernelModern263 = providers.gradleProperty('owned_kernel_modern_263').getOrElse('false') == 'true'
+def modernApiFamily = providers.gradleProperty('modern_api_family').getOrElse('26.3')
+def minecraftProfile = providers.gradleProperty('minecraft_version').getOrElse('')
+if (ownedKernelPrimary1211 && !(adapterProfile == '1211' && minecraftProfile == '1.21.1')) {
+    throw new GradleException('owned_kernel_primary_1211 is limited to adapter 1211 / Minecraft 1.21.1')
+}
+if (ownedKernelModern263 && !(adapterProfile == 'modern' && minecraftProfile == '26.3' && modernApiFamily == '26.3')) {
+    throw new GradleException('owned_kernel_modern_263 is limited to adapter modern / Minecraft 26.3')
+}
+switch (adapterProfile) {
+    case 'modern':
+        include 'fabric-modern'
+        if (ownedKernelModern263) {
+            include 'owned-kernel-modern-263'
+            project(':owned-kernel-modern-263').projectDir = file('owned-kernel/modern26.3')
+        }
+        break
     case '1212': include 'fabric-1212'; break
-    case '1211': include 'fabric-1211'; break
+    case '1211':
+        include 'fabric-1211'
+        if (ownedKernelPrimary1211) {
+            include 'owned-kernel-primary-1211', 'owned-kernel-primary-1211-hostremap'
+            project(':owned-kernel-primary-1211').projectDir = file('owned-kernel/primary1.21.1')
+            project(':owned-kernel-primary-1211-hostremap').projectDir = file('owned-kernel/primary1.21.1-hostremap')
+        }
+        break
     case '1202': include 'fabric-1202'; break
     case 'legacy': include 'fabric'; break
     default: throw new GradleException('Unknown adapter profile; use scripts/build-version.sh')

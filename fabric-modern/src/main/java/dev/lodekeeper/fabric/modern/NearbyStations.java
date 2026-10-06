@@ -1,10 +1,15 @@
 package dev.lodekeeper.fabric.modern;
 
+import dev.lodekeeper.core.AcquisitionSource;
+import dev.lodekeeper.core.BlockId;
+import dev.lodekeeper.core.ClaimBox;
 import dev.lodekeeper.core.StationId;
+import dev.lodekeeper.core.StationRequirement;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 import java.util.ArrayList;
@@ -12,8 +17,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class NearbyStations {
+    private static final long ORDINARY_BUDGET_NANOS = 500_000L;
+    private static final long PREFERRED_BUDGET_NANOS = 1_000_000L;
+    private static final int MAX_RENDER_DISTANCE_CHUNKS = 32;
+    private static final int MAX_STATION_KINDS = 256;
+    private static final int MAX_STATION_POSITIONS = 512;
     private static final Map<Block, StationId> KINDS = Map.of(
             Blocks.CRAFTING_TABLE, StationId.parse("minecraft:crafting_table"),
             Blocks.FURNACE, StationId.parse("minecraft:furnace"),
@@ -24,49 +35,276 @@ final class NearbyStations {
     private final Minecraft client;
     private final Map<BlockPos, StationId> observations = new HashMap<>();
     private final Map<Long, Boolean> loadedChunks = new HashMap<>();
+    private Map<Block, StationId> stationKinds = KINDS;
+    private Map<Block, StationId> buildingStationKinds;
+    private List<AcquisitionSource> stationSources = List.of();
+    private int stationSourceCursor, stationRequirementCursor;
+    private long stationCatalogGeneration = Long.MIN_VALUE;
+    private boolean stationCatalogReady;
+    private boolean stationKindsComplete;
+    private long stationKindsVersion;
+    private Object indexedWorld;
     private BlockPos origin;
     private int cursor, completedTicks;
+    private WorldProtection.PolicySnapshot preferredPolicy;
+    private List<ClaimBox> preferredClaims = List.of();
+    private final List<ChunkPos> preferredChunks = new ArrayList<>();
+    private int preferredChunkCenterX, preferredChunkCenterZ;
+    private int preferredRenderDistance, preferredRing, preferredOffsetX, preferredOffsetZ;
+    private int preferredOriginChunkX, preferredOriginChunkZ;
+    private long preferredCatalogGeneration = Long.MIN_VALUE;
+    private long preferredStationKindsVersion = Long.MIN_VALUE;
+    private long preferredRevision = Long.MIN_VALUE;
+    private boolean preferredChunksComplete;
+    private BlockSearch preferredSearch;
 
     NearbyStations(Minecraft client) { this.client = client; }
 
     void reset() {
-        observations.clear(); loadedChunks.clear(); origin = null;
-        cursor = completedTicks = 0;
+        resetLocalScan();
+        stationKinds = KINDS;
+        buildingStationKinds = null;
+        stationSources = List.of();
+        stationSourceCursor = 0;
+        stationRequirementCursor = 0;
+        stationCatalogGeneration = Long.MIN_VALUE;
+        stationCatalogReady = false;
+        stationKindsComplete = false;
+        stationKindsVersion++;
+        indexedWorld = null;
+        resetPreferredScan(null, 0, 0, 0, 2);
     }
 
-    boolean advance() {
-        if (client.player == null || client.level == null) { reset(); return false; }
+    boolean advance(WorldProtection.PolicySnapshot policy, GameCatalog catalog) {
+        if (client.player == null || client.level == null || catalog == null) {
+            if (indexedWorld != null) reset();
+            return false;
+        }
+        if (indexedWorld != client.level) {
+            reset();
+            indexedWorld = client.level;
+        }
         BlockPos feet = client.player.blockPosition();
-        if (origin == null || cursor == OFFSETS.size()
-                && (feet.distSqr(origin) > 16 || ++completedTicks >= 100)) {
-            reset(); origin = feet.immutable();
-        }
-        long deadline = System.nanoTime() + 500_000L;
-        for (int probes = 0; cursor < OFFSETS.size() && probes < 256 && System.nanoTime() < deadline; probes++) {
-            BlockPos offset = OFFSETS.get(cursor++);
-            BlockPos position = origin.offset(offset);
-            if (client.level.isOutsideBuildHeight(position) || !loaded(position)) continue;
-            StationId kind = KINDS.get(client.level.getBlockState(position).getBlock());
-            if (kind != null) observations.put(position.immutable(), kind);
-        }
+        long preferredDeadline = System.nanoTime() + PREFERRED_BUDGET_NANOS;
+        advanceStationKinds(catalog, preferredDeadline);
+        syncPreferredContext(policy, feet, catalog.generation(), renderDistanceChunks());
+        advanceOrdinary(feet);
+        advancePreferred(preferredDeadline);
         return cursor == OFFSETS.size();
     }
+
+    boolean ready() { return indexedWorld == client.level && client.player != null && cursor == OFFSETS.size(); }
 
     Map<BlockPos, StationId> observations() {
         if (client.player == null || client.level == null) return Map.of();
         Map<BlockPos, StationId> valid = new HashMap<>();
         observations.forEach((position, kind) -> {
-            if (client.level.getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null
-                    && kind.equals(KINDS.get(client.level.getBlockState(position).getBlock()))) valid.put(position, kind);
+            if (loaded(position) && kind.equals(stationKinds.get(client.level.getBlockState(position).getBlock())))
+                valid.put(position, kind);
         });
         return Map.copyOf(valid);
     }
 
+    Map<BlockPos, StationId> preferredObservations() {
+        if (client.player == null || client.level == null || preferredSearch == null
+                || preferredRevision != WorldRevision.preferredStationRevision()) return Map.of();
+        Map<BlockPos, StationId> valid = new HashMap<>();
+        Set<BlockPos> candidates = new java.util.LinkedHashSet<>(preferredSearch.representativeResults());
+        candidates.addAll(preferredSearch.results());
+        for (BlockPos position : candidates) {
+            if (valid.size() == MAX_STATION_POSITIONS) break;
+            if (!loaded(position) || !preferredPolicy.preferredStation(position.getX(), position.getY(), position.getZ())) continue;
+            StationId kind = stationKinds.get(client.level.getBlockState(position).getBlock());
+            if (kind != null) valid.put(position.immutable(), kind);
+        }
+        return Map.copyOf(valid);
+    }
+
+    boolean isPreferred(BlockPos position) {
+        return position != null && preferredPolicy != null && withinRenderDistance(position)
+                && preferredPolicy.preferredStation(position.getX(), position.getY(), position.getZ()) && loaded(position);
+    }
+
+    BlockPos closestPreferred(StationId station, Set<BlockPos> unreachable, Set<BlockPos> rejected) {
+        if (client.player == null) return null;
+        BlockPos player = client.player.blockPosition();
+        BlockPos closest = null;
+        double closestDistance = Double.POSITIVE_INFINITY;
+        for (var observation : preferredObservations().entrySet()) {
+            BlockPos position = observation.getKey();
+            if (!station.equals(observation.getValue()) || unreachable.contains(position) || rejected.contains(position)) continue;
+            double distance = position.distSqr(player);
+            if (distance < closestDistance) { closest = position; closestDistance = distance; }
+        }
+        return closest;
+    }
+
+    private void advanceOrdinary(BlockPos feet) {
+        if (origin == null) origin = feet.immutable();
+        else if (cursor == OFFSETS.size()
+                && (feet.distSqr(origin) > 16 || ++completedTicks >= 100)) {
+            resetLocalScan();
+            origin = feet.immutable();
+        }
+        long deadline = System.nanoTime() + ORDINARY_BUDGET_NANOS;
+        for (int probes = 0; cursor < OFFSETS.size() && probes < 256 && System.nanoTime() < deadline; probes++) {
+            BlockPos position = origin.offset(OFFSETS.get(cursor++));
+            if (client.level.isOutsideBuildHeight(position) || !loaded(position)) continue;
+            StationId kind = stationKinds.get(client.level.getBlockState(position).getBlock());
+            if (kind != null) observations.put(position.immutable(), kind);
+        }
+    }
+
+    private void advanceStationKinds(GameCatalog catalog, long deadline) {
+        long generation = catalog.generation();
+        boolean ready = catalog.ready();
+        if (generation != stationCatalogGeneration || ready != stationCatalogReady) {
+            stationCatalogGeneration = generation;
+            stationCatalogReady = ready;
+            stationSources = ready ? catalog.sources : List.of();
+            stationSourceCursor = 0;
+            stationRequirementCursor = 0;
+            buildingStationKinds = ready ? new HashMap<>(KINDS) : null;
+            stationKinds = KINDS;
+            stationKindsComplete = false;
+            stationKindsVersion++;
+            resetLocalScan();
+        }
+        if (!ready || stationKindsComplete) return;
+        while (stationSourceCursor < stationSources.size() && System.nanoTime() < deadline) {
+            var requirements = stationSources.get(stationSourceCursor).requirements();
+            if (stationRequirementCursor == requirements.size()) {
+                stationSourceCursor++;
+                stationRequirementCursor = 0;
+                continue;
+            }
+            var requirement = requirements.get(stationRequirementCursor++);
+            if (!(requirement instanceof StationRequirement station) || buildingStationKinds.size() >= MAX_STATION_KINDS) continue;
+            Block block = GameCatalog.block(BlockId.parse(station.station().toString()));
+            if (block != Blocks.AIR) buildingStationKinds.putIfAbsent(block, station.station());
+        }
+        if (stationSourceCursor == stationSources.size()) {
+            stationKinds = Map.copyOf(buildingStationKinds);
+            buildingStationKinds = null;
+            stationKindsComplete = true;
+            stationKindsVersion++;
+            resetLocalScan();
+        }
+    }
+
+    private void syncPreferredContext(WorldProtection.PolicySnapshot policy, BlockPos feet, long catalogGeneration,
+                                      int renderDistance) {
+        int chunkX = feet.getX() >> 4, chunkZ = feet.getZ() >> 4;
+        if (preferredPolicy == null || preferredPolicy.epoch() != policy.epoch()
+                || preferredCatalogGeneration != catalogGeneration || preferredStationKindsVersion != stationKindsVersion
+                || preferredOriginChunkX != chunkX || preferredOriginChunkZ != chunkZ
+                || preferredRenderDistance != renderDistance) {
+            resetLocalScan();
+            resetPreferredScan(policy, catalogGeneration, chunkX, chunkZ, renderDistance);
+        } else if (preferredRevision != WorldRevision.preferredStationRevision()) {
+            resetLocalScan();
+            resetPreferredScan(policy, catalogGeneration, chunkX, chunkZ, renderDistance);
+        }
+    }
+
+    private void advancePreferred(long deadline) {
+        if (preferredClaims.isEmpty() || System.nanoTime() >= deadline) return;
+        while (!preferredChunksComplete && System.nanoTime() < deadline) {
+            ChunkPos chunk = nextRenderChunk();
+            if (chunk == null) { preferredChunksComplete = true; break; }
+            if (intersectsPreferredClaim(chunk)) preferredChunks.add(chunk);
+        }
+        if (!preferredChunksComplete || System.nanoTime() >= deadline) return;
+        if (preferredSearch == null) {
+            WorldProtection.PolicySnapshot scanPolicy = preferredPolicy;
+            preferredSearch = new BlockSearch(client, stationKinds.keySet(), preferredRenderDistance * 32,
+                    Set.of(), preferredChunks, position -> scanPolicy.preferredStation(
+                            position.getX(), position.getY(), position.getZ()),
+                    chunk -> WorldRevision.watchPreferredStationChunk(chunk.x(), chunk.z()));
+        }
+        long remaining = deadline - System.nanoTime();
+        if (remaining > 0) preferredSearch.advance(4_096, remaining);
+    }
+
+    private void resetPreferredScan(WorldProtection.PolicySnapshot policy, long catalogGeneration,
+                                    int chunkX, int chunkZ, int renderDistance) {
+        preferredPolicy = policy;
+        preferredClaims = policy == null || policy.locked() || policy.scope() == null ? List.of()
+                : policy.claims().forScope(policy.scope()).stream().filter(ClaimBox::preferredStations).toList();
+        preferredCatalogGeneration = catalogGeneration;
+        preferredStationKindsVersion = stationKindsVersion;
+        preferredOriginChunkX = chunkX;
+        preferredOriginChunkZ = chunkZ;
+        preferredRenderDistance = renderDistance;
+        preferredChunkCenterX = chunkX;
+        preferredChunkCenterZ = chunkZ;
+        preferredRing = 0;
+        preferredOffsetX = preferredOffsetZ = 0;
+        preferredChunks.clear();
+        preferredChunksComplete = false;
+        preferredSearch = null;
+        WorldRevision.beginPreferredStationScan();
+        preferredRevision = WorldRevision.preferredStationRevision();
+    }
+
+    private ChunkPos nextRenderChunk() {
+        if (preferredRing == 0) {
+            preferredRing = 1;
+            preferredOffsetX = preferredOffsetZ = -1;
+            return new ChunkPos(preferredChunkCenterX, preferredChunkCenterZ);
+        }
+        while (preferredRing <= preferredRenderDistance) {
+            if (preferredOffsetX > preferredRing) {
+                preferredRing++;
+                preferredOffsetX = -preferredRing;
+                preferredOffsetZ = -preferredRing;
+                continue;
+            }
+            if (preferredOffsetZ > preferredRing) {
+                preferredOffsetX++;
+                preferredOffsetZ = -preferredRing;
+                continue;
+            }
+            int x = preferredOffsetX, z = preferredOffsetZ++;
+            if (Math.max(Math.abs(x), Math.abs(z)) == preferredRing)
+                return new ChunkPos(preferredChunkCenterX + x, preferredChunkCenterZ + z);
+        }
+        return null;
+    }
+
+    private boolean intersectsPreferredClaim(ChunkPos chunk) {
+        int minX = chunk.getMinBlockX(), minZ = chunk.getMinBlockZ();
+        int maxX = minX + 15, maxZ = minZ + 15;
+        for (ClaimBox claim : preferredClaims) {
+            if (claim.minX() <= maxX && claim.maxX() >= minX
+                    && claim.minZ() <= maxZ && claim.maxZ() >= minZ) return true;
+        }
+        return false;
+    }
+
     private boolean loaded(BlockPos position) {
         int x = position.getX() >> 4, z = position.getZ() >> 4;
+        WorldRevision.watchPreferredStationChunk(x, z);
         long key = ((long) x << 32) | (z & 0xffffffffL);
         return loadedChunks.computeIfAbsent(key,
                 ignored -> client.level.getChunk(x, z, ChunkStatus.FULL, false) != null);
+    }
+
+    private boolean withinRenderDistance(BlockPos position) {
+        int x = (position.getX() >> 4) - preferredOriginChunkX;
+        int z = (position.getZ() >> 4) - preferredOriginChunkZ;
+        return Math.abs(x) <= preferredRenderDistance && Math.abs(z) <= preferredRenderDistance;
+    }
+
+    private int renderDistanceChunks() {
+        return Math.max(2, Math.min(MAX_RENDER_DISTANCE_CHUNKS, client.options.renderDistance().get()));
+    }
+
+    private void resetLocalScan() {
+        observations.clear();
+        loadedChunks.clear();
+        origin = null;
+        cursor = completedTicks = 0;
     }
 
     private static List<BlockPos> offsets() {

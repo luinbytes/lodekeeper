@@ -163,7 +163,7 @@ final class VerifiedQuickMove {
     }
 
     private void click() {
-        client.gameMode.handleContainerInput(menu.containerId, sourceSlot, 0, ContainerInput.QUICK_MOVE, client.player);
+        OwnedClickReceipts.inventoryClick(client, menu.containerId, sourceSlot, 0, ContainerInput.QUICK_MOVE, client.player);
     }
 
     private int countMatchingInventory() {

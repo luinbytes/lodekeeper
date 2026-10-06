@@ -29,9 +29,18 @@ import java.util.Map;
 /** All actions use vanilla client input and the server's ordinary survival interaction protocol. */
 final class PlayerActions {
     private final Minecraft client;
+    private final WorldProtection protection;
+    private final PlacementProvenance placementProvenance;
+    private BackfillController backfill;
+    void attachBackfill(BackfillController controller) { backfill = controller; }
+    void recordOwnedNavigationBreak(net.minecraft.core.BlockPos position) {
+        if (backfill != null) backfill.beforeOwnedBreak(position);
+    }
+    enum BackfillAttempt { NOT_SENT, SENT_OR_UNCERTAIN }
+    enum PlacementAttempt { SENT, WAITING_FOR_PROVENANCE, INVENTORY_TIMEOUT, REJECTED, QUARANTINED }
     private net.minecraft.core.BlockPos miningTarget;
     enum MineFailure {
-        NONE, CONTEXT_UNAVAILABLE, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
+        NONE, CONTEXT_UNAVAILABLE, PROTECTED_BLOCK, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
         NO_REACHABLE_OUTLINE_HIT, SAFE_TOOL_UNAVAILABLE, REQUIRED_TOOL_UNAVAILABLE,
         TOOL_SELECTION_FAILED, UNSAFE_HELD_TOOL, NATIVE_BREAK_REFUSED
     }
@@ -39,7 +48,30 @@ final class PlayerActions {
     MineFailure mineFailure() { return mineFailure; }
     private boolean refuseMining(MineFailure reason) { mineFailure = reason; return false; }
 
-    PlayerActions(Minecraft client) { this.client = client; }
+    PlayerActions(Minecraft client) { this(client, null, null); }
+    PlayerActions(Minecraft client, WorldProtection protection) { this(client, protection, null); }
+    PlayerActions(Minecraft client, WorldProtection protection, PlacementProvenance placementProvenance) {
+        this.client = client;
+        this.protection = protection;
+        this.placementProvenance = placementProvenance;
+    }
+
+    private boolean permitsBreak(net.minecraft.core.BlockPos position) {
+        if (protection != null && !protection.mayBreak(position)) return false;
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.level
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executeBreak(owner, position);
+    }
+
+    private boolean permitsPlacement(BlockHitResult hit) {
+        if (protection != null) protection.sync();
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.level
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executePlace(owner, hit,
+                        InteractionHand.MAIN_HAND);
+    }
 
     Map<String, Integer> inventory() {
         Map<String, Integer> result = new HashMap<>();
@@ -110,7 +142,7 @@ final class PlayerActions {
             if (candidate.container == inventory && candidate.getContainerSlot() == slot) { menuSlot = i; break; }
         }
         if (menuSlot < 0) return false;
-        client.gameMode.handleContainerInput(menu.containerId, menuSlot, inventory.getSelectedSlot(), ContainerInput.SWAP, client.player);
+        OwnedClickReceipts.inventoryClick(client, menu.containerId, menuSlot, inventory.getSelectedSlot(), ContainerInput.SWAP, client.player);
         return ItemStack.matches(inventory.getSelectedItem(), chosen);
     }
 
@@ -181,7 +213,7 @@ final class PlayerActions {
         for (int index = 0; index < menu.slots.size(); index++) {
             var slot = menu.getSlot(index);
             if (slot.container == inventory && slot.getContainerSlot() == source) {
-                client.gameMode.handleContainerInput(menu.containerId, index, destination, ContainerInput.SWAP, client.player);
+                OwnedClickReceipts.inventoryClick(client, menu.containerId, index, destination, ContainerInput.SWAP, client.player);
                 return;
             }
         }
@@ -285,6 +317,7 @@ final class PlayerActions {
     boolean mine(net.minecraft.core.BlockPos position, SelectedToolRequirement requiredTool) {
         mineFailure = MineFailure.NONE;
         if (client.level == null || client.player == null || client.gameMode == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
+        if (!permitsBreak(position)) return refuseMining(MineFailure.PROTECTED_BLOCK);
         if (supportsPlayer(position)) return refuseMining(MineFailure.PLAYER_SUPPORT);
         BlockState state = client.level.getBlockState(position);
         if (state.isAir() || state.getDestroySpeed(client.level, position) < 0) return refuseMining(MineFailure.UNBREAKABLE_BLOCK);
@@ -311,6 +344,7 @@ final class PlayerActions {
         if (!hasSafeDurability(held, requiredTool == null ? 1 : requiredTool.minimumDurability())
                 || state.requiresCorrectToolForDrops() && !held.isCorrectToolForDrops(state)) return refuseMining(MineFailure.UNSAFE_HELD_TOOL);
         look(hit.getLocation());
+        recordOwnedNavigationBreak(position);
         if (!position.equals(miningTarget)) {
             if (!client.gameMode.startDestroyBlock(position, hit.getDirection())) return refuseMining(MineFailure.NATIVE_BREAK_REFUSED);
             miningTarget = position.immutable();
@@ -330,14 +364,24 @@ final class PlayerActions {
     }
 
     boolean use(net.minecraft.core.BlockPos position) {
-        if (client.player == null || client.gameMode == null) return false;
+        if (client.player == null || client.gameMode == null || client.player.isShiftKeyDown()
+                || GameApi.screen(client) instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;
+        InteractionHand hand;
+        if (client.player.getMainHandItem().isEmpty()) hand = InteractionHand.MAIN_HAND;
+        else if (client.player.getOffhandItem().isEmpty()) hand = InteractionHand.OFF_HAND;
+        else {
+            int empty = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                if (client.player.getInventory().getItem(slot).isEmpty()) { empty = slot; break; }
+            }
+            if (empty < 0 || !selectSlot(empty) || !client.player.getMainHandItem().isEmpty()) return false;
+            hand = InteractionHand.MAIN_HAND;
+        }
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getLocation());
-        InteractionResult result = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
-        return result.consumesAction();
+        return client.gameMode.useItemOn(client.player, hand, hit).consumesAction();
     }
-
     /** Checks a station placement without changing the selected slot or sending an interaction. */
     boolean safePlacementSupport(net.minecraft.core.BlockPos position) {
         var state = client.level.getBlockState(position);
@@ -353,6 +397,7 @@ final class PlayerActions {
     }
 
     private BlockHitResult placementHit(net.minecraft.core.BlockPos destination) {
+        if (protection != null && !protection.mayPlace(destination)) return null;
         if (client.level == null || client.player == null
                 || !client.level.getBlockState(destination).canBeReplaced()
                 || client.player.getBoundingBox().intersects(new AABB(destination))) return null;
@@ -371,8 +416,52 @@ final class PlayerActions {
         if (client.gameMode == null) return false;
         BlockHitResult hit = placementHit(destination);
         if (hit == null || !select(block.asItem())) return false;
+        if (!permitsPlacement(hit)) return false;
         look(hit.getLocation());
         return client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit).consumesAction();
+    }
+    BackfillAttempt placeBackfill(net.minecraft.core.BlockPos destination, Block block) {
+        if (client.player == null || client.level == null || client.gameMode == null)
+            return BackfillAttempt.NOT_SENT;
+        BlockHitResult hit = placementHit(destination);
+        if (hit == null || !select(block.asItem()) || client.player.getMainHandItem().getItem() != block.asItem())
+            return BackfillAttempt.NOT_SENT;
+        if (!client.level.getBlockState(destination).isAir()
+                || !client.level.getBlockState(destination).getFluidState().isEmpty()
+                || !permitsPlacement(hit)) return BackfillAttempt.NOT_SENT;
+        look(hit.getLocation());
+        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
+        return BackfillAttempt.SENT_OR_UNCERTAIN;
+    }
+    PlacementAttempt placeStation(net.minecraft.core.BlockPos destination, Block block, long jobToken) {
+        if (placementProvenance == null || client.gameMode == null) return PlacementAttempt.REJECTED;
+        BlockHitResult hit = placementHit(destination);
+        if (hit == null) return PlacementAttempt.REJECTED;
+        var readiness = placementProvenance.readinessStatus(jobToken, destination, block);
+        if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.QUARANTINED)
+            return PlacementAttempt.QUARANTINED;
+        if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.EXPIRED)
+            return PlacementAttempt.INVENTORY_TIMEOUT;
+        if (readiness.isEmpty() && !select(block.asItem())) return PlacementAttempt.REJECTED;
+        if (!permitsPlacement(hit)) return PlacementAttempt.REJECTED;
+        look(hit.getLocation());
+        var reservation = placementProvenance.reservePlacement(jobToken, destination, block);
+        if (reservation.status() == PlacementProvenance.ReservationStatus.NOT_READY)
+            return PlacementAttempt.WAITING_FOR_PROVENANCE;
+        if (reservation.status() == PlacementProvenance.ReservationStatus.QUARANTINED)
+            return PlacementAttempt.QUARANTINED;
+        if (reservation.status() != PlacementProvenance.ReservationStatus.RESERVED) return PlacementAttempt.REJECTED;
+        var ticket = reservation.ticket().orElseThrow();
+        try {
+            if (!client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit).consumesAction()) {
+                placementProvenance.interactionRejected(ticket);
+                return PlacementAttempt.QUARANTINED;
+            }
+            return PlacementAttempt.SENT;
+        } catch (RuntimeException | Error failure) {
+            placementProvenance.interactionRejected(ticket);
+            throw failure;
+        }
     }
     void cancel() {
         if (miningTarget != null && client.gameMode != null) client.gameMode.stopDestroyBlock();

@@ -66,18 +66,22 @@ public final class LodekeeperClient implements ClientModInitializer {
             return false;
         });
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
+            var navigation = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+            if (navigation == null || navigation.isClosed())
+                dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.attach(mc,
+                        dev.lodekeeper.navigation.kernel.WorldEditPolicy.denyAll());
             while (stop.consumeClick()) { stopRequested = true; engine.stop(); }
             while (settings.consumeClick()) openSettingsPending = true;
             if (openSettingsPending) {
                 openSettingsPending = false;
-                GameApi.setScreen(mc, new AutomationSettingsScreen(engine.config, () -> engine.message("Settings saved")));
+                GameApi.setScreen(mc, new AutomationSettingsScreen(engine.config, () -> engine.message("Settings saved"), engine.protection));
             }
             engine.tick();
             syncDiagnostics(client);
             updatePanel();
         });
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x(), chunk.getPos().z()));
-        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.terrain.changedChunk(chunk.getPos().x(), chunk.getPos().z()));
+        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> engine.chunkUnloaded(world, chunk.getPos().x(), chunk.getPos().z()));
         HudElementRegistry.attachElementAfter(VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath("lodekeeper", "status"), (graphics, delta) -> {
                     if (client.player == null || WorldVisualizationHudApi.isHidden(client) || !engine.config.showHud
@@ -213,11 +217,12 @@ public final class LodekeeperClient implements ClientModInitializer {
     private void logProgress(NavigationSnapshot route, String detail, long now) {
         String phase = phase(engine.visualizationPaused(), route, detail);
         logInfo("PROGRESS elapsed_ms=" + elapsedMillis(now) + " phase=" + phase
-                + " backend=baritone target=" + currentTargetInfo + " navigation_elapsed_ms=" + route.searchNanos() / 1_000_000L
+                + " backend=owned-navigation target=" + currentTargetInfo + " navigation_elapsed_ms=" + route.searchNanos() / 1_000_000L
                 + " navigation_ticks=" + route.searchTicks() + " searching=" + route.searching()
                 + " path_index=" + route.nextStep() + " path_length=" + (route.path() == null ? 0 : route.path().length())
                 + " retries=" + route.retries() + " pending_route_events=" + pendingRouteEvents.size()
-                + " dropped_route_events=" + droppedRouteEvents + " status=" + safeField(detail, 120));
+                + " dropped_route_events=" + droppedRouteEvents + " status=" + safeField(detail, 120)
+                + engine.diagnosticExecution());
     }
 
     private static String phase(boolean paused, NavigationSnapshot route, String detail) {
@@ -337,6 +342,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             else if (command instanceof CommandParser.ClearCommand) engine.clearQueue();
             else if (command instanceof CommandParser.PlanCommand plan) engine.preview(plan.item(), plan.count());
             else if (command instanceof CommandParser.ConfigCommand config) configure(config);
+            else if (command instanceof CommandParser.ClaimCommand claim) engine.claim(claim);
             else if (command instanceof CommandParser.ProjectCommand project) engine.enqueueProject(project.name());
             else if (command instanceof CommandParser.ProjectsCommand) engine.listProjects();
             else if (command instanceof CommandParser.MaintainCommand maintain) engine.maintainItem(maintain.item(), maintain.count());
@@ -387,6 +393,7 @@ public final class LodekeeperClient implements ClientModInitializer {
             config.writeValue(key, previous);
             throw failure;
         }
+        engine.protection.sync();
         engine.message("Saved " + spec.label() + " = " + config.read(key));
     }
 }

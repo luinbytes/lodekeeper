@@ -13,16 +13,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Ask native reconciliation to send input-slot state after an owned stonecutter click. */
+/** Keep bot storage changes out of the prediction cache so the server echoes its actual slots. */
 @Mixin(ServerboundContainerClickPacket.class)
 abstract class OwnedClickPacketMixin {
     @Shadow @Final private int containerId;
     @Shadow @Final @Mutable private Int2ObjectMap<?> changedSlots;
     @Inject(method = "<init>", at = @At("RETURN"))
     private void lodekeeper$reconcileOwnedInput(CallbackInfo callback) {
-        if (changedSlots.containsKey(0) && OwnedClickReceipts.claimInputReconciliation(containerId)) {
+        if (OwnedClickReceipts.claimInputReconciliation(containerId)) {
             var copy = new Int2ObjectOpenHashMap<>(changedSlots);
-            copy.remove(0);
+            if (OwnedClickReceipts.reconcileInputSlot(containerId)) copy.remove(0);
+            copy.keySet().removeIf((int slot) -> OwnedClickReceipts.reconcileStorageSlot(containerId, slot));
             changedSlots = Int2ObjectMaps.unmodifiable(copy);
         }
     }

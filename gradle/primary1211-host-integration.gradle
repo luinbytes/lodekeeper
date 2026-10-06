@@ -1,0 +1,88 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def enabled = rootProject.findProperty('owned_kernel_primary_1211')?.toString() == 'true'
+if (!enabled) {
+    throw new GradleException('Apply this integration only with -Powned_kernel_primary_1211=true')
+}
+if (project.path != ':fabric-1211'
+        || rootProject.minecraft_version.toString() != '1.21.1'
+        || rootProject.yarn_mappings.toString() != '1.21.1+build.3') {
+    throw new GradleException('Owned kernel integration requires :fabric-1211, Minecraft 1.21.1, Yarn build 3')
+}
+
+def kernelProjectPath = rootProject.findProperty('owned_kernel_project_path')?.toString()
+        ?: ':owned-kernel-primary-1211'
+evaluationDependsOn(kernelProjectPath)
+def kernelProject = project(kernelProjectPath)
+def hostRemapProjectPath = rootProject.findProperty('owned_kernel_remap_project_path')?.toString()
+        ?: ':owned-kernel-primary-1211-hostremap'
+evaluationDependsOn(hostRemapProjectPath)
+def hostRemapProject = project(hostRemapProjectPath)
+def remapOwnedKernelForHost = hostRemapProject.tasks.named('remapOwnedKernelForHost')
+
+def hostNamedKernelFiles = files(remapOwnedKernelForHost.flatMap { it.archiveFile })
+hostNamedKernelFiles.builtBy(remapOwnedKernelForHost)
+dependencies.add('implementation', hostNamedKernelFiles)
+
+def inspectHostNamedKernel = tasks.register('inspectOwnedKernelHostNamedJar', Exec) {
+    dependsOn remapOwnedKernelForHost, kernelProject.tasks.named('generateOwnedKernelSources')
+    inputs.file(remapOwnedKernelForHost.flatMap { it.archiveFile })
+    inputs.file(kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json'))
+    commandLine 'python3',
+            kernelProject.file('scripts/inspect_owned_kernel_jar.py').absolutePath,
+            '--jar', remapOwnedKernelForHost.get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', kernelProject.layout.buildDirectory
+                    .file('generated/owned-kernel/source-manifest.json').get().asFile.absolutePath,
+            '--namespace', 'named'
+}
+
+tasks.named('compileJava').configure {
+    dependsOn remapOwnedKernelForHost
+}
+
+tasks.named('processResources').configure {
+    inputs.file(rootProject.file('fabric/src/main/resources/fabric.mod.json'))
+    inputs.property('ownedKernelMixinConfig', 'mixins.lodekeeper-kernel.json')
+    doLast {
+        File manifestFile = new File(destinationDir, 'fabric.mod.json')
+        Map manifest = new JsonSlurper().parse(manifestFile) as Map
+        if (manifest.mixins != null && !(manifest.mixins instanceof List)) {
+            throw new GradleException('fabric.mod.json mixins must be a list')
+        }
+        List mixins = manifest.mixins == null ? [] : new ArrayList(manifest.mixins)
+        mixins.remove('lodekeeper-baritone.mixins.json')
+        if (!mixins.contains('mixins.lodekeeper-kernel.json')) {
+            mixins.add('mixins.lodekeeper-kernel.json')
+        }
+        manifest.mixins = mixins
+        manifestFile.setText(JsonOutput.prettyPrint(JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
+}
+
+tasks.named('jar').configure {
+    dependsOn remapOwnedKernelForHost
+    inputs.file(remapOwnedKernelForHost.flatMap { it.archiveFile })
+    from({ zipTree(remapOwnedKernelForHost.get().archiveFile.get().asFile) }) {
+        include '**'
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/MANIFEST.MF'
+        exclude '**/*.jar'
+    }
+}
+
+tasks.register('inspectOwnedKernelHostJar', Exec) {
+    dependsOn tasks.named('remapJar')
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    inputs.file(kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json'))
+    commandLine 'python3',
+            kernelProject.file('scripts/inspect_owned_kernel_jar.py').absolutePath,
+            '--jar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json').get().asFile.absolutePath,
+            '--namespace', 'intermediary',
+            '--host-jar'
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('inspectOwnedKernelHostJar'), inspectHostNamedKernel
+}

@@ -166,7 +166,7 @@ final class VerifiedQuickMove {
     }
 
     private void click() {
-        client.interactionManager.clickSlot(handler.syncId, sourceSlot, 0, SlotActionType.QUICK_MOVE, client.player);
+        OwnedClickReceipts.inventoryClick(client, handler.syncId, sourceSlot, 0, SlotActionType.QUICK_MOVE, client.player);
     }
 
 

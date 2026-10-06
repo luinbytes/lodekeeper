@@ -844,6 +844,31 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void claimCommandsPreserveQuotedNamesAndSeparateSelectionClear() {
+        CommandParser parser = new CommandParser();
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.ADD, "home workshop", true),
+                parser.parse("claim add \"home workshop\" preferred").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.REMOVE, "claim-id", false),
+                parser.parse("claim remove claim-id").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.PREFER, "home workshop", false),
+                parser.parse("claim prefer 'home workshop' false").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.POS1, null, false),
+                parser.parse("claim pos1").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.POS2, null, false),
+                parser.parse("claim pos2").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.LIST, null, false),
+                parser.parse("claim list").command());
+        assertEquals(new CommandParser.ClaimCommand(CommandParser.ClaimAction.CLEAR_SELECTION, null, false),
+                parser.parse("claim clear").command());
+        assertEquals(new CommandParser.ClearCommand(), parser.parse("clear").command());
+        for (String invalid : List.of("claim", "claim pos1 1 2 3", "claim clear all", "claim add home true",
+                "claim prefer home yes", "claim remove", "claim add \"\"", "claim list extra",
+                "claim add \"line\nname\"", "claim add " + "a".repeat(129))) {
+            assertFalse(parser.parse(invalid).success(), invalid);
+        }
+    }
+
+    @Test
     void parsesBoundedClientCommandBodies() {
         CommandParser parser = new CommandParser();
         CommandParser.ParseResult result = parser.parse("get \"diamond boots\" 64");

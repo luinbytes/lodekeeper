@@ -25,9 +25,18 @@ import java.util.Map;
 /** All actions run on the client thread and use ordinary survival interactions. */
 final class PlayerActions {
     private final MinecraftClient client;
+    private final WorldProtection protection;
+    private final PlacementProvenance placementProvenance;
+    private BackfillController backfill;
+    void attachBackfill(BackfillController controller) { backfill = controller; }
+    void recordOwnedNavigationBreak(BlockPos position) {
+        if (backfill != null) backfill.beforeOwnedBreak(position);
+    }
+    enum BackfillAttempt { NOT_SENT, SENT_OR_UNCERTAIN }
+    enum PlacementAttempt { SENT, WAITING_FOR_PROVENANCE, INVENTORY_TIMEOUT, REJECTED, QUARANTINED }
     private boolean ownsBreaking;
     enum MineFailure {
-        NONE, CONTEXT_UNAVAILABLE, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
+        NONE, CONTEXT_UNAVAILABLE, PROTECTED_BLOCK, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
         NO_REACHABLE_OUTLINE_HIT, SAFE_TOOL_UNAVAILABLE, REQUIRED_TOOL_UNAVAILABLE,
         TOOL_SELECTION_FAILED, UNSAFE_HELD_TOOL, NATIVE_BREAK_REFUSED
     }
@@ -35,7 +44,30 @@ final class PlayerActions {
     MineFailure mineFailure() { return mineFailure; }
     private boolean refuseMining(MineFailure reason) { mineFailure = reason; return false; }
 
-    PlayerActions(MinecraftClient client) { this.client = client; }
+    PlayerActions(MinecraftClient client) { this(client, null, null); }
+    PlayerActions(MinecraftClient client, WorldProtection protection) { this(client, protection, null); }
+    PlayerActions(MinecraftClient client, WorldProtection protection, PlacementProvenance placementProvenance) {
+        this.client = client;
+        this.protection = protection;
+        this.placementProvenance = placementProvenance;
+    }
+
+    private boolean permitsBreak(BlockPos position) {
+        if (protection != null && !protection.mayBreak(position)) return false;
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.world
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executeBreak(owner, position);
+    }
+
+    private boolean permitsPlacement(BlockHitResult hit) {
+        if (protection != null) protection.sync();
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.world
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executePlace(owner, hit,
+                        Hand.MAIN_HAND);
+    }
     Map<String, Integer> inventory() {
         Map<String, Integer> result = new HashMap<>();
         if (client.player == null) return result;
@@ -86,7 +118,7 @@ final class PlayerActions {
         if (slot < 9) { ClientAccess.selectedSlot(inventory, slot); return true; }
         if (client.player.currentScreenHandler != client.player.playerScreenHandler) return false;
         ItemStack chosen = inventory.getStack(slot).copy();
-        client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, ClientAccess.selectedSlot(inventory), SlotActionType.SWAP, client.player);
+        OwnedClickReceipts.inventoryClick(client, client.player.playerScreenHandler.syncId, slot, ClientAccess.selectedSlot(inventory), SlotActionType.SWAP, client.player);
         return ItemStack.areEqual(client.player.getMainHandStack(), chosen);
     }
     boolean bestTool(BlockState state) {
@@ -213,7 +245,7 @@ final class PlayerActions {
         int destination = -1;
         for (int slot = 0; slot < 9; slot++) if (slot != selected && inventory.getStack(slot).isEmpty()) { destination = slot; break; }
         if (destination < 0) destination = (selected + 1) % 9;
-        client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, source, destination, SlotActionType.SWAP, client.player);
+        OwnedClickReceipts.inventoryClick(client, client.player.playerScreenHandler.syncId, source, destination, SlotActionType.SWAP, client.player);
     }
 
     boolean prepareMiningTool(SelectedToolRequirement tool, BlockState state) {
@@ -252,6 +284,7 @@ final class PlayerActions {
     boolean mine(BlockPos position, SelectedToolRequirement tool) {
         mineFailure = MineFailure.NONE;
         if (client.world == null || client.player == null || client.interactionManager == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
+        if (!permitsBreak(position)) return refuseMining(MineFailure.PROTECTED_BLOCK);
         if (isPlayerSupport(client, position)) return refuseMining(MineFailure.PLAYER_SUPPORT);
         BlockState state = client.world.getBlockState(position);
         if (state.isAir() || state.getHardness(client.world, position) < 0) return refuseMining(MineFailure.UNBREAKABLE_BLOCK);
@@ -271,17 +304,30 @@ final class PlayerActions {
         if (!hasSafeDurability(held, tool == null ? 1 : tool.minimumDurability())
                 || state.isToolRequired() && !held.isSuitableFor(state)) return refuseMining(MineFailure.UNSAFE_HELD_TOOL);
         look(hit.getPos());
+        recordOwnedNavigationBreak(position);
         ownsBreaking = true;
         client.interactionManager.updateBlockBreakingProgress(position, hit.getSide());
         client.player.swingHand(Hand.MAIN_HAND);
         return true;
     }
     boolean use(BlockPos position) {
-        if (client.player == null || client.interactionManager == null) return false;
+        if (client.player == null || client.interactionManager == null || client.player.isSneaking()
+                || client.currentScreen instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;
+        Hand hand;
+        if (client.player.getMainHandStack().isEmpty()) hand = Hand.MAIN_HAND;
+        else if (client.player.getOffHandStack().isEmpty()) hand = Hand.OFF_HAND;
+        else {
+            int empty = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                if (client.player.getInventory().getStack(slot).isEmpty()) { empty = slot; break; }
+            }
+            if (empty < 0 || !selectSlot(empty) || !client.player.getMainHandStack().isEmpty()) return false;
+            hand = Hand.MAIN_HAND;
+        }
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getPos());
-        return client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit).isAccepted();
+        return client.interactionManager.interactBlock(client.player, hand, hit).isAccepted();
     }
     boolean safePlacementSupport(BlockPos position) {
         var state = client.world.getBlockState(position);
@@ -297,6 +343,7 @@ final class PlayerActions {
     }
 
     private BlockHitResult placementHit(BlockPos destination) {
+        if (protection != null && !protection.mayPlace(destination)) return null;
         if (client.world == null || client.player == null
                 || !client.world.getBlockState(destination).isReplaceable()
                 || client.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(destination))) return null;
@@ -315,8 +362,52 @@ final class PlayerActions {
         if (client.interactionManager == null) return false;
         BlockHitResult hit = placementHit(destination);
         if (hit == null || !select(block.asItem())) return false;
+        if (!permitsPlacement(hit)) return false;
         look(hit.getPos());
         return client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit).isAccepted();
+    }
+    BackfillAttempt placeBackfill(BlockPos destination, Block block) {
+        if (client.player == null || client.world == null || client.interactionManager == null)
+            return BackfillAttempt.NOT_SENT;
+        BlockHitResult hit = placementHit(destination);
+        if (hit == null || !select(block.asItem()) || client.player.getMainHandStack().getItem() != block.asItem())
+            return BackfillAttempt.NOT_SENT;
+        if (!client.world.getBlockState(destination).isAir()
+                || !client.world.getBlockState(destination).getFluidState().isEmpty()
+                || !permitsPlacement(hit)) return BackfillAttempt.NOT_SENT;
+        look(hit.getPos());
+        client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit);
+        return BackfillAttempt.SENT_OR_UNCERTAIN;
+    }
+    PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken) {
+        if (placementProvenance == null || client.interactionManager == null) return PlacementAttempt.REJECTED;
+        BlockHitResult hit = placementHit(destination);
+        if (hit == null) return PlacementAttempt.REJECTED;
+        var readiness = placementProvenance.readinessStatus(jobToken, destination, block);
+        if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.QUARANTINED)
+            return PlacementAttempt.QUARANTINED;
+        if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.EXPIRED)
+            return PlacementAttempt.INVENTORY_TIMEOUT;
+        if (readiness.isEmpty() && !select(block.asItem())) return PlacementAttempt.REJECTED;
+        if (!permitsPlacement(hit)) return PlacementAttempt.REJECTED;
+        look(hit.getPos());
+        var reservation = placementProvenance.reservePlacement(jobToken, destination, block);
+        if (reservation.status() == PlacementProvenance.ReservationStatus.NOT_READY)
+            return PlacementAttempt.WAITING_FOR_PROVENANCE;
+        if (reservation.status() == PlacementProvenance.ReservationStatus.QUARANTINED)
+            return PlacementAttempt.QUARANTINED;
+        if (reservation.status() != PlacementProvenance.ReservationStatus.RESERVED) return PlacementAttempt.REJECTED;
+        var ticket = reservation.ticket().orElseThrow();
+        try {
+            if (!client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit).isAccepted()) {
+                placementProvenance.interactionRejected(ticket);
+                return PlacementAttempt.QUARANTINED;
+            }
+            return PlacementAttempt.SENT;
+        } catch (RuntimeException | Error failure) {
+            placementProvenance.interactionRejected(ticket);
+            throw failure;
+        }
     }
     void cancel() {
         if (ownsBreaking && client.interactionManager != null) client.interactionManager.cancelBlockBreaking();

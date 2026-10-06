@@ -147,6 +147,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean CONFIG_ROUND_TRIP_MODE = Boolean.getBoolean("lodekeeper.verify.configRoundTrip");
     private static final boolean SETTINGS_UI_MODE = Boolean.getBoolean("lodekeeper.verify.settingsUi");
     private JsonObject configRoundTripReceipt;
+    private NavigationSettingsVerification navigationSettings;
+    private JsonObject navigationSettingsReceipt;
     private SettingsUiVerification settingsUiVerification;
     private NativeSettingsUiAccess settingsUiAccess;
     private boolean settingsUiChatEntryConfirmed;
@@ -571,7 +573,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
             ClientTickEvents.END_CLIENT_TICK.register(mc -> {
                 if (!BARITONE_MODE || mc.player == null) return;
-                var bot = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
+                var bot = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone();
                 if (bot.getMineProcess().isActive()) baritoneMiningObserved = true;
             });
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
@@ -674,13 +676,19 @@ public final class RuntimeVerification implements ClientModInitializer {
                         state = State.SETTINGS_UI;
                         settingsUiAccess = new NativeSettingsUiAccess(
                                 client, engine.config,
-                                () -> new AutomationSettingsScreen(engine.config, () -> {}),
+                                () -> new AutomationSettingsScreen(engine.config, () -> {}, engine.protection),
+                                engine.protection,
                                 this::captureSettingsUi, System.out::println,
                                 () -> LodekeeperClient.engine != null
                                         && LodekeeperClient.engine.diagnosticTaskIdentity() == null
                                         && LodekeeperClient.engine.status().startsWith("idle"));
                         settingsUiAccess.submitSettingsChatCommand();
                         return;
+                    }
+                    if (CONFIG_ROUND_TRIP_MODE) {
+                        if (navigationSettings == null) navigationSettings = new NavigationSettingsVerification();
+                        navigationSettingsReceipt = navigationSettings.advance(requireEngine().config);
+                        if (navigationSettingsReceipt == null) return;
                     }
                     configureAutomation();
                     beginFixtureSetup();
@@ -929,7 +937,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void configureAutomation() throws IOException {
         AutomationEngine engine = requireEngine();
         engine.stop();
-        if (CONFIG_ROUND_TRIP_MODE) configRoundTripReceipt = ConfigRoundTripVerification.verify(engine.config);
+        if (CONFIG_ROUND_TRIP_MODE) {
+            configRoundTripReceipt = ConfigRoundTripVerification.verify(engine.config);
+            configRoundTripReceipt.add("nativeNavigationBindings", navigationSettingsReceipt);
+        }
         engine.config.searchRadius = BULK_WOOD_MODE ? 96 : 48;
         engine.config.scanBlocksPerTick = 512;
         engine.config.actionTimeoutTicks = 1_200;
@@ -2254,7 +2265,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         if (BARITONE_MODE && liveRouteScreenshot == null
-                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()) {
+                && dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()) {
             if (firstRouteTick < 0) firstRouteTick = clientTicks;
             if (clientTicks - firstRouteTick >= 8) liveRouteScreenshot = capture(activeCase + "-baritone-route");
         }
@@ -2310,9 +2321,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestSnapshot.count(WOODEN_AXE_ID) == 0)))
             && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart)
             && (!BARITONE_MODE || (baritoneMiningObserved
-                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getMineProcess().isActive()
-                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()
-                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getInProgress().isEmpty()));
+                && !dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone().getMineProcess().isActive()
+                && !dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()
+                && dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getInProgress().isEmpty()));
         if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
                 && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
             fail("far resource goal completed without observed bounded exploration travel"); return;
@@ -3148,14 +3159,14 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private boolean baritoneNavigationStopped() {
         if (!BARITONE_MODE) return true;
-        var upstream = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
-        baritone.api.process.IBaritoneProcess[] processes = {
+        var upstream = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getProvider().getPrimaryBaritone();
+        dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess[] processes = {
                 upstream.getMineProcess(), upstream.getFollowProcess(), upstream.getCustomGoalProcess(),
                 upstream.getBuilderProcess(), upstream.getExploreProcess(), upstream.getFarmProcess(),
                 upstream.getGetToBlockProcess(), upstream.getElytraProcess()
         };
         for (var process : processes) if (process.isActive()) return false;
-        for (var key : baritone.api.utils.input.Input.values())
+        for (var key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
             if (upstream.getInputOverrideHandler().isInputForcedDown(key)) return false;
         return upstream.getFollowProcess().currentFilter() == null
                 && !upstream.getPathingBehavior().hasPath() && !upstream.getPathingBehavior().isPathing()
@@ -3845,7 +3856,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             return;
         }
         settingsUiScreenshots.addProperty("final", settingsUiFinalScreenshot);
-        addResult(true, 0, "native settings screen child widgets accepted search, filter, save, discard, dependency, reset, and navigation-map mouse/key/character events; "
+        addResult(true, 0, "native settings and protected-plots screens accepted mouse/key/character events; plot inputs survived screen resize and ClaimStore reload; "
                 + settingsUiReceipt, settingsUiFinalScreenshot);
         state = State.CAPTURING;
         captureStartedAtTick = clientTicks;
@@ -3979,7 +3990,8 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private boolean settingsUiScreenshotsValid() {
         try {
-            if (settingsUiScreenshots.size() < 3 || settingsUiFinalScreenshot == null) return false;
+            if (settingsUiScreenshots.size() < 4 || settingsUiFinalScreenshot == null
+                    || !settingsUiScreenshots.has("actual-plot-editor") || !settingsUiScreenshots.has("final")) return false;
             for (var entry : settingsUiScreenshots.entrySet()) {
                 if (!entry.getValue().isJsonPrimitive()) return false;
                 Path image = evidenceDirectory.resolve(entry.getValue().getAsString()).normalize();

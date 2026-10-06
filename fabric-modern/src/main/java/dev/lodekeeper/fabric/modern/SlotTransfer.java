@@ -135,7 +135,7 @@ final class SlotTransfer {
 
     private void click(int slot, int button) {
         Player player = client.player;
-        client.gameMode.handleContainerInput(menu.containerId, slot, button, ContainerInput.PICKUP, player);
+        OwnedClickReceipts.inventoryClick(client, menu.containerId, slot, button, ContainerInput.PICKUP, player);
     }
 
     private static boolean same(ItemStack left, ItemStack right) {

@@ -66,6 +66,7 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/ConfigRoundTripVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NavigationSettingsVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java')
 ]
@@ -125,4 +126,8 @@ tasks.configureEach {
     if (name == 'runVerificationClient') dependsOn prepareVerificationOptions
 }
 
-apply from: rootProject.file('gradle/baritone.gradle')
+if (rootProject.findProperty('owned_kernel_primary_1211')?.toString() == 'true') {
+    apply from: rootProject.file('gradle/primary1211-host-integration.gradle')
+} else {
+    apply from: rootProject.file('gradle/baritone.gradle')
+}

@@ -184,6 +184,22 @@ final class OwnedStationLedgerTest {
     }
 
     @Test
+    void forgettingUnloadedRecordRequiresTheCurrentExactRecordIdentity() {
+        OwnedStationLedger ledger = new OwnedStationLedger(SESSION);
+        StationRecord observed = beginAndConfirm(ledger, 60, FIRST, 0, 2);
+        Session staleSession = new Session(WORLD, SESSION.generation() - 1);
+
+        assertFalse(ledger.forget(staleSession, observed));
+        assertSame(observed, ledger.records().get(0));
+        assertTrue(ledger.forget(SESSION, observed));
+        assertTrue(ledger.records().isEmpty());
+
+        StationRecord replacement = beginAndConfirm(ledger, 61, FIRST, 3, 1);
+        assertFalse(ledger.forget(SESSION, observed));
+        assertSame(replacement, ledger.records().get(0));
+    }
+
+    @Test
     void expiryAndPickupRemovalRequireTheExactTicketAndRecord() {
         OwnedStationLedger ledger = new OwnedStationLedger(SESSION);
         OwnedStationLedger otherLedger = new OwnedStationLedger(SESSION);

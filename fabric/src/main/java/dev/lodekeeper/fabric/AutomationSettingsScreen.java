@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class AutomationSettingsScreen extends Screen {
+public final class AutomationSettingsScreen extends Screen implements dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier {
     private static final int PANEL = 0xc918242b;
     private static final int CYAN = 0xff55dce8;
     private static final int PRIMARY = 0xffedf4f6;
@@ -28,6 +28,7 @@ public final class AutomationSettingsScreen extends Screen {
     private final LodekeeperConfig config;
     private final SettingsDraft draft;
     private final Runnable savedCallback;
+    private final WorldProtection protection;
     private final List<SettingWidget> settingWidgets = new ArrayList<>();
     private String category;
     private String query;
@@ -42,17 +43,23 @@ public final class AutomationSettingsScreen extends Screen {
 
     public AutomationSettingsScreen(Screen parent, LodekeeperConfig config, Runnable savedCallback) {
         this(parent, config, new SettingsDraft(LodekeeperConfig.specs(), config::read),
-                savedCallback, "All", "", 0);
+                savedCallback, "All", "", 0, null);
     }
 
     public AutomationSettingsScreen(LodekeeperConfig config, Runnable savedCallback) {
         this(null, config, savedCallback);
     }
 
+    AutomationSettingsScreen(LodekeeperConfig config, Runnable savedCallback, WorldProtection protection) {
+        this(null, config, new SettingsDraft(LodekeeperConfig.specs(), config::read),
+                savedCallback, "All", "", 0, protection);
+    }
+
     private AutomationSettingsScreen(Screen parent, LodekeeperConfig config, SettingsDraft draft,
-                                     Runnable savedCallback, String category, String query, int page) {
+                                     Runnable savedCallback, String category, String query, int page, WorldProtection protection) {
         super(Text.literal("Lodekeeper automation settings"));
         this.parent = parent;
+        this.protection = protection;
         this.config = config;
         this.draft = draft;
         this.savedCallback = savedCallback == null ? () -> {} : savedCallback;
@@ -157,6 +164,12 @@ public final class AutomationSettingsScreen extends Screen {
         add(button("Save", actionX + resetWidth + closeWidth + gap * 2, actionY, saveWidth, 20,
                 "Validate and save every setting.", ignored -> save()));
 
+        if (protection != null) add(button("Protected plots", panelX + panelWidth - 118, 25, 106, 18,
+                "Manage protected 3D plots and preferred crafting stations. Plot changes save immediately.", ignored -> {
+                    if (!syncVisibleEditors()) return;
+                    query = searchField.getText();
+                    client.setScreen(new ClaimsScreen(this, protection));
+                }));
         refreshEnabledState();
     }
 
@@ -337,7 +350,7 @@ public final class AutomationSettingsScreen extends Screen {
 
     private void reopen() {
         if (client != null) client.setScreen(new AutomationSettingsScreen(parent, config, draft,
-                savedCallback, category, query, page));
+                savedCallback, category, query, page, protection));
     }
 
     private static String displayValue(Object value) {

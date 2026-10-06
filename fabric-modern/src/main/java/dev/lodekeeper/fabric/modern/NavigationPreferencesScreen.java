@@ -13,7 +13,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-final class NavigationPreferencesScreen extends Screen {
+final class NavigationPreferencesScreen extends Screen implements dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier {
     private static final int PANEL = 0xc918242b;
     private static final int CYAN = 0xff55dce8;
     private static final int SECONDARY = 0xffa8c2df;

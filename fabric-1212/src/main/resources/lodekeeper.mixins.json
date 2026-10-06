@@ -8,7 +8,10 @@
     "RecipeBookSyncMixin",
     "ContainerInputReceiptMixin",
     "OwnedClickPacketMixin",
-    "NavigationMiningMixin"
+    "NavigationMiningMixin",
+    "PlacementProvenanceMixin",
+    "PlacementInventoryReceiptMixin",
+    "PlacementPlayerInventoryMixin"
   ],
   "injectors": {
     "defaultRequire": 1
