@@ -1,0 +1,40 @@
+{
+  "sourceCommit": "852b72f177befc1b55771cee86076544f39c9f9b",
+  "candidateSha256": "6f8c06188a6a2121d1dabe3c5a5907a9d4bf0387f32a8fcd1cd15373a3bd8ad4",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37478984017",
+  "minecraftVersion": "26.3",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "passed",
+  "commandElapsedMillis": 573306,
+  "firstServerMovementElapsedMillis": 238,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots"
+  ],
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "failure": "",
+  "seed": 483920105,
+  "commandStartPosition": {
+    "x": -17.30000001192093,
+    "y": 65.0,
+    "z": 30.40720845180311
+  },
+  "naturalReceipt": "checkpoint-15-natural.json",
+  "artifactReceipt": "checkpoint-15-artifact.json",
+  "scope": "One seeded world with no grants or post-spawn teleports; not a time guarantee for every seed, ordinary-launcher acceptance or universal mechanic coverage.",
+  "finalHealth": 20.0,
+  "finalHunger": 19,
+  "armorEquipped": true,
+  "screenshotInspected": true,
+  "visualObservation": "Final screenshot shows the project-complete chat message, full armor bar and full hearts.",
+  "fuelObservation": "Iron smelting used two spruce planks; wood for the later tools was gathered before descending.",
+  "huntingTimeoutCoverage": "No failed-animal timeout was observed in this run."
+}

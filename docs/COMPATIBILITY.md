@@ -6,7 +6,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 
 Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. Exact metadata, JVM levels, nested Baritone pins, licences, refmaps and verifier exclusion were checked for every downloaded jar.
 
-The exact [1.21.1 jar passes a fresh normal-survival full diamond project](evidence/navigation-rebuild/checkpoint-14.json) in 719,372 ms (11 minutes 59 seconds), with all five tools and all four equipped armor pieces. The world starts empty without grants, cheats or a bonus chest. Final health is 20, minimum health 9.33 and no deaths occurred. First server movement is at 1,638 ms. The exact 26.3 full-project repeat is in progress.
+The exact [1.21.1 jar passes a fresh normal-survival full diamond project](evidence/navigation-rebuild/checkpoint-14.json) in 719,372 ms (11 minutes 59 seconds), with all five tools and all four equipped armor pieces. The world starts empty without grants, cheats or a bonus chest. Final health is 20, minimum health 9.33 and no deaths occurred. First server movement is at 1,638 ms. The exact [26.3 jar also passes the full project](evidence/navigation-rebuild/checkpoint-15.json) in 573,306 ms (9 minutes 33 seconds), with minimum and final health 20, no deaths and first server movement after 238 ms.
 
 Prepared reachable and blocked workbench checks pass on both versions at the earlier `7ba8d375` source. Their source-specific receipts remain below. Full-catalog fuel selection still chose whole logs in the current 1.21.1 run. Other seeds, ordinary launchers, remote servers and all Minecraft mechanics remain separate acceptance gates. Historical rows describe their original artifacts.
 
@@ -25,7 +25,7 @@ Prepared reachable and blocked workbench checks pass on both versions at the ear
 | 1.21.9, 1.21.10, 1.21.11 | 21 | Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
 | 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `8aafbcf` | Pending |
 | 26.2 | 25 | Exact local and CI development builds pass at `8aafbcf` | Pending |
-| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases, initially unloaded distant wood and single-command diamond boots pass; natural-world checks pending |
+| 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Exact Preview 10 full diamond project passes one fresh survival world in 9:33; older controlled checks retain their source scope |
 
 ## Preview 8 navigation rebuild
 

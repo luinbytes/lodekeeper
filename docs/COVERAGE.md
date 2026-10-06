@@ -1,6 +1,6 @@
 # Survival automation coverage
 
-This ledger keeps the full product scope visible. A planned interface or a successful compile is not proof of a working mechanic. “Controlled” means an isolated game scenario passed; natural-world and remote-server checks are separate gates. Coverage must be checked again for each adapter family. Current releases use bundled version-matched Baritone; older custom-navigation receipts remain historical evidence. The exact Preview 10 1.21.1 jar passes [one fresh-world full diamond loadout](evidence/navigation-rebuild/checkpoint-14.json) in 11 minutes 59 seconds. This does not complete the full scope below.
+This ledger keeps the full product scope visible. A planned interface or a successful compile is not proof of a working mechanic. “Controlled” means an isolated game scenario passed; natural-world and remote-server checks are separate gates. Coverage must be checked again for each adapter family. Current releases use bundled version-matched Baritone; older custom-navigation receipts remain historical evidence. The exact Preview 10 jars pass fresh-world full diamond loadouts on [1.21.1](evidence/navigation-rebuild/checkpoint-14.json) in 11 minutes 59 seconds and [26.3](evidence/navigation-rebuild/checkpoint-15.json) in 9 minutes 33 seconds. This does not complete the full scope below.
 
 | Capability | Current evidence | Next acceptance scenario |
 | --- | --- | --- |

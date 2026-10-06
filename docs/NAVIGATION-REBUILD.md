@@ -177,4 +177,11 @@ Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact CI builds
 
 [Checkpoint 14](evidence/navigation-rebuild/checkpoint-14.json) passes the full project in 719,372 ms (11 minutes 59 seconds) on source `852b72f177befc1b55771cee86076544f39c9f9b`. The tested jar is byte-identical to the 1.21.1 CI artifact. The integrated server confirms all nine items, all four equipped armor pieces, final health 20, no deaths and stopped navigation. First server movement occurred after 1,638 ms. Minimum health was 9.33, so this run includes damage and recovery.
 
-The world was generated normally with seed 483920105, an empty inventory, normal survival, no cheats and no bonus chest. Its spawn differed from the earlier full pass. These runs do not establish a paired speed improvement or timing across other seeds. All observed cow hunts succeeded, leaving the new timeout cooldown unexercised in this run. The final screenshot was inspected. The exact 26.3 full-project repeat is running separately.
+The world was generated normally with seed 483920105, an empty inventory, normal survival, no cheats and no bonus chest. Its spawn differed from the earlier full pass. These runs do not establish a paired speed improvement or timing across other seeds. All observed cow hunts succeeded, leaving the new timeout cooldown unexercised in this run. The final screenshot was inspected. The exact 26.3 full-project repeat is recorded below.
+
+
+## Exact Preview 10, 26.3
+
+[Checkpoint 15](evidence/navigation-rebuild/checkpoint-15.json) passes the full project in 573,306 ms (9 minutes 33 seconds). The jar from source `852b72f177befc1b55771cee86076544f39c9f9b` is byte-identical to the 26.3 CI artifact. First server movement occurs after 238 ms. The integrated server confirms all five tools, all four equipped armor pieces, health 20 throughout, no deaths and idle, cancelled navigation.
+
+This fresh normal-survival world starts empty with seed 483920105, normal difficulty, no cheats and no bonus chest. Iron smelting selects two spruce planks, and further wood is gathered before descending. The final screenshot was inspected. This is one world per primary version; it is not a comparison with other mods, a guarantee for other seeds or a complete Minecraft mechanic test.

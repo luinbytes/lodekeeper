@@ -1,0 +1,52 @@
+{
+  "sourceCommit": "852b72f177befc1b55771cee86076544f39c9f9b",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37478984017",
+  "ciResult": "24 exact adapter jobs passed",
+  "localRegressionCount": 195,
+  "native1_21_1": {
+    "receipt": "navigation-rebuild/checkpoint-14.json",
+    "status": "passed",
+    "commandElapsedMillis": 719372,
+    "firstServerMovementElapsedMillis": 1638,
+    "candidateSha256": "6adcfd50dc77f077695c94e4d635e1a447ab7045a78e25227f82ed3b0f75370f",
+    "exactCiArtifactMatch": true
+  },
+  "native26_3": {
+    "status": "passed",
+    "candidateSha256": "6f8c06188a6a2121d1dabe3c5a5907a9d4bf0387f32a8fcd1cd15373a3bd8ad4",
+    "exactCiArtifactMatch": true,
+    "receipt": "navigation-rebuild/checkpoint-15.json",
+    "commandElapsedMillis": 573306,
+    "firstServerMovementElapsedMillis": 238
+  },
+  "releasePackageFiles": {
+    "SHA256SUMS": "8b14368a9183007de59d5ddd4c4411da30827b7ae68f295ad0053d821648211e",
+    "baritone-corresponding-sources.zip": "0768a7be343a7b4c89a97285dbc68857dd702db6cc3a75071e242395eb555c55",
+    "build-evidence.json": "858219d43ceab943d35c456d1909c81bdfbb6860adba2b6cf9a4a89c4be24f60",
+    "lodekeeper-1.20-0.1.0-preview.10.jar": "491d2be42eedc4f3a133cc7a9b1ca9471033042ab1c3e7e501fce133dcf18d26",
+    "lodekeeper-1.20.1-0.1.0-preview.10.jar": "ad68dcc47f015ea6485387730f201cddad3a18652ed420790b23712688a5f37e",
+    "lodekeeper-1.20.2-0.1.0-preview.10.jar": "62598ef5aa006083e0acb164dd13e9b4802ab770cb3a400d48c5077a06df377e",
+    "lodekeeper-1.20.3-0.1.0-preview.10.jar": "9a3c38204eee72ebbeb827ce6bfaa736147c23155ad0859b95ee6952f86f0fb1",
+    "lodekeeper-1.20.4-0.1.0-preview.10.jar": "94c333a644bf183847623e4bddaaa86cc4cd3192b5160c8f7527bab1a30e8582",
+    "lodekeeper-1.20.5-0.1.0-preview.10.jar": "ff605c2ca82319d96e5e6fe864680c1d71f3a1cb87a8583026e01496016790db",
+    "lodekeeper-1.20.6-0.1.0-preview.10.jar": "9cd08233451c145e8452f376a3921a738cc25524e64daf65bd3538d4ca95d791",
+    "lodekeeper-1.21-0.1.0-preview.10.jar": "2345ae3da321f29be55db4df83e7789c0f1fc6e2cfc445184a85c6cd85cdfde3",
+    "lodekeeper-1.21.1-0.1.0-preview.10.jar": "6adcfd50dc77f077695c94e4d635e1a447ab7045a78e25227f82ed3b0f75370f",
+    "lodekeeper-1.21.10-0.1.0-preview.10.jar": "2a9e84675afcf5bde73253b3a1a824af54fe1bf6e230fde560e3151adb0a18b7",
+    "lodekeeper-1.21.11-0.1.0-preview.10.jar": "c8cbe5e12d989560a038611965c7ce2afc0979d3bf4dc2084b6621879dc7f382",
+    "lodekeeper-1.21.2-0.1.0-preview.10.jar": "7eb82418d30ec13faf0fed38132073061ec29f100ba4f07215f67e6b4ff90ffe",
+    "lodekeeper-1.21.3-0.1.0-preview.10.jar": "37b8f20a5b591ea5327192fa5d732175ae10bcba43e2612dc9645f8d0b6511ec",
+    "lodekeeper-1.21.4-0.1.0-preview.10.jar": "c27cfb0b8723556469847656065ca071554aae90826beca43fe4f4d08261ba5c",
+    "lodekeeper-1.21.5-0.1.0-preview.10.jar": "21f93a035f2b07a10ead445ee9ebcb7722cea9299549e0786711d1fe8a718ea2",
+    "lodekeeper-1.21.6-0.1.0-preview.10.jar": "68f0e526374326b7e6296e27ef1eba2f50779f310293f1a2b2c53a28b2b66d38",
+    "lodekeeper-1.21.7-0.1.0-preview.10.jar": "ccb1db4de380bf7cc2e98722f318f75e7e88bcc587a75886c5b4ba0905e26981",
+    "lodekeeper-1.21.8-0.1.0-preview.10.jar": "401038f5d6689527f05c23286b28fc83201bf1c89985ac7a8b982216ede72e75",
+    "lodekeeper-1.21.9-0.1.0-preview.10.jar": "7d03d0b00b4c150c6b697bb72a8e049687f6ba9e06ff71fdfd01ae36077967c7",
+    "lodekeeper-26.1-0.1.0-preview.10.jar": "b171347e35a655f0eec677bf61831dad4c3aee85a7406c33972121fd7e84ddd0",
+    "lodekeeper-26.1.1-0.1.0-preview.10.jar": "0a7d11c02e085e469c9672d4e21fd895195ca1fd55e3bf32e076e8bbeb9f8765",
+    "lodekeeper-26.1.2-0.1.0-preview.10.jar": "8db1cb58fd5843ed6035dc2ba8e9c259d55432377072730665b6b8186491a1ed",
+    "lodekeeper-26.2-0.1.0-preview.10.jar": "ae2ac3d8568dc72b6559b71a20cc0a916865ea874aef6197d7d9b4b29bc6c2c2",
+    "lodekeeper-26.3-0.1.0-preview.10.jar": "6f8c06188a6a2121d1dabe3c5a5907a9d4bf0387f32a8fcd1cd15373a3bd8ad4"
+  },
+  "scope": "Exact release packaging and source-specific native scenarios; user acceptance, full mechanics and other seeds remain open."
+}
