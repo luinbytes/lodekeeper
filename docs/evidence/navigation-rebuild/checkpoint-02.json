@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T04:44:54.992737+00:00",
+  "checkpointOneCompileMatrix": {
+    "sourceCommit": "967fb8d57d538b073c640e6fd343dcb57d16ef05",
+    "run": "https://github.com/luinbytes/lodekeeper/actions/runs/37413541751",
+    "status": "all 24 exact version builds passed"
+  },
+  "currentChanges": "food acquisition, protected eating, portable self-placed workbenches, safe ground station supports, Silk Touch output guard, shutdown cleanup",
+  "currentValidation": "1.21.1 and26.3 production/regressions/verification compile; natural tests pending for current changes",
+  "cases": [
+    {
+      "case": "natural-iron-canopy-station",
+      "gameplayStatus": "failed",
+      "ownedClientExitCode": 0,
+      "commandElapsedMillis": 51090,
+      "firstMovementMillis": 1397,
+      "failure": "automation paused: paused \u00b7 Navigation process ended before its target was reached \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "evidence": "natural-iron-canopy-station.json"
+    },
+    {
+      "case": "natural-wood-and-shutdown",
+      "gameplayStatus": "passed",
+      "ownedClientExitCode": 248,
+      "commandElapsedMillis": 9268,
+      "firstMovementMillis": 1829,
+      "failure": "shutdown watchdog",
+      "evidence": "natural-wood-and-shutdown.json"
+    }
+  ],
+  "fullDiamondAcceptance": "not passed",
+  "comparison": "not a paired benchmark; natural spawn differs between attempts"
+}

@@ -52,6 +52,7 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (engine.config.debugLogging) logInfo("INIT mod=" + metadataVersion("lodekeeper")
                 + " minecraft=" + metadataVersion("minecraft"));
         WorldVisualization.register(client, engine);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> engine.dispose());
         KeyMapping stop = KeyMappingHelper.registerKeyMapping(GameApi.keyMapping(
                 "key.lodekeeper.stop", InputConstants.KEY_K, KeyMapping.Category.MISC));
 

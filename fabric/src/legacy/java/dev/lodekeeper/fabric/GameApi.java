@@ -3,6 +3,8 @@ package dev.lodekeeper.fabric;
 import dev.lodekeeper.core.ItemId;
 import dev.lodekeeper.core.StationId;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.FoodComponent;
 import net.minecraft.item.PickaxeItem;
 import net.minecraft.item.AxeItem;
@@ -44,6 +46,10 @@ final class GameApi {
     static Identifier identifier(String value) { return new Identifier(value); }
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.canCombine(first, second); }
+
+    static boolean hasSilkTouch(ItemStack stack) {
+        return EnchantmentHelper.getLevel(Enchantments.SILK_TOUCH, stack) > 0;
+    }
 
     /** Unknown legacy damageable implementations cannot disclose their mining wear. */
     static int blockBreakWear(ItemStack stack) {

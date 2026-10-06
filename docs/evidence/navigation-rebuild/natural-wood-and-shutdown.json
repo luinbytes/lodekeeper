@@ -1,0 +1,105 @@
+{
+  "artifact": {
+    "minecraftVersion": "26.3",
+    "artifact": "lodekeeper-26.3-0.1.0-preview.8.jar",
+    "artifactSha256": "3eb3bffff74b90bb45f319684032016d680dd98b3fd9594c0ed2d4db9fd406d7",
+    "sourceCommit": "7bd079e086a9b1633326854da8d632f5881a6670",
+    "sourceTreeState": "committed",
+    "ciRun": null,
+    "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+    "productionDevelopmentOutputsRemoved": true,
+    "verificationClassesRetainedSeparately": true,
+    "ordinaryLauncherAcceptance": false,
+    "flags": [
+      "-Dlodekeeper.verify.baritone=true",
+      "-Dlodekeeper.verify.naturalGoal=wood",
+      "-Dlodekeeper.verify.naturalTimeoutSeconds=90"
+    ],
+    "verificationClasses": "/tmp/lodekeeper-preview8-263-station-verifier",
+    "ownedClientExitCode": 248,
+    "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+  },
+  "gameplay": {
+    "runId": "2026-10-06T04-27-32.344826Z-6a1eb198",
+    "worldId": "natural-982c5462f9fe4d9c",
+    "status": "passed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "wood",
+    "command": "!lk get wood",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 90,
+    "initializedElapsedMillis": 34315,
+    "worldLaunchElapsedMillis": 27836,
+    "worldReadyElapsedMillis": 12246,
+    "commandElapsedMillis": 9268,
+    "firstServerMovementElapsedMillis": 1829,
+    "commandServerTick": 115,
+    "serverMovementTicks": 46,
+    "serverMovementSteps": 46,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 10.056539009707924,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "minimumHunger": 20,
+    "failure": "",
+    "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "",
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -8.5,
+      "y": 78.0,
+      "z": 24.5
+    },
+    "expectedItems": [
+      "minecraft:logs item tag (one or more logs)"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverSurvival": true,
+    "serverCreativeAbility": false,
+    "serverSpectator": false,
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverDeaths": 0,
+    "serverTick": 301,
+    "serverInventoryCounts": {
+      "minecraft:birch_log": 1
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:birch_log": 1
+    },
+    "serverLogItems": [
+      "minecraft:birch_log"
+    ],
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": true,
+    "serverTargetReceipts": [
+      {
+        "serverTick": 237,
+        "elapsedMillisFromCommand": 6052,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      }
+    ],
+    "serverTargetReceiptsDropped": 0
+  },
+  "overallRunPassed": false
+}

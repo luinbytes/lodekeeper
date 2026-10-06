@@ -8,6 +8,7 @@ import net.minecraft.client.recipebook.ClientRecipeBook;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.FuelRegistry;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -78,6 +79,12 @@ final class GameApi {
 
     static boolean canCombine(ItemStack first, ItemStack second) {
         return ItemStack.areItemsAndComponentsEqual(first, second);
+    }
+
+    static boolean hasSilkTouch(ItemStack stack) {
+        var enchantments = stack.getEnchantments();
+        return enchantments.getEnchantments().stream().anyMatch(enchantment ->
+                enchantment.matchesKey(Enchantments.SILK_TOUCH) && enchantments.getLevel(enchantment) > 0);
     }
 
     static long cookingFuelProgressTicks(Item fuel, StationId station, long rawBurnTicks) {

@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -64,12 +65,16 @@ final class PlayerActions {
         return ItemStack.areEqual(client.player.getMainHandStack(), chosen);
     }
     boolean bestTool(BlockState state) {
+        return bestTool(state, null);
+    }
+
+    private boolean bestTool(BlockState state, Item expectedOutput) {
         if (client.player == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
         int bestSlot = -1; float speed = 0; int durability = -1;
         for (int i = 0; i < 36; i++) {
             ItemStack stack = client.player.getInventory().getStack(i);
             int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : Integer.MAX_VALUE;
-            if (!hasSafeDurability(stack, 1)) continue;
+            if (!hasSafeDurability(stack, 1) || !isMiningOutputCompatible(stack, state, expectedOutput)) continue;
             if (state.isToolRequired() && !stack.isSuitableFor(state)) continue;
             float candidate = stack.isEmpty() ? 1 : stack.getMiningSpeedMultiplier(state);
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
@@ -80,6 +85,8 @@ final class PlayerActions {
             ItemStack held = client.player.getInventory().getStack(heldSlot);
             ItemStack chosen = client.player.getInventory().getStack(bestSlot);
             if (!held.isEmpty() && held.isOf(chosen.getItem()) && hasSafeDurability(held, 1)
+                    && isMiningOutputCompatible(held, state, expectedOutput)
+                    && isMiningOutputCompatible(chosen, state, expectedOutput)
                     && !held.hasEnchantments() && !chosen.hasEnchantments()
                     && (!state.isToolRequired() || held.isSuitableFor(state))
                     && held.getMiningSpeedMultiplier(state) == speed) {
@@ -176,18 +183,27 @@ final class PlayerActions {
     }
 
     boolean prepareMiningTool(SelectedToolRequirement tool, BlockState state) {
-        if (tool == null) return bestTool(state);
+        return prepareMiningTool(tool, state, null);
+    }
+
+    boolean prepareMiningTool(SelectedToolRequirement tool, BlockState state, Item expectedOutput) {
+        if (tool == null) return bestTool(state, expectedOutput);
         if (client.player == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
         int selected = ClientAccess.selectedSlot(client.player.getInventory());
         for (int pass = 0; pass < 2; pass++) for (int slot = 0; slot < 36; slot++) {
             if (pass == 0 ? slot != selected : slot == selected) continue;
             ItemStack stack = client.player.getInventory().getStack(slot);
             if (stack.isOf(GameCatalog.item(tool.item())) && hasSafeDurability(stack, tool.minimumDurability())
+                    && isMiningOutputCompatible(stack, state, expectedOutput)
                     && (!state.isToolRequired() || stack.isSuitableFor(state))) {
                 return selectSlot(slot) || refuseMining(MineFailure.TOOL_SELECTION_FAILED);
             }
         }
         return refuseMining(MineFailure.REQUIRED_TOOL_UNAVAILABLE);
+    }
+
+    static boolean isMiningOutputCompatible(ItemStack stack, BlockState state, Item expectedOutput) {
+        return expectedOutput == null || state.getBlock().asItem() == expectedOutput || !GameApi.hasSilkTouch(stack);
     }
 
     private static boolean hasSafeDurability(ItemStack stack, int minimumDurability) {
@@ -237,6 +253,8 @@ final class PlayerActions {
         var state = client.world.getBlockState(position);
         Block block = state.getBlock();
         return !state.hasBlockEntity() && Block.isShapeFullCube(state.getCollisionShape(client.world, position))
+                && !state.isIn(BlockTags.LEAVES) && !state.isIn(BlockTags.LOGS)
+                && block != Blocks.MAGMA_BLOCK && block != Blocks.CACTUS
                 && block != Blocks.CRAFTING_TABLE && block != Blocks.CARTOGRAPHY_TABLE
                 && block != Blocks.FLETCHING_TABLE && block != Blocks.SMITHING_TABLE
                 && block != Blocks.STONECUTTER && block != Blocks.LOOM

@@ -167,6 +167,8 @@ final class AutomationEngine {
     private final PlayerActions actions;
     private final BotInput input;
     private final FoodController food;
+    private final PassiveFoodAction foodAcquisition;
+    private final PortableWorkbenchAction workbenchRecovery;
     final GameTerrain terrain;
     private final MovementController movement;
     private final ExecutorService plannerWorker = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "lodekeeper-planner"); t.setDaemon(true); return t; });
@@ -177,6 +179,9 @@ final class AutomationEngine {
     private final MaintainedDemandModel maintained = new MaintainedDemandModel();
     private final Map<StationId, BlockPos> ownedStations = new HashMap<>();
     private final Set<BlockPos> rejectedStationSites = new HashSet<>();
+    private final Set<BlockPos> createdWorkbenches = new HashSet<>(), unreachableStations = new HashSet<>();
+    private BlockPos recoveringWorkbench;
+    private boolean workbenchRecoveryChecked;
     private final Set<String> unavailableSources = new HashSet<>();
     private final Map<String, List<BlockPos>> discoveredSources = new LinkedHashMap<>();
     private final AcquisitionPlanner planner = new AcquisitionPlanner();
@@ -240,7 +245,8 @@ final class AutomationEngine {
     private boolean stationDiscoveryDone;
     private int actionTicks, baseline, verifyTicks, lastObservedCount;
     private int inventorySampleTicks, foodCooldown;
-    private boolean foodReplanPending;
+    private boolean foodReplanPending, foodAcquisitionPending;
+    private int foodAcquisitionCooldown, stationAccessFailures;
     private boolean inventoryFingerprintInitialized;
     private volatile boolean recipeRefreshPending;
     private long lastInventoryFingerprint;
@@ -255,14 +261,20 @@ final class AutomationEngine {
         actions = new PlayerActions(client); input = new BotInput(client); terrain = new GameTerrain(client, config);
         movement = new MovementController(client, config, actions, input, terrain);
         food = new FoodController(client, actions);
+        foodAcquisition = new PassiveFoodAction(client, config, actions, movement);
+        workbenchRecovery = new PortableWorkbenchAction(client, config, actions, movement);
     }
     boolean prepareAutomatedBreak(BlockPos position) { return movement.prepareAutomatedBreak(position); }
+    void dispose() {
+        try { stopNow(false); }
+        finally { plannerWorker.shutdownNow(); movement.shutdownUpstream(); }
+    }
 
     void tick() {
         discoveryBudgetStarted = false;
         discoveryDeadlineNanos = 0;
         if (client.world != world) {
-            stopNow(false); world = client.world; ownedStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
+            stopNow(false); world = client.world; ownedStations.clear(); createdWorkbenches.clear(); unreachableStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null; localReachHint = null;
             recipeRefreshPending = false;
             nearbyResources.reset();
@@ -276,11 +288,12 @@ final class AutomationEngine {
                 message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
             }
         }
-        if (client.player == null || client.world == null) { food.stop(); movement.suspend(); input.release(); return; }
+        if (client.player == null || client.world == null) { foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (!movement.finishCancellation()) { status = "finishing movement before inventory actions"; return; }
         nearbyResources.tick(catalog, config.scanBlocksPerTick);
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
+        if (foodAcquisitionCooldown > 0) foodAcquisitionCooldown--;
         try {
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
             inventorySampleTicks = 0;
@@ -288,16 +301,56 @@ final class AutomationEngine {
         }
             if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
             if (active == null && !paused) startNextRequest();
-            if (active == null || paused) { food.stop(); movement.suspend(); input.release(); return; }
+            if (active == null || paused) { foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             if (!client.player.isAlive() || client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
-            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { food.stop(); movement.suspend(); input.release(); return; }
+            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             if (foregroundYieldPending && !transactionInProgress() && !openingStation && !canYieldMaintenanceNow()) {
                 input.release(); status = "foreground queued; waiting for inventory screen and cursor to be safe"; return;
             }
+            if (workbenchRecovery.active()) {
+                status = workbenchRecovery.status();
+                try {
+                    if (workbenchRecovery.tick()) {
+                        createdWorkbenches.remove(recoveringWorkbench);
+                        ownedStations.remove(CRAFTING_TABLE, recoveringWorkbench);
+                        recoveringWorkbench = null;
+                        observeInventory();
+                        requestPlan();
+                    }
+                } catch (RuntimeException failure) {
+                    workbenchRecovery.stop();
+                    message("Workbench recovery is replanning: " + failure.getMessage());
+                    requestPlan();
+                }
+                return;
+            }
+            food.updateProtection(foodReservations());
             if (food.active()) {
                 input.release(); status = "eating before continuing " + active.name();
                 if (!config.autoEat || client.currentScreen != null) { food.stop(); requestPlan(); }
                 else if (food.tick()) requestPlan();
+                return;
+            }
+            if (foodAcquisition.active()) {
+                status = foodAcquisition.status();
+                try {
+                    if (foodAcquisition.tick()) {
+                        foodAcquisitionCooldown = 20;
+                        observeInventory();
+                        requestPlan();
+                    }
+                } catch (RuntimeException failure) {
+                    foodAcquisition.stop();
+                    foodAcquisitionCooldown = 200;
+                    message("Food acquisition is replanning: " + failure.getMessage());
+                    requestPlan();
+                }
+                return;
+            }
+            if (foodAcquisitionPending) {
+                foodAcquisitionPending = false;
+                if (config.autoEat && foodAcquisition.begin()) status = foodAcquisition.status();
+                else { foodAcquisitionCooldown = 200; requestPlan(); }
                 return;
             }
             if (foodReplanPending) { requestPlan(); return; }
@@ -314,6 +367,18 @@ final class AutomationEngine {
                 foodCooldown = 100;
                 if (food.begin()) { foodReplanPending = true; status = "eating before continuing " + active.name(); }
                 else requestPlan();
+                return;
+            }
+            if (config.autoEat && foodAcquisitionCooldown == 0 && !stopAfterStep
+                    && !transactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()
+                    && client.currentScreen == null && !food.ready()
+                    && client.player.getHungerManager().getFoodLevel() <= 14
+                    && foodAcquisition.ready()) {
+                if (pendingPlan != null) pendingPlan.cancel(false);
+                pendingPlan = null;
+                resetAction();
+                foodAcquisitionPending = true;
+                status = "finishing movement before acquiring food";
                 return;
             }
             if (exploring) { explore(); return; }
@@ -376,6 +441,7 @@ final class AutomationEngine {
                 return;
             }
             if (moving && pendingPlan == null && step.kind() == PlanKind.GATHER && preferenceRefreshCooldown == 0
+                    && movement.canReconsiderMiningSource() && !nearbyResources.hasLiveLogSource(step.sourceId())
                     && stepPreferencesVersion != nearbyResources.version()
                     && catalog.tags.getOrDefault(LOGS_TAG, List.of()).contains(step.output())) {
                 NearbyResources.LogObservation nearby = nearbyResources.bestLogObservation();
@@ -430,6 +496,12 @@ final class AutomationEngine {
                         movement.stop();
                         moving = false;
                         rejectStationSite(target);
+                    } else if ((step.kind() == PlanKind.CRAFT || step.kind() == PlanKind.SMELT)
+                            && step.station() != null && stationAccessFailures++ < 3) {
+                        BlockPos unreachable = ownedStations.remove(step.station());
+                        if (unreachable != null) unreachableStations.add(unreachable);
+                        message("Station access is replanning: " + blocked.getMessage());
+                        resetAction(); requestPlan();
                     } else throw blocked;
                 }
                 return;
@@ -601,7 +673,7 @@ final class AutomationEngine {
         Map<ItemId, List<Integer>> durabilityLots = new HashMap<>();
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (!stack.isEmpty() && stack.isDamageable()) {
             ItemId item = GameCatalog.id(stack.getItem());
-            int remaining = stack.getMaxDamage() - stack.getDamage();
+            int remaining = GameApi.hasSilkTouch(stack) ? 0 : stack.getMaxDamage() - stack.getDamage();
             durability.merge(item, remaining, Math::max);
             durabilityLots.computeIfAbsent(item, ignored -> new ArrayList<>()).add(remaining);
         }
@@ -628,7 +700,7 @@ final class AutomationEngine {
             }
             unavailableSources.clear();
             frontier = null; rejectedResources.clear(); lastResourceFailure = null; resetLogDiscovery();
-            planningRetries = 0;
+            planningRetries = 0; stationAccessFailures = 0; unreachableStations.clear();
             requestPlan();
         }
     }
@@ -759,6 +831,15 @@ final class AutomationEngine {
             });
         }
         return Map.copyOf(protectedCounts);
+    }
+
+    private Map<ItemId, Integer> foodReservations() {
+        Map<ItemId, Integer> result = new HashMap<>(maintained.reservedCounts());
+        for (ProjectRun run : projects) if (!run.aborted)
+            run.spec.goals().forEach((item, count) -> result.merge(item, count, Math::max));
+        if (active != null) result.merge(active.item(), active.count(), Math::max);
+        for (Request request : queue) result.merge(request.item(), request.count(), Math::max);
+        return Map.copyOf(result);
     }
 
     private void requestPlan() {
@@ -1435,6 +1516,7 @@ final class AutomationEngine {
             return;
         }
         resetAction(); rejectedStationSites.clear(); stationPlacementFailures = 0; stationDiscoveryDone = false;
+        workbenchRecoveryChecked = false;
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
         lastMovementProgressToken = movement.progressToken();
         stepPreferencesVersion = plannedPreferencesVersion;
@@ -1658,6 +1740,15 @@ final class AutomationEngine {
     }
     private void gather() {
         if (!config.allowBreaking) throw new IllegalStateException("Gathering requires allowBreaking=true");
+        if (!workbenchRecoveryChecked) {
+            workbenchRecoveryChecked = true;
+            BlockPos workbench = ownedStations.get(CRAFTING_TABLE);
+            if (createdWorkbenches.contains(workbench) && workbenchRecovery.begin(workbench)) {
+                recoveringWorkbench = workbench;
+                status = workbenchRecovery.status();
+                return;
+            }
+        }
         Set<Block> blocks = new LinkedHashSet<>();
         step.candidateBlocks().forEach(id -> {
             Block block = Registries.BLOCK.get(GameApi.identifier(id.toString()));
@@ -1730,7 +1821,9 @@ final class AutomationEngine {
             moving = true;
             return;
         }
-        if (!actions.place(target, block)) {
+        boolean placed = actions.place(target, block);
+        if (placed && block == Blocks.CRAFTING_TABLE) createdWorkbenches.add(target.toImmutable());
+        if (!placed) {
             BlockPos rejected = target;
             rejectStationSite(rejected);
             if (stationPlacementFailures >= MAX_STATION_PLACEMENT_ATTEMPTS) {
@@ -1743,13 +1836,13 @@ final class AutomationEngine {
         if (stationDiscoveryDone) return null;
         stationDiscoveryDone = true;
         BlockPos known = ownedStations.get(step.station());
-        if (known != null && client.world.getBlockState(known).isOf(block)) return known;
+        if (known != null && !unreachableStations.contains(known) && !rejectedStationSites.contains(known) && hasLoadedChunk(known) && client.world.getBlockState(known).isOf(block)) return known;
         BlockPos player = client.player.getBlockPos();
         BlockPos closest = null;
         double closestDistance = Double.MAX_VALUE;
         for (int dy = -2; dy <= 2; dy++) for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) {
             BlockPos candidate = player.add(dx, dy, dz);
-            if (!client.world.getBlockState(candidate).isOf(block)) continue;
+            if (unreachableStations.contains(candidate) || rejectedStationSites.contains(candidate) || !hasLoadedChunk(candidate) || !client.world.getBlockState(candidate).isOf(block)) continue;
             double distance = candidate.getSquaredDistance(player);
             if (distance < closestDistance) { closest = candidate; closestDistance = distance; }
         }
@@ -2030,6 +2123,8 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedHandler) {
+        workbenchRecovery.stop(); recoveringWorkbench = null;
+        foodAcquisition.stop(); foodAcquisitionPending = false;
         food.stop(); foodReplanPending = false;
         ScreenHandler stationHandler = ownedStationHandler;
         boolean closeThisHandler = closeOwnedHandler && hasOwnedStationHandlerOpen();
@@ -2052,6 +2147,7 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     void pause(String reason) {
+        foodAcquisition.stop(); foodAcquisitionPending = false;
         food.stop(); movement.suspend();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
         paused = true;

@@ -51,6 +51,7 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (engine.config.debugLogging) logInfo("INIT mod=" + metadataVersion("lodekeeper")
                 + " minecraft=" + metadataVersion("minecraft"));
         WorldVisualization.register(client, engine);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> engine.dispose());
         KeyBinding stop = KeyBindingHelper.registerKeyBinding(ClientAccess.stopKey());
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
             String body = CommandParser.clientCommandBody(message, engine.config.prefix);

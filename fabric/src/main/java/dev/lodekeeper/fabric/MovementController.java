@@ -99,7 +99,7 @@ final class MovementController {
     void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool) {
         if (blocks.length == 0) throw new NavigationFailure("No supported mining blocks for " + output);
         prepare(); mineBlocks = blocks.clone(); this.output = output; targetCount = totalCount; this.tool = tool;
-        if (tool != null && !actions.prepareMiningTool(tool, mineBlocks[0].getDefaultState())) {
+        if (tool != null && !actions.prepareMiningTool(tool, mineBlocks[0].getDefaultState(), output)) {
             throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Required mining tool is unavailable or worn: " + tool.item());
         }
         mode = Mode.MINE;
@@ -282,7 +282,7 @@ final class MovementController {
             return false;
         }
         SelectedToolRequirement required = mode == Mode.MINE && Arrays.asList(mineBlocks).contains(state.getBlock()) ? tool : null;
-        if (!actions.prepareMiningTool(required, state)) {
+        if (!actions.prepareMiningTool(required, state, mode == Mode.MINE && Arrays.asList(mineBlocks).contains(state.getBlock()) ? output : null)) {
             pendingBreakFailure = new NavigationFailure(required == null
                     ? NavigationFailure.Kind.PROCESS_ENDED : NavigationFailure.Kind.TOOL,
                     "No safe harvest tool for " + state.getBlock() + " at " + position);
@@ -329,6 +329,32 @@ final class MovementController {
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = false; observation = NavigationSnapshot.EMPTY;
         return true;
+    }
+
+    void shutdownUpstream() {
+        IBaritone primary = BaritoneAPI.getProvider().getPrimaryBaritone();
+        primary.getPathingBehavior().cancelEverything();
+        primary.getInputOverrideHandler().clearAllKeys();
+        Class<?> implementation = primary.getClass();
+        if (!implementation.getName().startsWith("baritone.")) return;
+        java.util.concurrent.ThreadPoolExecutor executor = null;
+        try {
+            for (var field : implementation.getDeclaredFields()) {
+                if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                        || field.getType() != java.util.concurrent.ThreadPoolExecutor.class) continue;
+                if (executor != null) throw new IllegalStateException("Ambiguous upstream executor ownership");
+                field.setAccessible(true);
+                executor = (java.util.concurrent.ThreadPoolExecutor) field.get(null);
+            }
+            // The pinned API jars expose no lifecycle hook. Close their pool only when Minecraft quits.
+            if (executor != null) executor.shutdownNow();
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").warn("[Lodekeeper] Upstream shutdown failed", failure);
+        }
+    }
+
+    boolean canReconsiderMiningSource() {
+        return mode == Mode.MINE && requestTicks - lastBreakTick > 20;
     }
 
     long progressToken() { return progressToken; }

@@ -205,6 +205,12 @@ final class NearbyResources {
 
     record LogObservation(BlockPos position, GatherSource source) {}
 
+    boolean hasLiveLogSource(String sourceId) {
+        DiscoveredObservation observation = logObservations.get(sourceId);
+        return observation != null && isLiveLogObservation(sourceId, observation);
+    }
+
+
     LogObservation bestLogObservation() {
         if (client.world == null || client.player == null || logObservations.isEmpty()) return null;
         BlockPos playerPosition = client.player.getBlockPos();

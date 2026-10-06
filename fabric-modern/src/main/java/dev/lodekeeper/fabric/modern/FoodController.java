@@ -32,6 +32,7 @@ public final class FoodController {
 
     private final Minecraft client;
     private final PlayerActions actions;
+    private java.util.Map<dev.lodekeeper.core.ItemId, Integer> protectedCounts = java.util.Map.of();
     private boolean active;
     private net.minecraft.client.player.LocalPlayer usingPlayer;
     private ItemStack usingFood = ItemStack.EMPTY;
@@ -43,6 +44,9 @@ public final class FoodController {
         owner = this;
     }
 
+    void updateProtection(java.util.Map<dev.lodekeeper.core.ItemId, Integer> counts) {
+        protectedCounts = java.util.Map.copyOf(counts);
+    }
     boolean ready() { return !active && selectFood() >= 0; }
 
     private int selectFood() {
@@ -63,6 +67,7 @@ public final class FoodController {
             if (stack.isEmpty()) continue;
             var id = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
+            if (actions.count(stack.getItem()) <= protectedCounts.getOrDefault(GameCatalog.id(stack.getItem()), 0)) continue;
 
             FoodProperties food = stack.get(DataComponents.FOOD);
             Consumable consumable = stack.get(DataComponents.CONSUMABLE);

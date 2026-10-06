@@ -15,11 +15,15 @@ public final class FoodController {
     public static boolean isHoldingUse() { return owner != null && owner.ownsUse(); }
     private final MinecraftClient client;
     private final PlayerActions actions;
+    private java.util.Map<dev.lodekeeper.core.ItemId, Integer> protectedCounts = java.util.Map.of();
     private boolean active;
     private net.minecraft.client.network.ClientPlayerEntity usingPlayer;
     private net.minecraft.item.ItemStack usingFood = net.minecraft.item.ItemStack.EMPTY;
     private int ticks, initialHunger, slot = -1;
     FoodController(MinecraftClient client, PlayerActions actions) { this.client = client; this.actions = actions; owner = this; }
+    void updateProtection(java.util.Map<dev.lodekeeper.core.ItemId, Integer> counts) {
+        protectedCounts = java.util.Map.copyOf(counts);
+    }
     boolean ready() { return !active && selectFood() >= 0; }
     private int selectFood() {
         if (client.player == null || client.interactionManager == null || client.player.isUsingItem()
@@ -36,6 +40,7 @@ public final class FoodController {
             var id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem());
             // A component alone cannot describe teleporting foods, NBT stew effects or custom item hooks.
             if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
+            if (actions.count(stack.getItem()) <= protectedCounts.getOrDefault(GameCatalog.id(stack.getItem()), 0)) continue;
             if (stack.isEmpty() || food == null || !food.safe() || food.nutrition() < 1) continue;
             float score = Math.min(missing, food.nutrition()) + food.saturation() - Math.max(0, food.nutrition() - missing);
             if (score > best) { best = score; selected = index; }

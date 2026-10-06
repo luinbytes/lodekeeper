@@ -10,6 +10,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.Level;
@@ -21,6 +22,12 @@ import java.util.stream.Collectors;
 /** Small Mojang API seam shared by 26.1, 26.1.1, and 26.1.2. */
 final class GameApi {
     private GameApi() {}
+
+    static boolean hasSilkTouch(ItemStack stack) {
+        var enchantments = stack.getEnchantments();
+        return enchantments.keySet().stream().anyMatch(enchantment ->
+                enchantment.is(Enchantments.SILK_TOUCH) && enchantments.getLevel(enchantment) > 0);
+    }
 
     static double launchInputAcceleration(net.minecraft.client.player.LocalPlayer player, float friction) {
         float acceleration = player.getSpeed() * (.21600002f / (friction * friction * friction));

@@ -5,6 +5,8 @@ import dev.lodekeeper.core.StationId;
 import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.Item;
 import net.minecraft.component.type.ToolComponent;
@@ -47,6 +49,10 @@ final class GameApi {
     }
 
     static boolean canCombine(ItemStack first, ItemStack second) { return ItemStack.areItemsAndComponentsEqual(first, second); }
+
+    static boolean hasSilkTouch(ItemStack stack) {
+        return EnchantmentHelper.getLevel(Enchantments.SILK_TOUCH, stack) > 0;
+    }
 
     /** Reads the effective per-block wear from this stack's tool component. */
     static int blockBreakWear(ItemStack stack) {

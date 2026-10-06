@@ -43,3 +43,12 @@ AltoClef's [MIT license](https://github.com/gaucho-matrero/altoclef/blob/af22e3b
 Both 1.21.1 and 26.3 compile with their pinned Baritone APIs. A prepared 1.21.1 tree-to-table check passed. The first natural-world iron attempt spent too long selecting an absent wood type and then failed to finish iron mining within five minutes. Grouped log discovery reached birch in 7 seconds on the next attempt; that run stopped after 24 seconds because station placement searched only the current height. The next change searches other heights and approaches valid placement sites. This recovery still needs runtime proof. Different random spawn positions prevent treating these two attempts as a paired speedup result.
 
 The independent wrapper review also found that Silk Touch tools can produce ore blocks instead of the requested raw material. Output-aware tool selection is required before release. Exact candidate hashes and failed outcomes are recorded in [checkpoint evidence](evidence/navigation-rebuild/checkpoint-01.json). The full diamond benchmark has not passed.
+
+
+## Second development checkpoint
+
+The first rebuilt checkpoint passed every exact build profile from 1.20 through 26.3 in [CI](https://github.com/luinbytes/lodekeeper/actions/runs/37413541751). A natural 26.3 wood request received a birch log after 6,052 ms and reached idle after 9,268 ms. The client then hit its shutdown watchdog because upstream worker threads remained alive. This was a gameplay pass and a failed complete run. The next changes close the pinned upstream executor only when Minecraft quits.
+
+A natural 1.21.1 iron attempt reached wooden tools and three cobblestone, then failed returning to a table placed on the canopy. Station supports now exclude leaves, logs and damaging blocks. New actions recover reachable, self-placed workbenches before gathering travel and acquire meat from nearby ordinary cows, pigs and sheep when hungry. Eating respects requested inventory targets. Output-aware mining avoids Silk Touch when it would yield the wrong item; generic planner tool forecasts conservatively assign those stacks no ordinary-harvest capacity.
+
+Both adapter endpoints compile with these changes. Native station transport, hunting, output compatibility and shutdown tests are next. These changes have not passed the full diamond benchmark. [Checkpoint evidence](evidence/navigation-rebuild/checkpoint-02.json) retains the failed outcomes and exact artifact identities.
