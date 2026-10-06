@@ -52,6 +52,41 @@ final class MovementController {
             {0, 1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}
     };
 
+    private static final class PlacementGoal implements baritone.api.pathing.goals.Goal, IGoalRenderPos {
+        private final BlockPos destination;
+        private final GoalComposite stances;
+
+        PlacementGoal(BlockPos destination) {
+            this.destination = destination.immutable();
+            baritone.api.pathing.goals.Goal[] goals = new baritone.api.pathing.goals.Goal[12];
+            int index = 0;
+            for (int dy = -1; dy <= 1; dy++) {
+                goals[index++] = new GoalBlock(this.destination.offset(1, dy, 0));
+                goals[index++] = new GoalBlock(this.destination.offset(-1, dy, 0));
+                goals[index++] = new GoalBlock(this.destination.offset(0, dy, 1));
+                goals[index++] = new GoalBlock(this.destination.offset(0, dy, -1));
+            }
+            stances = new GoalComposite(goals);
+        }
+
+        private PlacementGoal(BlockPos destination, baritone.api.pathing.goals.Goal[] goals) {
+            this.destination = destination;
+            stances = new GoalComposite(goals);
+        }
+
+        PlacementGoal withoutStance(BlockPos rejected) {
+            baritone.api.pathing.goals.Goal[] remaining = Arrays.stream(stances.goals())
+                    .filter(goal -> !goal.isInGoal(rejected))
+                    .toArray(baritone.api.pathing.goals.Goal[]::new);
+            return remaining.length == 0 ? null : new PlacementGoal(destination, remaining);
+        }
+
+        @Override public boolean isInGoal(int x, int y, int z) { return stances.isInGoal(x, y, z); }
+        @Override public double heuristic(int x, int y, int z) { return stances.heuristic(x, y, z); }
+        @Override public double heuristic() { return stances.heuristic(); }
+        @Override public BlockPos getGoalPos() { return destination; }
+    }
+
     private record AirRecoveryCandidate(BlockPos position, int score, int distanceSquared, boolean supported) { }
     private record AirRecoveryOffset(int x, int z, int distanceSquared) { }
     private record AirSwimCell(boolean surface, boolean dryExit) { }
@@ -573,6 +608,12 @@ final class MovementController {
         startMove(new GoalGetToBlock(target), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32));
     }
 
+    void startPlacement(BlockPos target) {
+        startMove(new PlacementGoal(target), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32));
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] STATION_ROUTE event=start destination={} stances=12", target);
+    }
+
     private void startMove(baritone.api.pathing.goals.Goal goal, dev.lodekeeper.nav.Goal diagnostic) {
         prepare(); routeGoal = goal; diagnosticGoal = diagnostic; mode = Mode.MOVE;
         launch();
@@ -801,6 +842,12 @@ final class MovementController {
         boolean satisfied = mode == Mode.MOVE || mode == Mode.AIR
                 ? routeGoal.isInGoal(client.player.blockPosition())
                 : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
+        if (mode == Mode.MOVE && satisfied && routeGoal instanceof PlacementGoal placement) {
+            satisfied = actions.canPlaceAt(placement.destination);
+            if (satisfied && config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] STATION_ROUTE event=arrival destination={} player={}",
+                    placement.destination, client.player.blockPosition());
+        }
         if (satisfied) { stop(); return finishCancellation(); }
         if (mode == Mode.DESCEND && new GoalYLevel(miningY).isInGoal(client.player.blockPosition())) {
             changeMiningPhase(Mode.MINE);
@@ -818,6 +865,22 @@ final class MovementController {
         }
         var pathing = bot.getPathingBehavior();
         boolean waiting = !pathing.hasPath() && pathing.getInProgress().isEmpty();
+        if (mode == Mode.MOVE && !active && waiting && !pathing.isPathing()
+                && routeGoal instanceof PlacementGoal placement && placement.isInGoal(client.player.blockPosition())) {
+            checkAirRecoveryOwnership();
+            BlockPos rejected = client.player.blockPosition();
+            PlacementGoal remaining = placement.withoutStance(rejected);
+            if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] STATION_ROUTE event=stance-rejected destination={} stance={} remaining={}",
+                    placement.destination, rejected, remaining == null ? 0 : remaining.stances.goals().length);
+            if (remaining == null) {
+                stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                        "Station placement exhausted its twelve native approach stances");
+            }
+            routeGoal = remaining;
+            bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
+            return false;
+        }
         boolean exploring = mode == Mode.MINE && active && pathing.getGoal() instanceof GoalRunAway
                 && requestTicks - phaseStartedTick >= 5;
         if (miningY != Integer.MIN_VALUE && (mode == Mode.MINE || mode == Mode.DESCEND)) {

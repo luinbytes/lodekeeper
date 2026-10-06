@@ -34,10 +34,12 @@
       "1.21.1",
       "26.3"
     ],
-    "status": "pending native run",
+    "status": "native wrong-approach reproduced; original weaker fixture completed by mining two side blocks",
     "setup": "eight air cells around one preserved table, 66 nearby deepslate cells, all 361 bedrock floor cells, exact translated player pose and rotation, held pickaxe/furnace/raw iron/coal",
     "command": "!lk get iron_ingot 1",
-    "completion": "server iron and native furnace slots, bounded terrain changes, preserved table and floor, health, empty cursor, idle and cancelled navigation"
+    "completion": "server iron and native furnace slots, bounded terrain changes, preserved table and floor, health, empty cursor, idle and cancelled navigation",
+    "baselineReceipt": "../survival-safety/preview11-tunnel-baseline-263/assessment.json",
+    "tightenedCriterion": "Preserve all 66 deepslate candidates and use an existing air site instead of mining another room."
   },
   "review": {
     "materialFindings": 1,
@@ -57,5 +59,12 @@
       "tradeoff": "Avoids predictive world scans; adjacency alone can still lack a usable face, requiring route retries."
     }
   ],
-  "throughputCheckpoint": "Freeze the reviewed diagnostic and fixture source before the native reproduction. Keep one owned JVM at a time. Verify the chosen production fix in this fixture on both primary versions, then repeat full fresh-world loadouts and all 24 CI builds before release."
+  "throughputCheckpoint": "Freeze the reviewed diagnostic and fixture source before the native reproduction. Keep one owned JVM at a time. Verify the chosen production fix in this fixture on both primary versions, then repeat full fresh-world loadouts and all 24 CI builds before release.",
+  "chosenDesign": "Closest visible support-face point before the center ray, plus twelve immutable cardinal placement stance coordinates. Native placement is checked on the client tick. An unusable arrived stance is removed and the remaining goal relaunched without resetting the request budget; goal callbacks read coordinates only.",
+  "productionReview": {
+    "materialFindings": 1,
+    "fixed": "An invalid native arrival now retries the remaining stance set instead of rejecting the entire placement site. Ownership is checked before relaunch; all twelve invalid arrivals exhaust the original set.",
+    "followUpVerdict": "No material findings",
+    "nativeScope": "Source review passed. Native placement, retry behavior and full fresh-world completion remain separate checks."
+  }
 }

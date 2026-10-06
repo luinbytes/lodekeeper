@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "case": "translated narrow tunnel with one preserved crafting table",
+  "sourceCommit": "06421370e79dd4445e996d794082db3f6c23fa9e",
+  "nativeReceipt": "native-result.json",
+  "expectedFailure": false,
+  "observation": "Both generic station approaches stop inside their empty placement destinations. Native placement rejects the overlapping player. This prepared geometry has a safe side pocket, so the old engine mines two deepslate blocks and completes the ingot instead of pausing.",
+  "fullWorldDifference": "Checkpoint17 pauses because it found no permitted room pocket. This fixture reproduces the wrong approach and unnecessary terrain changes; it does not reproduce that full-world pause.",
+  "newRegressionCriterion": "The held furnace must use an existing empty cell while preserving all 66 deepslate candidates, the table and full floor. Closest visible support-face rays and a separate placement approach are pending native verification.",
+  "scope": "Declared pre-command geometry and inventory grants; no post-command fixture stock or block mutations.",
+  "screenshotInspected": true
+}

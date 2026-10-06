@@ -2623,7 +2623,7 @@ final class AutomationEngine {
             }
             stationApproachTarget = target;
             refreshNavigationProtection();
-            movement.startInteraction(target);
+            movement.startPlacement(target);
             moving = true;
             return;
         }

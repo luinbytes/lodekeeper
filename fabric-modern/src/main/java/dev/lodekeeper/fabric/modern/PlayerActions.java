@@ -264,11 +264,20 @@ final class PlayerActions {
 
     private BlockHitResult hitFace(net.minecraft.core.BlockPos position, Direction face) {
         Vec3 eye = client.player.getEyePosition();
-        Vec3 aim = Vec3.atCenterOf(position).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(0.499));
+        Vec3 center = Vec3.atCenterOf(position).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(.499));
+        Vec3 closest = new Vec3(
+                face.getStepX() == 0 ? Math.max(position.getX() + .001, Math.min(position.getX() + .999, eye.x)) : center.x,
+                face.getStepY() == 0 ? Math.max(position.getY() + .001, Math.min(position.getY() + .999, eye.y)) : center.y,
+                face.getStepZ() == 0 ? Math.max(position.getZ() + .001, Math.min(position.getZ() + .999, eye.z)) : center.z);
         double reach = client.player.blockInteractionRange();
-        if (eye.distanceToSqr(aim) > reach * reach) return null;
-        BlockHitResult hit = client.level.clip(new ClipContext(eye, aim, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
-        return hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(position) && hit.getDirection() == face ? hit : null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Vec3 aim = attempt == 0 ? closest : center;
+            if (attempt == 1 && center.equals(closest)) break;
+            if (eye.distanceToSqr(aim) > reach * reach) continue;
+            BlockHitResult hit = client.level.clip(new ClipContext(eye, aim, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
+            if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(position) && hit.getDirection() == face) return hit;
+        }
+        return null;
     }
 
     boolean mine(net.minecraft.core.BlockPos position) { return mine(position, null); }

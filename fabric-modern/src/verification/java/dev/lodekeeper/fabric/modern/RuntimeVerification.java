@@ -2657,7 +2657,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(receipt.get("roomStoneCellCandidateCount"))
                 && Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1
                 && (STATION_ROOM_TUNNEL_MODE ? "0.367555,64,0.505802" : "0.5,64,0.5").equals(receipt.get("preparedRoomStartPosition"))
-                && changedStoneCells >= (STATION_ROOM_TUNNEL_MODE ? 0 : 1) && changedStoneCells <= 2
+                && (STATION_ROOM_TUNNEL_MODE ? changedStoneCells == 0 : changedStoneCells >= 1 && changedStoneCells <= 2)
                 && (!STATION_ROOM_TUNNEL_MODE || (stationRoomTunnelSetupReady(activeInitialStationRoomReceipt)
                     && latestSnapshot.storageCount(IRON_INGOT_ID) == 1
                     && "true".equals(receipt.get("craftingTablePresent"))

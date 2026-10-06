@@ -171,11 +171,20 @@ final class PlayerActions {
 
     private BlockHitResult hitFace(BlockPos position, Direction face) {
         Vec3d eye = client.player.getEyePos();
-        Vec3d aim = Vec3d.ofCenter(position).add(Vec3d.of(face.getVector()).multiply(.499));
+        Vec3d center = Vec3d.ofCenter(position).add(Vec3d.of(face.getVector()).multiply(.499));
+        Vec3d closest = new Vec3d(
+                face.getOffsetX() == 0 ? Math.max(position.getX() + .001, Math.min(position.getX() + .999, eye.x)) : center.x,
+                face.getOffsetY() == 0 ? Math.max(position.getY() + .001, Math.min(position.getY() + .999, eye.y)) : center.y,
+                face.getOffsetZ() == 0 ? Math.max(position.getZ() + .001, Math.min(position.getZ() + .999, eye.z)) : center.z);
         double reach = GameApi.blockReach(client);
-        if (eye.squaredDistanceTo(aim) > reach * reach) return null;
-        BlockHitResult hit = client.world.raycast(new RaycastContext(eye, aim, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, client.player));
-        return hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(position) && hit.getSide() == face ? hit : null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Vec3d aim = attempt == 0 ? closest : center;
+            if (attempt == 1 && center.equals(closest)) break;
+            if (eye.squaredDistanceTo(aim) > reach * reach) continue;
+            BlockHitResult hit = client.world.raycast(new RaycastContext(eye, aim, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, client.player));
+            if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(position) && hit.getSide() == face) return hit;
+        }
+        return null;
     }
     static boolean isPlayerSupport(MinecraftClient client, BlockPos position) {
         if (client.player == null) return false;

@@ -2409,7 +2409,7 @@ final class AutomationEngine {
             }
             stationApproachTarget = target;
             refreshNavigationProtection();
-            movement.startInteraction(target);
+            movement.startPlacement(target);
             moving = true;
             return;
         }
@@ -2477,7 +2477,7 @@ final class AutomationEngine {
         if (closest == null && refusals != null)
             org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                     "[Lodekeeper] STATION_ROOM exhausted position={} allowBreaking={} refusals={}",
-                    client.player.getPos(), config.allowBreaking, refusals);
+                    new net.minecraft.util.math.Vec3d(client.player.getX(), client.player.getY(), client.player.getZ()), config.allowBreaking, refusals);
         return closest;
     }
 
@@ -2503,7 +2503,7 @@ final class AutomationEngine {
         if (config.debugLogging)
             org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                     "[Lodekeeper] STATION_SITE rejected site={} player={} box={} overlap={} placeable={} roomProblem={}",
-                    rejected, client.player.getPos(), client.player.getBoundingBox(),
+                    rejected, new net.minecraft.util.math.Vec3d(client.player.getX(), client.player.getY(), client.player.getZ()), client.player.getBoundingBox(),
                     client.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(rejected)), actions.canPlaceAt(rejected),
                     stationRoom.preparationProblemAt(rejected));
         rejectedStationSites.add(rejected.toImmutable());

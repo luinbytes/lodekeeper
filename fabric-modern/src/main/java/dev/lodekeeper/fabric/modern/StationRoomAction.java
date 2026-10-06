@@ -44,10 +44,6 @@ final class StationRoomAction {
         this.actions = actions;
     }
 
-    boolean canPrepareAt(BlockPos candidate) {
-        return preparationProblem(candidate, client.level, client.player) == null;
-    }
-
     String preparationProblemAt(BlockPos candidate) {
         return preparationProblem(candidate, client.level, client.player);
     }
