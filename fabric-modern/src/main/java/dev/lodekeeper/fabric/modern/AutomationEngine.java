@@ -409,7 +409,10 @@ final class AutomationEngine {
             return;
         }
         if (!airRecovery.active() && tickActiveThreat()) return;
-        if (!movement.finishCancellation()) { status = "finishing movement before inventory actions"; return; }
+        if (!movement.finishCancellation()) {
+            if (!paused) status = "finishing movement before inventory actions";
+            return;
+        }
         nearbyResources.tick(catalog, config.scanBlocksPerTick);
         if (active != null || !queue.isEmpty()) nearbyStations.advance();
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;

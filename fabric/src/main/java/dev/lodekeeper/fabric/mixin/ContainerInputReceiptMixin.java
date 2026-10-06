@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ScreenHandler.class)
 abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt {
     @Unique private long lodekeeper$receiptSequence;
+    @Unique private long lodekeeper$contentsSequence;
     @Unique private ItemStack lodekeeper$receivedInput = ItemStack.EMPTY;
     @Inject(method = "setStackInSlot", at = @At("TAIL"))
     private void lodekeeper$inputSlotReceived(int slot, int revision, ItemStack stack, CallbackInfo callback) {
@@ -24,11 +25,13 @@ abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt 
     }
     @Inject(method = "updateSlotStacks", at = @At("TAIL"))
     private void lodekeeper$contentsReceived(int revision, List<ItemStack> stacks, ItemStack cursor, CallbackInfo callback) {
+        lodekeeper$contentsSequence++;
         if (!stacks.isEmpty()) {
             lodekeeper$receivedInput = stacks.get(0).copy();
             lodekeeper$receiptSequence++;
         }
     }
+    @Override public long lodekeeper$contentsSequence() { return lodekeeper$contentsSequence; }
     @Override public long lodekeeper$inputSequence() { return lodekeeper$receiptSequence; }
     @Override public ItemStack lodekeeper$receivedInput() { return lodekeeper$receivedInput.copy(); }
 }

@@ -7,6 +7,7 @@ import java.util.function.BooleanSupplier;
 public final class OwnedClickReceipts {
     public interface Receipt {
         long lodekeeper$inputSequence();
+        long lodekeeper$contentsSequence();
         ItemStack lodekeeper$receivedInput();
     }
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
