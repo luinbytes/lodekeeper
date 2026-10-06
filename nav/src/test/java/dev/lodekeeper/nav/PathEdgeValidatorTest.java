@@ -11,6 +11,68 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class PathEdgeValidatorTest {
     @Test
+    void straightWalkThroughRequiresTwoActionFreeLevelUnitWalksInTheSameDirection() {
+        assertTrue(path(step16(0, 1029, 0, Path.Movement.START),
+                step16(1, 1029, 0, Path.Movement.WALK),
+                step16(2, 1029, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1));
+        assertTrue(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 1, Path.Movement.WALK),
+                step(2, 0, 2, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "matching diagonal WALK edges are straight through movement");
+        assertFalse(path(step16(0, 1029, 0, Path.Movement.START),
+                step16(1, 1029, 0, Path.Movement.WALK),
+                step16(2, 1030, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "a fractional height change within the same block ends continuity");
+
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(1, 0, 1, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "a turn cannot carry input across the waypoint");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(1, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "a duplicate position is not a unit step");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(3, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "a longer outgoing span is not a unit step");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(2, 0, 0, Path.Movement.WALK),
+                step(3, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "a longer incoming span is not a unit step");
+        assertFalse(path(step(0, 1, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(2, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "an incoming exact feet-height change ends continuity");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(2, 1, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "an exact feet-height change ends continuity");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.JUMP),
+                step(2, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1));
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(2, 0, 0, Path.Movement.SWIM)).isStraightLevelWalkThrough(1));
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK,
+                        new Action(Action.Type.BREAK_BLOCK, 1, 0, 0, 1)),
+                step(2, 0, 0, Path.Movement.WALK)).isStraightLevelWalkThrough(1),
+                "an action on the reached WALK edge ends continuity");
+        assertFalse(path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(2, 0, 0, Path.Movement.WALK,
+                        new Action(Action.Type.PLACE_BLOCK, 2, 0, 0, 1))).isStraightLevelWalkThrough(1),
+                "an action on the outgoing WALK edge ends continuity");
+
+        Path route = path(step(0, 0, 0, Path.Movement.START),
+                step(1, 0, 0, Path.Movement.WALK),
+                step(2, 0, 0, Path.Movement.WALK));
+        assertFalse(route.isStraightLevelWalkThrough(0), "the route start has no incoming WALK edge");
+        assertFalse(route.isStraightLevelWalkThrough(2), "the route end has no outgoing WALK edge");
+    }
+
+    @Test
     void changedSweptHazardIsRejectedFromThePlayersCurrentFeet() {
         FakeTerrain terrain = new FakeTerrain();
         Path.Step source = step(0, 0, 0, Path.Movement.START);
@@ -421,12 +483,16 @@ final class PathEdgeValidatorTest {
                 checkSource, requireSource, allowParkour, new StanceProbe(), new StanceProbe());
     }
 
-    private static Path.Step step(int x, int y, int z, Path.Movement movement) {
-        return new Path.Step(x, y, z, movement, new Action[0]);
+    private static Path path(Path.Step... steps) {
+        return new Path(steps, 0L, 0, 0L);
     }
 
-    private static Path.Step step16(int x, int feetY16, int z, Path.Movement movement) {
-        return Path.Step.atFeetY16(x, feetY16, z, movement, new Action[0]);
+    private static Path.Step step(int x, int y, int z, Path.Movement movement, Action... actions) {
+        return new Path.Step(x, y, z, movement, actions);
+    }
+
+    private static Path.Step step16(int x, int feetY16, int z, Path.Movement movement, Action... actions) {
+        return Path.Step.atFeetY16(x, feetY16, z, movement, actions);
     }
 
     @Test

@@ -331,180 +331,189 @@ final class MovementController {
             if (budgetedSegment) { prepareRoute(); return false; }
             retry("Route segment ended before goal"); return false;
         }
-        Path.Step next = path.step(pathIndex);
-        if (actionIndex < next.actionCount()) {
-            Action action = next.action(actionIndex);
-            BlockPos position = new BlockPos(action.x, action.y, action.z);
-            var state = client.world.getBlockState(position);
-            Path.Step source = path.step(pathIndex - 1);
-            if (action.type == Action.Type.PLACE_BLOCK && (!client.player.isOnGround()
-                    || GameTerrain.quantizedFeetY16(client.player.getY()) != source.feetY16)) {
-                retry("Bridge placement requires its grounded source height"); return false;
-            }
-            if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
-                    client.player.getX(), client.player.getY(), client.player.getZ(), sourceProbe, emptyProbe)) {
-                retry("Current stance became unsafe before world action"); return false;
-            }
-            if (action.type == Action.Type.BREAK_BLOCK) {
-                if (state.isAir() || state.getCollisionShape(client.world, position).isEmpty()) {
-                    observeConfirmedProgress();
-                    if (position.equals(pendingBreakPosition)) clearPendingWorldAction();
-                    actionIndex++; actions.cancel(); return false;
+        walkEdge:
+        for (int edgePass = 0; edgePass < 2; edgePass++) {
+            Path.Step next = path.step(pathIndex);
+            if (actionIndex < next.actionCount()) {
+                Action action = next.action(actionIndex);
+                BlockPos position = new BlockPos(action.x, action.y, action.z);
+                var state = client.world.getBlockState(position);
+                Path.Step source = path.step(pathIndex - 1);
+                if (action.type == Action.Type.PLACE_BLOCK && (!client.player.isOnGround()
+                        || GameTerrain.quantizedFeetY16(client.player.getY()) != source.feetY16)) {
+                    retry("Bridge placement requires its grounded source height"); return false;
                 }
-                if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
-                if (Block.getRawIdFromState(state) != action.token) { retry("Mining obstruction changed"); return false; }
-                if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
-                    retry("Mining obstruction is no longer safe or reachable"); return false;
+                if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
+                        client.player.getX(), client.player.getY(), client.player.getZ(), sourceProbe, emptyProbe)) {
+                    retry("Current stance became unsafe before world action"); return false;
                 }
-                if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
-                pendingBreakPosition = position.toImmutable();
-                pendingBreakStateId = action.token;
-            } else {
-                Item item = Registries.ITEM.get(action.token);
-                Block block = Block.getBlockFromItem(item);
-                if (state.isOf(block)) {
-                    observeConfirmedProgress();
-                    actionIndex++; return false;
-                }
-                if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
-                if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
-                if (!state.isReplaceable()) { retry("Bridge target is no longer replaceable"); return false; }
-                if (!PathEdgeValidator.isBridgeActionSafe(terrain, source, next, action, sourceProbe, probe)) {
-                    retry("Bridge placement is no longer safe or supported"); return false;
-                }
-                input.drive(0, 0, false, true);
-                if (!actions.place(position, block)) {
-                    // A side face below the player cannot be seen from the center of its support.
-                    // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
-                    Path.Step previous = path.step(pathIndex - 1);
-                    Vec3d edge = new Vec3d(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
-                    Vec3d delta = edge.subtract(ClientAccess.position(client.player));
-                    if (Math.hypot(delta.x, delta.z) > .08) {
-                        if (!PathEdgeValidator.isSweepClear(terrain,
-                                client.player.getX(), client.player.getY(), client.player.getZ(),
-                                edge.x, edge.y, edge.z, emptyProbe)) {
-                            retry("Bridge approach became unsafe"); return false;
-                        }
-                        client.player.setSprinting(false);
-                        client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
-                        input.drive(.4f, 0, false, true);
+                if (action.type == Action.Type.BREAK_BLOCK) {
+                    if (state.isAir() || state.getCollisionShape(client.world, position).isEmpty()) {
+                        observeConfirmedProgress();
+                        if (position.equals(pendingBreakPosition)) clearPendingWorldAction();
+                        actionIndex++; actions.cancel(); return false;
                     }
-                    if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
-                    return false;
+                    if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
+                    if (Block.getRawIdFromState(state) != action.token) { retry("Mining obstruction changed"); return false; }
+                    if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
+                        retry("Mining obstruction is no longer safe or reachable"); return false;
+                    }
+                    if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
+                    pendingBreakPosition = position.toImmutable();
+                    pendingBreakStateId = action.token;
+                } else {
+                    Item item = Registries.ITEM.get(action.token);
+                    Block block = Block.getBlockFromItem(item);
+                    if (state.isOf(block)) {
+                        observeConfirmedProgress();
+                        actionIndex++; return false;
+                    }
+                    if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
+                    if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
+                    if (!state.isReplaceable()) { retry("Bridge target is no longer replaceable"); return false; }
+                    if (!PathEdgeValidator.isBridgeActionSafe(terrain, source, next, action, sourceProbe, probe)) {
+                        retry("Bridge placement is no longer safe or supported"); return false;
+                    }
+                    input.drive(0, 0, false, true);
+                    if (!actions.place(position, block)) {
+                        // A side face below the player cannot be seen from the center of its support.
+                        // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
+                        Path.Step previous = path.step(pathIndex - 1);
+                        Vec3d edge = new Vec3d(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
+                        Vec3d delta = edge.subtract(ClientAccess.position(client.player));
+                        if (Math.hypot(delta.x, delta.z) > .08) {
+                            if (!PathEdgeValidator.isSweepClear(terrain,
+                                    client.player.getX(), client.player.getY(), client.player.getZ(),
+                                    edge.x, edge.y, edge.z, emptyProbe)) {
+                                retry("Bridge approach became unsafe"); return false;
+                            }
+                            client.player.setSprinting(false);
+                            client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
+                            input.drive(.4f, 0, false, true);
+                        }
+                        if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
+                        return false;
+                    }
+                    pendingPlacementPosition = position.toImmutable();
+                    pendingPlacementBlock = block;
                 }
-                pendingPlacementPosition = position.toImmutable();
-                pendingPlacementBlock = block;
+                if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
+                return false;
             }
-            if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
+            if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
+                retry("Parkour was disabled while following the route"); return false;
+            }
+            if (next.movement == Path.Movement.WALK && validatedPathIndex == pathIndex
+                    && client.player.isOnGround()
+                    && !PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
+                        client.player.getX(), client.player.getY(), client.player.getZ(),
+                        true, sourceProbe, emptyProbe)
+                    && PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
+                        edgeStartX, edgeStartY, edgeStartZ,
+                        client.player.getX(), client.player.getY(), client.player.getZ())
+                    && PathEdgeValidator.isSafeWalkSettlement(terrain,
+                        client.player.getX(), client.player.getY(), client.player.getZ(), probe, emptyProbe)) {
+                input.idle(); client.player.setSprinting(false);
+                if (++settlingTicks > 4) retry("Player did not settle onto the safe walk surface");
+                return false;
+            }
+            settlingTicks = 0;
+            long currentRevision = terrain.revision();
+            boolean newEdge = validatedPathIndex != pathIndex;
+            Path.Step source = path.step(pathIndex - 1);
+            if (!newEdge && next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH
+                    && hasDepartedDropLaunch(source, next,
+                    edgeStartX, edgeStartZ,
+                    client.player.getX(), client.player.getY(), client.player.getZ())) {
+                dropPhase = DropPhase.FALLING;
+            }
+            if (newEdge || currentRevision != validatedRevision) {
+                double feetX = client.player.getX();
+                double feetY = client.player.getY();
+                double feetZ = client.player.getZ();
+                boolean validateCurrentStance = next.movement == Path.Movement.DROP
+                        ? dropPhase == DropPhase.LAUNCH : client.player.isOnGround();
+                boolean safe = newEdge
+                        ? PathEdgeValidator.isSafeEdge(terrain, source, next, feetX, feetY, feetZ,
+                        true, true, config.allowParkour, sourceProbe, probe)
+                        : PathEdgeValidator.isSafeContinuation(terrain, source, next,
+                        edgeStartX, edgeStartY, edgeStartZ, feetX, feetY, feetZ,
+                        validateCurrentStance, config.allowParkour, sourceProbe, probe);
+                if (!safe) {
+                    retry("Route edge became unsafe"); return false;
+                }
+                if (newEdge) {
+                    edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ;
+                    dropPhase = next.movement == Path.Movement.DROP ? DropPhase.LAUNCH : DropPhase.NONE;
+                }
+                validatedPathIndex = pathIndex;
+                // A lift-only continuation does not prove the horizontal remainder. Keep it
+                // uncached until feet clear the ledge, forcing that proof before forward input.
+                validatedRevision = next.movement == Path.Movement.JUMP && feetY < next.feetY()
+                        ? Long.MIN_VALUE : terrain.revision();
+            }
+            Vec3d destination = new Vec3d(next.x + .5, next.feetY(), next.z + .5);
+            Vec3d delta = destination.subtract(ClientAccess.position(client.player));
+            double horizontal = Math.hypot(delta.x, delta.z);
+            double currentFeetX = client.player.getX();
+            double currentFeetY = client.player.getY();
+            double currentFeetZ = client.player.getZ();
+            if (!PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
+                    edgeStartX, edgeStartY, edgeStartZ, currentFeetX, currentFeetY, currentFeetZ)) {
+                retry("Player left the safe route corridor"); return false;
+            }
+            Path.Movement pointMovement = next.movement == Path.Movement.JUMP
+                    && currentFeetY >= next.feetY() ? Path.Movement.WALK : next.movement;
+            if (!PathEdgeValidator.isCurrentMotionSafe(terrain, pointMovement,
+                    currentFeetX, currentFeetY, currentFeetZ,
+                    client.player.isOnGround(), next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH,
+                    sourceProbe, emptyProbe)) {
+                retry("Current player volume or support became unsafe"); return false;
+            }
+            int currentFeetY16 = GameTerrain.quantizedFeetY16(currentFeetY);
+            boolean mediumArrival = (next.movement == Path.Movement.SWIM || next.movement == Path.Movement.CLIMB)
+                    && Math.abs(delta.y) < .35 && currentMediumSafe(next.movement);
+            boolean centeredLaunchRequired = pathIndex + 1 < path.length()
+                    && switch (path.step(pathIndex + 1).movement) {
+                        case JUMP, DROP, PARKOUR, BRIDGE -> true;
+                        default -> false;
+                    };
+            double arrivalRadius = centeredLaunchRequired ? .10 : .22;
+            if (horizontal < arrivalRadius && (currentFeetY16 == next.feetY16 || mediumArrival)
+                    && (client.player.isOnGround() || probe.water || probe.climbable)
+                    && (next.movement != Path.Movement.DROP || sourceProbe.fullSupport)) {
+                boolean walkThrough = path.isStraightLevelWalkThrough(pathIndex)
+                        && client.player.isOnGround() && currentFeetY16 == next.feetY16
+                        && !sourceProbe.water && !sourceProbe.climbable;
+                client.player.setSprinting(false);
+                pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
+                dropPhase = DropPhase.NONE; recordProgress();
+                if (walkThrough && edgePass == 0) continue walkEdge;
+                return false;
+            }
+            double distance = delta.lengthSquared();
+            if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
+            else if (++ticksWithoutProgress > 80) { retry("Movement stalled"); return false; }
+            client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
+            client.player.setPitch(0);
+            if (next.movement == Path.Movement.JUMP) {
+                if (jumpEdgeIndex != pathIndex) { jumpEdgeIndex = pathIndex; jumpWasAirborne = false; }
+                if (!client.player.isOnGround()) jumpWasAirborne = true;
+                if (jumpWasAirborne && client.player.isOnGround() && currentFeetY < next.feetY()) {
+                    retry("Jump landed before clearing the ledge"); return false;
+                }
+            }
+            boolean jump = next.movement == Path.Movement.JUMP && !jumpWasAirborne || next.movement == Path.Movement.PARKOUR || next.movement == Path.Movement.CLIMB || next.movement == Path.Movement.SWIM && delta.y > 0;
+            boolean sneak = next.movement == Path.Movement.BRIDGE;
+            boolean risingBeforeLedge = next.movement == Path.Movement.JUMP
+                    && currentFeetY < next.feetY();
+            float forwardInput = next.movement == Path.Movement.DROP
+                    ? dropForwardInput(next, currentFeetX, currentFeetY, currentFeetZ)
+                    : !risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0;
+            input.drive(forwardInput, 0, jump, sneak);
+            client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
             return false;
         }
-        if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
-            retry("Parkour was disabled while following the route"); return false;
-        }
-        if (next.movement == Path.Movement.WALK && validatedPathIndex == pathIndex
-                && client.player.isOnGround()
-                && !PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
-                    client.player.getX(), client.player.getY(), client.player.getZ(),
-                    true, sourceProbe, emptyProbe)
-                && PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
-                    edgeStartX, edgeStartY, edgeStartZ,
-                    client.player.getX(), client.player.getY(), client.player.getZ())
-                && PathEdgeValidator.isSafeWalkSettlement(terrain,
-                    client.player.getX(), client.player.getY(), client.player.getZ(), probe, emptyProbe)) {
-            input.idle(); client.player.setSprinting(false);
-            if (++settlingTicks > 4) retry("Player did not settle onto the safe walk surface");
-            return false;
-        }
-        settlingTicks = 0;
-        long currentRevision = terrain.revision();
-        boolean newEdge = validatedPathIndex != pathIndex;
-        Path.Step source = path.step(pathIndex - 1);
-        if (!newEdge && next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH
-                && hasDepartedDropLaunch(source, next,
-                edgeStartX, edgeStartZ,
-                client.player.getX(), client.player.getY(), client.player.getZ())) {
-            dropPhase = DropPhase.FALLING;
-        }
-        if (newEdge || currentRevision != validatedRevision) {
-            double feetX = client.player.getX();
-            double feetY = client.player.getY();
-            double feetZ = client.player.getZ();
-            boolean validateCurrentStance = next.movement == Path.Movement.DROP
-                    ? dropPhase == DropPhase.LAUNCH : client.player.isOnGround();
-            boolean safe = newEdge
-                    ? PathEdgeValidator.isSafeEdge(terrain, source, next, feetX, feetY, feetZ,
-                    true, true, config.allowParkour, sourceProbe, probe)
-                    : PathEdgeValidator.isSafeContinuation(terrain, source, next,
-                    edgeStartX, edgeStartY, edgeStartZ, feetX, feetY, feetZ,
-                    validateCurrentStance, config.allowParkour, sourceProbe, probe);
-            if (!safe) {
-                retry("Route edge became unsafe"); return false;
-            }
-            if (newEdge) {
-                edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ;
-                dropPhase = next.movement == Path.Movement.DROP ? DropPhase.LAUNCH : DropPhase.NONE;
-            }
-            validatedPathIndex = pathIndex;
-            // A lift-only continuation does not prove the horizontal remainder. Keep it
-            // uncached until feet clear the ledge, forcing that proof before forward input.
-            validatedRevision = next.movement == Path.Movement.JUMP && feetY < next.feetY()
-                    ? Long.MIN_VALUE : terrain.revision();
-        }
-        Vec3d destination = new Vec3d(next.x + .5, next.feetY(), next.z + .5);
-        Vec3d delta = destination.subtract(ClientAccess.position(client.player));
-        double horizontal = Math.hypot(delta.x, delta.z);
-        double currentFeetX = client.player.getX();
-        double currentFeetY = client.player.getY();
-        double currentFeetZ = client.player.getZ();
-        if (!PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
-                edgeStartX, edgeStartY, edgeStartZ, currentFeetX, currentFeetY, currentFeetZ)) {
-            retry("Player left the safe route corridor"); return false;
-        }
-        Path.Movement pointMovement = next.movement == Path.Movement.JUMP
-                && currentFeetY >= next.feetY() ? Path.Movement.WALK : next.movement;
-        if (!PathEdgeValidator.isCurrentMotionSafe(terrain, pointMovement,
-                currentFeetX, currentFeetY, currentFeetZ,
-                client.player.isOnGround(), next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH,
-                sourceProbe, emptyProbe)) {
-            retry("Current player volume or support became unsafe"); return false;
-        }
-        int currentFeetY16 = GameTerrain.quantizedFeetY16(currentFeetY);
-        boolean mediumArrival = (next.movement == Path.Movement.SWIM || next.movement == Path.Movement.CLIMB)
-                && Math.abs(delta.y) < .35 && currentMediumSafe(next.movement);
-        boolean centeredLaunchRequired = pathIndex + 1 < path.length()
-                && switch (path.step(pathIndex + 1).movement) {
-                    case JUMP, DROP, PARKOUR, BRIDGE -> true;
-                    default -> false;
-                };
-        double arrivalRadius = centeredLaunchRequired ? .10 : .22;
-        if (horizontal < arrivalRadius && (currentFeetY16 == next.feetY16 || mediumArrival)
-                && (client.player.isOnGround() || probe.water || probe.climbable)
-                && (next.movement != Path.Movement.DROP || sourceProbe.fullSupport)) {
-            client.player.setSprinting(false);
-            pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
-            dropPhase = DropPhase.NONE; recordProgress(); return false;
-        }
-        double distance = delta.lengthSquared();
-        if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
-        else if (++ticksWithoutProgress > 80) { retry("Movement stalled"); return false; }
-        client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
-        client.player.setPitch(0);
-        if (next.movement == Path.Movement.JUMP) {
-            if (jumpEdgeIndex != pathIndex) { jumpEdgeIndex = pathIndex; jumpWasAirborne = false; }
-            if (!client.player.isOnGround()) jumpWasAirborne = true;
-            if (jumpWasAirborne && client.player.isOnGround() && currentFeetY < next.feetY()) {
-                retry("Jump landed before clearing the ledge"); return false;
-            }
-        }
-        boolean jump = next.movement == Path.Movement.JUMP && !jumpWasAirborne || next.movement == Path.Movement.PARKOUR || next.movement == Path.Movement.CLIMB || next.movement == Path.Movement.SWIM && delta.y > 0;
-        boolean sneak = next.movement == Path.Movement.BRIDGE;
-        boolean risingBeforeLedge = next.movement == Path.Movement.JUMP
-                && currentFeetY < next.feetY();
-        float forwardInput = next.movement == Path.Movement.DROP
-                ? dropForwardInput(next, currentFeetX, currentFeetY, currentFeetZ)
-                : !risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0;
-        input.drive(forwardInput, 0, jump, sneak);
-        client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
         return false;
     }
 

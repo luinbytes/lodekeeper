@@ -62,4 +62,26 @@ public final class Path {
     public int length() { return steps.length; }
     public Step step(int index) { return steps[index]; }
     public Step[] steps() { return steps.clone(); }
+
+    /** Whether the interior waypoint bridges two action-free, exact-level straight WALK edges. */
+    public boolean isStraightLevelWalkThrough(int reachedIndex) {
+        if (reachedIndex <= 0 || reachedIndex >= steps.length - 1) return false;
+        Step source = steps[reachedIndex - 1];
+        Step reached = steps[reachedIndex];
+        Step outgoing = steps[reachedIndex + 1];
+        if (reached.movement != Movement.WALK || outgoing.movement != Movement.WALK
+                || reached.actionCount() != 0 || outgoing.actionCount() != 0
+                || source.feetY16 != reached.feetY16 || reached.feetY16 != outgoing.feetY16) {
+            return false;
+        }
+        int dx = reached.x - source.x;
+        int dz = reached.z - source.z;
+        return isUnitEightWayStep(dx, dz)
+                && outgoing.x - reached.x == dx
+                && outgoing.z - reached.z == dz;
+    }
+
+    private static boolean isUnitEightWayStep(int dx, int dz) {
+        return dx >= -1 && dx <= 1 && dz >= -1 && dz <= 1 && (dx != 0 || dz != 0);
+    }
 }
