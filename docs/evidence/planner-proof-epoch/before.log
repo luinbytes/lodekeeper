@@ -1,0 +1,56 @@
+
+Test run finished after 128 ms
+[         2 containers found      ]
+[         0 containers skipped    ]
+[         2 containers started    ]
+[         0 containers aborted    ]
+[         2 containers successful ]
+[         0 containers failed     ]
+[         3 tests found           ]
+[         0 tests skipped         ]
+[         3 tests started         ]
+[         0 tests aborted         ]
+[         0 tests successful      ]
+[         3 tests failed          ]
+
+
+Failures (3):
+  JUnit Jupiter:PlannerTest:sourceProbeRevisionChangeCannotConstructAnAcceptedNoPathResult()
+    MethodSource [className = 'dev.lodekeeper.nav.PlannerTest', methodName = 'sourceProbeRevisionChangeCannotConstructAnAcceptedNoPathResult', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: expected: <STALE> but was: <NO_PATH>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+       org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+       dev.lodekeeper.nav.PlannerTest.sourceProbeRevisionChangeCannotConstructAnAcceptedNoPathResult(PlannerTest.java:552)
+       java.base/java.lang.reflect.Method.invoke(Method.java:569)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+  JUnit Jupiter:PlannerTest:revisionChangeDuringGroundedCollectionRejectsTheExpandedSearch()
+    MethodSource [className = 'dev.lodekeeper.nav.PlannerTest', methodName = 'revisionChangeDuringGroundedCollectionRejectsTheExpandedSearch', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: expected: <STALE> but was: <IN_PROGRESS>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+       org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+       dev.lodekeeper.nav.PlannerTest.revisionChangeDuringGroundedCollectionRejectsTheExpandedSearch(PlannerTest.java:562)
+       java.base/java.lang.reflect.Method.invoke(Method.java:569)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+  JUnit Jupiter:PlannerTest:revisionChangeDuringMotionProofRejectsTheExpandedSearch()
+    MethodSource [className = 'dev.lodekeeper.nav.PlannerTest', methodName = 'revisionChangeDuringMotionProofRejectsTheExpandedSearch', methodParameterTypes = '']
+    => org.opentest4j.AssertionFailedError: expected: <STALE> but was: <IN_PROGRESS>
+       org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+       org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+       org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+       org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+       org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+       dev.lodekeeper.nav.PlannerTest.revisionChangeDuringMotionProofRejectsTheExpandedSearch(PlannerTest.java:573)
+       java.base/java.lang.reflect.Method.invoke(Method.java:569)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+       java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
