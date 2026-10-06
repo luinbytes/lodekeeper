@@ -64,12 +64,12 @@
     "compiledVersions": 24,
     "ciStatus": "success"
   },
-  "nextDecision": "Measure a terrain-checked jump and native falling sword attack, with per-hit collateral safeguards. Stable choices cannot make low-damage standing contact win this fixture.",
+  "nextDecision": "Controlled airborne defense now wins on both primary versions. Complete safety regressions, then address the observed missing early weapon before fresh-world project repeats.",
   "hopPrototype": {
     "shape": "AttackChoice(target, slot, damage, optional DefenseHop) with explicit ascent and landing phases",
     "policy": "Use a harmless loaded ceiling and supported landing margin to bound a native input jump. Keep the sword selected until safe landing. Attack only after observed native descent and airborne revalidation. Grounded sword attacks retain the collateral guard.",
     "nativeProof": "Capture ContactSwordAttempt with exact server pose, health and DamageSource in ALLOW_DAMAGE. Count only source-correlated HP loss in AFTER_DAMAGE or AFTER_DEATH. Require a confirmed airborne sword hit plus both player-attributed zombie kills, survival, unchanged cow health and shell, bounded wear, and ordinary bucket completion.",
-    "status": "primary_compiled_native_replay_pending",
+    "status": "controlled_native_contact_passed_both_primary_versions",
     "activation": "A defense episode that tracked multiple hostiles, or player health at most 6. Retain the urgent response after the first hostile dies to avoid a mid-fight weapon downgrade. Single-hostile high-health contact keeps the established grounded collateral-safe weapon response.",
     "abortContract": "Movement releases only its own input and throws NavigationFailure on aborted hop. false means running; true means actual airborne observation followed by safe supported landing.",
     "reviewFixes": [
@@ -89,7 +89,18 @@
       "failures": 0,
       "errors": 0,
       "skipped": 0
-    }
+    },
+    "sourceCommit": "a5d35845faaa188536fb5a9ca5efef7a04040357",
+    "nativeReceipts": [
+      "../survival-safety/preview11-contact-hop-1211/assessment.json",
+      "../survival-safety/preview11-contact-hop-263/assessment.json"
+    ],
+    "remainingChecks": [
+      "Single-threat collateral and water/creeper retreat regressions",
+      "Early combat weapon preparation before deep ore gathering",
+      "Fresh normal survival gear_diamond on both primary exact artifacts",
+      "All24versionCI and immutable release artifact verification"
+    ]
   },
   "freshWorldPreparationGap": {
     "receipt": "../navigation-rebuild/checkpoint-19-natural.json",

@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "case": "two full-health normal-AI zombies in a sealed passage, contact defense from idle",
+  "sourceCommit": "a5d35845faaa188536fb5a9ca5efef7a04040357",
+  "artifactSha256": "6f708a11f20b1c7d99c7f31879845e590dc3f578d54178ec9aaa22284900760c",
+  "nativeReceipt": "native-result.json",
+  "scope": "Declared pre-command geometry and inventory grants; only the frozen world clock is released after the ordinary bucket command. No post-command stock, AI, health or terrain mutations. Starts from idle; does not test cancellation of a prior native path.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "elapsedMillisFromCommand": 7204,
+  "worldClockReleased": true,
+  "nativeMobHitsOnPlayer": "3",
+  "mobHealthDropsWhilePlayerUnsettled": "2",
+  "shellChangedCells": "0",
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "playerHealth": 15.666667,
+  "playerDeaths": "0",
+  "observation": "Four server-confirmed airborne sword hits killed both original zombies. Native mob damage occurred; the player survived, cow health stayed10, shell stayed intact, bucket completed with empty cursor and stopped native navigation. Exact damage callback pose is correlated with actual native HP loss.",
+  "confirmedAirborneSwordDamageEvents": 4,
+  "groundedSwordDamageEvents": 0,
+  "clientAttackCalls": 4
+}
