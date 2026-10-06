@@ -1,0 +1,4 @@
+[11.445s][info][class,load] dev.lodekeeper.fabric.modern.AutomationEngine source: file:/private/tmp/lodekeeper-preview6-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.6.jar
+[11.452s][info][class,load] dev.lodekeeper.core.AcquisitionPlanner source: file:/private/tmp/lodekeeper-preview6-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.6.jar
+[11.470s][info][class,load] dev.lodekeeper.fabric.modern.MovementController source: file:/private/tmp/lodekeeper-preview6-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.6.jar
+[17.071s][info][class,load] dev.lodekeeper.nav.LaunchApproach source: file:/private/tmp/lodekeeper-preview6-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.6.jar
