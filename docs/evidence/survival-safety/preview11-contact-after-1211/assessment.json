@@ -1,0 +1,23 @@
+{
+  "status": "failed",
+  "case": "two full-health normal-AI zombies in a sealed passage, contact defense from idle",
+  "sourceCommit": "6f8f5ed7bd37fbeb1c6107f31ad248af31100d09",
+  "artifactSha256": "95b889033f9585587498909aa5ca7c941949a31d5815f0a3720f4f1ecc00c32f",
+  "nativeReceipt": "native-result.json",
+  "scope": "Declared pre-command geometry and inventory grants; only the frozen world clock is released after the ordinary bucket command. No post-command stock, AI, health or terrain mutations. Starts from idle; does not test cancellation of a prior native path.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "elapsedMillisFromCommand": 7820,
+  "worldClockReleased": true,
+  "nativeMobHitsOnPlayer": "8",
+  "mobHealthDropsWhilePlayerUnsettled": "2",
+  "shellChangedCells": "0",
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "playerHealth": 0.66666603,
+  "playerDeaths": "0",
+  "failure": "prepared safety automation paused during live_contact_defense_bucket: paused \u00b7 player is no longer alive \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+  "observation": "Contact attacks resumed after native work drained, including during observed knockback. The player nevertheless died to two live zombies after five client attacks. The last asynchronous server snapshot precedes death; its positive health and zero deaths are stale. Native death is confirmed by the client pause and server death message. Sword wear was observed with the cow unharmed; dynamic target sweep geometry and weapon switching still need investigation.",
+  "serverSnapshotIsTerminal": false,
+  "confirmedNativePlayerDeath": true
+}
