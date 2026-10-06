@@ -60,3 +60,12 @@ Fresh normal-survival worlds, empty inventories, and the packaged `eae836c` jars
 The next source changes merge fresh discoveries into the active native mining process, preserving per-position rejection across refreshes. Generated accessors are selected by the full upstream artifact digest, with field roles verified from all 14 pinned jars and their corresponding source. An incremental palette cursor replaces unbounded chunk scans. Native Mixin execution still needs a packaged-client run.
 
 Tool forecasts now preserve physical stack wear and Silk Touch behavior. Native gather contracts declare compatibility when the block item matches the requested drop. Food preparation before ore travel, earlier eating for healing, and recipe-input reservations are being verified. The project timer spans its full goal queue, and the HUD can identify the actual current mining route target. The full diamond benchmark remains unpassed.
+
+
+## Fourth development checkpoint
+
+The packaged `755fd70` build passed all 24 exact version profiles in [CI](https://github.com/luinbytes/lodekeeper/actions/runs/37417589995). The next normal-survival 1.21.1 run attempted the full `gear_diamond` project. It began moving after 1,578 ms and ran for 783,347 ms before the health safeguard paused it. No death occurred. The inventory held a diamond pickaxe, axe, boots, and chestplate, plus two spare diamonds. The armor slots were empty. This is a failed full-set benchmark. [Checkpoint receipts](evidence/navigation-rebuild/checkpoint-04.json) preserve the exact artifact and integrated-server observations.
+
+The native mining accessors applied in the packaged client. Debug logs show fresh discoveries merging into an active mining request and later path segments calculating during movement. Food approach failures consumed time. A skeleton was visible in the final frame, and crafted armor had not been equipped.
+
+The next changes plan project materials together, preserve planned tool upgrades before bulk gathering, and cook ordinary spare meat before further travel. Armor quick-moves use native slot predicates and receipt checks. Equipped stock counts toward goals but stays outside crafting ingredients. Threat response and the continuous project timer still need native verification. These changes do not establish the full-set target or support for every Minecraft mechanic.

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T06:03:57.917016+00:00",
+  "cases": [
+    {
+      "minecraftVersion": "1.21.1",
+      "goal": "gear_diamond",
+      "status": "failed",
+      "commandElapsedMillis": 783347,
+      "firstServerMovementElapsedMillis": 1578,
+      "minimumHealth": 3.4333324,
+      "serverHealth": 3.4333324,
+      "serverHunger": 10,
+      "goalSatisfied": false,
+      "failure": "automation paused: paused \u00b7 health safeguard \u00b7 4 foreground queued \u00b7 0 maintenance queued",
+      "serverHeldCounts": {
+        "minecraft:diamond_boots": 1,
+        "minecraft:leather": 4,
+        "minecraft:diamond_chestplate": 1,
+        "minecraft:cobblestone": 259,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:crafting_table": 1,
+        "minecraft:diamond_axe": 1,
+        "minecraft:birch_planks": 1,
+        "minecraft:raw_copper": 3,
+        "minecraft:granite": 23,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:diamond_pickaxe": 1,
+        "minecraft:moss_block": 4,
+        "minecraft:cobbled_deepslate": 7,
+        "minecraft:flowering_azalea": 1,
+        "minecraft:andesite": 15,
+        "minecraft:dirt": 3,
+        "minecraft:diorite": 40,
+        "minecraft:diamond": 2
+      },
+      "serverArmorCounts": {},
+      "serverCursor": {
+        "item": "",
+        "count": 0
+      },
+      "sourceCommit": "31f85a9219322571b4f0c6540d5897852d99d1b8",
+      "artifactSha256": "595e5afb97d7f80d1b005e4ef29b1e01a68dc345b8490687069b418139de3f3e",
+      "clientExitCode": 0,
+      "evidence": "natural-diamond-checkpoint04-1211.json",
+      "artifact": "natural-diamond-checkpoint04-1211-artifact.json"
+    }
+  ],
+  "fullDiamondAcceptance": "not passed",
+  "comparison": "One normal-survival run. No competitor speed claim.",
+  "verifiedBehavior": "Native mining accessors applied and merged new discoveries into an active MINE process. Logs show CALC_STARTED/NEXT_SEGMENT_CALC_STARTED during movement.",
+  "nextChanges": "joint project stock and gathering batches, food reach and cooking, armor equipping, threat response, continuous project timer"
+}
