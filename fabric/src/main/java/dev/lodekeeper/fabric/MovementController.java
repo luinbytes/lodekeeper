@@ -1,736 +1,394 @@
 package dev.lodekeeper.fabric;
 
-import dev.lodekeeper.nav.*;
+import baritone.api.BaritoneAPI;
+import baritone.api.IBaritone;
+import baritone.api.Settings;
+import baritone.api.event.events.PathEvent;
+import baritone.api.event.listener.AbstractGameEventListener;
+import baritone.api.pathing.calc.IPath;
+import baritone.api.pathing.goals.GoalBlock;
+import baritone.api.pathing.goals.GoalGetToBlock;
+import baritone.api.pathing.goals.GoalNear;
+import baritone.api.utils.BlockOptionalMetaLookup;
+import dev.lodekeeper.core.SelectedToolRequirement;
+import dev.lodekeeper.nav.ExplorationFrontier;
+import dev.lodekeeper.nav.NavigationSnapshot;
+import dev.lodekeeper.nav.Path;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.entity.EntityPose;
 
-import java.util.Arrays;
+import java.util.*;
 
-/** One route at a time; every destructive action and next stance is revalidated live. */
+/** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
+    private enum Mode { IDLE, MOVE, MINE, PICKUP, SUSPENDED }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
     private final BotInput input;
-    private final GameTerrain terrain;
-    private final SurfaceRecovery surfaceRecovery;
-    private final StanceProbe probe = new StanceProbe();
-    private final StanceProbe sourceProbe = new StanceProbe();
-    private final StanceProbe emptyProbe = new StanceProbe();
-    private final GroundedStanceBuffer candidateHeights = new GroundedStanceBuffer();
-    private final long[] goalPositions = new long[128];
-    private final byte[] goalFractions = new byte[128];
-    private int goalCandidateCount;
-    private Planner planner;
-    private Path path;
-    private Goal goal;
-    private int pathIndex, actionIndex, ticksWithoutProgress;
-    private int validatedPathIndex = -1;
-    private long validatedRevision = Long.MIN_VALUE;
-    private long progressToken;
-    private BlockPos pendingBreakPosition, pendingPlacementPosition;
-    private int pendingBreakStateId = -1;
-    private Block pendingPlacementBlock;
-    private double edgeStartX, edgeStartY, edgeStartZ;
-    private double lastDistance = Double.POSITIVE_INFINITY;
-    private int replans, settlingTicks;
-    private long searchNanos;
-    private int searchTicks;
-    private int nextPartialCheckTick;
-    private boolean budgetedSegment;
-    private enum DropPhase { NONE, LAUNCH, FALLING }
-    private DropPhase dropPhase = DropPhase.NONE;
-    private int jumpEdgeIndex = -1;
-    private boolean jumpWasAirborne;
-    private boolean explorationRoute;
+    private IBaritone bot;
+    private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
+    private boolean cancelling;
+    private baritone.api.pathing.goals.Goal routeGoal;
+    private dev.lodekeeper.nav.Goal diagnosticGoal;
+    private Block[] mineBlocks = new Block[0];
+    private Item output;
+    private int targetCount;
+    private SelectedToolRequirement tool;
+    private Set<Item> reserved = Set.of();
+    private Set<Block> protectedBlocks = Set.of();
+    private SettingsLease lease;
+    private long progressToken, startedNanos;
+    private double observedX, observedY, observedZ, requestX, requestZ;
+    private boolean positionObserved;
+    private int requestTicks, failedCalculations, nextRescanTick, rescanAttempts, lastBreakTick;
+    private int waitingTicks, rescanFailedCalculations, rescanInventoryCount, rescanChunkX, rescanChunkZ;
+    private NavigationFailure pendingBreakFailure;
+    private BlockPos lastLoggedBreakPosition;
+    private Item lastLoggedBreakTool;
+    private List<Item> scaffoldItems = List.of();
+    private NavigationSnapshot observation = NavigationSnapshot.EMPTY;
+
     static final class NavigationFailure extends IllegalStateException {
-        NavigationFailure(String reason) { super(reason); }
+        enum Kind { TOOL, PROCESS_ENDED, PROTECTED_BLOCK, OTHER }
+        final Kind kind;
+        NavigationFailure(String reason) { this(Kind.OTHER, reason); }
+        NavigationFailure(Kind kind, String reason) { super(reason); this.kind = kind; }
     }
+
+    MovementController(MinecraftClient client, LodekeeperConfig config, PlayerActions actions,
+                       BotInput input, GameTerrain terrain) {
+        this.client = client; this.config = config; this.actions = actions; this.input = input;
+    }
+
+    void updateProtection(Set<Item> reserved, Set<Block> protectedBlocks) {
+        this.reserved = Set.copyOf(reserved);
+        this.protectedBlocks = Set.copyOf(protectedBlocks);
+        if (lease != null) applyProtection();
+    }
+
     void startExploration(ExplorationFrontier.Waypoint waypoint) {
-        stop(); explorationRoute = true;
-        int feetY16 = Math.toIntExact(waypoint.feetY16());
-        goal = Goal.exact16(waypoint.x(), feetY16, waypoint.z()); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+        BlockPos target = new BlockPos(waypoint.x(), Math.toIntExact(Math.floorDiv(waypoint.feetY16(), 16)), waypoint.z());
+        startMove(new GoalBlock(target), dev.lodekeeper.nav.Goal.exact16(target.getX(), target.getY() * 16, target.getZ()));
     }
-    MovementController(MinecraftClient client, LodekeeperConfig config, PlayerActions actions, BotInput input, GameTerrain terrain) {
-        this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
-        this.surfaceRecovery = new SurfaceRecovery(client, terrain, input);
-    }
+
     void start(BlockPos target, int radius) {
-        stop(); goal = Goal.near16(target.getX(), Math.multiplyExact(target.getY(), 16), target.getZ(), Math.multiplyExact(radius, 16)); replans = 0; ticksWithoutProgress = 0;
-        prepareRoute();
+        startMove(new GoalNear(target, radius), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), radius * 16));
     }
+
     void startInteraction(BlockPos target) {
+        startMove(new GoalGetToBlock(target), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32));
+    }
+
+    private void startMove(baritone.api.pathing.goals.Goal goal, dev.lodekeeper.nav.Goal diagnostic) {
+        prepare(); routeGoal = goal; diagnosticGoal = diagnostic; mode = Mode.MOVE;
+        launch();
+    }
+
+    void startPickup(ItemEntity item) {
+        prepare(); output = item.getStack().getItem(); targetCount = actions.count(output) + 1;
+        BlockPos position = item.getBlockPos();
+        diagnosticGoal = dev.lodekeeper.nav.Goal.near16(position.getX(), position.getY() * 16, position.getZ(), 32);
+        mode = Mode.PICKUP; launch();
+    }
+
+    void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool) {
+        if (blocks.length == 0) throw new NavigationFailure("No supported mining blocks for " + output);
+        prepare(); mineBlocks = blocks.clone(); this.output = output; targetCount = totalCount; this.tool = tool;
+        if (tool != null && !actions.prepareMiningTool(tool, mineBlocks[0].getDefaultState())) {
+            throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Required mining tool is unavailable or worn: " + tool.item());
+        }
+        mode = Mode.MINE;
+        rescanInventoryCount = actions.count(output);
+        rescanChunkX = (int) Math.floor(client.player.getX()) >> 4;
+        rescanChunkZ = (int) Math.floor(client.player.getZ()) >> 4;
+        launch();
+    }
+
+    private void prepare() {
         if (client.player == null || client.world == null) throw new NavigationFailure("World unavailable");
-        resetGoalCandidates();
-        int targetFeetY16 = Math.multiplyExact(target.getY(), 16);
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
-            for (int band = 0; band < 2; band++) {
-                long reference = (long) targetFeetY16 + (band == 0 ? -16L : 16L);
-                if (reference < Integer.MIN_VALUE || reference > Integer.MAX_VALUE) continue;
-                if (!terrain.collectGroundedStances(stanceX, (int) reference, stanceZ, candidateHeights)
-                        || !candidateHeights.isComplete()) continue;
-                for (int i = 0; i < candidateHeights.size(); i++) {
-                    int feetY16 = candidateHeights.get(i);
-                    if (band == 0 ? feetY16 > targetFeetY16
-                            : feetY16 <= targetFeetY16 || feetY16 > (long) targetFeetY16 + 16L) continue;
-                    terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
-                    if (!safeGroundedCandidate(probe, feetY16)) continue;
-                    if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
-                    if (!includeInteractionCandidate(target, stanceX, feetY16, stanceZ)) {
-                        throw new NavigationFailure("Too many safe interaction stances");
-                    }
+        stop();
+        if (!finishCancellation()) throw new NavigationFailure("Finishing previous movement before starting a new route");
+        if (bot == null) {
+            bot = BaritoneAPI.getProvider().getPrimaryBaritone();
+            bot.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
+                @Override public void onPathEvent(PathEvent event) {
+                    if (mode == Mode.IDLE && !cancelling) return;
+                    if (event == PathEvent.CALC_FAILED) failedCalculations++;
+                    if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] NAV backend=baritone mode={} event={} elapsedMs={}",
+                            mode, event, (System.nanoTime() - startedNanos) / 1_000_000);
+                    if (config.debugLogging && event == PathEvent.CALC_STARTED && client.player != null)
+                        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                                "[Lodekeeper] NAV calcTool={} slot={}",
+                                GameCatalog.id(client.player.getMainHandStack().getItem()), ClientAccess.selectedSlot(client.player.getInventory()));
                 }
-            }
+            });
         }
-        for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int feetY16 = Math.multiplyExact(Math.addExact(target.getY(), dy), 16);
-            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
-            if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
-            terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
-            if (!(probe.water || probe.climbable) || !safeGroundedCandidate(probe, feetY16)) continue;
-            if (!includeInteractionCandidate(target, stanceX, feetY16, stanceZ)) {
-                throw new NavigationFailure("Too many safe interaction stances");
-            }
-        }
-        if (goalCandidateCount == 0) { start(target, 1); return; }
-        stop(); goal = candidateGoal(); replans = 0; ticksWithoutProgress = 0; prepareRoute();
-    }
-    void startPickup(net.minecraft.entity.ItemEntity item) {
-        if (client.player == null || client.world == null) throw new NavigationFailure("World unavailable");
-        resetGoalCandidates();
-        BlockPos target = item.getBlockPos();
-        int targetFeetY16 = Math.multiplyExact(target.getY(), 16);
-        Box standingBox = client.player.getDimensions(EntityPose.STANDING).getBoxAt(0, 0, 0);
-        double standingHeight = standingBox.maxY - standingBox.minY;
-        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
-            for (int band = 0; band < 2; band++) {
-                long reference = (long) targetFeetY16 + (band == 0 ? -16L : 16L);
-                if (reference < Integer.MIN_VALUE || reference > Integer.MAX_VALUE) continue;
-                if (!terrain.collectGroundedStances(stanceX, (int) reference, stanceZ, candidateHeights)
-                        || !candidateHeights.isComplete()) continue;
-                for (int i = 0; i < candidateHeights.size(); i++) {
-                    int feetY16 = candidateHeights.get(i);
-                    if (band == 0 ? feetY16 > targetFeetY16
-                            : feetY16 <= targetFeetY16 || feetY16 > (long) targetFeetY16 + 16L) continue;
-                    terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
-                    if (!safeGroundedCandidate(probe, feetY16)) continue;
-                    double feetY = feetY16 / 16.0;
-                    if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
-                    if (!includePickupCandidate(item, stanceX, feetY16, stanceZ, standingHeight)) {
-                        throw new NavigationFailure("Too many safe collection stances");
-                    }
-                }
-            }
-        }
-        for (int dy = -2; dy <= 1; dy++) for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-            int feetY16 = Math.multiplyExact(Math.addExact(target.getY(), dy), 16);
-            int stanceX = target.getX() + dx, stanceZ = target.getZ() + dz;
-            if (containsGoalCandidate(stanceX, feetY16, stanceZ)) continue;
-            terrain.probeStance16(stanceX, feetY16, stanceZ, probe);
-            if (!(probe.water || probe.climbable) || !safeGroundedCandidate(probe, feetY16)) continue;
-            if (!includePickupCandidate(item, stanceX, feetY16, stanceZ, standingHeight)) {
-                throw new NavigationFailure("Too many safe collection stances");
-            }
-        }
-        if (goalCandidateCount == 0) throw new NavigationFailure("No safe collection stance for dropped item");
-        stop(); goal = candidateGoal(); replans = 0; ticksWithoutProgress = 0; prepareRoute();
+        input.release(); actions.cancel();
+        startedNanos = System.nanoTime(); requestTicks = failedCalculations = rescanAttempts = 0;
+        nextRescanTick = 100; lastBreakTick = -100; waitingTicks = rescanFailedCalculations = 0;
+        requestX = client.player.getX(); requestZ = client.player.getZ();
+        routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null;
+        observation = NavigationSnapshot.EMPTY; positionObserved = false; pendingBreakFailure = null;
+        lastLoggedBreakPosition = null; lastLoggedBreakTool = null;
     }
 
-    private void resetGoalCandidates() { goalCandidateCount = 0; }
-    private boolean containsGoalCandidate(int x, int feetY16, int z) {
-        long packed = Position.pack(x, Math.floorDiv(feetY16, 16), z);
-        byte fraction = (byte) Math.floorMod(feetY16, 16);
-        for (int i = 0; i < goalCandidateCount; i++) {
-            if (goalPositions[i] == packed && goalFractions[i] == fraction) return true;
-        }
-        return false;
-    }
-    private boolean includeInteractionCandidate(BlockPos target, int x, int feetY16, int z) {
-        int supportY = Math.floorDiv(feetY16, 16) - (Math.floorMod(feetY16, 16) == 0 ? 1 : 0);
-        if (target.getX() == x && target.getZ() == z && target.getY() == supportY) return true;
-        Vec3d eye = new Vec3d(x + .5, feetY16 / 16.0 + client.player.getStandingEyeHeight(), z + .5);
-        Vec3d aim = Vec3d.ofCenter(target);
-        double reach = GameApi.blockReach(client);
-        if (eye.squaredDistanceTo(aim) > reach * reach) return true;
-        var hit = client.world.raycast(new net.minecraft.world.RaycastContext(eye, aim,
-                net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
-                net.minecraft.world.RaycastContext.FluidHandling.NONE, client.player));
-        return hit.getType() != net.minecraft.util.hit.HitResult.Type.BLOCK || !hit.getBlockPos().equals(target)
-                || addGoalCandidate(x, feetY16, z);
-    }
-    private boolean includePickupCandidate(net.minecraft.entity.ItemEntity item, int x, int feetY16,
-                                           int z, double standingHeight) {
-        double feetY = feetY16 / 16.0;
-        // Preserve the existing item-contact margin while testing the exact stance height.
-        var contact = new Box(x - .55, feetY, z - .55, x + 1.55, feetY + standingHeight, z + 1.55);
-        return !contact.intersects(item.getBoundingBox()) || addGoalCandidate(x, feetY16, z);
-    }
-    private boolean addGoalCandidate(int x, int feetY16, int z) {
-        int y = Math.floorDiv(feetY16, 16), fraction = Math.floorMod(feetY16, 16);
-        long packed = Position.pack(x, y, z);
-        for (int i = 0; i < goalCandidateCount; i++) {
-            if (goalPositions[i] == packed && goalFractions[i] == (byte) fraction) return true;
-        }
-        if (goalCandidateCount == goalPositions.length) return false;
-        goalPositions[goalCandidateCount] = packed;
-        goalFractions[goalCandidateCount] = (byte) fraction;
-        goalCandidateCount++;
-        return true;
-    }
-    private Goal candidateGoal() {
-        return Goal.anyOf16(Arrays.copyOf(goalPositions, goalCandidateCount),
-                Arrays.copyOf(goalFractions, goalCandidateCount));
-    }
-    private static boolean safeGroundedCandidate(StanceProbe stance, int feetY16) {
-        return stance.loaded && !stance.hazard && stance.bodyClear && stance.breakCount == 0
-                && (stance.hasGroundSupport() || Math.floorMod(feetY16, 16) == 0
-                && (stance.water || stance.climbable));
-    }
-
-    private void prepareRoute() {
-        if (planner != null) planner.cancel();
-        planner = null;
-        path = null;
-        dropPhase = DropPhase.NONE;
-        clearPendingWorldAction();
-        terrain.refreshStandingDimensions();
-        if (canPlanFromCurrentStance()) {
-            surfaceRecovery.stop();
-            search();
-        } else if (!surfaceRecovery.begin()) {
-            search();
+    private void launch() {
+        input.release();
+        lease = new SettingsLease();
+        Settings settings = BaritoneAPI.getSettings();
+        lease.set(settings.allowBreak, config.allowBreaking);
+        lease.set(settings.allowPlace, config.allowBuilding);
+        lease.set(settings.allowInventory, false);
+        lease.set(settings.allowParkour, config.allowParkour);
+        lease.set(settings.allowParkourPlace, config.allowParkour && config.allowBuilding);
+        lease.set(settings.allowSprint, true);
+        lease.set(settings.allowWaterBucketFall, false);
+        lease.set(settings.maxFallHeightNoWater, 3);
+        lease.set(settings.autoTool, true);
+        lease.set(settings.assumeExternalAutoTool, true);
+        lease.set(settings.itemSaver, true);
+        lease.set(settings.itemSaverThreshold, tool == null ? 1 : Math.max(1, tool.minimumDurability() - 1));
+        lease.set(settings.renderPath, false); lease.set(settings.renderGoal, false);
+        lease.set(settings.renderSelection, false); lease.set(settings.renderSelectionBoxes, false);
+        lease.set(settings.mineScanDroppedItems, true);
+        lease.set(settings.exploreForBlocks, config.allowExploration);
+        lease.set(settings.legitMine, false);
+        lease.set(settings.mineGoalUpdateInterval, 0);
+        lease.set(settings.primaryTimeoutMS, 250L); lease.set(settings.failureTimeoutMS, 1500L);
+        lease.set(settings.planAheadPrimaryTimeoutMS, 750L); lease.set(settings.planAheadFailureTimeoutMS, 2000L);
+        applyProtection();
+        actions.prepareScaffoldHotbar(scaffoldItems);
+        switch (mode) {
+            case MOVE -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
+            case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.isOf(output));
+            case MINE -> {
+                boolean diamond = Arrays.asList(mineBlocks).contains(Blocks.DIAMOND_ORE)
+                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_DIAMOND_ORE);
+                int exploreY = (int) Math.floor(client.player.getY());
+                if (diamond) exploreY = -55;
+                else if (Arrays.asList(mineBlocks).contains(Blocks.IRON_ORE)
+                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_IRON_ORE)) exploreY = 16;
+                else if (Arrays.asList(mineBlocks).contains(Blocks.COAL_ORE)
+                        || Arrays.asList(mineBlocks).contains(Blocks.DEEPSLATE_COAL_ORE)) exploreY = 48;
+                lease.set(settings.legitMineYLevel, exploreY);
+                // Upstream quantity includes several possible drops. Lodekeeper checks the exact output itself.
+                bot.getMineProcess().mine(0, new BlockOptionalMetaLookup(mineBlocks));
+            }
+            default -> throw new IllegalStateException("No navigation request to launch");
         }
     }
 
-    private boolean canPlanFromCurrentStance() {
-        if (client.player == null || client.world == null) return false;
-        int feetY16 = planStartFeetY16();
-        if (feetY16 == GameTerrain.INVALID_FEET_Y16) return false;
-        BlockPos feet = client.player.getBlockPos();
-        terrain.probeStance16(feet.getX(), feetY16, feet.getZ(), probe);
-        return probe.loaded && !probe.hazard && probe.bodyClear && probe.breakCount == 0
-                && (probe.hasGroundSupport() || Math.floorMod(feetY16, 16) == 0 && (probe.water || probe.climbable));
+    private void applyProtection() {
+        Settings settings = BaritoneAPI.getSettings();
+        List<Item> scaffold = new ArrayList<>();
+        for (Item item : List.of(Blocks.DIRT.asItem(), Blocks.COBBLESTONE.asItem(),
+                Blocks.NETHERRACK.asItem(), Blocks.STONE.asItem())) if (!reserved.contains(item)) scaffold.add(item);
+        scaffoldItems = List.copyOf(scaffold);
+        lease.set(settings.acceptableThrowawayItems, scaffold);
+        Set<Block> forbidden = new LinkedHashSet<>(lease.original(settings.blocksToDisallowBreaking));
+        forbidden.addAll(protectedBlocks);
+        lease.set(settings.blocksToDisallowBreaking, new ArrayList<>(forbidden));
     }
 
-    private int planStartFeetY16() {
-        int exactFeetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
-        BlockPos feet = client.player.getBlockPos();
-        if (exactFeetY16 != GameTerrain.INVALID_FEET_Y16) {
-            terrain.probeStance16(feet.getX(), exactFeetY16, feet.getZ(), probe);
-            if (probe.loaded && !probe.hazard && probe.bodyClear && probe.hasGroundSupport()) return exactFeetY16;
-            if (Math.floorMod(exactFeetY16, 16) == 0) return exactFeetY16;
-        }
-        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
-        if (!terrain.isMotionClear(x, y, z, x, y, z, 0.0, emptyProbe)) return GameTerrain.INVALID_FEET_Y16;
-        int mediumFeetY16 = Math.multiplyExact(feet.getY(), 16);
-        terrain.probeStance16(feet.getX(), mediumFeetY16, feet.getZ(), probe);
-        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.water || probe.climbable)) {
-            return GameTerrain.INVALID_FEET_Y16;
-        }
-        return mediumFeetY16;
-    }
-
-    private void search() {
-        searchNanos = 0; searchTicks = 0; nextPartialCheckTick = 0; budgetedSegment = false;
-        clearPendingWorldAction();
-        terrain.beginSearch();
-        BlockPos start = client.player.getBlockPos();
-        int startFeetY16 = planStartFeetY16();
-        if (startFeetY16 == GameTerrain.INVALID_FEET_Y16) throw new NavigationFailure("Player feet are not on a modeled sixteenth-block height");
-        Block scaffold = actions.count(Blocks.COBBLESTONE.asItem()) > 16 ? Blocks.COBBLESTONE : Blocks.DIRT;
-        int spare = Math.max(0, actions.count(scaffold.asItem()) - 16); // Preserve a conservative supply reserve.
-        Planner.Options options = new Planner.Options().maxNodes(config.pathNodeLimit).maxDrop(explorationRoute ? 1 : 3)
-            .allowBreaking(!explorationRoute && config.allowBreaking).allowBuilding(!explorationRoute && config.allowBuilding && spare > 0)
-            .allowParkour(!explorationRoute && config.allowParkour).allowSwimming(!explorationRoute).allowClimbing(!explorationRoute)
-            .placements(Math.min(32, spare), Registries.ITEM.getRawId(scaffold.asItem()));
-        planner = Planner.fromFeetY16(terrain, start.getX(), startFeetY16, start.getZ(), goal, options);
-        path = null; pathIndex = 1; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
-        dropPhase = DropPhase.NONE;
-        jumpEdgeIndex = -1; jumpWasAirborne = false;
-        validatedPathIndex = -1; validatedRevision = Long.MIN_VALUE;
-    }
-    long progressToken() { return progressToken; }
-    void recordConfirmedWorldAction() { recordProgress(); }
-    void observeConfirmedProgress() {
-        if (client.world == null) return;
-        if (pendingBreakPosition != null && hasLoadedChunk(pendingBreakPosition)) {
-            var state = client.world.getBlockState(pendingBreakPosition);
-            if (state.isAir() || Block.getRawIdFromState(state) != pendingBreakStateId
-                    && state.getCollisionShape(client.world, pendingBreakPosition).isEmpty()) {
-                recordProgress();
-                clearPendingWorldAction();
-            }
-        }
-        if (pendingPlacementPosition != null && hasLoadedChunk(pendingPlacementPosition)
-                && client.world.getBlockState(pendingPlacementPosition).isOf(pendingPlacementBlock)) {
-            recordProgress();
-            clearPendingWorldAction();
-        }
-    }
-    private void recordProgress() {
-        if (progressToken < Long.MAX_VALUE) progressToken++;
-        ticksWithoutProgress = 0;
-    }
-    private boolean hasLoadedChunk(BlockPos position) {
-        return client.world != null && client.world.getChunkManager().getChunk(
-                position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) != null;
-    }
-    private void clearPendingWorldAction() {
-        pendingBreakPosition = null;
-        pendingBreakStateId = -1;
-        pendingPlacementPosition = null;
-        pendingPlacementBlock = null;
-    }
     boolean tick() {
-        input.acquire(); input.idle();
-        if (client.player == null || client.world == null) throw new IllegalStateException("World unavailable");
-        terrain.refreshStandingDimensions();
-        if (surfaceRecovery.active()) {
-            if (surfaceRecovery.tick()) {
-                recordProgress();
-                search();
-            }
-            return false;
+        if (cancelling) return finishCancellation();
+        if (mode == Mode.SUSPENDED) { mode = resumeMode; resumeMode = Mode.IDLE; launch(); }
+        if (mode == Mode.IDLE) return true;
+        if (client.player == null || client.world == null) { stop(); return false; }
+        input.release(); requestTicks++;
+        if (pendingBreakFailure != null) {
+            NavigationFailure failure = pendingBreakFailure; pendingBreakFailure = null;
+            stop(); throw failure;
         }
-        if (path == null) {
-            long searchStarted = System.nanoTime();
-            NavStatus status = planner.advance(config.pathNodesPerTick, config.pathMillisPerTick * 1_000_000L);
-            searchNanos += Math.max(0L, System.nanoTime() - searchStarted);
-            searchTicks++;
-            if (status == NavStatus.IN_PROGRESS && searchTicks >= nextPartialCheckTick
-                    && (searchTicks >= 20 || searchNanos >= 50_000_000L)) {
-                nextPartialCheckTick = searchTicks + 10;
-                status = planner.finishPartial(2);
-                budgetedSegment = status == NavStatus.PARTIAL_LIMIT;
-            }
-            if (status == NavStatus.IN_PROGRESS) return false;
-            if (status == NavStatus.STALE) { retry("Terrain changed during search"); return false; }
-            if (status != NavStatus.FOUND && status != NavStatus.PARTIAL_LIMIT) throw new NavigationFailure("Navigation: " + status + " to " + goal.x + "," + goal.y + "," + goal.z + " after " + planner.getExpandedNodes() + " expansions");
-            path = planner.getPath();
-            validatedPathIndex = -1;
-            validatedRevision = path == null ? Long.MIN_VALUE : path.terrainRevision;
-            if (path == null || path.length() < 2) {
-                if (goalMatchesPlayer()) return finishArrival();
-                throw new NavigationFailure(budgetedSegment
-                        ? "Route search budget reached without a safe forward segment after " + planner.getExpandedNodes() + " expansions"
-                        : "No useful route in loaded terrain");
+        if (mode == Mode.MINE) {
+            double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
+            double dx = client.player.getX() - requestX, dz = client.player.getZ() - requestZ;
+            if (dx * dx + dz * dz > limit * limit
+                    || requestTicks > Math.max(config.actionTimeoutTicks, config.explorationAttempts * 200)) {
+                stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                        "Mining reached its configured exploration distance or request-time limit");
             }
         }
-        if (pathIndex == path.length()) {
-            if (goalMatchesPlayer()) { input.idle(); return finishArrival(); }
-            if (budgetedSegment) { prepareRoute(); return false; }
-            retry("Route segment ended before goal"); return false;
+        observeConfirmedProgress();
+        if (requestTicks % 4 == 0) samplePath();
+        actions.prepareScaffoldHotbar(scaffoldItems);
+        if (mode == Mode.MINE && tool != null && !actions.hasTool(tool)) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Mining tool reached its safe wear reserve: " + tool.item());
         }
-        walkEdge:
-        for (int edgePass = 0; edgePass < 2; edgePass++) {
-            Path.Step next = path.step(pathIndex);
-            if (actionIndex < next.actionCount()) {
-                Action action = next.action(actionIndex);
-                BlockPos position = new BlockPos(action.x, action.y, action.z);
-                var state = client.world.getBlockState(position);
-                Path.Step source = path.step(pathIndex - 1);
-                if (action.type == Action.Type.PLACE_BLOCK && (!client.player.isOnGround()
-                        || GameTerrain.quantizedFeetY16(client.player.getY()) != source.feetY16)) {
-                    retry("Bridge placement requires its grounded source height"); return false;
-                }
-                if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
-                        client.player.getX(), client.player.getY(), client.player.getZ(), sourceProbe, emptyProbe)) {
-                    retry("Current stance became unsafe before world action"); return false;
-                }
-                if (action.type == Action.Type.BREAK_BLOCK) {
-                    if (state.isAir() || state.getCollisionShape(client.world, position).isEmpty()) {
-                        observeConfirmedProgress();
-                        if (position.equals(pendingBreakPosition)) clearPendingWorldAction();
-                        actionIndex++; actions.cancel(); return false;
-                    }
-                    if (!config.allowBreaking) throw new IllegalStateException("Route requires mining, but allowBreaking=false");
-                    if (Block.getRawIdFromState(state) != action.token) { retry("Mining obstruction changed"); return false; }
-                    if (!PathEdgeValidator.isBreakActionSafe(terrain, source, next, action, probe)) {
-                        retry("Mining obstruction is no longer safe or reachable"); return false;
-                    }
-                    if (!actions.mine(position)) { retry("Obstruction cannot be mined from this stance"); return false; }
-                    pendingBreakPosition = position.toImmutable();
-                    pendingBreakStateId = action.token;
-                } else {
-                    Item item = Registries.ITEM.get(action.token);
-                    Block block = Block.getBlockFromItem(item);
-                    if (state.isOf(block)) {
-                        observeConfirmedProgress();
-                        actionIndex++; return false;
-                    }
-                    if (!config.allowBuilding) throw new IllegalStateException("Route requires placement, but allowBuilding=false");
-                    if (actions.count(item) <= 0) { retry("Reserved bridge block is no longer available"); return false; }
-                    if (!state.isReplaceable()) { retry("Bridge target is no longer replaceable"); return false; }
-                    if (!PathEdgeValidator.isBridgeActionSafe(terrain, source, next, action, sourceProbe, probe)) {
-                        retry("Bridge placement is no longer safe or supported"); return false;
-                    }
-                    input.drive(0, 0, false, true);
-                    if (!actions.place(position, block)) {
-                        // A side face below the player cannot be seen from the center of its support.
-                        // Sneak to the safe lip before placing; vanilla sneak clamps movement at the edge.
-                        Path.Step previous = path.step(pathIndex - 1);
-                        Vec3d edge = new Vec3d(previous.x + .5 + (next.x - previous.x) * .7, previous.y, previous.z + .5 + (next.z - previous.z) * .7);
-                        Vec3d delta = edge.subtract(ClientAccess.position(client.player));
-                        if (Math.hypot(delta.x, delta.z) > .08) {
-                            if (!PathEdgeValidator.isSweepClear(terrain,
-                                    client.player.getX(), client.player.getY(), client.player.getZ(),
-                                    edge.x, edge.y, edge.z, emptyProbe)) {
-                                retry("Bridge approach became unsafe"); return false;
-                            }
-                            client.player.setSprinting(false);
-                            client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
-                            input.drive(.4f, 0, false, true);
-                        }
-                        if (++ticksWithoutProgress > 100) retry("Bridge face is unreachable or placement denied");
-                        return false;
-                    }
-                    pendingPlacementPosition = position.toImmutable();
-                    pendingPlacementBlock = block;
-                }
-                if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
-                return false;
-            }
-            if (validatedPathIndex != pathIndex && requiresCenteredLaunch(next.movement)
-                    && !prepareCenteredLaunch(path.step(pathIndex - 1), next)) return false;
-            if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
-                retry("Parkour was disabled while following the route"); return false;
-            }
-            if (next.movement == Path.Movement.WALK && validatedPathIndex == pathIndex
-                    && client.player.isOnGround()
-                    && !PathEdgeValidator.isCurrentMotionSafe(terrain, next.movement,
-                        client.player.getX(), client.player.getY(), client.player.getZ(),
-                        true, sourceProbe, emptyProbe)
-                    && PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
-                        edgeStartX, edgeStartY, edgeStartZ,
-                        client.player.getX(), client.player.getY(), client.player.getZ())
-                    && PathEdgeValidator.isSafeWalkSettlement(terrain,
-                        client.player.getX(), client.player.getY(), client.player.getZ(), probe, emptyProbe)) {
-                input.idle(); client.player.setSprinting(false);
-                if (++settlingTicks > 4) retry("Player did not settle onto the safe walk surface");
-                return false;
-            }
-            settlingTicks = 0;
-            long currentRevision = terrain.revision();
-            boolean newEdge = validatedPathIndex != pathIndex;
-            Path.Step source = path.step(pathIndex - 1);
-            if (!newEdge && next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH
-                    && hasDepartedDropLaunch(source, next,
-                    edgeStartX, edgeStartZ,
-                    client.player.getX(), client.player.getY(), client.player.getZ())) {
-                dropPhase = DropPhase.FALLING;
-            }
-            if (newEdge || currentRevision != validatedRevision) {
-                double feetX = client.player.getX();
-                double feetY = client.player.getY();
-                double feetZ = client.player.getZ();
-                boolean validateCurrentStance = next.movement == Path.Movement.DROP
-                        ? dropPhase == DropPhase.LAUNCH : client.player.isOnGround();
-                boolean safe = newEdge
-                        ? PathEdgeValidator.isSafeEdge(terrain, source, next, feetX, feetY, feetZ,
-                        true, true, config.allowParkour, sourceProbe, probe)
-                        : PathEdgeValidator.isSafeContinuation(terrain, source, next,
-                        edgeStartX, edgeStartY, edgeStartZ, feetX, feetY, feetZ,
-                        validateCurrentStance, config.allowParkour, sourceProbe, probe);
-                if (!safe) {
-                    retry("Route edge became unsafe"); return false;
-                }
-                if (newEdge) {
-                    edgeStartX = feetX; edgeStartY = feetY; edgeStartZ = feetZ;
-                    dropPhase = next.movement == Path.Movement.DROP ? DropPhase.LAUNCH : DropPhase.NONE;
-                }
-                validatedPathIndex = pathIndex;
-                // A lift-only continuation does not prove the horizontal remainder. Keep it
-                // uncached until feet clear the ledge, forcing that proof before forward input.
-                validatedRevision = next.movement == Path.Movement.JUMP && feetY < next.feetY()
-                        ? Long.MIN_VALUE : terrain.revision();
-            }
-            Vec3d destination = new Vec3d(next.x + .5, next.feetY(), next.z + .5);
-            Vec3d delta = destination.subtract(ClientAccess.position(client.player));
-            double horizontal = Math.hypot(delta.x, delta.z);
-            double currentFeetX = client.player.getX();
-            double currentFeetY = client.player.getY();
-            double currentFeetZ = client.player.getZ();
-            if (!PathEdgeValidator.isWithinEdgeCorridor(path.step(pathIndex - 1), next,
-                    edgeStartX, edgeStartY, edgeStartZ, currentFeetX, currentFeetY, currentFeetZ)) {
-                retry("Player left the safe route corridor"); return false;
-            }
-            Path.Movement pointMovement = next.movement == Path.Movement.JUMP
-                    && currentFeetY >= next.feetY() ? Path.Movement.WALK : next.movement;
-            if (!PathEdgeValidator.isCurrentMotionSafe(terrain, pointMovement,
-                    currentFeetX, currentFeetY, currentFeetZ,
-                    client.player.isOnGround(), next.movement == Path.Movement.DROP && dropPhase == DropPhase.LAUNCH,
-                    sourceProbe, emptyProbe)) {
-                retry("Current player volume or support became unsafe"); return false;
-            }
-            int currentFeetY16 = GameTerrain.quantizedFeetY16(currentFeetY);
-            boolean mediumArrival = (next.movement == Path.Movement.SWIM || next.movement == Path.Movement.CLIMB)
-                    && Math.abs(delta.y) < .35 && currentMediumSafe(next.movement);
-            boolean centeredLaunchRequired = pathIndex + 1 < path.length()
-                    && requiresCenteredLaunch(path.step(pathIndex + 1).movement);
-            boolean launchApproach = next.movement == Path.Movement.WALK && centeredLaunchRequired;
-            Vec3d arrivalMotion = client.player.getVelocity();
-            double arrivalRadius = centeredLaunchRequired ? LaunchApproach.ARRIVAL_RADIUS : .22;
-            if (horizontal < arrivalRadius
-                    && (!launchApproach || LaunchApproach.isSettled(horizontal, arrivalMotion.x, arrivalMotion.z))
-                    && (currentFeetY16 == next.feetY16 || mediumArrival)
-                    && (client.player.isOnGround() || probe.water || probe.climbable)
-                    && (next.movement != Path.Movement.DROP || sourceProbe.fullSupport)) {
-                boolean walkThrough = path.isStraightLevelWalkThrough(pathIndex)
-                        && client.player.isOnGround() && currentFeetY16 == next.feetY16
-                        && !sourceProbe.water && !sourceProbe.climbable;
-                client.player.setSprinting(false);
-                if (launchApproach && config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                        "[Lodekeeper] Settled launch approach at " + currentFeetX + "," + currentFeetY + "," + currentFeetZ
-                                + " horizontal=" + horizontal + " speed=" + Math.hypot(arrivalMotion.x, arrivalMotion.z));
-                pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
-                dropPhase = DropPhase.NONE; recordProgress();
-                if (walkThrough && edgePass == 0) continue walkEdge;
-                return false;
-            }
-            double distance = delta.lengthSquared();
-            if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
-            else if (++ticksWithoutProgress > 80) { retry("Movement stalled"); return false; }
-            if (launchApproach && client.player.isOnGround() && currentFeetY16 == next.feetY16) {
-                driveLaunchApproach(source, next, edgeStartX, edgeStartY, edgeStartZ,
-                        next.x + .5, next.z + .5, false);
-                return false;
-            }
-            client.player.setYaw((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
-            client.player.setPitch(0);
-            if (next.movement == Path.Movement.JUMP) {
-                if (jumpEdgeIndex != pathIndex) { jumpEdgeIndex = pathIndex; jumpWasAirborne = false; }
-                if (!client.player.isOnGround()) jumpWasAirborne = true;
-                if (jumpWasAirborne && client.player.isOnGround() && currentFeetY < next.feetY()) {
-                    retry("Jump landed before clearing the ledge"); return false;
-                }
-            }
-            boolean jump = next.movement == Path.Movement.JUMP && !jumpWasAirborne || next.movement == Path.Movement.PARKOUR || next.movement == Path.Movement.CLIMB || next.movement == Path.Movement.SWIM && delta.y > 0;
-            boolean sneak = next.movement == Path.Movement.BRIDGE;
-            boolean risingBeforeLedge = next.movement == Path.Movement.JUMP
-                    && currentFeetY < next.feetY();
-            float forwardInput = next.movement == Path.Movement.DROP
-                    ? dropForwardInput(next, currentFeetX, currentFeetY, currentFeetZ)
-                    : !risingBeforeLedge && horizontal > (centeredLaunchRequired ? .08 : .12) ? 1 : 0;
-            input.drive(forwardInput, 0, jump, sneak);
-            client.player.setSprinting(next.movement == Path.Movement.PARKOUR);
-            return false;
-        }
-        return false;
-    }
-
-    private static boolean requiresCenteredLaunch(Path.Movement movement) {
-        return switch (movement) {
-            case JUMP, DROP, PARKOUR, BRIDGE -> true;
+        boolean satisfied = mode == Mode.MOVE
+                ? routeGoal.isInGoal(client.player.getBlockPos())
+                : actions.count(output) >= targetCount;
+        if (satisfied) { stop(); return finishCancellation(); }
+        boolean active = switch (mode) {
+            case MOVE -> bot.getCustomGoalProcess().isActive();
+            case MINE -> bot.getMineProcess().isActive();
+            case PICKUP -> bot.getFollowProcess().isActive();
             default -> false;
         };
+        var pathing = bot.getPathingBehavior();
+        boolean waiting = !pathing.hasPath() && pathing.getInProgress().isEmpty();
+        if (!active && requestTicks > 10 && waiting) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Navigation process ended before its target was reached");
+        }
+        waitingTicks = waiting ? waitingTicks + 1 : 0;
+        if (mode == Mode.MINE && requestTicks >= nextRescanTick && requestTicks - lastBreakTick > 20) {
+            boolean exploring = pathing.getGoal() instanceof baritone.api.pathing.goals.GoalRunAway;
+            if (exploring || waitingTicks >= 20) {
+                int chunkX = (int) Math.floor(client.player.getX()) >> 4;
+                int chunkZ = (int) Math.floor(client.player.getZ()) >> 4;
+                int held = actions.count(output);
+                if (failedCalculations > rescanFailedCalculations && held <= rescanInventoryCount
+                        && chunkX == rescanChunkX && chunkZ == rescanChunkZ) {
+                    stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                            "Mining failed to reach targets in this scan region");
+                }
+                if (++rescanAttempts > Math.max(1, config.explorationAttempts)) {
+                    stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                            "Mining exhausted its configured discovery attempts");
+                }
+                nextRescanTick = requestTicks + 100;
+                rescanFailedCalculations = failedCalculations;
+                rescanInventoryCount = held; rescanChunkX = chunkX; rescanChunkZ = chunkZ;
+                waitingTicks = 0;
+                // No asynchronous scans survive into another request. Retain this request's limits.
+                if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] NAV backend=baritone rescan={} requestTicks={} exploring={}",
+                        rescanAttempts, requestTicks, exploring);
+                suspend();
+                return false;
+            }
+        }
+        return false;
     }
 
-    private boolean prepareCenteredLaunch(Path.Step source, Path.Step destination) {
-        Vec3d motion = client.player.getVelocity();
-        double feetX = client.player.getX(), feetY = client.player.getY(), feetZ = client.player.getZ();
-        double centerX = source.x + .5, centerZ = source.z + .5;
-        double distance = Math.hypot(centerX - feetX, centerZ - feetZ);
-        boolean crouching = client.player.isInSneakingPose();
-        if (!crouching && LaunchApproach.isSettled(distance, motion.x, motion.z)) return true;
-        int feetY16 = GameTerrain.quantizedFeetY16(feetY);
-        if (!client.player.isOnGround() || feetY16 != source.feetY16) {
-            throw new NavigationFailure("Launch centering requires its grounded source height");
-        }
-        if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
-                feetX, feetY, feetZ, sourceProbe, emptyProbe)) {
-            throw new NavigationFailure("Launch centering requires its safe source stance");
-        }
-        if (++ticksWithoutProgress > 80) throw new NavigationFailure("Launch centering stalled");
-        double startX = centerX, startZ = centerZ;
-        // Extend the correction corridor back to a fractional start; retain the source
-        // center when returning from the bridge lip so reverse motion stays inside it.
-        if ((feetX - centerX) * (destination.x - source.x)
-                + (feetZ - centerZ) * (destination.z - source.z) < 0) {
-            startX = feetX; startZ = feetZ;
-        }
-        if (crouching) {
-            client.player.setSprinting(false);
-            if (client.player.isUsingItem() || client.player.getAbilities().flying
-                    || !LaunchApproach.isSafeCoast(terrain, source, destination, startX, source.feetY(), startZ,
-                    feetX, feetY16, feetZ, motion.x, motion.z, true, true,
-                    this::groundFriction, sourceProbe, emptyProbe)) {
-                throw new NavigationFailure("Cannot prove safe grounded coast while clearing launch crouch");
-            }
-            input.idle();
+    /** Native destroy HEAD gate: runs before the selected-slot sync and destroy packet. */
+    boolean prepareAutomatedBreak(BlockPos position) {
+        if (lease == null || bot == null
+                || !bot.getInputOverrideHandler().isInputForcedDown(baritone.api.utils.input.Input.CLICK_LEFT)) return true;
+        if (cancelling || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
+        if (client.world == null || client.player == null) return false;
+        if (config.pauseOnScreen && client.currentScreen != null) return false;
+        var state = client.world.getBlockState(position);
+        if (state.hasBlockEntity() || protectedBlocks.contains(state.getBlock())) {
+            pendingBreakFailure = new NavigationFailure(NavigationFailure.Kind.PROTECTED_BLOCK,
+                    "Navigation refused a protected block at " + position);
             return false;
         }
-        driveLaunchApproach(source, destination, startX, source.feetY(), startZ,
-                centerX, centerZ, true);
-        return false;
-    }
-
-    private void driveLaunchApproach(Path.Step source, Path.Step destination,
-                                     double startX, double startY, double startZ,
-                                     double targetX, double targetZ, boolean requireFullSupport) {
-        client.player.setSprinting(false);
-        Vec3d motion = client.player.getVelocity();
-        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
-        LaunchApproach.Control control = feetY16 == GameTerrain.INVALID_FEET_Y16 ? null
-                : LaunchApproach.control(terrain, source, destination, startX, startY, startZ,
-                client.player.getX(), feetY16, client.player.getZ(), targetX, targetZ,
-                motion.x, motion.z, client.player.isOnGround(), requireFullSupport,
-                launchInputAcceleration(feetY16), this::groundFriction, sourceProbe, emptyProbe);
-        if (control == null) throw new NavigationFailure("Cannot prove safe grounded launch braking or centering");
-        if (control.input() != 0) {
-            client.player.setYaw((float) (Math.toDegrees(Math.atan2(control.directionZ(), control.directionX())) - 90));
-            client.player.setPitch(0);
+        SelectedToolRequirement required = mode == Mode.MINE && Arrays.asList(mineBlocks).contains(state.getBlock()) ? tool : null;
+        if (!actions.prepareMiningTool(required, state)) {
+            pendingBreakFailure = new NavigationFailure(required == null
+                    ? NavigationFailure.Kind.PROCESS_ENDED : NavigationFailure.Kind.TOOL,
+                    "No safe harvest tool for " + state.getBlock() + " at " + position);
+            return false;
         }
-        input.drive(control.input(), 0, false, false);
-    }
-
-    private double launchInputAcceleration(int feetY16) {
-        if (client.player.isUsingItem() || client.player.isInSneakingPose() || client.player.getAbilities().flying) return Double.NaN;
-        float friction = (float) groundFriction(client.player.getX(), feetY16, client.player.getZ());
-        return client.player.getMovementSpeed() * (.21600002f / (friction * friction * friction)) * .98f;
-    }
-
-    private double groundFriction(double x, int feetY16, double z) {
-        BlockPos support = BlockPos.ofFloored(x, feetY16 / 16.0 - .5000001, z);
-        return hasLoadedChunk(support) ? client.world.getBlockState(support).getBlock().getSlipperiness() : Double.NaN;
-    }
-
-    private boolean hasDepartedDropLaunch(Path.Step source, Path.Step destination,
-                                          double edgeStartX, double edgeStartZ,
-                                          double feetX, double feetY, double feetZ) {
-        if (feetY < source.feetY() - 0.05) return true;
-        int feetY16 = GameTerrain.quantizedFeetY16(feetY);
-        if (feetY16 == GameTerrain.INVALID_FEET_Y16
-                || !terrain.probeCurrentStance(feetX, feetY16, feetZ, sourceProbe)
-                || !sourceProbe.loaded || sourceProbe.hazard || !sourceProbe.bodyClear
-                || sourceProbe.breakCount != 0 || sourceProbe.fullSupport) return false;
-        Box standingBox = client.player.getDimensions(EntityPose.STANDING).getBoxAt(0, 0, 0);
-        double halfWidth = (standingBox.maxX - standingBox.minX) * 0.5;
-        double routeX = destination.x + 0.5 - edgeStartX;
-        double routeZ = destination.z + 0.5 - edgeStartZ;
-        double projectedDisplacement = (feetX - edgeStartX) * routeX + (feetZ - edgeStartZ) * routeZ;
-        return projectedDisplacement > 1.0e-4
-                && crossesSourceFootprint(source, destination, feetX, feetZ, halfWidth);
-    }
-
-    private static boolean crossesSourceFootprint(Path.Step source, Path.Step destination,
-                                                  double feetX, double feetZ, double halfWidth) {
-        return (destination.x > source.x && feetX + halfWidth > source.x + 1.0001)
-                || (destination.x < source.x && feetX - halfWidth < source.x - 0.0001)
-                || (destination.z > source.z && feetZ + halfWidth > source.z + 1.0001)
-                || (destination.z < source.z && feetZ - halfWidth < source.z - 0.0001);
-    }
-
-    private float dropForwardInput(Path.Step destination, double feetX, double feetY, double feetZ) {
-        Vec3d motion = client.player.getVelocity();
-        double towardX = destination.x + 0.5 - feetX;
-        double towardZ = destination.z + 0.5 - feetZ;
-        double distance = Math.hypot(towardX, towardZ);
-        if (distance < 1.0e-6) return 0;
-        towardX /= distance;
-        towardZ /= distance;
-        double closingSpeed = motion.x * towardX + motion.z * towardZ;
-        double desiredSpeed = dropPhase == DropPhase.LAUNCH ? 0.16 : Math.min(0.16, distance * 0.55);
-        float input = (float) Math.max(-0.6, Math.min(0.6, (desiredSpeed - closingSpeed) * 8.0));
-        if (input >= 0) return input;
-
-        double reverseDistance = Math.min(0.18, Math.max(0.04, Math.abs(closingSpeed) * 1.5));
-        double reverseX = feetX - towardX * reverseDistance;
-        double reverseZ = feetZ - towardZ * reverseDistance;
-        double reverseY = Math.max(destination.feetY(), feetY + Math.min(0.0, motion.y));
-        Path.Step source = path.step(pathIndex - 1);
-        if (!PathEdgeValidator.isWithinEdgeCorridor(source, destination,
-                    edgeStartX, edgeStartY, edgeStartZ, reverseX, reverseY, reverseZ)
-                || !PathEdgeValidator.isSweepClear(terrain, feetX, feetY, feetZ,
-                    reverseX, reverseY, reverseZ, emptyProbe)) return 0;
-        return input;
-    }
-    private boolean goalMatchesPlayer() {
-        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
-        if (feetY16 != GameTerrain.INVALID_FEET_Y16 && goal.matches16(client.player.getBlockX(), feetY16, client.player.getBlockZ())) return true;
-        return goal.matches(client.player.getBlockX(), client.player.getBlockY(), client.player.getBlockZ()) && currentMediumSafe(Path.Movement.START);
-    }
-    private boolean currentMediumSafe(Path.Movement movement) {
-        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
-        terrain.probeStance16(client.player.getBlockX(), Math.multiplyExact(client.player.getBlockY(), 16), client.player.getBlockZ(), probe);
-        boolean matchingMedium = movement == Path.Movement.SWIM ? probe.water
-                : movement == Path.Movement.CLIMB ? probe.climbable : probe.water || probe.climbable;
-        return probe.loaded && !probe.hazard && probe.bodyClear && probe.breakCount == 0
-                && matchingMedium && terrain.isMotionClear(x, y, z, x, y, z, 0.0, emptyProbe);
-    }
-    private boolean finishArrival() {
-        if (goal.kind != Goal.Kind.ANY || path.length() != 1) return true;
-        BlockPos feet = client.player.getBlockPos();
-        int feetY16 = planStartFeetY16();
-        if (feetY16 == GameTerrain.INVALID_FEET_Y16) throw new NavigationFailure("Player feet left the modeled sixteenth-block stance");
-        double dx = feet.getX() + .5 - client.player.getX();
-        double dz = feet.getZ() + .5 - client.player.getZ();
-        if (Math.hypot(dx, dz) < .12) return true;
-        terrain.probeStance16(feet.getX(), feetY16, feet.getZ(), probe);
-        if (!probe.loaded || probe.hazard || !probe.bodyClear || !(probe.hasGroundSupport() || probe.water || probe.climbable)
-                || !terrain.isMotionClear(client.player.getX(), client.player.getY(), client.player.getZ(),
-                feet.getX() + .5, feetY16 / 16.0, feet.getZ() + .5, 0, probe)) {
-            throw new NavigationFailure("Cannot safely center at the interaction stance");
+        var stack = client.player.getMainHandStack();
+        if (config.debugLogging && (!position.equals(lastLoggedBreakPosition) || stack.getItem() != lastLoggedBreakTool)) {
+            int remaining = stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : -1;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] BREAK target={} block={} tool={} slot={} remaining={} required={}",
+                    position, state.getBlock(), GameCatalog.id(stack.getItem()), ClientAccess.selectedSlot(client.player.getInventory()), remaining,
+                    required == null ? "route" : required.item());
+            lastLoggedBreakPosition = position.toImmutable();
+            lastLoggedBreakTool = stack.getItem();
         }
-        if (++ticksWithoutProgress > 80) throw new NavigationFailure("Interaction stance centering stalled");
-        client.player.setSprinting(false);
-        client.player.setYaw((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90));
-        client.player.setPitch(0);
-        input.drive(.4f, 0, false, false);
-        return false;
+        lastBreakTick = requestTicks;
+        return true;
     }
-    private void retry(String reason) {
-        if (config.debugLogging && (replans == 0 || replans == 8)) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-            "[Lodekeeper] Navigation retry " + (replans + 1) + ": " + reason + " at "
-                + (client.player == null ? "unknown position" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ())
-                + retryStanceDetail());
-        input.idle(); actions.cancel();
-        if (client.player != null) client.player.setSprinting(false);
-        if (++replans > 8) throw new NavigationFailure(reason + " (retry limit reached)");
-        prepareRoute();
-    }
-    private String retryStanceDetail() {
-        if (client.player == null) return "";
-        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
-        if (feetY16 == GameTerrain.INVALID_FEET_Y16) return " unquantized feet";
-        terrain.probeCurrentStance(client.player.getX(), feetY16, client.player.getZ(), sourceProbe);
-        String detail = " onGround=" + client.player.isOnGround()
-                + " live=" + sourceProbe.loaded + "/" + sourceProbe.bodyClear + "/" + sourceProbe.hazard
-                + "/" + sourceProbe.breakCount + "/" + sourceProbe.fullSupport + "/" + sourceProbe.surfaceSupport;
-        if (path != null && pathIndex > 0 && pathIndex < path.length()) {
-            Path.Step source = path.step(pathIndex - 1), next = path.step(pathIndex);
-            detail += " edge=" + source.x + "," + source.feetY() + "," + source.z
-                    + "->" + next.x + "," + next.feetY() + "," + next.z + ":" + next.movement;
-        }
-        return detail;
+
+    void suspend() {
+        if (mode == Mode.IDLE || mode == Mode.SUSPENDED) return;
+        resumeMode = mode; mode = Mode.SUSPENDED;
+        cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
 
     void stop() {
-        explorationRoute = false; settlingTicks = 0; dropPhase = DropPhase.NONE; jumpEdgeIndex = -1; jumpWasAirborne = false;
-        surfaceRecovery.stop();
-        clearPendingWorldAction();
-        if (planner != null) planner.cancel(); planner = null; path = null; goal = null;
-        input.idle(); actions.cancel();
-        if (client.player != null) client.player.setSprinting(false);
+        resumeMode = Mode.IDLE;
+        if (bot != null && (mode != Mode.IDLE || cancelling || lease != null)) {
+            mode = Mode.IDLE; cancelling = true; bot.getPathingBehavior().cancelEverything();
+        }
+        input.release(); observation = NavigationSnapshot.EMPTY;
     }
 
-    NavigationSnapshot visualization(boolean includeNodes) {
-        return planner == null ? NavigationSnapshot.EMPTY
-                : planner.snapshot(pathIndex, searchNanos, searchTicks, replans, includeNodes);
+    boolean finishCancellation() {
+        if (!cancelling) return true;
+        boolean cancelled = bot.getPathingBehavior().cancelEverything();
+        if (client.player != null && client.world != null) {
+            if (!cancelled || bot.getPathingBehavior().hasPath() || bot.getPathingBehavior().isPathing()
+                    || bot.getPathingBehavior().getInProgress().isPresent()) return false;
+            var velocity = client.player.getVelocity();
+            if (!(client.player.isOnGround() || client.player.isTouchingWater() || client.player.isClimbing())
+                    || velocity.x * velocity.x + velocity.z * velocity.z > .0004) return false;
+        }
+        if (lease != null) { lease.restore(); lease = null; }
+        cancelling = false; observation = NavigationSnapshot.EMPTY;
+        return true;
     }
 
-    Goal diagnosticGoal() { return goal; }
-    int diagnosticGoalCandidateCount() { return goal != null && goal.kind == Goal.Kind.ANY ? goalCandidateCount : 0; }
+    long progressToken() { return progressToken; }
+    void recordConfirmedWorldAction() { progressToken++; }
+    void observeConfirmedProgress() {
+        if (client.player == null) return;
+        double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        if (!positionObserved || Math.abs(x - observedX) + Math.abs(y - observedY) + Math.abs(z - observedZ) >= .05) {
+            if (positionObserved) progressToken++;
+            observedX = x; observedY = y; observedZ = z; positionObserved = true;
+        }
+    }
 
-    String status() { return surfaceRecovery.active() ? "recovering from fractional surface"
-            : path == null ? "route search" : "route " + pathIndex + "/" + path.length(); }
+    private void samplePath() {
+        var pathing = bot.getPathingBehavior();
+        IPath upstream = pathing.getCurrent() == null ? null : pathing.getCurrent().getPath();
+        int index = pathing.getCurrent() == null ? 0 : pathing.getCurrent().getPosition();
+        var calculation = pathing.getInProgress();
+        boolean searching = calculation.isPresent();
+        Path path = null;
+        if (upstream != null) {
+            var positions = upstream.positions();
+            int first = Math.max(0, Math.min(index, positions.size() - 1));
+            int size = Math.min(256, positions.size() - first);
+            int[] coordinates = new int[size * 3];
+            for (int i = 0; i < size; i++) {
+                var position = positions.get(first + i);
+                coordinates[i * 3] = position.getX(); coordinates[i * 3 + 1] = position.getY(); coordinates[i * 3 + 2] = position.getZ();
+            }
+            path = Path.observation(coordinates);
+        }
+        observation = new NavigationSnapshot(path, 0, 0, 0, 0, System.nanoTime() - startedNanos,
+                requestTicks, failedCalculations, searching, new long[0], new byte[0], new boolean[0]);
+    }
+
+    NavigationSnapshot visualization(boolean includeNodes) { return observation; }
+    dev.lodekeeper.nav.Goal diagnosticGoal() { return diagnosticGoal; }
+    int diagnosticGoalCandidateCount() { return diagnosticGoal == null ? 0 : 1; }
+    String status() {
+        if (cancelling) return "finishing movement safely";
+        if (mode == Mode.SUSPENDED) return "movement suspended";
+        if (mode == Mode.MINE) return "mining and collecting " + output + " · " + actions.count(output) + "/" + targetCount
+                + (observation.searching() ? " · planning next route" : "");
+        if (mode == Mode.PICKUP) return "collecting dropped " + output;
+        return observation.searching() ? "planning route" : "following route";
+    }
+
+    /** Restore only values this task still owns; leave external setting edits intact. */
+    private static final class SettingsLease {
+        private final Map<Settings.Setting<?>, Object> originals = new IdentityHashMap<>();
+        private final Map<Settings.Setting<?>, Object> assigned = new IdentityHashMap<>();
+        <T> void set(Settings.Setting<T> setting, T value) {
+            originals.putIfAbsent(setting, setting.value); assigned.put(setting, value); setting.value = value;
+        }
+        @SuppressWarnings("unchecked") <T> T original(Settings.Setting<T> setting) {
+            return (T) originals.getOrDefault(setting, setting.value);
+        }
+        void restore() { originals.forEach((setting, value) -> restoreOne(setting, value)); }
+        @SuppressWarnings("unchecked") private <T> void restoreOne(Settings.Setting<T> setting, Object value) {
+            if (Objects.equals(setting.value, assigned.get(setting))) setting.value = (T) value;
+        }
+    }
 }

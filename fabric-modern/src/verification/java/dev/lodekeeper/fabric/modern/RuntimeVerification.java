@@ -64,6 +64,9 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private static final boolean BARITONE_MODE = Boolean.getBoolean("lodekeeper.verify.baritone");
+    private boolean baritoneMiningObserved;
+
     private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
     private static final boolean GEOMETRY_EPOCH_MODE = Boolean.getBoolean("lodekeeper.verify.geometryEpoch");
     private GeometryEpochVerification geometryEpoch;
@@ -226,6 +229,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
+        if (System.getProperty("lodekeeper.verify.naturalGoal") != null) {
+            NaturalWorldVerification.start(Minecraft.getInstance());
+            return;
+        }
         client = Minecraft.getInstance();
         startedAtNanos = System.nanoTime();
         try {
@@ -303,7 +310,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.stop();
                 return;
             }
-            if (MIXED_NAVIGATION_COURSE && !navigationMovementReflectionAvailable()) {
+            if (!BARITONE_MODE && MIXED_NAVIGATION_COURSE && !navigationMovementReflectionAvailable()) {
                 state = State.FAILED;
                 failure = "navigation course cannot inspect active validated route movement (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex)";
                 writeEvidence("failed");
@@ -311,7 +318,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.stop();
                 return;
             }
-            if ((NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE)
+            if (!BARITONE_MODE && (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE)
                     && !navigationMovementReflectionAvailable()) {
                 state = State.FAILED;
                 failure = "wood route verification cannot inspect active route movement (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex)";
@@ -339,6 +346,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         state = State.OPENING_WORLD;
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            if (!BARITONE_MODE || mc.player == null) return;
+            var bot = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
+            if (bot.getMineProcess().isActive()) baritoneMiningObserved = true;
+        });
         ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
         ServerTickEvents.END_SERVER_TICK.register(this::observeServerMenu);
         System.out.println("[Lodekeeper verification] Enabled; isolated run directory=" + client.gameDirectory
@@ -1187,7 +1199,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void registerNearbyWoodMeadowLaunchObserver() {
-        if (!MEADOW_BENCHMARK || nearbyWoodLaunchObserverRegistered) return;
+        if (!MEADOW_BENCHMARK || BARITONE_MODE || nearbyWoodLaunchObserverRegistered) return;
         if (isNearbyWoodMeadowLaunchHandoffSettled(LaunchApproach.ARRIVAL_RADIUS / 2,
                 FORCED_PREPHYSICS_HANDOFF_SPEED, true)) {
             fail("nearbyWood meadow pure handoff probe accepted speed " + FORCED_PREPHYSICS_HANDOFF_SPEED);
@@ -1408,7 +1420,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         if (NEARBY_WOOD_MODE) {
-            if (!GEOMETRY_EPOCH_MODE) {
+            if (!BARITONE_MODE && !GEOMETRY_EPOCH_MODE) {
                 benchmarkNativeRoute();
                 if (state == State.FAILED) return;
             }
@@ -1636,7 +1648,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("stonecutting drain stop was not injected before the first slab output");
             return;
         }
-        if (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) {
+        if (!BARITONE_MODE && (NEARBY_WOOD_MODE || IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE)) {
             if (liveRouteScreenshot == null) {
                 try {
                     Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
@@ -1653,15 +1665,20 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
             }
         }
+        if (BARITONE_MODE && liveRouteScreenshot == null
+                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()) {
+            if (firstRouteTick < 0) firstRouteTick = clientTicks;
+            if (clientTicks - firstRouteTick >= 8) liveRouteScreenshot = capture(activeCase + "-baritone-route");
+        }
         int observed = latestSnapshot.count(activeItem);
-        if (MEADOW_BENCHMARK && state == State.GATHERING_WOOD && observed >= activeCount
+        if (MEADOW_BENCHMARK && !BARITONE_MODE && state == State.GATHERING_WOOD && observed >= activeCount
                 && requireEngine().status().startsWith("idle") && nearbyWoodLaunchJumpHandoffCount == 0) {
             fail("nearbyWood meadow reached its item target without a client-observed WALK-to-JUMP handoff");
             return;
         }
         boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
-            && (!MEADOW_BENCHMARK || (nearbyWoodLaunchJumpHandoffCount > 0
+            && (BARITONE_MODE || !MEADOW_BENCHMARK || (nearbyWoodLaunchJumpHandoffCount > 0
                 && nearbyWoodLaunchUnsettledHandoffCount == 0))
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
@@ -1688,7 +1705,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestSnapshot.count(WOODEN_AXE_ID) >= 2
                     : !serverTableOpened && serverTableOpenings == 0
                         && latestSnapshot.count(WOODEN_AXE_ID) == 0)))
-            && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
+            && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart)
+            && (!BARITONE_MODE || (baritoneMiningObserved
+                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getMineProcess().isActive()
+                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()
+                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getInProgress().isEmpty()));
         if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
                 && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
             fail("far resource goal completed without observed bounded exploration travel"); return;
@@ -2134,6 +2155,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("runId", runId);
             root.addProperty("status", status);
             root.addProperty("minecraftVersion", VerificationApi.minecraftVersion());
+            root.addProperty("navigationBackend", BARITONE_MODE ? "baritone" : "original");
+            root.addProperty("baritoneMiningObserved", baritoneMiningObserved);
             root.addProperty("worldKind", "isolated_superflat_fixture");
             root.addProperty("evidenceAuthority", "integrated_server_inventory_menu_and_hunger");
             root.addProperty("verificationMode", verificationMode());

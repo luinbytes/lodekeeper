@@ -1,0 +1,82 @@
+import groovy.json.JsonSlurper
+
+def baritoneMetadataFile = rootProject.file('third-party/baritone/dependencies.json')
+def baritoneMetadata = new JsonSlurper().parse(baritoneMetadataFile)
+def minecraftVersion = rootProject.minecraft_version.toString()
+def baritoneVersion = baritoneMetadata.minecraft_profiles[minecraftVersion]
+if (baritoneVersion == null) {
+    throw new GradleException("No pinned Baritone Fabric artifact for Minecraft ${minecraftVersion}")
+}
+def baritoneRelease = baritoneMetadata.releases.find { it.version == baritoneVersion }
+if (baritoneRelease == null) {
+    throw new GradleException("No Baritone release metadata for ${baritoneVersion}")
+}
+
+def replacementPath = rootProject.findProperty('baritone_jar')?.toString()
+def baritoneJar = rootProject.file(".cache/baritone/baritone-api-fabric-${baritoneVersion}.jar")
+def replacementJar = replacementPath == null || replacementPath.isBlank()
+    ? null
+    : rootProject.file(replacementPath)
+def fetchBaritoneScript = rootProject.file('scripts/fetch-baritone.py')
+def preparationArguments = [
+    'python3',
+    fetchBaritoneScript.absolutePath,
+    '--minecraft-version',
+    minecraftVersion,
+    '--output',
+    baritoneJar.absolutePath
+]
+if (replacementJar != null) {
+    preparationArguments.addAll(['--replacement-jar', replacementJar.absolutePath])
+}
+
+def preparationOutput = providers.exec {
+    ignoreExitValue true
+    commandLine preparationArguments
+}
+def preparationResult = preparationOutput.result.get()
+if (preparationResult.exitValue != 0) {
+    def error = preparationOutput.standardError.asText.get().trim()
+    throw new GradleException("Baritone artifact preparation failed: ${error}")
+}
+
+repositories {
+    flatDir { dirs baritoneJar.parentFile }
+}
+
+def prepareBaritone = tasks.register('prepareBaritone', Exec) {
+    inputs.file(baritoneMetadataFile)
+    inputs.file(fetchBaritoneScript)
+    inputs.property('minecraftVersion', minecraftVersion)
+    inputs.property('baritoneVersion', baritoneVersion)
+    inputs.property('replacementJar', replacementJar == null ? '' : replacementJar.absolutePath)
+    if (replacementJar != null) {
+        inputs.file(replacementJar)
+    }
+    outputs.file(baritoneJar)
+    commandLine preparationArguments
+}
+
+def baritoneCoordinate = "baritone:baritone-api-fabric:${baritoneVersion}"
+// Unobfuscated Minecraft 26.x uses ordinary dependency configurations in Loom.
+dependencies.add(configurations.findByName('modImplementation') == null ? 'implementation' : 'modImplementation', baritoneCoordinate)
+dependencies.add('include', baritoneCoordinate)
+
+tasks.configureEach {
+    if (name in ['compileJava', 'jar', 'remapDependencies', 'processIncludeJars', 'remapJar']
+        || name.startsWith('run')) {
+        dependsOn prepareBaritone
+    }
+}
+
+tasks.named('jar').configure {
+    from(rootProject.file('third-party/baritone/licenses')) {
+        into 'META-INF/licenses/baritone'
+    }
+    from(rootProject.file('third-party/baritone/NOTICE.md')) {
+        into 'META-INF/licenses/baritone'
+    }
+    from(baritoneMetadataFile) {
+        into 'META-INF/licenses/baritone'
+    }
+}

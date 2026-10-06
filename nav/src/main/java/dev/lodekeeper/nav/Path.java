@@ -63,6 +63,18 @@ public final class Path {
     public Step step(int index) { return steps[index]; }
     public Step[] steps() { return steps.clone(); }
 
+    /** Copies an external route for display. It carries no executable action proofs. */
+    public static Path observation(int[] coordinates) {
+        if (coordinates == null || coordinates.length % 3 != 0 || coordinates.length > 768)
+            throw new IllegalArgumentException("Invalid bounded route observation");
+        Step[] result = new Step[coordinates.length / 3];
+        for (int i = 0; i < result.length; i++) {
+            int x = coordinates[i * 3], y = coordinates[i * 3 + 1], z = coordinates[i * 3 + 2];
+            result[i] = new Step(x, y, z, i == 0 ? Movement.START : Movement.WALK, new Action[0]);
+        }
+        return new Path(result, 0, 0, 0);
+    }
+
     /** Whether the interior waypoint bridges two action-free, exact-level straight WALK edges. */
     public boolean isStraightLevelWalkThrough(int reachedIndex) {
         if (reachedIndex <= 0 || reachedIndex >= steps.length - 1) return false;

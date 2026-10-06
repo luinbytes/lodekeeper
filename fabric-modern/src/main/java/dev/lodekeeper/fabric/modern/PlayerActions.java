@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -26,6 +27,14 @@ import java.util.Map;
 final class PlayerActions {
     private final Minecraft client;
     private net.minecraft.core.BlockPos miningTarget;
+    enum MineFailure {
+        NONE, CONTEXT_UNAVAILABLE, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
+        NO_REACHABLE_OUTLINE_HIT, SAFE_TOOL_UNAVAILABLE, REQUIRED_TOOL_UNAVAILABLE,
+        TOOL_SELECTION_FAILED, UNSAFE_HELD_TOOL, NATIVE_BREAK_REFUSED
+    }
+    private MineFailure mineFailure = MineFailure.NONE;
+    MineFailure mineFailure() { return mineFailure; }
+    private boolean refuseMining(MineFailure reason) { mineFailure = reason; return false; }
 
     PlayerActions(Minecraft client) { this.client = client; }
 
@@ -80,7 +89,7 @@ final class PlayerActions {
     }
 
     boolean bestTool(BlockState state) {
-        if (client.player == null) return false;
+        if (client.player == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
         Inventory inventory = client.player.getInventory();
         int bestSlot = -1, durability = -1;
         float speed = 0;
@@ -92,7 +101,7 @@ final class PlayerActions {
             int remaining = stack.isDamageableItem() ? stack.getMaxDamage() - stack.getDamageValue() : Integer.MAX_VALUE;
             if (candidate > speed || candidate == speed && remaining > durability) { speed = candidate; bestSlot = i; durability = remaining; }
         }
-        if (state.requiresCorrectToolForDrops() && bestSlot < 0) return false;
+        if (state.requiresCorrectToolForDrops() && bestSlot < 0) return refuseMining(MineFailure.SAFE_TOOL_UNAVAILABLE);
         int heldSlot = inventory.getSelectedSlot();
         if (bestSlot >= 0 && bestSlot != heldSlot) {
             ItemStack held = inventory.getItem(heldSlot), chosen = inventory.getItem(bestSlot);
@@ -108,7 +117,9 @@ final class PlayerActions {
                 if (ItemStack.isSameItemSameComponents(heldProperties, chosenProperties)) bestSlot = heldSlot;
             }
         }
-        return bestSlot >= 0 && selectSlot(bestSlot);
+        if (bestSlot < 0) return refuseMining(MineFailure.SAFE_TOOL_UNAVAILABLE);
+        if (!selectSlot(bestSlot)) return refuseMining(MineFailure.TOOL_SELECTION_FAILED);
+        return true;
     }
 
     boolean hasTool(SelectedToolRequirement required) {
@@ -120,6 +131,43 @@ final class PlayerActions {
             if (!stack.isEmpty() && stack.is(item) && hasSafeDurability(stack, required.minimumDurability())) return true;
         }
         return false;
+    }
+
+    void prepareScaffoldHotbar(java.util.List<Item> allowed) {
+        if (allowed.isEmpty() || client.player == null || client.gameMode == null) return;
+        var inventory = client.player.getInventory();
+        for (int slot = 0; slot < 9; slot++) if (allowed.contains(inventory.getItem(slot).getItem())) return;
+        int source = -1;
+        for (int slot = 9; slot < 36; slot++) if (allowed.contains(inventory.getItem(slot).getItem())) { source = slot; break; }
+        if (source < 0) return;
+        if (client.player.containerMenu != client.player.inventoryMenu || !client.player.containerMenu.getCarried().isEmpty()) return;
+        int selected = inventory.getSelectedSlot();
+        int destination = -1;
+        for (int slot = 0; slot < 9; slot++) if (slot != selected && inventory.getItem(slot).isEmpty()) { destination = slot; break; }
+        if (destination < 0) destination = (selected + 1) % 9;
+        var menu = client.player.inventoryMenu;
+        for (int index = 0; index < menu.slots.size(); index++) {
+            var slot = menu.getSlot(index);
+            if (slot.container == inventory && slot.getContainerSlot() == source) {
+                client.gameMode.handleContainerInput(menu.containerId, index, destination, ContainerInput.SWAP, client.player);
+                return;
+            }
+        }
+    }
+
+    boolean prepareMiningTool(SelectedToolRequirement tool, BlockState state) {
+        if (tool == null) return bestTool(state);
+        if (client.player == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
+        int selected = client.player.getInventory().getSelectedSlot();
+        for (int pass = 0; pass < 2; pass++) for (int slot = 0; slot < 36; slot++) {
+            if (pass == 0 ? slot != selected : slot == selected) continue;
+            ItemStack stack = client.player.getInventory().getItem(slot);
+            if (stack.is(GameCatalog.item(tool.item())) && hasSafeDurability(stack, tool.minimumDurability())
+                    && (!state.requiresCorrectToolForDrops() || stack.isCorrectToolForDrops(state))) {
+                return selectSlot(slot) || refuseMining(MineFailure.TOOL_SELECTION_FAILED);
+            }
+        }
+        return refuseMining(MineFailure.REQUIRED_TOOL_UNAVAILABLE);
     }
 
     private static boolean hasSafeDurability(ItemStack stack, int minimumDurability) {
@@ -138,9 +186,32 @@ final class PlayerActions {
     }
 
     BlockHitResult hit(net.minecraft.core.BlockPos position) {
-        if (client.level == null || client.player == null || client.gameMode == null) return null;
-        Vec3 eye = client.player.getEyePosition();
+        if (client.player == null) return null;
+        return hitFrom(client, position, client.player.getEyePosition());
+    }
+
+    static BlockHitResult hitFrom(Minecraft client, net.minecraft.core.BlockPos position, Vec3 eye) {
+        if (client.level == null || client.player == null || client.gameMode == null
+                || !Double.isFinite(eye.x) || !Double.isFinite(eye.y) || !Double.isFinite(eye.z)
+                || position.getY() < client.level.getMinY() || position.getY() >= client.level.getMaxY()) return null;
         double reach = client.player.blockInteractionRange();
+        if (!Double.isFinite(reach) || reach <= 0.0) return null;
+        // Check the closest point before scanning chunks, including faces closer than the center.
+        double dx = Math.max(position.getX() - eye.x, Math.max(0.0, eye.x - (position.getX() + 1.0)));
+        double dy = Math.max(position.getY() - eye.y, Math.max(0.0, eye.y - (position.getY() + 1.0)));
+        double dz = Math.max(position.getZ() - eye.z, Math.max(0.0, eye.z - (position.getZ() + 1.0)));
+        if (dx * dx + dy * dy + dz * dz > reach * reach) return null;
+        int minChunkX = Math.min((int) Math.floor(eye.x) >> 4, position.getX() >> 4);
+        int maxChunkX = Math.max((int) Math.floor(eye.x) >> 4, position.getX() >> 4);
+        int minChunkZ = Math.min((int) Math.floor(eye.z) >> 4, position.getZ() >> 4);
+        int maxChunkZ = Math.max((int) Math.floor(eye.z) >> 4, position.getZ() >> 4);
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                WorldRevision.watch(chunkX, chunkZ);
+                if (client.level.getChunk(chunkX, chunkZ, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) == null) return null;
+            }
+        }
+        // Every target must be visible in the current world. Earlier planned breaks are not air.
         for (Direction face : Direction.values()) {
             Vec3 aim = Vec3.atCenterOf(position).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(0.499));
             if (eye.distanceToSqr(aim) > reach * reach) continue;
@@ -162,10 +233,13 @@ final class PlayerActions {
     boolean mine(net.minecraft.core.BlockPos position) { return mine(position, null); }
 
     boolean mine(net.minecraft.core.BlockPos position, SelectedToolRequirement requiredTool) {
-        if (client.level == null || client.player == null || client.gameMode == null) return false;
-        if (supportsPlayer(position)) return false;
+        mineFailure = MineFailure.NONE;
+        if (client.level == null || client.player == null || client.gameMode == null) return refuseMining(MineFailure.CONTEXT_UNAVAILABLE);
+        if (supportsPlayer(position)) return refuseMining(MineFailure.PLAYER_SUPPORT);
         BlockState state = client.level.getBlockState(position);
-        if (state.isAir() || state.getDestroySpeed(client.level, position) < 0) return false;
+        if (state.isAir() || state.getDestroySpeed(client.level, position) < 0) return refuseMining(MineFailure.UNBREAKABLE_BLOCK);
+        BlockHitResult hit = hit(position);
+        if (hit == null) return refuseMining(MineFailure.NO_REACHABLE_OUTLINE_HIT);
         if (requiredTool == null) {
             if (!bestTool(state)) return false;
         } else {
@@ -180,16 +254,15 @@ final class PlayerActions {
                     break;
                 }
             }
-            if (slot < 0 || !selectSlot(slot)) return false;
+            if (slot < 0) return refuseMining(MineFailure.REQUIRED_TOOL_UNAVAILABLE);
+            if (!selectSlot(slot)) return refuseMining(MineFailure.TOOL_SELECTION_FAILED);
         }
         ItemStack held = client.player.getInventory().getSelectedItem();
         if (!hasSafeDurability(held, requiredTool == null ? 1 : requiredTool.minimumDurability())
-                || state.requiresCorrectToolForDrops() && !held.isCorrectToolForDrops(state)) return false;
-        BlockHitResult hit = hit(position);
-        if (hit == null) return false;
+                || state.requiresCorrectToolForDrops() && !held.isCorrectToolForDrops(state)) return refuseMining(MineFailure.UNSAFE_HELD_TOOL);
         look(hit.getLocation());
         if (!position.equals(miningTarget)) {
-            if (!client.gameMode.startDestroyBlock(position, hit.getDirection())) return false;
+            if (!client.gameMode.startDestroyBlock(position, hit.getDirection())) return refuseMining(MineFailure.NATIVE_BREAK_REFUSED);
             miningTarget = position.immutable();
         } else {
             client.gameMode.continueDestroyBlock(position, hit.getDirection());
@@ -216,30 +289,39 @@ final class PlayerActions {
     }
 
     /** Checks a station placement without changing the selected slot or sending an interaction. */
-    boolean canPlaceAt(net.minecraft.core.BlockPos destination) {
+    boolean safePlacementSupport(net.minecraft.core.BlockPos position) {
+        var state = client.level.getBlockState(position);
+        Block block = state.getBlock();
+        return !state.hasBlockEntity() && Block.isShapeFullBlock(state.getCollisionShape(client.level, position))
+                && block != Blocks.CRAFTING_TABLE && block != Blocks.CARTOGRAPHY_TABLE
+                && block != Blocks.FLETCHING_TABLE && block != Blocks.SMITHING_TABLE
+                && block != Blocks.STONECUTTER && block != Blocks.LOOM
+                && block != Blocks.ENCHANTING_TABLE && block != Blocks.NOTE_BLOCK
+                && block != Blocks.RESPAWN_ANCHOR;
+    }
+
+    private BlockHitResult placementHit(net.minecraft.core.BlockPos destination) {
         if (client.level == null || client.player == null
                 || !client.level.getBlockState(destination).canBeReplaced()
-                || client.player.getBoundingBox().intersects(new AABB(destination))) return false;
-        for (Direction side : Direction.values()) {
-            if (hitFace(destination.relative(side), side.getOpposite()) != null) return true;
-        }
-        return false;
-    }
-
-    boolean place(net.minecraft.core.BlockPos destination, Block block) {
-        if (client.level == null || client.player == null || client.gameMode == null) return false;
-        if (!client.level.getBlockState(destination).canBeReplaced() || !select(block.asItem())) return false;
-        if (client.player.getBoundingBox().intersects(new AABB(destination))) return false;
+                || client.player.getBoundingBox().intersects(new AABB(destination))) return null;
         for (Direction side : Direction.values()) {
             net.minecraft.core.BlockPos support = destination.relative(side);
+            if (!safePlacementSupport(support)) continue;
             BlockHitResult hit = hitFace(support, side.getOpposite());
-            if (hit == null) continue;
-            look(hit.getLocation());
-            return client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit).consumesAction();
+            if (hit != null) return hit;
         }
-        return false;
+        return null;
     }
 
+    boolean canPlaceAt(net.minecraft.core.BlockPos destination) { return placementHit(destination) != null; }
+
+    boolean place(net.minecraft.core.BlockPos destination, Block block) {
+        if (client.gameMode == null) return false;
+        BlockHitResult hit = placementHit(destination);
+        if (hit == null || !select(block.asItem())) return false;
+        look(hit.getLocation());
+        return client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit).consumesAction();
+    }
     void cancel() {
         if (miningTarget != null && client.gameMode != null) client.gameMode.stopDestroyBlock();
         miningTarget = null;

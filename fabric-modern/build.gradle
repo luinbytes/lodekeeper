@@ -85,3 +85,5 @@ loom {
         }
     }
 }
+
+apply from: rootProject.file('gradle/baritone.gradle')

@@ -592,7 +592,13 @@ final class AcquisitionPlannerTest {
     @Test
     void projectCatalogIsStableAndProvidersCannotSilentlyOverride() {
         ProjectCatalog catalog = ProjectCatalog.standard();
-        assertEquals(List.of("expedition", "farming_supplies", "gear_iron", "gear_stone", "mining_trip", "shelter_supplies"), catalog.names());
+        assertEquals(List.of("expedition", "farming_supplies", "gear_diamond", "gear_iron", "gear_stone", "mining_trip", "shelter_supplies"), catalog.names());
+        assertEquals(Map.of(
+                ItemId.parse("minecraft:diamond_pickaxe"), 1, ItemId.parse("minecraft:diamond_axe"), 1,
+                ItemId.parse("minecraft:diamond_shovel"), 1, ItemId.parse("minecraft:diamond_hoe"), 1,
+                ItemId.parse("minecraft:diamond_sword"), 1, ItemId.parse("minecraft:diamond_helmet"), 1,
+                ItemId.parse("minecraft:diamond_chestplate"), 1, ItemId.parse("minecraft:diamond_leggings"), 1,
+                ItemId.parse("minecraft:diamond_boots"), 1), catalog.require("gear_diamond").goals());
         ProjectSpec shelter = catalog.require("SHELTER_SUPPLIES");
         assertEquals(ProjectSpec.Purpose.SUPPLIES_ONLY, shelter.purpose());
         assertTrue(shelter.description().contains("does not build or place"));

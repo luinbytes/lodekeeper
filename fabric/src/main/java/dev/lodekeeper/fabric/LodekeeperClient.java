@@ -41,6 +41,10 @@ public final class LodekeeperClient implements ClientModInitializer {
     private long eventWindowStartNanos;
     private final ArrayDeque<String> pendingRouteEvents = new ArrayDeque<>(16);
     private int droppedRouteEvents;
+    public static boolean prepareAutomatedBreak(BlockPos position) {
+        return engine == null || engine.prepareAutomatedBreak(position);
+    }
+
     @Override public void onInitializeClient() {
         MinecraftClient client = MinecraftClient.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());
@@ -89,10 +93,9 @@ public final class LodekeeperClient implements ClientModInitializer {
         if (panelTicks++ % 4 != 0 && panelLines.length != 0) return;
         var route = engine.diagnosticNavigation();
         String metrics = route.searching()
-                ? "Searching · " + route.expanded() + " checked · " + route.open() + " open"
+                ? route.path() == null ? "Planning route" : "Moving · planning next route"
                 : route.path() == null ? "K to stop · " + engine.config.prefix.trim() + " status for details"
-                : "Route " + route.nextStep() + "/" + Math.max(1, route.path().length() - 1)
-                    + " · " + route.searchNanos() / 1_000_000L + " ms search";
+                : "Route · " + Math.max(0, route.path().length() - 1) + " waypoints ahead";
         if (route.retries() > 0) metrics += " · retry " + route.retries();
         String elapsed = clockTask == null ? "0:00:00" : elapsedLabel(System.nanoTime() - taskStartedNanos);
         panelLines = new String[]{"LODEKEEPER · " + (engine.visualizationPaused() ? "PAUSED" : "WORKING") + " · " + elapsed,
@@ -202,9 +205,8 @@ public final class LodekeeperClient implements ClientModInitializer {
     private void logProgress(NavigationSnapshot route, String detail, long now) {
         String phase = phase(engine.visualizationPaused(), route, detail);
         logInfo("PROGRESS elapsed_ms=" + elapsedMillis(now) + " phase=" + phase
-                + " target=" + currentTargetInfo + " search_cpu_ms=" + route.searchNanos() / 1_000_000L
-                + " search_ticks=" + route.searchTicks() + " expanded=" + route.expanded()
-                + " discovered=" + route.discovered() + " open=" + route.open()
+                + " backend=baritone target=" + currentTargetInfo + " navigation_elapsed_ms=" + route.searchNanos() / 1_000_000L
+                + " navigation_ticks=" + route.searchTicks() + " searching=" + route.searching()
                 + " path_index=" + route.nextStep() + " path_length=" + (route.path() == null ? 0 : route.path().length())
                 + " retries=" + route.retries() + " pending_route_events=" + pendingRouteEvents.size()
                 + " dropped_route_events=" + droppedRouteEvents + " status=" + safeField(detail, 120));

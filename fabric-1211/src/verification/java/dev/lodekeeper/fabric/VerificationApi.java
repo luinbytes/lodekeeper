@@ -88,6 +88,12 @@ final class VerificationApi {
             (Screen) null);
     }
 
+    static void startNormalWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo, GeneratorOptions options) {
+        loader.createAndStart(saveName, levelInfo, options,
+            registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.DEFAULT).createDimensionsRegistryHolder(),
+            (Screen) null);
+    }
+
     private static final class RubyOreBlock extends Block {
         private RubyOreBlock(Identifier lootTableId) {
             super(AbstractBlock.Settings.create().strength(3.0f, 3.0f).requiresTool());

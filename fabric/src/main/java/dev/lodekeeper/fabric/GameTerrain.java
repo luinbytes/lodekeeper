@@ -12,6 +12,7 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.function.BooleanBiFunction;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
@@ -991,17 +992,40 @@ final class GameTerrain implements Terrain {
         return false;
     }
 
+    enum BreakFailure {
+        NONE, INVALID_TARGET, CONTEXT_UNAVAILABLE, UNLOADED_TARGET, STATE_CHANGED,
+        UNMINEABLE_TARGET, PLAYER_SUPPORT, NO_REACHABLE_OUTLINE_HIT
+    }
+    private BreakFailure breakFailure = BreakFailure.NONE;
+    BreakFailure breakFailure() { return breakFailure; }
+    private boolean refuseBreak(BreakFailure reason) { breakFailure = reason; return false; }
+
     @Override public boolean canBreakFrom(int x, int y, int z, StanceProbe destination, int index) {
         syncReadCacheEpoch();
-        if (dynamicShapeWatchSaturated || index < 0 || index >= destination.breakCount
-                || index >= StanceProbe.MAX_BREAK_TARGETS) return false;
+        breakFailure = BreakFailure.NONE;
+        if (destination == null || destination.breakCount < 1
+                || destination.breakCount > StanceProbe.MAX_BREAK_TARGETS
+                || index < 0 || index >= destination.breakCount) return refuseBreak(BreakFailure.INVALID_TARGET);
+        if (dynamicShapeWatchSaturated || !standingDimensionsValid || client.world == null
+                || client.player == null || client.interactionManager == null) return refuseBreak(BreakFailure.CONTEXT_UNAVAILABLE);
         var target = destination.breakTargets[index];
-        double feetY = y;
-        double eyeY = feetY + standingHeight * 0.9;
-        double distance = square(target.x + 0.5 - (x + 0.5))
-                + square(target.y + 0.5 - eyeY)
-                + square(target.z + 0.5 - (z + 0.5));
-        return distance <= 16.0;
+        if (!loaded(target.x, target.y, target.z)) return refuseBreak(BreakFailure.UNLOADED_TARGET);
+        BlockState state = blockState(target.x, target.y, target.z);
+        if (Block.getRawIdFromState(state) != target.stateToken) return refuseBreak(BreakFailure.STATE_CHANGED);
+        if (!config.allowBreaking || !canMine(state, target.x, target.y, target.z))
+            return refuseBreak(BreakFailure.UNMINEABLE_TARGET);
+        double halfWidth = standingWidth * 0.5;
+        if (target.y < y && target.y + 1 >= y - .05
+                && target.x < x + .5 + halfWidth && target.x + 1 > x + .5 - halfWidth
+                && target.z < z + .5 + halfWidth && target.z + 1 > z + .5 - halfWidth)
+            return refuseBreak(BreakFailure.PLAYER_SUPPORT);
+        double eyeHeight = client.player.getStandingEyeHeight();
+        if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0 || eyeHeight > standingHeight)
+            return refuseBreak(BreakFailure.CONTEXT_UNAVAILABLE);
+        Vec3d eye = new Vec3d(x + .5, y + eyeHeight, z + .5);
+        if (PlayerActions.hitFrom(client, new BlockPos(target.x, target.y, target.z), eye) == null)
+            return refuseBreak(BreakFailure.NO_REACHABLE_OUTLINE_HIT);
+        return true;
     }
 
     @Override public boolean canPlaceBridgeFrom(int x, int y, int z, int bx, int by, int bz,

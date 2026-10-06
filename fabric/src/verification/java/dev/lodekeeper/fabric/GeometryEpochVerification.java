@@ -11,6 +11,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -41,6 +42,15 @@ final class GeometryEpochVerification {
     private boolean failed;
 
     static void prepareServerFixture(ServerWorld world) {
+        for (int x = -6; x <= 0; x++) for (int z = 10; z <= 15; z++) {
+            world.setBlockState(new BlockPos(x, 63, z), Blocks.STONE.getDefaultState(), 3);
+            for (int y = 64; y <= 69; y++) world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState(), 3);
+        }
+        for (int z : new int[] {12, 14}) {
+            world.setBlockState(new BlockPos(-3, 64, z), Blocks.DIRT.getDefaultState(), 3);
+            world.setBlockState(new BlockPos(-3, 65, z), Blocks.DIRT.getDefaultState(), 3);
+        }
+        world.setBlockState(new BlockPos(-4, 65, 14), Blocks.STONE.getDefaultState(), 3);
         VerificationContentInitializer.geometryBlockFull = true;
         Block block = Registries.BLOCK.get(GameApi.identifier(VerificationContentInitializer.DYNAMIC_COLLISION_ID));
         if (block == Blocks.AIR) throw new IllegalStateException("registered dynamic collision block is unavailable");
@@ -137,6 +147,7 @@ final class GeometryEpochVerification {
             }
             if (phase == Phase.CONTEXT_CHECKS) {
                 runContextChecks(client, config);
+                runBreakVisibilityChecks(client);
                 runWatchCapacityCheck(client, config);
                 phase = Phase.DONE;
                 evidence.addProperty("status", "passed");
@@ -329,6 +340,71 @@ final class GeometryEpochVerification {
             scale.setBase(scale.originalBase);
             terrain.revision();
         }
+    }
+
+    private void runBreakVisibilityChecks(MinecraftClient client) {
+        GameTerrain terrain = new GameTerrain(client, new LodekeeperConfig());
+        terrain.beginSearch();
+        StanceProbe visiblePair = probe(terrain, -3, 64, 12);
+        require(visiblePair.loaded && !visiblePair.hazard && visiblePair.breakCount == 2,
+            "visible two-block break fixture was not exact and safe");
+        boolean bothVisible = terrain.canBreakFrom(-4, 64, 12, visiblePair, 0)
+            && terrain.canBreakFrom(-4, 64, 12, visiblePair, 1);
+        evidence.addProperty("independentlyVisibleTwoBreakTargetsAccepted", bothVisible);
+        require(bothVisible, "independently visible foot and head targets were rejected");
+
+        StanceProbe dropPair = probe(terrain, -3, 64, 14);
+        require(dropPair.loaded && !dropPair.hazard && dropPair.breakCount == 2,
+            "occluded drop break fixture was not exact and safe");
+        int lowerIndex = dropPair.breakTargets[0].y == 64 ? 0 : 1;
+        var lower = dropPair.breakTargets[lowerIndex];
+        double centerDistance = 1.0 + Math.pow(lower.y + .5 - (66 + client.player.getStandingEyeHeight()), 2.0);
+        require(centerDistance < 16.0, "occluded drop fixture did not reproduce the old reach-only acceptance");
+        boolean occludedAccepted = terrain.canBreakFrom(-4, 66, 14, dropPair, lowerIndex);
+        evidence.addProperty("occludedDropBreakAccepted", occludedAccepted);
+        evidence.addProperty("occludedDropBreakReason", terrain.breakFailure().name());
+        require(!occludedAccepted && terrain.breakFailure() == GameTerrain.BreakFailure.NO_REACHABLE_OUTLINE_HIT,
+            "eye-occluded drop target was accepted despite its current outline blocker");
+
+        double reach = GameApi.blockReach(client);
+        int distantSourceX = -3 - (int) Math.ceil(reach) - 2;
+        boolean unreachableAccepted = terrain.canBreakFrom(distantSourceX, 64, 12, visiblePair, 0);
+        evidence.addProperty("beyondNativeReachBreakAccepted", unreachableAccepted);
+        require(!unreachableAccepted && terrain.breakFailure() == GameTerrain.BreakFailure.NO_REACHABLE_OUTLINE_HIT,
+            "target beyond native block reach was accepted");
+
+        var player = client.player;
+        var inventory = player.getInventory();
+        int savedSlot = ClientAccess.selectedSlot(inventory);
+        ItemStack savedHeld = inventory.getStack(0).copy(), savedShovel = inventory.getStack(9).copy();
+        ItemStack held = new ItemStack(Items.STICK), shovel = new ItemStack(Items.IRON_SHOVEL);
+        double savedX = player.getX(), savedY = player.getY(), savedZ = player.getZ();
+        PlayerActions actions = new PlayerActions(client);
+        try {
+            ClientAccess.selectedSlot(inventory, 0);
+            inventory.setStack(0, held.copy());
+            inventory.setStack(9, shovel.copy());
+            player.setPosition(-3.5, 66.0, 14.5);
+            BlockPos target = new BlockPos(lower.x, lower.y, lower.z);
+            require(actions.hit(target) == null, "live eye did not reproduce the occluded fixture");
+            boolean mined = actions.mine(target);
+            boolean inventoryPreserved = ClientAccess.selectedSlot(inventory) == 0
+                && ItemStack.areEqual(inventory.getStack(0), held)
+                && ItemStack.areEqual(inventory.getStack(9), shovel);
+            evidence.addProperty("occludedMineRefused", !mined);
+            evidence.addProperty("occludedMineReason", actions.mineFailure().name());
+            evidence.addProperty("occludedMinePreservedSelectedSlotAndInventory", inventoryPreserved);
+            require(!mined && actions.mineFailure() == PlayerActions.MineFailure.NO_REACHABLE_OUTLINE_HIT
+                    && inventoryPreserved,
+                "occluded mine selected or swapped a tool before refusing the native outline hit");
+        } finally {
+            actions.cancel();
+            player.setPosition(savedX, savedY, savedZ);
+            inventory.setStack(0, savedHeld);
+            inventory.setStack(9, savedShovel);
+            ClientAccess.selectedSlot(inventory, savedSlot);
+        }
+        evidence.addProperty("breakVisibilityCheckStatus", "passed");
     }
 
     private void runWatchCapacityCheck(MinecraftClient client, LodekeeperConfig config) {

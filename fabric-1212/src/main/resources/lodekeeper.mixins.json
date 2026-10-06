@@ -7,7 +7,8 @@
     "AutomationUseMixin",
     "RecipeBookSyncMixin",
     "ContainerInputReceiptMixin",
-    "OwnedClickPacketMixin"
+    "OwnedClickPacketMixin",
+    "NavigationMiningMixin"
   ],
   "injectors": {
     "defaultRequire": 1

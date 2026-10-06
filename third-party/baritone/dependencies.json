@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/cabaletta/baritone",
+    "source_license": "LGPL-3.0-or-later",
+    "artifact_filename": "baritone-api-fabric-{version}.jar",
+    "release_url_template": "https://github.com/cabaletta/baritone/releases/download/v{version}/baritone-api-fabric-{version}.jar"
+  },
+  "releases": [
+    {
+      "version": "1.10.5",
+      "sha256": "2ec4cb8f94d0655864090d38b7009aa014c294aa3c09e20069842be0054acc07",
+      "source_commit": "8c55ad0721d42a01a359834edc16aaa9b5bc587d",
+      "minecraft_versions": ["1.20", "1.20.1"],
+      "minecraft_dependency": ">=1.20 <=1.20.1",
+      "java_version": 17,
+      "class_major": 61,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.10.6",
+      "sha256": "728b1868cbd68a0ca9ff537cac6551e2eb1b5b7964957b2862af7ee6d1274df0",
+      "source_commit": "aa539ef96cb116abf3e8ae5016ae313cda2c5619",
+      "minecraft_versions": ["1.20.2"],
+      "minecraft_dependency": "1.20.2",
+      "java_version": 17,
+      "class_major": 61,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.10.7",
+      "sha256": "8844b852b71688431d38bfa95530c888f59b68ce7eb1ed7e3e0a05bc158b7c13",
+      "source_commit": "e8379d711f4b397f4c6e682df2a513c3cc76338c",
+      "minecraft_versions": ["1.20.3", "1.20.4"],
+      "minecraft_dependency": ["1.20.3", "1.20.4"],
+      "java_version": 17,
+      "class_major": 61,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.10.8",
+      "sha256": "edbea33d781e93da14bb75073622dfeb1653cdf3ccdcbc7fddfe8c7d0d3ddc02",
+      "source_commit": "a9106b36fc8246aa955e73229ac3569db032a1c7",
+      "minecraft_versions": ["1.20.5", "1.20.6"],
+      "minecraft_dependency": ["1.20.5", "1.20.6"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.11.3",
+      "sha256": "f9a9b17a41d7d7ad22c759058b14fd01e3319663282e66f99e18153237fa6767",
+      "source_commit": "10e65932e597ee5f11a654030f17798646f563f2",
+      "minecraft_versions": ["1.21", "1.21.1"],
+      "minecraft_dependency": ["1.21", "1.21.1"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.12.0",
+      "sha256": "b3b36aa3d74c4df053d147ee9254b70c15f4d1e5e11a2766141a146eea3bd60b",
+      "source_commit": "deae0f3094b145f2afd55ff4e4b573993ae2e5bb",
+      "minecraft_versions": ["1.21.2", "1.21.3"],
+      "minecraft_dependency": ["1.21.2", "1.21.3"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.13.1",
+      "sha256": "bfb79c3cdb8fe1f7697999b1f9c7f08ea29775f3b69d48ad90c387690ee67b05",
+      "source_commit": "a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3",
+      "minecraft_versions": ["1.21.4"],
+      "minecraft_dependency": ["1.21.4"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.4.1"]
+    },
+    {
+      "version": "1.14.0",
+      "sha256": "e7c84733fa7c86d15743866cdd46e46eb27ce8285b1a21fbc95113c6a4d0b9d8",
+      "source_commit": "0ecbfdc585f67f9057e061f2a6cc7b5b4cc8ffde",
+      "minecraft_versions": ["1.21.5"],
+      "minecraft_dependency": ["1.21.5"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.4.1"]
+    },
+    {
+      "version": "1.15.0",
+      "sha256": "c58ef35a133b6ffce96a74682138ac2ee818cbc063b7c62671db9f9d7d783ebb",
+      "source_commit": "612a8a6dc31edd13fa35123aa422e0cdca5c3389",
+      "minecraft_versions": ["1.21.6", "1.21.7", "1.21.8"],
+      "minecraft_dependency": ["1.21.6", "1.21.7", "1.21.8"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.4.1"]
+    },
+    {
+      "version": "1.16.0",
+      "sha256": "7a8c2d08fb6e66b2bc32dd6d78570c798186eed114e6e88f692af4e3742a2b46",
+      "source_commit": "5bf45429eeb17020e90c1ae316f8bac4c62477d8",
+      "minecraft_versions": ["1.21.9", "1.21.10"],
+      "minecraft_dependency": ["1.21.9", "1.21.10"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.17.0",
+      "sha256": "a1646893c2a6338ea6bf1a3bdecf2cd743ede61e31a4324bd79a82f3d03360f9",
+      "source_commit": "23723891da460ef15797b02fe5b385b0c5b163cc",
+      "minecraft_versions": ["1.21.11"],
+      "minecraft_dependency": ["1.21.11"],
+      "java_version": 21,
+      "class_major": 65,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.18.0",
+      "sha256": "beec850e73591ab1dc81cb359d1d224ef3230a35d21dc6e72f8e8d287e7b79d2",
+      "source_commit": "016cc210434894f371baf0c327ac94907d12dcd3",
+      "minecraft_versions": ["26.1", "26.1.1", "26.1.2"],
+      "minecraft_dependency": ["26.1.*"],
+      "java_version": 25,
+      "class_major": 69,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.19.0",
+      "sha256": "eca6e2fdf43c6657fe9fea10a8f9a7572d78dc91ad389b998b808bd28fa5b5d1",
+      "source_commit": "9fadf7cf95293d7f6678981e77a939b4a7978373",
+      "minecraft_versions": ["26.2"],
+      "minecraft_dependency": "26.2",
+      "java_version": 25,
+      "class_major": 69,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    },
+    {
+      "version": "1.20.0",
+      "sha256": "49adfc063cfbfd0b6f08e9d814359807baa2d1768c0d39d6c5968268547cbca6",
+      "source_commit": "25111daedf1d59e6a8dfb5a3e61885cdb8d953df",
+      "minecraft_versions": ["26.3"],
+      "minecraft_dependency": "~26.3",
+      "java_version": 25,
+      "class_major": 69,
+      "nested_libraries": ["nether-pathfinder-1.6"]
+    }
+  ],
+  "minecraft_profiles": {
+    "1.20": "1.10.5",
+    "1.20.1": "1.10.5",
+    "1.20.2": "1.10.6",
+    "1.20.3": "1.10.7",
+    "1.20.4": "1.10.7",
+    "1.20.5": "1.10.8",
+    "1.20.6": "1.10.8",
+    "1.21": "1.11.3",
+    "1.21.1": "1.11.3",
+    "1.21.2": "1.12.0",
+    "1.21.3": "1.12.0",
+    "1.21.4": "1.13.1",
+    "1.21.5": "1.14.0",
+    "1.21.6": "1.15.0",
+    "1.21.7": "1.15.0",
+    "1.21.8": "1.15.0",
+    "1.21.9": "1.16.0",
+    "1.21.10": "1.16.0",
+    "1.21.11": "1.17.0",
+    "26.1": "1.18.0",
+    "26.1.1": "1.18.0",
+    "26.1.2": "1.18.0",
+    "26.2": "1.19.0",
+    "26.3": "1.20.0"
+  },
+  "nested_library_license_status": {
+    "name": "nether-pathfinder",
+    "versions": ["1.4.1", "1.6"],
+    "license": null,
+    "evidence": [
+      "No embedded license file was present in either nested jar inspected.",
+      "The nether-pathfinder v1.6 source tree at https://github.com/babbaj/nether-pathfinder/tree/1f3daf8 has no license file.",
+      "The published dev.babbaj:nether-pathfinder:1.6 POM has no license declaration: https://babbaj.github.io/maven/dev/babbaj/nether-pathfinder/1.6/nether-pathfinder-1.6.pom"
+    ]
+  }
+}

@@ -67,6 +67,9 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private static final boolean BARITONE_MODE = Boolean.getBoolean("lodekeeper.verify.baritone");
+    private boolean baritoneMiningObserved;
+
     private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
     private static final boolean GEOMETRY_EPOCH_MODE = Boolean.getBoolean("lodekeeper.verify.geometryEpoch");
     private GeometryEpochVerification geometryEpoch;
@@ -252,6 +255,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
+        if (System.getProperty("lodekeeper.verify.naturalGoal") != null) {
+            NaturalWorldVerification.start(MinecraftClient.getInstance());
+            return;
+        }
         client = MinecraftClient.getInstance();
         try {
             Path runDirectory = client.runDirectory.toPath().toRealPath();
@@ -366,7 +373,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
-            if (NEARBY_WOOD_MODE && !nearbyWoodWalkObservationReflectionAvailable()) {
+            if (NEARBY_WOOD_MODE && !BARITONE_MODE && !nearbyWoodWalkObservationReflectionAvailable()) {
                 state = State.FAILED;
                 failure = "nearbyWood verifier cannot inspect validated route input intent (expected AutomationEngine.movement and MovementController.path/pathIndex/validatedPathIndex/input plus BotInput.forward)";
                 writeEvidence("failed");
@@ -402,6 +409,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+            ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+                if (!BARITONE_MODE || mc.player == null) return;
+                var bot = baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone();
+                if (bot.getMineProcess().isActive()) baritoneMiningObserved = true;
+            });
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeNearbyWoodWalkArrivalAfterEngineTick());
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeNearbyWoodLocalTargetsAfterEngineTick());
@@ -775,7 +787,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void observeNearbyWoodWalkArrivalAfterEngineTick() {
-        if (!NEARBY_WOOD_MODE) return;
+        if (!NEARBY_WOOD_MODE || BARITONE_MODE) return;
         if (state != State.GATHERING_WOOD || client.player == null) {
             nearbyWoodObservedPath = null;
             nearbyWoodPreviousPathIndex = -1;
@@ -837,7 +849,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void registerNearbyWoodMeadowLaunchObserver() {
-        if (!MEADOW_BENCHMARK || nearbyWoodLaunchObserverRegistered) return;
+        if (!MEADOW_BENCHMARK || BARITONE_MODE || nearbyWoodLaunchObserverRegistered) return;
         if (isNearbyWoodMeadowLaunchHandoffSettled(LaunchApproach.ARRIVAL_RADIUS / 2,
                 FORCED_PREPHYSICS_HANDOFF_SPEED, true)) {
             fail("nearbyWood meadow pure handoff probe accepted speed " + FORCED_PREPHYSICS_HANDOFF_SPEED);
@@ -1663,7 +1675,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         if (NEARBY_WOOD_MODE) {
-            if (!NEARBY_WOOD_LOCAL_DECOY_MODE && !GEOMETRY_EPOCH_MODE) {
+            if (!BARITONE_MODE && !NEARBY_WOOD_LOCAL_DECOY_MODE && !GEOMETRY_EPOCH_MODE) {
                 benchmarkNativeRoute();
                 if (state == State.FAILED) return;
             }
@@ -1953,6 +1965,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
             }
         }
+        if (BARITONE_MODE && liveRouteScreenshot == null
+                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()) {
+            if (firstRouteTick < 0) firstRouteTick = clientTicks;
+            if (clientTicks - firstRouteTick >= 8) liveRouteScreenshot = capture(activeCase + "-baritone-route");
+        }
         int observed = latestSnapshot.count(activeItem);
         if (NEARBY_WOOD_LOCAL_DECOY_MODE && state == State.GATHERING_WOOD
                 && !nearbyWoodTargetMatches(nearbyWoodFirstMineTarget, NEARBY_WOOD_LOCAL_VISIBLE_LOG)
@@ -1968,14 +1985,14 @@ public final class RuntimeVerification implements ClientModInitializer {
                 + nearbyWoodLocalNavigationDiagnostics());
             return;
         }
-        if (MEADOW_BENCHMARK && state == State.GATHERING_WOOD && observed >= activeCount
+        if (MEADOW_BENCHMARK && !BARITONE_MODE && state == State.GATHERING_WOOD && observed >= activeCount
                 && requireEngine().status().startsWith("idle") && nearbyWoodLaunchJumpHandoffCount == 0) {
             fail("nearbyWood meadow reached its item target without a client-observed WALK-to-JUMP handoff");
             return;
         }
         boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
-            && (!MEADOW_BENCHMARK || (nearbyWoodLaunchJumpHandoffCount > 0
+            && (BARITONE_MODE || !MEADOW_BENCHMARK || (nearbyWoodLaunchJumpHandoffCount > 0
                 && nearbyWoodLaunchUnsettledHandoffCount == 0))
             && (!NEARBY_WOOD_LOCAL_DECOY_MODE || nearbyWoodLocalOutcomeObserved())
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
@@ -2003,7 +2020,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestSnapshot.count(WOODEN_AXE_ID) >= 2
                     : !serverTableOpened && serverTableOpenings == 0
                         && latestSnapshot.count(WOODEN_AXE_ID) == 0)))
-            && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart);
+            && (state != State.CUSTOM_CONTENT || serverTableOpenings > activeTableOpeningsAtStart)
+            && (!BARITONE_MODE || (baritoneMiningObserved
+                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getMineProcess().isActive()
+                && !baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().hasPath()
+                && baritone.api.BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().getInProgress().isEmpty()));
         if (targetReached && EXPLORATION_MODE && state == State.GATHERING_WOOD
                 && (requireEngine().explorationAttemptsMade() == 0 || latestSnapshot.x <= 48)) {
             fail("far resource goal completed without observed bounded exploration travel"); return;
@@ -2802,6 +2823,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         json.append("{\"evidenceAuthority\":\"client_bot_input_intent\"")
             .append(",\"serverTimingIncluded\":false")
             .append(",\"observationLimit\":").append(MAX_NEARBY_WOOD_WALK_OBSERVATIONS)
+            .append(",\"navigationBackend\":\"").append(BARITONE_MODE ? "baritone" : "original").append("\"")
+            .append(",\"baritoneMiningObserved\":").append(baritoneMiningObserved)
             .append(",\"eligibleWalkArrivalCount\":").append(nearbyWoodEligibleWalkArrivalCount)
             .append(",\"zeroForwardIntentArrivalCount\":").append(nearbyWoodZeroForwardIntentArrivalCount)
             .append(",\"positiveForwardIntentArrivalCount\":").append(nearbyWoodPositiveForwardArrivalCount)

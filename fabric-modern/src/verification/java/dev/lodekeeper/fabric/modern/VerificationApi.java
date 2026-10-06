@@ -102,6 +102,58 @@ final class VerificationApi {
         create.onPress(new KeyEvent(0, 0, 0));
     }
 
+    static void startNormalWorld(Minecraft client, String worldId, LevelStorageSource storage, String seed,
+                                 Runnable started, java.util.function.Consumer<Throwable> failed) {
+        CreateWorldScreen.openFresh(client, () -> {}, (screen, registries, worldData, gameRules, ignoredTempDataPackDir) -> {
+            LevelStorageSource.LevelStorageAccess access = null;
+            try {
+                if (!storage.isNewLevelIdAcceptable(worldId)) {
+                    throw new IOException("isolated world ID already exists or is invalid: " + worldId);
+                }
+                access = storage.validateAndCreateAccess(worldId);
+                WorldCreationUiState settings = screen.getUiState();
+                client.createWorldOpenFlows().createLevelFromExistingSettings(
+                    access,
+                    settings.getSettings().dataPackResources(),
+                    registries,
+                    worldData,
+                    gameRules
+                );
+                started.run();
+                return true;
+            } catch (Throwable failure) {
+                if (access != null) access.safeClose();
+                failed.accept(failure);
+                return false;
+            }
+        });
+
+        Screen current = GameApi.screen(client);
+        if (!(current instanceof CreateWorldScreen createScreen)) {
+            throw new IllegalStateException("vanilla world creation screen did not open");
+        }
+        WorldCreationUiState settings = createScreen.getUiState();
+        settings.setName("Lodekeeper natural verification " + worldId.substring(worldId.length() - 8));
+        settings.setSeed(seed);
+        settings.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL);
+        settings.setDifficulty(Difficulty.NORMAL);
+        settings.setAllowCommands(false);
+        settings.setGenerateStructures(true);
+        settings.setBonusChest(false);
+        WorldCreationUiState.WorldTypeEntry normal = java.util.stream.Stream
+            .concat(settings.getNormalPresetList().stream(), settings.getAltPresetList().stream())
+            .filter(entry -> entry.preset().is(WorldPresets.NORMAL))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("built-in normal preset is unavailable"));
+        settings.setWorldType(normal);
+
+        Button create = createButton(createScreen);
+        if (create == null || !create.isActive()) {
+            throw new IllegalStateException("vanilla create-world button is unavailable");
+        }
+        create.onPress(new KeyEvent(0, 0, 0));
+    }
+
     private static Button createButton(CreateWorldScreen screen) {
         for (GuiEventListener child : screen.children()) {
             if (child instanceof Button button

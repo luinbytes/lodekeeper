@@ -47,3 +47,5 @@ loom {
     mixin { defaultRefmapName = 'lodekeeper-refmap.json' }
     runs { client { vmArg '-Xmx1536m'; vmArg '-XX:ActiveProcessorCount=2' } }
 }
+
+apply from: rootProject.file('gradle/baritone.gradle')

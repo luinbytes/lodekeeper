@@ -62,6 +62,7 @@ loom {
 
 def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java'),
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NaturalWorldVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java')
 ]
@@ -99,3 +100,5 @@ pauseOnLostFocus:false
 tasks.configureEach {
     if (name == 'runVerificationClient') dependsOn prepareVerificationOptions
 }
+
+apply from: rootProject.file('gradle/baritone.gradle')

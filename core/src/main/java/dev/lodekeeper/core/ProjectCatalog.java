@@ -139,6 +139,10 @@ public final class ProjectCatalog {
         result.add(project("gear_stone", "A basic stone-tier equipment loadout.", inventory,
                 "stone_sword", 1, "stone_pickaxe", 1, "stone_axe", 1, "stone_shovel", 1,
                 "shield", 1, "torch", 16, "cooked_beef", 16));
+        result.add(project("gear_diamond", "A full diamond tool and armor set (35 diamonds in recipes).", inventory,
+                "diamond_pickaxe", 1, "diamond_axe", 1, "diamond_shovel", 1, "diamond_hoe", 1,
+                "diamond_sword", 1, "diamond_helmet", 1, "diamond_chestplate", 1,
+                "diamond_leggings", 1, "diamond_boots", 1));
         result.add(project("gear_iron", "An iron-tier equipment loadout with food and light.", inventory,
                 "iron_sword", 1, "iron_pickaxe", 1, "iron_axe", 1, "iron_shovel", 1, "shield", 1,
                 "iron_helmet", 1, "iron_chestplate", 1, "iron_leggings", 1, "iron_boots", 1,

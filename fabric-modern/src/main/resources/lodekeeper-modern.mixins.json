@@ -6,7 +6,8 @@
     "ClientLevelMixin",
     "AutomationUseMixin",
     "ContainerInputReceiptMixin",
-    "OwnedClickPacketMixin"
+    "OwnedClickPacketMixin",
+    "NavigationMiningMixin"
   ],
   "injectors": {
     "defaultRequire": 1

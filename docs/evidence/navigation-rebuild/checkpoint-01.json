@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T04:19:08.736356+00:00",
+  "productionBackend": "version-matched unmodified Baritone Fabric API",
+  "stage": "development; full diamond acceptance has not passed",
+  "checks": {
+    "1.21.1": "production, existing regressions and verification classes compiled",
+    "26.3": "production, existing regressions and verification classes compiled",
+    "otherProfiles": "not yet compiled for this rebuild"
+  },
+  "resourceBounds": {
+    "ownedGameClients": 1,
+    "heapMiB": 1536,
+    "activeProcessors": 2,
+    "renderDistance": 8,
+    "maxFps": 30
+  },
+  "cases": [
+    {
+      "case": "controlled-nearby-table",
+      "minecraftVersion": "1.21.1",
+      "candidateSha256": "e14afa17109cd9dc4e6eaf14823d8563e4e6540c58fef1e3cd79baa9ac8b5999",
+      "sourceState": "uncommitted preview.8 development snapshot",
+      "status": "passed",
+      "commandElapsedMillis": 32348,
+      "firstServerMovementElapsedMillis": null,
+      "failure": "",
+      "worldKind": "isolated_superflat_fixture",
+      "worldSeed": null,
+      "commandStartPosition": null,
+      "finalInventory": null,
+      "minimumHealth": null,
+      "serverHunger": null,
+      "ordinaryLauncherAcceptance": false
+    },
+    {
+      "case": "natural-iron-before-grouped-scan",
+      "minecraftVersion": "1.21.1",
+      "candidateSha256": "2b94ce3f66fd59bddfbd042a4a3a4666f7107363a7ed1796a5e2bb10af3177e1",
+      "sourceState": "uncommitted preview.8 development snapshot",
+      "status": "failed",
+      "commandElapsedMillis": 300016,
+      "firstServerMovementElapsedMillis": 1242,
+      "failure": "natural request exceeded its 300 second wall timeout",
+      "worldKind": "normal_generated_world",
+      "worldSeed": 483920105,
+      "commandStartPosition": {
+        "x": 4.5,
+        "y": 70.0,
+        "z": 22.5
+      },
+      "finalInventory": {
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:birch_planks": 3,
+        "minecraft:dirt": 19,
+        "minecraft:wooden_pickaxe": 1
+      },
+      "minimumHealth": 20.0,
+      "serverHunger": 6,
+      "ordinaryLauncherAcceptance": false
+    },
+    {
+      "case": "natural-iron-grouped-scan",
+      "minecraftVersion": "1.21.1",
+      "candidateSha256": "8e0095ebb12932bada53f557f4fe036ba5cd15747a02930bdb003904d6b36b28",
+      "sourceState": "uncommitted preview.8 development snapshot",
+      "status": "failed",
+      "commandElapsedMillis": 23708,
+      "firstServerMovementElapsedMillis": 1269,
+      "failure": "automation paused: paused \u00b7 Cannot place required station minecraft:crafting_table at BlockPos{x=-5, y=76, z=34}: no visible, reachable full-floor placement site nearby; required minecraft:crafting_table (inventory 1), tried 0 site(s) \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "worldKind": "normal_generated_world",
+      "worldSeed": 483920105,
+      "commandStartPosition": {
+        "x": -1.5,
+        "y": 78.0,
+        "z": 32.5
+      },
+      "finalInventory": {
+        "minecraft:birch_planks": 6,
+        "minecraft:crafting_table": 1,
+        "minecraft:stick": 4
+      },
+      "minimumHealth": 20.0,
+      "serverHunger": 20,
+      "ordinaryLauncherAcceptance": false
+    }
+  ],
+  "interpretation": "Same natural-world seed can choose different spawn positions. These attempts are failure diagnostics, not paired speedup benchmarks. Grouped log discovery removed the absent acacia search in the second natural attempt; station recovery changes compile but still require runtime proof. Silk Touch output compatibility remains a known review finding to fix before release."
+}

@@ -234,6 +234,8 @@ final class AutomationEngine {
     private final Set<ItemId> unmaintainAfterStep = new TreeSet<>();
     private final Map<ItemId, Integer> maintainAfterStep = new TreeMap<>();
     private int planningRetries;
+    private boolean pendingPreferencePlan;
+    private BlockPos stationApproachTarget;
     private int stationPlacementFailures;
     private boolean stationDiscoveryDone;
     private int actionTicks, baseline, verifyTicks, lastObservedCount;
@@ -254,6 +256,8 @@ final class AutomationEngine {
         movement = new MovementController(client, config, actions, input, terrain);
         food = new FoodController(client, actions);
     }
+    boolean prepareAutomatedBreak(BlockPos position) { return movement.prepareAutomatedBreak(position); }
+
     void tick() {
         discoveryBudgetStarted = false;
         discoveryDeadlineNanos = 0;
@@ -272,7 +276,8 @@ final class AutomationEngine {
                 message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
             }
         }
-        if (client.player == null || client.world == null) { food.stop(); input.release(); return; }
+        if (client.player == null || client.world == null) { food.stop(); movement.suspend(); input.release(); return; }
+        if (!movement.finishCancellation()) { status = "finishing movement before inventory actions"; return; }
         nearbyResources.tick(catalog, config.scanBlocksPerTick);
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
@@ -283,9 +288,9 @@ final class AutomationEngine {
         }
             if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
             if (active == null && !paused) startNextRequest();
-            if (active == null || paused) { food.stop(); input.release(); return; }
+            if (active == null || paused) { food.stop(); movement.suspend(); input.release(); return; }
             if (!client.player.isAlive() || client.player.getHealth() <= config.pauseBelowHealth) { pause("health safeguard"); return; }
-            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { food.stop(); input.release(); return; }
+            if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { food.stop(); movement.suspend(); input.release(); return; }
             if (foregroundYieldPending && !transactionInProgress() && !openingStation && !canYieldMaintenanceNow()) {
                 input.release(); status = "foreground queued; waiting for inventory screen and cursor to be safe"; return;
             }
@@ -305,35 +310,49 @@ final class AutomationEngine {
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
                 resetAction();
+                if (!movement.finishCancellation()) { foodReplanPending = true; return; }
                 foodCooldown = 100;
                 if (food.begin()) { foodReplanPending = true; status = "eating before continuing " + active.name(); }
                 else requestPlan();
                 return;
             }
             if (exploring) { explore(); return; }
-            if (pendingPlan != null) {
+            if (pendingPlan != null && (pendingPlan.isDone() || !pendingPreferencePlan || step == null)) {
                 if (!pendingPlan.isDone()) return;
                 PlanningOutcome outcome = pendingPlan.join();
-                PlanResult result = outcome.result();
-                long resultGeneration = pendingPlanGeneration;
-                pendingPlan = null;
-                if (!catalog.ready() || resultGeneration != catalog.generation()) {
-                    if (catalog.ready()) requestPlan();
-                    else status = "waiting for recipe catalog";
-                    return;
+                if (pendingPreferencePlan && step != null) {
+                    pendingPlan = null;
+                    pendingPreferencePlan = false;
+                    stepPreferencesVersion = pendingPlanPreferencesVersion;
+                    PlanResult preferred = outcome.result();
+                    if (preferred.success() && !preferred.steps().isEmpty()
+                            && !preferred.steps().get(0).sourceId().equals(step.sourceId())) {
+                        resetAction();
+                        requestPlan();
+                        return;
+                    }
+                } else {
+                    PlanResult result = outcome.result();
+                    long resultGeneration = pendingPlanGeneration;
+                    pendingPlan = null;
+                    if (!catalog.ready() || resultGeneration != catalog.generation()) {
+                        if (catalog.ready()) requestPlan();
+                        else status = "waiting for recipe catalog";
+                        return;
+                    }
+                    if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) {
+                        requestPlan();
+                        return;
+                    }
+                    if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
+                    if (goalCount() >= active.count) { finishGoal(); return; }
+                    if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
+                    if (!result.success() && tryNextLogPlan(result)) return;
+                    if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
+                    if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
+                    if (result.steps().isEmpty()) { finishGoal(); return; }
+                    begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion);
                 }
-                if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) {
-                    requestPlan();
-                    return;
-                }
-                if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
-                if (goalCount() >= active.count) { finishGoal(); return; }
-                if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
-                if (!result.success() && tryNextLogPlan(result)) return;
-                if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
-                if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
-                if (result.steps().isEmpty()) { finishGoal(); return; }
-                begin(result.steps().get(0), resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion);
             }
             if (step == null) return;
             if (stepCatalogGeneration != catalog.generation() || !catalog.ready()) {
@@ -356,6 +375,19 @@ final class AutomationEngine {
                 requestPlan();
                 return;
             }
+            if (moving && pendingPlan == null && step.kind() == PlanKind.GATHER && preferenceRefreshCooldown == 0
+                    && stepPreferencesVersion != nearbyResources.version()
+                    && catalog.tags.getOrDefault(LOGS_TAG, List.of()).contains(step.output())) {
+                NearbyResources.LogObservation nearby = nearbyResources.bestLogObservation();
+                if (nearby != null && !nearby.source().sourceId().equals(step.sourceId())
+                        && !unavailableSources.contains(nearby.source().sourceId())) {
+                    preferenceRefreshCooldown = 40;
+                    if (active.anyLogs) resetLogDiscovery();
+                    requestPlan();
+                    pendingPreferencePlan = pendingPlan != null;
+                    if (step == null) return;
+                }
+            }
             movement.observeConfirmedProgress();
             observeGatherRemoval();
             long movementProgress = movement.progressToken();
@@ -377,6 +409,8 @@ final class AutomationEngine {
             if (step.output() != null && crafting == null && stonecutting == null && smelting == null
                     && !openingStation
                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
+                movement.stop();
+                if (!movement.finishCancellation()) { status = "finishing movement before confirming collected stock"; return; }
                 input.idle();
                 if (++verifyTicks >= 8) completeStep();
                 return;
@@ -386,9 +420,17 @@ final class AutomationEngine {
                 status = movement.status();
                 try { if (movement.tick()) { moving = false; movingPickup = false; movement.stop(); } }
                 catch (MovementController.NavigationFailure blocked) {
-                    if (movingPickup) throw new IllegalStateException("Unable to collect dropped " + step.output() + ": " + blocked.getMessage());
-                    if (step.kind() != PlanKind.GATHER || target == null) throw blocked;
-                    rejectResource(blocked.getMessage());
+                    if (step.kind() == PlanKind.GATHER) {
+                        message("Mining is replanning: " + blocked.getMessage());
+                        if (blocked.kind != MovementController.NavigationFailure.Kind.TOOL)
+                            unavailableSources.add(step.sourceId());
+                        resetAction(); requestPlan();
+                    } else if (step.kind() == PlanKind.PLACE_STATION && target != null
+                            && stationPlacementFailures < MAX_STATION_PLACEMENT_ATTEMPTS) {
+                        movement.stop();
+                        moving = false;
+                        rejectStationSite(target);
+                    } else throw blocked;
                 }
                 return;
             }
@@ -720,6 +762,7 @@ final class AutomationEngine {
     }
 
     private void requestPlan() {
+        pendingPreferencePlan = false;
         foodReplanPending = false;
         ensureCatalog(); status = "planning";
         if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
@@ -1247,6 +1290,15 @@ final class AutomationEngine {
             logScanGeneration = catalog.generation();
         }
         if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
+        NearbyResources.LogObservation nearby = nearbyResources.bestLogObservation();
+        if (nearby != null && !attemptedLogCandidates.contains(nearby.source().output())
+                && !unavailableSources.contains(nearby.source().sourceId())
+                && !rejectedResources.contains(nearby.position()) && hasSatisfiedToolRequirements(nearby.source())) {
+            rememberDiscoveredSource(nearby.source().sourceId(), nearby.position(),
+                    client.world.getBlockState(nearby.position()).getBlock());
+            logCandidates.addLast(nearby.source().output());
+            return logCandidates.peekFirst();
+        }
         if (logSources.isEmpty()) {
             localLogSources.clear();
             Set<ItemId> logs = new HashSet<>(catalog.tags.getOrDefault(TagId.parse("minecraft:logs"),List.of()));
@@ -1389,6 +1441,7 @@ final class AutomationEngine {
         status = (auxiliaryInvestment ? "tool investment · " : "") + next.kind() + " " + next.sourceId();
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline; lastSmeltProgress = 0;
+        refreshNavigationProtection();
     }
     int explorationAttemptsMade() { return frontier == null ? 0 : frontier.attempts(); }
     boolean resourceRejected(BlockPos position) { return rejectedResources.contains(position); }
@@ -1449,7 +1502,7 @@ final class AutomationEngine {
         }
         if (state == ExplorationFrontier.Status.READY) {
             var point = frontier.waypoint();
-            movement.startExploration(point);
+            refreshNavigationProtection(); movement.startExploration(point);
             lastMovementProgressToken = movement.progressToken();
             explorationMoving = true;
         }
@@ -1604,86 +1657,42 @@ final class AutomationEngine {
         nearbyResources.observeDiscoveredSource(sourceId, position, block);
     }
     private void gather() {
-        Set<Block> blocks = new HashSet<>();
-        step.candidateBlocks().forEach(id -> blocks.add(Registries.BLOCK.get(GameApi.identifier(id.toString()))));
-        ItemEntity dropped = client.world.getEntitiesByClass(ItemEntity.class, client.player.getBoundingBox().expand(12), e -> e.isAlive() && e.getStack().isOf(GameCatalog.item(step.output()))).stream().min(Comparator.comparingDouble(client.player::squaredDistanceTo)).orElse(null);
-        if (dropped != null) {
-            // Fresh drops may still be falling or waiting for the native pickup delay.
-            // Do not exhaust a mined source while its observable output is settling.
-            if (!dropped.isOnGround() && !dropped.isTouchingWater() || client.player.getBoundingBox().expand(1, 0, 1).intersects(dropped.getBoundingBox())) {
-                status = "waiting to collect " + step.output();
-                return;
-            }
-            movement.startPickup(dropped);
-            movingPickup = true; moving = true;
-            return;
-        }
-        if (!config.allowBreaking) {
-            throw new IllegalStateException("Gathering requires breaking blocks, but allowBreaking=false; enable it with config allowBreaking true");
-        }
-        if (target == null && scan == null && prepareIngredientWood()) return;
-        if (target == null) {
-            target = localReachHint(blocks, step.sourceId());
-            if (target == null) {
-                target = findLocalReachable(blocks, Set.of(step.sourceId()), LocalReachPurpose.GATHER);
-                LocalReachScan gatherReachScan = localReachScan(LocalReachPurpose.GATHER);
-                if (target != null) {
-                    Block block = client.world.getBlockState(target).getBlock();
-                    rememberDiscoveredSource(step.sourceId(), target, block);
-                    localReachHint = new LocalReachHint(client.world, client.world.getRegistryKey(), active,
-                            catalog.generation(), Set.copyOf(rejectedResources), client.player.getBlockPos(),
-                            step.sourceId(), target.toImmutable(), block);
-                } else if (gatherReachScan != null && !gatherReachScan.complete()) {
-                    status = "discovering locally reachable " + step.output() + " · " + gatherReachScan.progressDescription();
-                    return;
-                }
-            }
-        }
-        if (target == null) {
-            List<BlockPos> known = discoveredSources.get(step.sourceId());
-            if (known != null) {
-                known.removeIf(pos -> !hasLoadedChunk(pos) || !blocks.contains(client.world.getBlockState(pos).getBlock()));
-                target = known.stream().filter(pos -> !rejectedResources.contains(pos)).filter(pos -> Math.pow(pos.getX() - client.player.getX(), 2) + Math.pow(pos.getZ() - client.player.getZ(), 2) <= config.searchRadius * config.searchRadius)
-                    .min(Comparator.comparingDouble(pos -> pos.getSquaredDistance(ClientAccess.position(client.player)))).orElse(null);
-            }
-        }
-        if (target == null) {
-            if (scan == null) scan = new BlockSearch(client, blocks, config.searchRadius, rejectedResources);
-            startDiscoveryBudget();
-            if (!discoveryBudgetAvailable()) {
-                status = "discovering " + step.output() + " · " + scan.progressDescription();
-                return;
-            }
-            long priorProgress = scan.progressToken();
-            boolean discoveryComplete = scan.advance(config.scanBlocksPerTick,
-                    Math.max(0, discoveryDeadlineNanos - System.nanoTime()));
-            if (scan.progressToken() != priorProgress) actionTicks = 0;
-            status = "discovering " + step.output() + " · " + scan.progressDescription();
-            if (!discoveryComplete && !scan.hasCandidates()) {
-                return;
-            }
-            target = scan.results().stream().filter(pos -> !rejectedResources.contains(pos) && hasLoadedChunk(pos)
-                    && blocks.contains(client.world.getBlockState(pos).getBlock())).findFirst().orElse(null);
-            if (discoveredSources.size() >= 64) discoveredSources.remove(discoveredSources.keySet().iterator().next());
-            discoveredSources.put(step.sourceId(), new ArrayList<>(scan.results()));
-            if (discoveryComplete) scan = null;
-            if (target == null && discoveryComplete) { unavailableSources.add(step.sourceId()); resetAction(); requestPlan(); return; }
-            if (target == null) return;
-        }
-        if (!hasLoadedChunk(target) || !blocks.contains(client.world.getBlockState(target).getBlock())) { target = null; actions.cancel(); clearGatherAttempt(); return; }
-        SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance).map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
+        if (!config.allowBreaking) throw new IllegalStateException("Gathering requires allowBreaking=true");
+        Set<Block> blocks = new LinkedHashSet<>();
+        step.candidateBlocks().forEach(id -> {
+            Block block = Registries.BLOCK.get(GameApi.identifier(id.toString()));
+            if (block != Blocks.AIR) blocks.add(block);
+        });
+        SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance)
+                .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
-        Block sourceBlock = client.world.getBlockState(target).getBlock();
-        if (actions.mine(target, tool)) {
-            boolean changedTarget = gatherMineTarget == null || !gatherMineTarget.equals(target);
-            gatherMineTarget = target.toImmutable();
-            gatherMineBlock = sourceBlock;
-            if (changedTarget) status = "mining " + step.output() + " at "
-                    + target.getX() + "," + target.getY() + "," + target.getZ();
-        } else {
-            try { movement.startInteraction(target); moving = true; }
-            catch (MovementController.NavigationFailure blocked) { rejectResource(blocked.getMessage()); }
+        refreshNavigationProtection();
+        movement.startMining(blocks.toArray(Block[]::new), GameCatalog.item(step.output()),
+                Math.addExact(baseline, step.outputCount()), tool);
+        moving = true; movingPickup = false; status = movement.status();
+    }
+
+    private void refreshNavigationProtection() {
+        Set<net.minecraft.item.Item> reserved = new HashSet<>();
+        protectedCounts(captureInventoryCounts(), active == null ? null : active.item).keySet()
+                .forEach(item -> reserved.add(GameCatalog.item(item)));
+        if (active != null) reserved.add(GameCatalog.item(active.item));
+        if (step != null) {
+            if (step.output() != null) reserved.add(GameCatalog.item(step.output()));
+            for (SelectedRequirement requirement : step.requirements()) {
+                if (requirement instanceof SelectedItemRequirement item) reserved.add(GameCatalog.item(item.item()));
+                if (requirement instanceof SelectedToolRequirement tool) reserved.add(GameCatalog.item(tool.item()));
+                if (requirement instanceof SelectedStationRequirement station)
+                    reserved.add(Registries.BLOCK.get(GameApi.identifier(station.station().toString())).asItem());
+            }
         }
+        Set<Block> stations = new HashSet<>(List.of(Blocks.CRAFTING_TABLE, Blocks.FURNACE, Blocks.SMOKER,
+                Blocks.BLAST_FURNACE, Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.BARREL, Blocks.HOPPER,
+                Blocks.DISPENSER, Blocks.DROPPER, Blocks.ENDER_CHEST));
+        for (Block block : Registries.BLOCK) if (block.getDefaultState().hasBlockEntity()) stations.add(block);
+        for (BlockPos position : ownedStations.values()) if (client.world != null)
+            stations.add(client.world.getBlockState(position).getBlock());
+        movement.updateProtection(reserved, stations);
     }
     private void placeStation() {
         Block block = Registries.BLOCK.get(GameApi.identifier(step.station().toString()));
@@ -1699,11 +1708,27 @@ final class AutomationEngine {
             throw new IllegalStateException("Station " + step.station() + " is not available nearby, and allowBuilding=false; enable it with config allowBuilding true");
         }
         if (target != null && client.world.getBlockState(target).isOf(block)) { ownedStations.put(step.station(), target); terrain.changed(); completeStep(); return; }
-        if (target != null && !safeStationCandidate(target)) rejectStationSite(target);
-        if (target == null) target = findStationCandidate();
+        if (target != null && !safeStationStructure(target)) rejectStationSite(target);
+        if (stationPlacementFailures >= MAX_STATION_PLACEMENT_ATTEMPTS)
+            throw stationPlacementFailure("placement attempt limit reached", client.player.getBlockPos());
+        if (target == null) target = findStationCandidate(true);
+        if (target == null) target = findStationCandidate(false);
         if (target == null) {
             stationDiscoveryDone = false;
             throw stationPlacementFailure("no visible, reachable full-floor placement site nearby", client.player.getBlockPos());
+        }
+        if (!actions.canPlaceAt(target)) {
+            if (target.equals(stationApproachTarget)) {
+                rejectStationSite(target);
+                if (stationPlacementFailures >= MAX_STATION_PLACEMENT_ATTEMPTS)
+                    throw stationPlacementFailure("no usable interaction stance at explored placement sites", client.player.getBlockPos());
+                return;
+            }
+            stationApproachTarget = target;
+            refreshNavigationProtection();
+            movement.startInteraction(target);
+            moving = true;
+            return;
         }
         if (!actions.place(target, block)) {
             BlockPos rejected = target;
@@ -1731,34 +1756,30 @@ final class AutomationEngine {
         return closest;
     }
 
-    private BlockPos findStationCandidate() {
+    private BlockPos findStationCandidate(boolean requireReach) {
         BlockPos player = client.player.getBlockPos();
-        for (int radius = 1; radius <= 6; radius++) {
-            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
-                BlockPos candidate = player.add(dx, 0, dz);
-                if (candidate.getSquaredDistance(player) < 2 || rejectedStationSites.contains(candidate)) continue;
-                if (safeStationCandidate(candidate)) return candidate;
-            }
+        BlockPos closest = null;
+        double closestDistance = Double.POSITIVE_INFINITY;
+        for (int dx = -8; dx <= 8; dx++) for (int dz = -8; dz <= 8; dz++) for (int dy = -6; dy <= 4; dy++) {
+            BlockPos candidate = player.add(dx, dy, dz);
+            double distance = candidate.getSquaredDistance(player);
+            if (distance < 2 || distance >= closestDistance || rejectedStationSites.contains(candidate)) continue;
+            if (!safeStationStructure(candidate) || requireReach && !actions.canPlaceAt(candidate)) continue;
+            closest = candidate;
+            closestDistance = distance;
         }
-        return null;
+        return closest;
     }
 
-    private boolean safeStationCandidate(BlockPos candidate) {
-        var destination = client.world.getBlockState(candidate);
-        BlockPos floor = candidate.down();
-        var support = client.world.getBlockState(floor);
-        boolean fullFloor = Block.isShapeFullCube(support.getCollisionShape(client.world, floor));
-        boolean safeSupport = !support.hasBlockEntity() && !support.isOf(Blocks.CRAFTING_TABLE)
-                && !support.isOf(Blocks.CARTOGRAPHY_TABLE) && !support.isOf(Blocks.FLETCHING_TABLE)
-                && !support.isOf(Blocks.SMITHING_TABLE) && !support.isOf(Blocks.STONECUTTER)
-                && !support.isOf(Blocks.LOOM) && !support.isOf(Blocks.ENCHANTING_TABLE);
-        return destination.isReplaceable() && fullFloor && safeSupport && actions.canPlaceAt(candidate);
+    private boolean safeStationStructure(BlockPos candidate) {
+        if (client.world.getChunkManager().getChunk(candidate.getX() >> 4, candidate.getZ() >> 4, net.minecraft.world.chunk.ChunkStatus.FULL, false) == null) return false;
+        return client.world.getBlockState(candidate).isReplaceable() && actions.safePlacementSupport(candidate.down());
     }
 
     private void rejectStationSite(BlockPos rejected) {
         rejectedStationSites.add(rejected.toImmutable());
         stationPlacementFailures++;
+        stationApproachTarget = null;
         target = null;
     }
 
@@ -1801,7 +1822,7 @@ final class AutomationEngine {
         if (!(handler instanceof PlayerScreenHandler)) throw new IllegalStateException("Close your current container first");
         BlockPos station = ownedStations.get(step.station());
         if (station == null) throw new IllegalStateException("Required station disappeared");
-        if (actions.hit(station) == null) { movement.start(station, 2); moving = true; return false; }
+        if (actions.hit(station) == null) { refreshNavigationProtection(); movement.startInteraction(station); moving = true; return false; }
         stationOpeningFrom = handler;
         openingStation = actions.use(station);
         if (!openingStation) stationOpeningFrom = null;
@@ -2020,7 +2041,7 @@ final class AutomationEngine {
         finally {
             crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
             step = null; scan = null; localGatherReachScan = null;
-            target = null; verifyTicks = 0;
+            target = null; stationApproachTarget = null; verifyTicks = 0;
             clearGatherAttempt();
             exploring = false; explorationMoving = false; explorationTicks = 0;
         }
@@ -2031,7 +2052,7 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     void pause(String reason) {
-        food.stop();
+        food.stop(); movement.suspend();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
         paused = true;
         String warning;
