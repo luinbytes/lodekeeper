@@ -1,0 +1,26 @@
+{
+  "status": "planner_foundation_verified_native_storage_pending",
+  "testCounts": {
+    "tests": 127,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "command": "JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew :core:test --no-daemon --max-workers=1",
+  "checks": [
+    "finite observed stock and unique physical references",
+    "held inventory remains separate from stored lots",
+    "whole recipe and later source requirements validated before choosing a finite allocation",
+    "bounded alternate and partial item/tool withdrawals",
+    "actual remaining durability and conservative consumption of heterogeneous tool lots",
+    "recipe slots assigned in deterministic item order",
+    "global node/time and candidate bounds with reported truncation"
+  ],
+  "independentReview": "final source review found no material findings before root validation; later test expectations corrected for valid alternate quantity allocation and retained feasible candidate at node cap",
+  "regressionEvidence": "Prior greedy raw-lot and tool-lot variants failed the literal public planner regressions before corrections",
+  "implementationScope": "Core planner and catalog only; no commands, container registration, native transfer or main-branch integration",
+  "limits": [
+    "large allocation spaces use bounded sampling and beam pruning; exhaustive optimality is not claimed",
+    "count-only inventory cannot pin heterogeneous physical tool copies; consumed copies conservatively remove capacity from every known category"
+  ]
+}
