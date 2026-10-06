@@ -6,7 +6,7 @@
   "nativeReceipt": "native-result.json",
   "scope": "Declared pre-command geometry and inventory grants; only the frozen world clock is released after the ordinary bucket command. No post-command stock, AI, health or terrain mutations. Starts from idle; does not test cancellation of a prior native path.",
   "ordinaryLauncherAcceptance": false,
-  "screenshotInspected": false,
+  "screenshotInspected": true,
   "elapsedMillisFromCommand": 7463,
   "worldClockReleased": true,
   "nativeMobHitsOnPlayer": "8",

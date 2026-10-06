@@ -60,7 +60,40 @@
     },
     "liveStatus": "failed_one_zombie_killed_player_died",
     "ci": "https://github.com/luinbytes/lodekeeper/actions/runs/37507536192",
-    "receipt": "../survival-safety/preview11-contact-stable-1211/assessment.json"
+    "receipt": "../survival-safety/preview11-contact-stable-1211/assessment.json",
+    "compiledVersions": 24,
+    "ciStatus": "success"
   },
-  "nextDecision": "Measure a terrain-checked jump and native falling sword attack, with per-hit collateral safeguards. Stable choices cannot make low-damage standing contact win this fixture."
+  "nextDecision": "Measure a terrain-checked jump and native falling sword attack, with per-hit collateral safeguards. Stable choices cannot make low-damage standing contact win this fixture.",
+  "hopPrototype": {
+    "shape": "AttackChoice(target, slot, damage, optional DefenseHop) with explicit ascent and landing phases",
+    "policy": "Use a harmless loaded ceiling and supported landing margin to bound a native input jump. Keep the sword selected until safe landing. Attack only after observed native descent and airborne revalidation. Grounded sword attacks retain the collateral guard.",
+    "nativeProof": "Capture ContactSwordAttempt with exact server pose, health and DamageSource in ALLOW_DAMAGE. Count only source-correlated HP loss in AFTER_DAMAGE or AFTER_DEATH. Require a confirmed airborne sword hit plus both player-attributed zombie kills, survival, unchanged cow health and shell, bounded wear, and ordinary bucket completion.",
+    "status": "primary_compiled_native_replay_pending",
+    "activation": "A defense episode that tracked multiple hostiles, or player health at most 6. Retain the urgent response after the first hostile dies to avoid a mid-fight weapon downgrade. Single-hostile high-health contact keeps the established grounded collateral-safe weapon response.",
+    "abortContract": "Movement releases only its own input and throws NavigationFailure on aborted hop. false means running; true means actual airborne observation followed by safe supported landing.",
+    "reviewFixes": [
+      "Manual input has priority before acquisition and every hop tick",
+      "Four fully charged launch rejections fall back to a grounded-safe pair without mid-recharge thrashing",
+      "Only correlated positive native health loss counts as an airborne sword hit",
+      "Ceiling scan is capped at 22 sixteenth-step samples; landing margin includes body hazards"
+    ],
+    "independentReview": "All three material findings closed in follow-up source review; no new P1/P2 or introduced-comment findings. Native timing, takeover and sustained-knockback behavior remain runtime checks.",
+    "checks": {
+      "primaryVersionsBuilt": [
+        "1.21.1",
+        "26.3"
+      ],
+      "coreTests": 104,
+      "navigationTests": 91,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "freshWorldPreparationGap": {
+    "receipt": "../navigation-rebuild/checkpoint-19-natural.json",
+    "observed": "Server inventory-diff history acquired wooden, stone and iron pickaxes, but no sword or axe before the underground death. An airborne sword fix alone cannot cover that missing equipment.",
+    "nextStep": "After the controlled movement proof, evaluate bounded crafting of an ordinary early weapon before ore mining. Preserve user-goal and maintained stock, use native crafting, and avoid a recursive side task or per-tick planning loop."
+  }
 }
