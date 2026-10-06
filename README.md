@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Experimental preview:** [Preview 6](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.6) prioritizes reachable nearby resources, brakes before ledge launches, and adds an elapsed timer and console progress trace. Full mechanic coverage, natural-world survival and server acceptance remain in development.
+> **Experimental preview:** [Preview 7](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.7) adds route pruning and live collision checks. Follow its path, target and elapsed timer, or inspect the console progress trace. Full mechanic coverage, natural-world survival and server acceptance remain in development.
 
 ### Tell it what you need
 
@@ -64,10 +64,10 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Download [Development Preview 6](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.6). All 24 exact-version jars were built and inspected. Its exact [1.21.1](docs/evidence/1.21.1-preview6-jar/README.md) and [26.3 jars](docs/evidence/26.3-preview6-jar/README.md) each passed a meadow wood-to-crafting-table check from an empty inventory. The current fixes also pass controlled [tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md) and [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) checks using development classes. Broader ordinary-world acceptance remains open.
+Download [Development Preview 7](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.7). All 24 exact-version jars were built and inspected. Its exact [1.21.1](docs/evidence/1.21.1-preview7-jar/README.md) and [26.3 jars](docs/evidence/26.3-preview7-jar/README.md) each passed native collision checks and a meadow wood-to-crafting-table command from an empty inventory. The current fixes also pass controlled [tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md) and [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) checks using development classes. Broader ordinary-world acceptance remains open. Preview 7 still has reported failures for inaccessible dropped items and repeated obstruction retries; pickup recovery, batch mining and the planner/executor break-visibility mismatch are the next fixes.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.6.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.7.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
 Each jar targets one exact release. Every stable Java release from 1.20 through the current stable release, 26.3, has a passing development build, including 1.21.1. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.

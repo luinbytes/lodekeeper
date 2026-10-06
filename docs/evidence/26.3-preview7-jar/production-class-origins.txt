@@ -1,0 +1,2 @@
+[12.360s][info][class,load] dev.lodekeeper.fabric.modern.GameTerrain source: file:/private/tmp/lodekeeper-preview7-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.7.jar
+[12.374s][info][class,load] dev.lodekeeper.nav.Planner source: file:/private/tmp/lodekeeper-preview7-ci-artifacts/lodekeeper-26.3-development/lodekeeper-26.3-0.1.0-preview.7.jar

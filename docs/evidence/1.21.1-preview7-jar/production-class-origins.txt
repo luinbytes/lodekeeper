@@ -1,0 +1,2 @@
+[17.279s][info][class,load] dev.lodekeeper.fabric.GameTerrain source: file:/private/tmp/lodekeeper-preview7-ci-native-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.7-64b5720b4b825f21.jar
+[17.289s][info][class,load] dev.lodekeeper.nav.Planner source: file:/private/tmp/lodekeeper-preview7-ci-native-1211/run/.fabric/processedMods/lodekeeper-0.1.0-preview.7-64b5720b4b825f21.jar

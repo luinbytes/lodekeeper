@@ -1,0 +1,21 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.7.jar",
+  "artifactSha256": "74ad9b677e2adc4112c4d3fab7907dc533c31048a2042981be4f88a070505909",
+  "sourceCommit": "15209767a9fa4b73e101fba5ed5499937bb7d14f",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37405933878",
+  "runtimeMode": "exact_ci_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify.nearbyWood=true",
+    "-Dlodekeeper.verify.geometryEpoch=true",
+    "-Dlodekeeper.verify.nearbyWoodTerrain=meadow",
+    "-Dlodekeeper.verify.nearbyWoodGoal=crafting_table"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-geometry-input-verifier-263",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result",
+  "verificationFixturesExcludedFromProductionJar": true
+}
