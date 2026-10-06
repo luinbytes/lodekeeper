@@ -1,0 +1,21 @@
+{
+  "status": "failed",
+  "case": "two full-health normal-AI zombies in a sealed passage, contact defense from idle",
+  "sourceCommit": "a73679b13880f9bded9c01ae3d444db997b8a13d",
+  "artifactSha256": "d87b8bdc82e6f478d92bf1d376817938dc8cbff8cf50e0b309eb4315af315280",
+  "nativeReceipt": "native-result.json",
+  "scope": "Declared pre-command geometry and inventory grants; only the frozen world clock is released after the ordinary bucket command. No post-command stock, AI, health or terrain mutations. Starts from idle; does not test cancellation of a prior native path.",
+  "ordinaryLauncherAcceptance": false,
+  "screenshotInspected": true,
+  "elapsedMillisFromCommand": 220,
+  "worldClockReleased": false,
+  "nativeMobHitsOnPlayer": "0",
+  "mobHealthDropsWhilePlayerUnsettled": "0",
+  "shellChangedCells": "0",
+  "serverCursorEmpty": true,
+  "nativeNavigationStopped": true,
+  "playerHealth": 20.0,
+  "playerDeaths": "0",
+  "failure": "prepared safety automation paused during live_contact_defense_bucket: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+  "observation": "The baseline paused without an attack. Its final receipt still has the world clock frozen, so this reproduces the multi-threat decision failure rather than live mob damage or the native-path cancellation wait."
+}

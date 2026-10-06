@@ -14,5 +14,17 @@
     "Forbid mining/placement on retreat routes",
     "Native live multi-threat regression and exact fresh-world repeats before publication"
   ],
-  "scope": "Do not weaken component, protection, cursor, ownership, manual input or creeper collateral checks"
+  "scope": "Do not weaken component, protection, cursor, ownership, manual input or creeper collateral checks",
+  "controlledBaseline": {
+    "receipt": "../survival-safety/preview11-contact-before-1211/assessment.json",
+    "status": "expected_failure",
+    "elapsedMillisFromCommand": 220,
+    "qaSourceCommit": "04e51a9a14f6220f756ee65021795d76eebfaf68",
+    "scope": "From idle, two visible mobs force no-safe-retreat pause without attack. Clock release has not been observed at final failure; no live-damage claim."
+  },
+  "reviewCorrections": [
+    "Defense cancellation validates full ownership before mutation",
+    "Retreat tick and suspend also validate full ownership",
+    "Retreat tick never swaps scaffold stock into the hotbar"
+  ]
 }
