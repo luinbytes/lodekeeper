@@ -143,7 +143,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED
     }
 
-    private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY }
+    private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY, HELD_FUEL_SMELTING, HELD_FUEL_STICKS }
 
     private Minecraft client;
     private State state = State.DISABLED;
@@ -226,6 +226,17 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean ironPickaxeProbeStarted, ironPickaxeProbeFinished;
     private volatile int serverStonecutterOpenings;
     private Map<String, Integer> activeInitialResources = Map.of();
+    private static final boolean HELD_FUEL_MODE = "held-fuel".equals(PREPARED_SAFETY_MODE);
+    private static final Map<String, Integer> HELD_FUEL_SETUP_EXPECTED = Map.of("minecraft:raw_iron", 3,
+        "minecraft:oak_log", 2, "minecraft:oak_planks", 3, "minecraft:furnace", 1, "minecraft:crafting_table", 1);
+    private static final Map<String, Integer> HELD_FUEL_SMELTING_EXPECTED = Map.of("minecraft:iron_ingot", 3,
+        "minecraft:oak_log", 2, "minecraft:oak_planks", 1, "minecraft:crafting_table", 1);
+    private static final Map<String, Integer> HELD_FUEL_STICKS_EXPECTED = Map.of("minecraft:iron_ingot", 3,
+        "minecraft:oak_log", 1, "minecraft:oak_planks", 1, "minecraft:stick", 8, "minecraft:crafting_table", 1);
+    private long heldFuelStartedAtNanos = -1;
+    private Map<String, Integer> heldFuelSetupInventory = Map.of(), heldFuelSmeltingInventory = Map.of();
+    private Map<String, String> heldFuelSetupReceipt = Map.of(), heldFuelSmeltingReceipt = Map.of();
+    private String heldFuelSetupScreenshot = "", heldFuelFurnacePosition = "";
     private static final boolean WORKBENCH_MODE = "workbench".equals(PREPARED_SAFETY_MODE) || "workbench-blocked".equals(PREPARED_SAFETY_MODE);
     private static final boolean WORKBENCH_BLOCKED = "workbench-blocked".equals(PREPARED_SAFETY_MODE);
     private VerificationApi.PreparedSafetyWorkbenchFixture preparedSafetyWorkbenchFixture;
@@ -376,9 +387,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                     && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
                     && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("pursuit")
                     && !PREPARED_SAFETY_MODE.equals("pursuit-tool")
-                    && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air") && !WORKBENCH_MODE) {
+                    && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air") && !WORKBENCH_MODE && !HELD_FUEL_MODE) {
                 state = State.FAILED;
-                failure = "lodekeeper.verify.preparedSafety must be exactly equipment, offhand, threat, pursuit, pursuit-tool, station_room, air, workbench, or workbench-blocked";
+                failure = "lodekeeper.verify.preparedSafety must be exactly equipment, offhand, threat, pursuit, pursuit-tool, station_room, air, workbench, workbench-blocked, or held-fuel";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.stop();
@@ -600,7 +611,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                         if (++readyTicks >= requiredReadyTicks && (THREAT_WATER_RETREAT_MODE
                                 || preparedSafetyPhase == PreparedSafetyPhase.AIR || client.player.getY() > FLOOR_Y
                                 && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK))) {
-                            if (WORKBENCH_MODE) {
+                            if (HELD_FUEL_MODE) {
+                                startPreparedSafetyHeldFuelCase();
+                            } else if (WORKBENCH_MODE) {
                                 startPreparedSafetyWorkbenchCase();
                             } else if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS) {
                                 startPreparedSafetyIngredientsCase();
@@ -764,6 +777,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             : PREPARED_SAFETY_MODE.equals("offhand") ? PreparedSafetyPhase.OFFHAND_FOOD
             : PREPARED_SAFETY_MODE.equals("threat") ? PreparedSafetyPhase.THREAT
             : PREPARED_SAFETY_MODE.equals("pursuit") || PREPARED_SAFETY_MODE.equals("pursuit-tool") ? PreparedSafetyPhase.PURSUIT
+            : HELD_FUEL_MODE ? PreparedSafetyPhase.HELD_FUEL_SMELTING
             : WORKBENCH_MODE ? PreparedSafetyPhase.WORKBENCH_SEEDING
             : PREPARED_SAFETY_MODE.equals("air") ? PreparedSafetyPhase.AIR : PreparedSafetyPhase.STATION_ROOM;
         preparedSafetySetupStartedAtTick = clientTicks;
@@ -1929,6 +1943,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && "true".equals(latestSnapshot.preparedSafetyWorkbenchReceipt.get("stonePresent"))
                 && isSixBlocksFromTable(latestSnapshot.preparedSafetyWorkbenchReceipt)
                 && (!WORKBENCH_BLOCKED || "26".equals(latestSnapshot.preparedSafetyWorkbenchReceipt.get("bedrockShellCells")));
+            case HELD_FUEL_SMELTING -> latestSnapshot.inventory.equals(HELD_FUEL_SETUP_EXPECTED)
+                && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+                && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
+                && "0".equals(latestSnapshot.preparedSafetyHeldFuelReceipt.get("nearbyFurnaceCount"));
+            case HELD_FUEL_STICKS -> false;
             case NONE -> false;
         };
     }
@@ -1936,6 +1955,115 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static boolean isSixBlocksFromTable(Map<String, String> receipt) {
         double distance = Double.parseDouble(receipt.getOrDefault("horizontalDistance", "NaN"));
         return Double.isFinite(distance) && Math.abs(distance - 6.0) <= 0.000001;
+    }
+
+    private void startPreparedSafetyHeldFuelCase() {
+        String engineStatus = requireEngine().status();
+        if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued") || !baritoneNavigationStopped()) {
+            fail("held-fuel command requires an idle engine and stopped native navigation: " + engineStatus);
+            return;
+        }
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        preparedMaintenanceQueueEmptyBeforeForeground = true;
+        preparedSafetyForegroundStarted = true;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        if (preparedSafetyPhase == PreparedSafetyPhase.HELD_FUEL_SMELTING) {
+            heldFuelStartedAtNanos = System.nanoTime();
+            heldFuelSetupInventory = Map.copyOf(latestSnapshot.inventory);
+            heldFuelSetupReceipt = Map.copyOf(latestSnapshot.preparedSafetyHeldFuelReceipt);
+            heldFuelSetupScreenshot = capture("prepared_held_fuel_setup");
+            activeCase = "prepared_held_fuel_iron_ingots";
+            activeItem = "minecraft:iron_ingot";
+            activeCount = 3;
+            sendCommand("!lk get iron_ingot 3");
+            return;
+        }
+        activeCase = "prepared_held_fuel_retained_log_sticks";
+        activeItem = "minecraft:stick";
+        activeCount = 8;
+        sendCommand("!lk get stick 8");
+    }
+
+    private void evaluatePreparedSafetyHeldFuelCase(String engineStatus) {
+        if (System.nanoTime() - heldFuelStartedAtNanos > 120_000_000_000L) {
+            fail("held-fuel command sequence exceeded 120 seconds; server inventory=" + latestSnapshot.inventory);
+            return;
+        }
+        if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued") || !baritoneNavigationStopped()) return;
+        Map<String, String> receipt = latestSnapshot.preparedSafetyHeldFuelReceipt;
+        boolean drained = "1".equals(receipt.get("nearbyFurnaceCount"))
+            && "0".equals(receipt.get("furnaceInputCount"))
+            && "0".equals(receipt.get("furnaceFuelCount"))
+            && "0".equals(receipt.get("furnaceOutputCount"));
+        boolean safe = latestSnapshot.health == 20.0F && latestSnapshot.foodLevel == 20
+            && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
+            && latestSnapshot.storageInventory.equals(latestSnapshot.inventory) && drained;
+        if (preparedSafetyPhase == PreparedSafetyPhase.HELD_FUEL_SMELTING) {
+            if (latestSnapshot.count("minecraft:iron_ingot") != 3) return;
+            heldFuelSmeltingInventory = Map.copyOf(latestSnapshot.inventory);
+            heldFuelSmeltingReceipt = Map.copyOf(receipt);
+            boolean passed = safe && latestSnapshot.inventory.equals(HELD_FUEL_SMELTING_EXPECTED)
+                && serverFurnaceOpenings > activeFurnaceOpeningsAtStart;
+            if (!passed) {
+                fail("native smelting must deliver exactly three iron ingots, retain both logs and one plank, and drain all furnace slots; inventory="
+                    + latestSnapshot.inventory + "; furnace=" + receipt);
+                return;
+            }
+            heldFuelFurnacePosition = receipt.get("nativeFurnacePositions");
+            addResult(true, 3, "native furnace smelted three supplied raw iron with two held planks, retained both oak logs and one plank, drained all station slots, and stopped native navigation");
+            preparedSafetyPhase = PreparedSafetyPhase.HELD_FUEL_STICKS;
+            startPreparedSafetyHeldFuelCase();
+            return;
+        }
+        if (latestSnapshot.count("minecraft:stick") < 8) return;
+        boolean passed = safe && latestSnapshot.inventory.equals(HELD_FUEL_STICKS_EXPECTED)
+            && heldFuelFurnacePosition.equals(receipt.get("nativeFurnacePositions"));
+        if (!passed) {
+            fail("native sticks must consume one retained log through vanilla planks conversion, deliver exactly eight sticks, retain one log and one plank, and keep the same drained furnace; inventory="
+                + latestSnapshot.inventory + "; furnace=" + receipt);
+            return;
+        }
+        addResult(true, 8, "one retained oak log became four planks; two vanilla stick batches consumed four of the five planks and delivered eight sticks, retaining one log and one plank with the same furnace drained and native navigation stopped");
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
+    private JsonObject heldFuelEvidence() {
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("authority", "prepared_integrated_server_inventory_native_furnace_slots_and_idle_navigation");
+        evidence.addProperty("fixtureGrants", "exactly 3 raw iron, 2 oak logs, 3 oak planks, one furnace and one crafting table before the first command, full health and hunger");
+        evidence.addProperty("commands", "!lk get iron_ingot 3, then !lk get stick 8 without fixture mutation");
+        evidence.addProperty("sequenceWallLimitMillis", 120_000);
+        evidence.addProperty("elapsedSequenceMillis", heldFuelStartedAtNanos < 0 ? 0 : (System.nanoTime() - heldFuelStartedAtNanos) / 1_000_000L);
+        evidence.addProperty("blockBreakingAllowed", false);
+        evidence.addProperty("postCommandFixtureMutations", 0);
+        evidence.addProperty("setupScreenshot", heldFuelSetupScreenshot);
+        evidence.addProperty("nativeNavigationStopped", client != null && client.player != null && baritoneNavigationStopped());
+        JsonObject setupInventory = new JsonObject();
+        heldFuelSetupInventory.forEach(setupInventory::addProperty);
+        evidence.add("setupServerInventory", setupInventory);
+        JsonObject smeltingInventory = new JsonObject();
+        heldFuelSmeltingInventory.forEach(smeltingInventory::addProperty);
+        evidence.add("smeltingServerInventory", smeltingInventory);
+        JsonObject finalInventory = new JsonObject();
+        if (latestSnapshot != null) latestSnapshot.inventory.forEach(finalInventory::addProperty);
+        evidence.add("finalServerInventory", finalInventory);
+        JsonObject setupReceipt = new JsonObject();
+        heldFuelSetupReceipt.forEach(setupReceipt::addProperty);
+        evidence.add("setupServerReceipt", setupReceipt);
+        JsonObject smeltingReceipt = new JsonObject();
+        heldFuelSmeltingReceipt.forEach(smeltingReceipt::addProperty);
+        evidence.add("smeltingServerReceipt", smeltingReceipt);
+        JsonObject finalReceipt = new JsonObject();
+        if (latestSnapshot != null) latestSnapshot.preparedSafetyHeldFuelReceipt.forEach(finalReceipt::addProperty);
+        evidence.add("finalServerReceipt", finalReceipt);
+        evidence.addProperty("vanillaCraftingAccounting", "one log yields four planks; two batches use four planks to make eight sticks; one plank remains");
+        return evidence;
     }
 
     private void startPreparedSafetyWorkbenchCase() {
@@ -2315,6 +2443,10 @@ public final class RuntimeVerification implements ClientModInitializer {
         String engineStatus = requireEngine().status();
         if (engineStatus.startsWith("paused")) {
             fail("prepared safety automation paused during " + activeCase + ": " + engineStatus);
+            return;
+        }
+        if (HELD_FUEL_MODE) {
+            evaluatePreparedSafetyHeldFuelCase(engineStatus);
             return;
         }
         if (WORKBENCH_MODE) {
@@ -2926,6 +3058,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                         : VerificationApi.preparedSafetyAirReceipt(player, preparedSafetyAirFixture),
                     preparedSafetyWorkbenchFixture == null ? Map.of()
                         : VerificationApi.preparedSafetyWorkbenchReceipt(player, world, preparedSafetyWorkbenchFixture),
+                    HELD_FUEL_MODE ? VerificationApi.preparedSafetyHeldFuelReceipt(world) : Map.of(),
                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ()));
             } catch (Throwable throwable) {
@@ -3110,7 +3243,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         state = State.COMPLETE;
         int expectedCases = PREPARED_SAFETY_MODE != null
-            ? PREPARED_SAFETY_MODE.equals("offhand") ? 2 : 1
+            ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || NEARBY_WOOD_MODE
                 || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean passed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
@@ -3225,7 +3358,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs");
             if (PREPARED_SAFETY_MODE != null) root.addProperty("preparedSafetyProperty", PREPARED_SAFETY_MODE);
             if (WORKBENCH_MODE) root.add("preparedWorkbench", workbenchEvidence());
-            root.addProperty("evidenceAuthority", WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
+            if (HELD_FUEL_MODE) root.add("preparedHeldFuel", heldFuelEvidence());
+            root.addProperty("evidenceAuthority", HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
                 ? "integrated_server_inventory_menu_hunger_entities_and_item_durability"
                 : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("station_room")
                     ? "integrated_server_inventory_furnace_menu_and_block_states"
@@ -3722,7 +3856,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
                 && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("pursuit")
                 && !PREPARED_SAFETY_MODE.equals("pursuit-tool")
-                && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air") && !WORKBENCH_MODE) {
+                && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air") && !WORKBENCH_MODE && !HELD_FUEL_MODE) {
             return "invalid_prepared_safety_mode";
         }
         if (IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE && !IRON_PICKAXE_MODE) {
@@ -3781,6 +3915,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                                   Map<String, String> preparedSafetyPursuitReceipt,
                                   Map<String, String> preparedSafetyAirReceipt,
                                   Map<String, String> preparedSafetyWorkbenchReceipt,
+                                  Map<String, String> preparedSafetyHeldFuelReceipt,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {
@@ -3792,6 +3927,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             preparedSafetyPursuitReceipt = Map.copyOf(preparedSafetyPursuitReceipt);
             preparedSafetyAirReceipt = Map.copyOf(preparedSafetyAirReceipt);
             preparedSafetyWorkbenchReceipt = Map.copyOf(preparedSafetyWorkbenchReceipt);
+            preparedSafetyHeldFuelReceipt = Map.copyOf(preparedSafetyHeldFuelReceipt);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
             coalNavigationCourseCheckpointServerTicks = List.copyOf(coalNavigationCourseCheckpointServerTicks);
         }

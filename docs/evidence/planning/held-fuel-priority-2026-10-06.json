@@ -34,7 +34,8 @@
       "materialFindings": 0,
       "scope": "Read-only source review confirmed protected stock, recipe and station constraints, bounded conversion work, and no zero-operation crafting. Native verification remains separate."
     },
-    "allVersionCi": "queued",
+    "allVersionCi": "passed",
+    "allVersionBuilds": 24,
     "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999"
   },
   "releaseScope": "Preview 11 development only. Published Preview 10 artifacts and their 1.21.1/26.3 full-world timings remain unchanged.",

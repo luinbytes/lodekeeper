@@ -1,0 +1,24 @@
+{
+  "comparisonCommit": "a64dc4e",
+  "scope": "Existing native verification sources only; no production change.",
+  "setup": {
+    "minecraft:raw_iron": 3,
+    "minecraft:oak_log": 2,
+    "minecraft:oak_planks": 3,
+    "minecraft:furnace": 1,
+    "minecraft:crafting_table": 1
+  },
+  "commands": ["!lk get iron_ingot 3", "!lk get stick 8"],
+  "postCommandFixtureMutations": 0,
+  "sequenceWallLimitMillis": 120000,
+  "review": {
+    "materialFindings": 1,
+    "finding": "Two modern addResult calls used the Yarn-only fourth argument.",
+    "resolution": "Removed the fourth argument in modern. Its existing three-argument method captures prepared-safety screenshots.",
+    "otherFindings": 0,
+    "constraintsChecked": "Exact server inventories, drained native furnace slots, empty cursor, stopped navigation, one setup mutation and bounded phases."
+  },
+  "buildVerification": "pending",
+  "nativeVerification": "pending",
+  "scopeLimit": "Source review does not establish gameplay success or screenshot readability."
+}

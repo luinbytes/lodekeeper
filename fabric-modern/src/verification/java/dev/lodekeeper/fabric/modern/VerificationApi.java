@@ -60,6 +60,16 @@ final class VerificationApi {
     }
 
     static void seedPreparedSafetyFixture(ServerPlayer player, String mode) {
+        if ("held-fuel".equals(mode)) {
+            if (!player.getInventory().add(new ItemStack(Items.RAW_IRON, 3))
+                    || !player.getInventory().add(new ItemStack(Items.OAK_LOG, 2))
+                    || !player.getInventory().add(new ItemStack(Items.OAK_PLANKS, 3))
+                    || !player.getInventory().add(new ItemStack(Items.FURNACE))
+                    || !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
+                throw new IllegalStateException("could not seed the declared held-fuel stock");
+            }
+            return;
+        }
         if ("equipment".equals(mode)) {
             if (!player.getInventory().add(new ItemStack(Items.IRON_HELMET))) {
                 throw new IllegalStateException("could not seed the prepared iron helmet");
@@ -500,6 +510,30 @@ final class VerificationApi {
             throw new IllegalStateException("could not seed the prepared oak logs and owned crafting table");
         }
         player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.OAK_LOG, 8));
+    }
+
+    static Map<String, String> preparedSafetyHeldFuelReceipt(ServerLevel world) {
+        Map<String, String> result = new LinkedHashMap<>();
+        int furnaces = 0, input = 0, fuel = 0, output = 0;
+        StringBuilder positions = new StringBuilder();
+        for (int x = -6; x <= 6; x++) for (int y = 64; y <= 67; y++) for (int z = -6; z <= 6; z++) {
+            BlockPos position = new BlockPos(x, y, z);
+            if (!world.getBlockState(position).is(Blocks.FURNACE)) continue;
+            if (furnaces++ > 0) positions.append(';');
+            positions.append(x).append(',').append(y).append(',').append(z);
+            if (!(world.getBlockEntity(position) instanceof net.minecraft.world.Container inventory)) {
+                throw new IllegalStateException("native fixture furnace has no inventory");
+            }
+            input += inventory.getItem(0).getCount();
+            fuel += inventory.getItem(1).getCount();
+            output += inventory.getItem(2).getCount();
+        }
+        result.put("nearbyFurnaceCount", Integer.toString(furnaces));
+        result.put("nativeFurnacePositions", positions.toString());
+        result.put("furnaceInputCount", Integer.toString(input));
+        result.put("furnaceFuelCount", Integer.toString(fuel));
+        result.put("furnaceOutputCount", Integer.toString(output));
+        return Map.copyOf(result);
     }
 
     static Map<String, String> equippedItems(ServerPlayer player) {
