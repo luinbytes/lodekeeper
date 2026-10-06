@@ -164,3 +164,10 @@ The first workbench verifier incorrectly split one recovery at the engine's move
 
 
 The next fresh-world repeat was stopped after a food hunt spent sixty seconds pursuing an untouched cow, then selected the same cow again after the engine's ten-second cooldown. The [interrupted experiment](evidence/navigation-rebuild/checkpoint-13-interrupted/interruption.json) retains its exact candidate, source and causal trace. Its spawn location differed from checkpoint 12, so it is not a paired overall speed comparison. The next candidate invokes the existing per-entity rejection before a hunt timeout, shortens the action bound to thirty seconds and excludes a failed target for two minutes. Manual input and player/world checks still run before this timeout handling. Native verification of this change is pending.
+
+
+## User trace and exact release candidate
+
+The [user's cobblestone trace](evidence/navigation-rebuild/user-cobblestone-stall-2026-10-06/assessment.json) records 125,745 ms to acquire one block. The old custom navigator searched for an oak log until its first 61-second gathering timeout, then repeatedly restarted the stone approach. The excerpt omits the installed jar version. Its `search_cpu_ms` and sixteenth-height fields identify the custom navigator; the current production backend emits `backend=baritone` events.
+
+Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact CI builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. The frozen local 1.21.1 and 26.3 jars match their downloaded CI jars byte for byte. The current native full-project run still selected two whole logs for iron fuel, despite the focused conversion test passing. The full-catalog fuel choice remains an efficiency defect; the release does not claim that it eliminates the late wood resupply.

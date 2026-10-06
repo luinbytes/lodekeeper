@@ -1,0 +1,18 @@
+{
+  "origin": "User-supplied launcher trace pasted at 2026-10-06 04:06:25 +0100",
+  "attachmentSha256": "d06c2238fb49ab5223859e3756267f808ae54b4c029db0c6e05d2c9c3c252207",
+  "artifactVersion": "not present in supplied excerpt",
+  "backendEvidence": "Custom navigator fields search_cpu_ms, expanded and feet_y16; no backend=baritone events",
+  "requestedItem": "minecraft:cobblestone",
+  "targetCount": 1,
+  "commandElapsedMillis": 125745,
+  "firstGatherRejectionElapsedMillis": 61094,
+  "observedFailures": [
+    "Nearby oak-log route searched until the gather timeout",
+    "Stone approach restarted about every 100 ms before a usable two-node route was selected"
+  ],
+  "outcome": "One cobblestone completed after 2 minutes 5.745 seconds",
+  "regressionRequirement": "Retain the version-matched Baritone backend, allow route calculation during movement, and verify actual inventory progress rather than repeated goal resubmission",
+  "replacementEvidence": "checkpoint-14.json (final result recorded separately)",
+  "scope": "This excerpt cannot establish which released jar was installed."
+}
