@@ -8,7 +8,7 @@
 
 **Your next item is a goal, not a chore.** Lodekeeper is a Minecraft Fabric mod being built to gather resources, navigate terrain and work through survival crafting chains using ordinary player actions—with its own navigation engine and no Baritone dependency.
 
-> **Experimental preview:** [Preview 4](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.4) adds a live path, target and compact task panel, shared wood discovery for crafting chains, and safer drop execution. Full mechanic coverage, natural-world survival and server acceptance remain in development.
+> **Experimental preview:** [Preview 6](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.6) prioritizes reachable nearby resources, brakes before ledge launches, and adds an elapsed timer and console progress trace. Full mechanic coverage, natural-world survival and server acceptance remain in development.
 
 ### Tell it what you need
 
@@ -42,6 +42,8 @@ For large wood requests, try `!lk config optimizeWoodTools true`. This experimen
 
 Lodekeeper works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables and cooking stations, then check the finished item in your inventory. Navigation and actions are designed to share a bounded tick budget so the game stays responsive.
 
+In a controlled [nearby-log check](docs/evidence/1.21.1-preview6-local-wood-jar/README.md), the exact 1.21.1 jar selected and began mining the reachable log after 246 ms. The enclosed decoy stayed intact. This is a prepared fixture; performance in your world still needs verification.
+
 Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
 
 `get` starts automatically. Close chat or other screens to let it run; `!lk status` shows discovery, planning, and movement progress. Bare `!lk` and `!lk help` show command guidance.
@@ -62,10 +64,10 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Download [Development Preview 4](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.4). All 24 exact-version jars were built and inspected. Its exact [1.21.1](docs/evidence/1.21.1-preview4-jar/README.md) and [26.3 jars](docs/evidence/26.3-preview4-jar/README.md) each passed a nearby wood-to-crafting-table check from an empty inventory. The current fixes also pass controlled [tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md) and [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) checks using development classes. Broader ordinary-world acceptance remains open.
+Download [Development Preview 6](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.6). All 24 exact-version jars were built and inspected. Its exact [1.21.1](docs/evidence/1.21.1-preview6-jar/README.md) and [26.3 jars](docs/evidence/26.3-preview6-jar/README.md) each passed a meadow wood-to-crafting-table check from an empty inventory. The current fixes also pass controlled [tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md) and [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) checks using development classes. Broader ordinary-world acceptance remains open.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.4.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.6.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
 Each jar targets one exact release. Every stable Java release from 1.20 through the current stable release, 26.3, has a passing development build, including 1.21.1. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.

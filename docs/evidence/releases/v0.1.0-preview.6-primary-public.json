@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-06",
+  "release": "https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.6",
+  "sourceCommit": "26b5d9b7128da1e29bcfc64c19174af342247079",
+  "scope": "First publication with two primary jars; complete matrix attachments follow separately. Public bytes match exact native-tested CI jars.",
+  "artifacts": [
+    {
+      "artifact": "lodekeeper-1.21.1-0.1.0-preview.6.jar",
+      "sha256": "001670b9edcf3097142d99a691e39ea9e33ec8697fe76ddba3e8f91ce0cef5ae",
+      "publicDownloadMatchesVerifiedCIJar": true
+    },
+    {
+      "artifact": "lodekeeper-26.3-0.1.0-preview.6.jar",
+      "sha256": "5a70bb03f48ebab46e76530e15b5bd12d9df952dc12ddd3a72b503f513c6b821",
+      "publicDownloadMatchesVerifiedCIJar": true
+    }
+  ]
+}
