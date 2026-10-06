@@ -2501,7 +2501,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (engineStatus.startsWith("approaching the recorded owned crafting table")) workbenchApproachObserved = true;
         boolean recoveryActive = engineStatus.contains("owned crafting table")
             || engineStatus.contains("owned crafting-table") || engineStatus.startsWith("collecting the crafting-table drop")
-            || engineStatus.startsWith("crafting table gained;");
+            || engineStatus.startsWith("crafting table gained;")
+            || workbenchRecoveryWasActive && engineStatus.startsWith("finishing movement before inventory actions");
         if (workbenchStatusObservations.isEmpty()
                 || !workbenchStatusObservations.get(workbenchStatusObservations.size() - 1).status.equals(engineStatus)) {
             workbenchStatusObservations.add(new WorkbenchStatusObservation(clientTicks,

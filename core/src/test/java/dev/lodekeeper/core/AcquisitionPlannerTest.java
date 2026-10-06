@@ -306,15 +306,15 @@ final class AcquisitionPlannerTest {
         ItemId cooked = ItemId.parse("test:cooked");
         StationId table = StationId.parse("test:table");
         ItemId tableItem = ItemId.parse("test:table");
-        for (String scenario : List.of("competing_gather", "missing_station", "effective_capacity")) {
+        for (String scenario : List.of("competing_recipe", "missing_station", "effective_capacity")) {
             List<Requirement> requirements = scenario.equals("missing_station")
                     ? List.of(new StationRequirement(table, tableItem, "crafting table")) : List.of();
             CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(raw, 0).item(cooked, 0)
                     .item(LOG, 0, 300).item(PLANKS, 0, 300).item(tableItem, 0)
                     .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPED, 1, 1,
                             List.of(new RecipeSlot(0, Ingredient.of(LOG))), requirements));
-            if (scenario.equals("competing_gather")) builder.source(new GatherSource("gather:planks", PLANKS, 1,
-                    List.of(BlockId.parse("test:planks"))));
+            if (scenario.equals("competing_recipe")) builder.source(new CraftingSource("craft:other_planks", PLANKS, 2,
+                    RecipeType.SHAPED, 1, 1, List.of(new RecipeSlot(0, Ingredient.of(LOG))), List.of()));
             Map<ItemId, Long> capacities = Map.of(LOG, 300L, PLANKS, scenario.equals("effective_capacity") ? 50L : 300L);
             CatalogSnapshot catalog = builder.source(new SmeltingSource("smelt", cooked, 1, Ingredient.of(raw),
                     List.of(ItemSelector.item(LOG), ItemSelector.item(PLANKS)), 200, List.of(), capacities)).build();
@@ -323,6 +323,38 @@ final class AcquisitionPlannerTest {
             assertEquals(List.of(PlanKind.SMELT), result.steps().stream().map(PlanStep::kind).toList(), scenario);
             assertEquals(LOG, selectedFuel(result).item(), scenario);
             assertEquals(2, selectedFuel(result).count(), scenario);
+        }
+    }
+
+    @Test
+    void heldFuelConversionAvoidsMiningPlanksAndLeavesWoodForLaterTools() {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId ingot = ItemId.parse("test:ingot");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(raw, 0).item(ingot, 0)
+                .item(LOG, 0, 300).item(PLANKS, 0, 300).item(STICKS, 0)
+                .source(new GatherSource("gather:planks", PLANKS, 1, List.of(BlockId.parse("test:planks"))))
+                .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(LOG))), List.of()))
+                .source(new CraftingSource("craft:sticks", STICKS, 4, RecipeType.SHAPED, 1, 2,
+                        List.of(new RecipeSlot(0, Ingredient.of(PLANKS)), new RecipeSlot(1, Ingredient.of(PLANKS))), List.of()))
+                .source(new SmeltingSource("smelt", ingot, 1, Ingredient.of(raw),
+                        List.of(ItemSelector.item(LOG), ItemSelector.item(PLANKS)), 200, List.of()))
+                .build();
+        for (PlanningPreferences preferences : List.of(PlanningPreferences.NONE,
+                new PlanningPreferences(Map.of("gather:planks", 0, "craft:planks", 100)))) {
+            InventorySnapshot stock = new InventorySnapshot(Map.of(raw, 3, LOG, 2, PLANKS, 1));
+            PlanResult fuel = planner().planFast(catalog, stock, ingot, 3, PlannerLimits.DEFAULT, preferences);
+            assertTrue(fuel.success(), fuel.blockedReasons().toString());
+            assertEquals(List.of("craft:planks", "smelt"), fuel.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(PLANKS, selectedFuel(fuel).item());
+            assertEquals(2, selectedFuel(fuel).count());
+            ProjectSpec project = new ProjectSpec("fuel_and_tools", "Smelt and retain enough wood for tool handles",
+                    Map.of(ingot, 3, STICKS, 8), ProjectSpec.Purpose.INVENTORY_GOALS);
+            ProjectPlanResult joint = planner().planProjectFast(catalog, stock, project, PlannerLimits.DEFAULT, preferences);
+            assertTrue(joint.success(), joint.blockedReasons().toString());
+            assertTrue(joint.steps().stream().noneMatch(step -> step.kind() == PlanKind.GATHER));
+            assertEquals(2, joint.steps().stream().filter(step -> step.sourceId().equals("craft:planks"))
+                    .mapToInt(PlanStep::operationCount).sum());
         }
     }
 

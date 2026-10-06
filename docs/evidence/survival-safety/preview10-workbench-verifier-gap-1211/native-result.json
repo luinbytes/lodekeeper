@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T13-51-39-519842Z-300c3cd3",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"workbench",
+  "evidenceAuthority":"integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+  "verificationMode":"prepared_safety_workbench",
+  "elapsedMillis":28496,
+  "clientTicks":456,
+  "failure":"owned-workbench recovery retried during the same foreground command",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "preparedWorkbench":{"authority":"prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status","fixtureGrants":"12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command","ownershipSetupCommand":"!lk get wooden_pickaxe 1","ownershipSetupExcludedFromCaseTiming":true,"ownershipSetupServerTick":306,"ownershipSetupClientTick":421,"ownershipSetupEngineStatus":"idle · 0 foreground queued · 0 maintenance queued","ownershipSetupScreenshot":"screenshots/lodekeeper-2026-10-06T13-51-39-519842Z-300c3cd3-prepared_owned_workbench_setup_complete.png","ownershipSetupStartingServerInventory":{"minecraft:oak_planks":12},"ownershipSetupServerInventory":{"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"initialServerReceipt":{"stoneAir":"false","stonePosition":"7,64,0","stonePresent":"true","blocked":"false","playerFeetY":"64.0","tablePosition":"-1,64,0","tablePresent":"true","horizontalDistance":"6.0","bedrockShellCells":"9","tableAir":"false"},"finalServerReceipt":{"stoneAir":"false","stonePosition":"7,64,0","stonePresent":"true","blocked":"false","playerFeetY":"64.0","tablePosition":"-1,64,0","tablePresent":"true","horizontalDistance":"6.0","bedrockShellCells":"9","tableAir":"false"},"approachObserved":true,"recoveryEpisodes":2,"recoveryDurationMillis":396,"nativeNavigationStopped":true,"postForegroundFixtureMutations":0,"naturalClientTickStatusTransitions":[{"clientTick":443,"elapsedMillis":35,"engineStatus":"checking nearby crafting stations · 0 foreground queued · 0 maintenance queued"},{"clientTick":444,"elapsedMillis":71,"engineStatus":"planning · 0 foreground queued · 0 maintenance queued"},{"clientTick":445,"elapsedMillis":150,"engineStatus":"approaching the recorded owned crafting table · 0 foreground queued · 0 maintenance queued"},{"clientTick":453,"elapsedMillis":546,"engineStatus":"finishing movement before inventory actions · 0 foreground queued · 0 maintenance queued"},{"clientTick":456,"elapsedMillis":685,"engineStatus":"finishing movement before mining the owned crafting table · 0 foreground queued · 0 maintenance queued"}]},
+  "cases":[
+    {"name":"prepared_owned_workbench_approach_cobblestone","item":"minecraft:cobblestone","expected":1,"serverObserved":0,"inventoryEmptyAtStart":false,"passed":false,"clientTicks":14,"worldTicks":14,"engineStatus":"finishing movement before mining the owned crafting table · 0 foreground queued · 0 maintenance queued","detail":"owned-workbench recovery retried during the same foreground command","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[5.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T13-51-39-519842Z-300c3cd3-failed-prepared_owned_workbench_approach_cobblestone.png","initialStorageInventory":{"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"finalStorageInventory":{"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"fullServerHeldInventory":{"minecraft:oak_planks":3,"minecraft:stick":2,"minecraft:wooden_pickaxe":1},"elapsedMillisFromCommand":687,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{},"serverPreparedPursuitReceipt":{},"initialPreparedAirReceipt":{},"serverPreparedAirReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

@@ -473,6 +473,11 @@ public final class AcquisitionPlanner {
         }
 
         private List<State> satisfy(ItemId item, int count, boolean consume, State state, Set<ItemId> path, int depth, String purpose, int recipeSlot) {
+            return satisfy(item, count, consume, state, path, depth, purpose, recipeSlot, null);
+        }
+
+        private List<State> satisfy(ItemId item, int count, boolean consume, State state, Set<ItemId> path, int depth,
+                                    String purpose, int recipeSlot, CraftingSource fuelConversion) {
             if (!visit(item, path, depth)) return List.of();
             if (count < 1 || count > limits.maximumRequestedCount()) {
                 fail(BlockedReason.Code.STEP_LIMIT, item, "Required quantity exceeds planner limits", pathWith(path, item));
@@ -491,7 +496,7 @@ public final class AcquisitionPlanner {
             }
             Set<ItemId> nextPath = with(path, item);
             boolean bootstrapGather = path.contains(item);
-            List<State> produced = produce(item, missing, state, nextPath, depth + 1, bootstrapGather);
+            List<State> produced = produce(item, missing, state, nextPath, depth + 1, bootstrapGather, fuelConversion);
             if (bootstrapGather && produced.isEmpty()) {
                 fail(BlockedReason.Code.CYCLE, item, "Dependency cycle while obtaining " + item, pathWith(path, item));
             }
@@ -597,8 +602,13 @@ public final class AcquisitionPlanner {
         }
 
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth, boolean heldGatherOnly) {
+            return produce(item, missing, state, path, depth, heldGatherOnly, null);
+        }
+
+        private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth,
+                                    boolean heldGatherOnly, CraftingSource fuelConversion) {
             if (!visit(item, path, depth)) return List.of();
-            List<AcquisitionSource> sources = catalog.sourcesFor(item);
+            List<AcquisitionSource> sources = fuelConversion == null ? catalog.sourcesFor(item) : List.of(fuelConversion);
             Map<String, Integer> sourcePreferenceRanks = freezeSourcePreferenceRanks(sources);
             boolean orderSources = firstFeasible || !preferences.isEmpty();
             Map<String, Integer> stationBootstrapRanks = orderSources
@@ -876,7 +886,8 @@ public final class AcquisitionPlanner {
                         continue;
                     }
                     int needed = (int) neededLong;
-                    for (State ready : satisfy(fuel, needed, true, candidate.state, path, depth + 1, "smelting fuel", -1)) {
+                    for (State ready : satisfy(fuel, needed, true, candidate.state, path, depth + 1, "smelting fuel", -1,
+                            conversions.recipes().get(fuel))) {
                         var selected = new ArrayList<>(candidate.selected);
                         selected.add(new SelectedItemRequirement(fuel, needed, true, "smelting fuel", -1));
                         next.add(new Prepared(ready, List.copyOf(selected)));
@@ -887,22 +898,32 @@ public final class AcquisitionPlanner {
             return trimPrepared(next);
         }
 
-        private record FuelConversions(Set<ItemId> inputs, Set<ItemId> outputs) {
-            private static final FuelConversions NONE = new FuelConversions(Set.of(), Set.of());
+        private record FuelConversions(Set<ItemId> inputs, Map<ItemId, CraftingSource> recipes) {
+            private Set<ItemId> outputs() { return recipes.keySet(); }
         }
 
         private FuelConversions heldFuelConversions(Set<ItemId> fuels, SmeltingSource smelting,
                                                      long totalTicks, State state, int[] work) {
-            Set<ItemId> inputs = new HashSet<>(), outputs = new HashSet<>();
+            Set<ItemId> inputs = new HashSet<>();
+            Map<ItemId, CraftingSource> recipes = new HashMap<>();
             for (ItemId output : fuels) {
-                if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline)
+                    return new FuelConversions(Set.copyOf(inputs), Map.copyOf(recipes));
                 List<AcquisitionSource> sources = catalog.sourcesFor(output);
-                if (sources.size() != 1 || !(sources.get(0) instanceof CraftingSource craft)
-                        || craft.slots().size() != 1) continue;
+                CraftingSource craft = null;
+                boolean ambiguous = false;
+                for (AcquisitionSource source : sources) {
+                    if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline)
+                        return new FuelConversions(Set.copyOf(inputs), Map.copyOf(recipes));
+                    if (source instanceof CraftingSource candidate && craft == null) craft = candidate;
+                    else if (!(source instanceof GatherSource)) { ambiguous = true; break; }
+                }
+                if (ambiguous || craft == null || craft.slots().size() != 1) continue;
                 Ingredient ingredient = craft.slots().get(0).ingredient();
                 boolean readyStation = true;
                 for (Requirement requirement : craft.requirements()) {
-                    if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                    if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline)
+                        return new FuelConversions(Set.copyOf(inputs), Map.copyOf(recipes));
                     if (!(requirement instanceof StationRequirement station) || !state.stations.contains(station.station())) {
                         readyStation = false;
                         break;
@@ -922,7 +943,8 @@ public final class AcquisitionPlanner {
                 boolean enoughHeld = false, safeHeldChoices = true;
                 for (ItemSelector selector : ingredient.alternatives()) {
                     for (ItemId input : catalog.expand(selector)) {
-                        if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline) return FuelConversions.NONE;
+                        if (++work[0] > MAX_FUEL_CONVERSION_WORK || clock.getAsLong() >= deadline)
+                            return new FuelConversions(Set.copyOf(inputs), Map.copyOf(recipes));
                         int held = state.spendableCount(input);
                         if (held < ingredient.count()) continue;
                         long inputTicks = smelting.effectiveFuelTicks(catalog, input);
@@ -939,9 +961,9 @@ public final class AcquisitionPlanner {
                 }
                 if (!safeHeldChoices || !enoughHeld) continue;
                 inputs.addAll(eligibleInputs);
-                outputs.add(output);
+                recipes.put(output, craft);
             }
-            return new FuelConversions(Set.copyOf(inputs), Set.copyOf(outputs));
+            return new FuelConversions(Set.copyOf(inputs), Map.copyOf(recipes));
         }
 
         private int fuelStockPriority(State state, ItemId fuel, long needed) {

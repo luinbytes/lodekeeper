@@ -1,0 +1,8 @@
+{
+  "status": "failed_verifier_false_positive",
+  "sourceCommit": "ccb01917bd70117d5d13b1af9dda7341d79fbc3e",
+  "failurePreserved": true,
+  "cause": "The verifier ended the recovery episode during the engine-wide finishing movement before inventory actions handoff, then counted the next owned-table mining phase as a retry. The trace contains one approach and no repeated begin.",
+  "correction": "Continue the existing episode through this exact engine cancellation status; count a later actual recovery as a new episode; retain the cumulative twenty-second bound.",
+  "nativeProductionRecoveryCompletionProved": false
+}
