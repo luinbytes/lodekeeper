@@ -94,6 +94,8 @@ public final class Planner {
     private int nodeCount;
     private int heapSize;
     private long expandedNodes;
+    private long groundedCollectionRequests;
+    private long groundedCollectionCalls;
     private int placementsInFoundPath;
     private Path path;
     private NavStatus status = NavStatus.IN_PROGRESS;
@@ -259,6 +261,8 @@ public final class Planner {
     public long getExpandedNodes() { return expandedNodes; }
     public int getDiscoveredNodes() { return nodeCount; }
     public int getOpenNodes() { return heapSize; }
+    public long getGroundedCollectionRequests() { return groundedCollectionRequests; }
+    public long getGroundedCollectionCalls() { return groundedCollectionCalls; }
 
     /** Sample at most 256 graph entries with O(limit) work, without exposing mutable search arrays. */
     public NavigationSnapshot snapshot(int nextStep, long searchNanos, int searchTicks, int retries,
@@ -356,7 +360,9 @@ public final class Planner {
         }
 
         if (sourceHasGroundSupport) {
+            groundedCollectionRequests++;
             groundedStances.clear();
+            groundedCollectionCalls++;
             boolean complete = terrain.collectGroundedStances(tx, sourceFeetY16, tz, groundedStances);
             if (!complete || !groundedStances.isComplete()) {
                 nodeLimitHit = true;

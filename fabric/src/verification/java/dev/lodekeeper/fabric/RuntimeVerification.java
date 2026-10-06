@@ -1520,12 +1520,48 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.GATHERING_WOOD;
     }
 
+    private static int routeBenchmarkIntProperty(String name, int fallback, int minimum, int maximum) {
+        String value = System.getProperty("lodekeeper.verify." + name, Integer.toString(fallback));
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed >= minimum && parsed <= maximum) return parsed;
+        } catch (NumberFormatException ignored) { }
+        throw new IllegalArgumentException(name + " must be between " + minimum + " and " + maximum);
+    }
+
+    private static String routePathFingerprint(dev.lodekeeper.nav.Path path) {
+        if (path == null) return "none";
+        StringBuilder encoded = new StringBuilder().append(path.cost).append('/').append(path.placementsReserved);
+        for (int index = 0; index < path.length(); index++) {
+            dev.lodekeeper.nav.Path.Step step = path.step(index);
+            encoded.append('|').append(step.x).append(',').append(step.feetY16).append(',')
+                .append(step.z).append(',').append(step.movement);
+            for (int actionIndex = 0; actionIndex < step.actionCount(); actionIndex++) {
+                dev.lodekeeper.nav.Action action = step.action(actionIndex);
+                encoded.append(';').append(action.type).append(',').append(action.x).append(',')
+                    .append(action.y).append(',').append(action.z).append(',').append(action.token);
+            }
+        }
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(encoded.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("Required SHA-256 provider is unavailable", exception);
+        }
+    }
+
     /** Same native terrain, policy and target across builds; timing is evidence, not a flaky pass threshold. */
     private void benchmarkNativeRoute() {
         routeBenchmark = new JsonArray();
-        for (int sample = 0; sample < 4; sample++) {
+        int samples = routeBenchmarkIntProperty("routeBenchmarkSamples", 4, 4, 16);
+        int warmups = routeBenchmarkIntProperty("routeBenchmarkWarmups", 1, 1, 4);
+        if (warmups > samples - 2) throw new IllegalArgumentException("routeBenchmarkWarmups must leave at least two measured samples");
+        for (int sample = 0; sample < samples; sample++) {
             GameTerrain terrain = new GameTerrain(client, requireEngine().config);
             terrain.beginSearch();
+            long initialVoxelQueries = terrain.voxelQueries, initialReadMisses = terrain.readMisses;
+            long initialShapeMisses = terrain.shapeMisses, initialChunkQueries = terrain.chunkQueries;
+            long initialChunkMisses = terrain.chunkMisses;
             long started = System.nanoTime();
             dev.lodekeeper.nav.Planner planner = new dev.lodekeeper.nav.Planner(terrain, 0, PLAYER_Y, -3,
                 dev.lodekeeper.nav.Goal.exact(20, PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0), -3),
@@ -1537,8 +1573,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 calls++;
             }
             JsonObject row = new JsonObject();
-            row.addProperty("warmup", sample == 0);
+            row.addProperty("warmup", sample < warmups);
+            row.addProperty("sampleIndex", sample);
             row.addProperty("elapsedNanos", System.nanoTime() - started);
+            row.addProperty("groundedCollectionRequests", planner.getGroundedCollectionRequests());
+            row.addProperty("groundedCollectionCalls", planner.getGroundedCollectionCalls());
+            row.addProperty("voxelQueries", terrain.voxelQueries - initialVoxelQueries);
+            row.addProperty("readMisses", terrain.readMisses - initialReadMisses);
+            row.addProperty("shapeMisses", terrain.shapeMisses - initialShapeMisses);
+            row.addProperty("chunkQueries", terrain.chunkQueries - initialChunkQueries);
+            row.addProperty("chunkMisses", terrain.chunkMisses - initialChunkMisses);
+            row.addProperty("pathFingerprintSha256", routePathFingerprint(planner.getPath()));
             row.addProperty("advanceCalls", calls);
             row.addProperty("expanded", planner.getExpandedNodes());
             row.addProperty("discovered", planner.getDiscoveredNodes());
