@@ -83,6 +83,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean STATION_ROOM_TUNNEL_MODE = "true".equals(STATION_ROOM_TUNNEL_PROPERTY);
     private static final boolean STATION_ROOM_APPROACH_MODE = "approach".equals(STATION_ROOM_TUNNEL_PROPERTY);
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
+    private static final String THREAT_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatContact");
+    private static final boolean THREAT_CONTACT_MODE = "true".equals(THREAT_CONTACT_PROPERTY);
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final boolean STONECUTTING_MODE = Boolean.getBoolean("lodekeeper.verify.stonecutting");
@@ -297,7 +299,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
         if (System.getProperty("lodekeeper.verify.naturalGoal") != null
-                && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE && STATION_ROOM_TUNNEL_PROPERTY == null
+                && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
+                && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
                 && !"air".equals(PREPARED_SAFETY_MODE)) {
             NaturalWorldVerification.start(Minecraft.getInstance());
@@ -318,6 +321,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (invalidStationRoomTunnelMode()) {
                 failure = "stationRoomTunnel must be exactly false, true, or approach and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.stop();
+                return;
+            }
+            if (invalidThreatContactMode()) {
+                failure = "threatContact must be exactly false or true; true requires baritone=true, preparedSafety=threat, Minecraft 1.21.1 or 26.3, no naturalGoal, and no threatWaterRetreat";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -617,6 +628,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
                 if (PREPARED_SAFETY_MODE != null) {
+                    if (THREAT_CONTACT_MODE) {
+                        client.player.setYRot(-90.0F);
+                        client.player.setXRot(0.0F);
+                    }
                     if (STATION_ROOM_TUNNEL_MODE) {
                         client.player.setYRot(98.886902F);
                         client.player.setXRot(-38.467983F);
@@ -779,7 +794,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.allowParkour = false;
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
-        if (THREAT_WATER_RETREAT_MODE) engine.config.debugLogging = true;
+        if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE) engine.config.debugLogging = true;
         if (STATION_ROOM_APPROACH_MODE) engine.config.debugLogging = true;
         if (MINING_REQUEST_LIMIT_MODE) {
             engine.config.actionTimeoutTicks = 200;
@@ -926,6 +941,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                     } else {
                         VerificationApi.seedPreparedSafetyFixture(player, PREPARED_SAFETY_MODE);
                     }
+                }
+                if (THREAT_CONTACT_MODE) {
+                    player.setYRot(-90.0F);
+                    player.setXRot(0.0F);
                 }
                 if (STATION_ROOM_TUNNEL_MODE) {
                     player.setYRot(98.886902F);
@@ -1335,6 +1354,9 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (playerId == null) return;
         ServerPlayer player = server.getPlayerList().getPlayer(playerId);
         if (player == null) return;
+        if (THREAT_CONTACT_MODE && preparedSafetyThreatFixture != null) {
+            VerificationApi.observePreparedSafetyThreatTick(preparedSafetyThreatFixture, player, server.getTickCount());
+        }
         if (preparedSafetyPursuitFixture != null) {
             VerificationApi.observePreparedSafetyPursuitTick(preparedSafetyPursuitFixture, player, server.getTickCount());
         }
@@ -1884,7 +1906,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     Map.of("minecraft:oak_log", 2, "minecraft:crafting_table", 1))
                 && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:oak_log"))
                 && latestSnapshot.count("minecraft:oak_log") == 10;
-            case THREAT -> latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+            case THREAT -> THREAT_CONTACT_MODE ? preparedSafetyContactFixtureReady() : latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
                 && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
                     "minecraft:iron_ingot", 3, "minecraft:wooden_pickaxe", 1))
                 && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
@@ -2303,13 +2325,82 @@ public final class RuntimeVerification implements ClientModInitializer {
         sendCommand("!lk maintain cooked_beef 1");
     }
 
+    private static boolean invalidThreatContactMode() {
+        return THREAT_CONTACT_PROPERTY != null && !"false".equals(THREAT_CONTACT_PROPERTY)
+            && (!THREAT_CONTACT_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+                || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                || System.getProperty("lodekeeper.verify.naturalGoal") != null || THREAT_WATER_RETREAT_MODE);
+    }
+
+    private boolean preparedSafetyContactFixtureReady() {
+        Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
+        if (!latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+                || !latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1,
+                    "minecraft:diamond_sword", 1, "minecraft:iron_ingot", 3, "minecraft:iron_pickaxe", 1))
+                || !latestSnapshot.equippedItems.isEmpty() || latestSnapshot.foodLevel != 20
+                || !"true".equals(receipt.get("cowAlive")) || !"10.0".equals(receipt.get("cowHealth"))
+                || !"10.0".equals(receipt.get("cowInitialHealth"))
+                || !"0".equals(receipt.get("diamondSwordDamage")) || !"0".equals(receipt.get("ironPickaxeDamage"))
+                || !"true".equals(receipt.get("contactClockFrozen"))
+                || !"-1".equals(receipt.get("contactClockReleaseServerTick"))
+                || !"0".equals(receipt.get("contactObservedServerTicks"))
+                || !"true".equals(receipt.get("contactPlayerAlive")) || !"0".equals(receipt.get("contactPlayerDeaths"))
+                || !"0.5,64.0,0.5".equals(receipt.get("contactPlayerPosition"))
+                || !"-90.0".equals(receipt.get("contactPlayerYaw")) || !"0.0".equals(receipt.get("contactPlayerPitch"))
+                || !"true".equals(receipt.get("contactCowNoAi"))
+                || !"2.5,64.0,1.5".equals(receipt.get("contactCowPosition"))
+                || !"false".equals(receipt.get("contactCowBlockCollision"))
+                || !contactShellPreserved(receipt)) return false;
+        for (int index = 0; index < 2; index++) {
+            String prefix = "contactZombie" + index;
+            if (!"true".equals(receipt.get(prefix + "Alive")) || !"20.0".equals(receipt.get(prefix + "Health"))
+                    || !"true".equals(receipt.get(prefix + "AiEnabled")) || !"true".equals(receipt.get(prefix + "Adult"))
+                    || !"true".equals(receipt.get(prefix + "TargetsPlayer")) || !"true".equals(receipt.get(prefix + "Visible"))
+                    || !"false".equals(receipt.get(prefix + "OnFire"))
+                    || !"false".equals(receipt.get(prefix + "BlockCollision"))
+                    || !(index == 0 ? "1.8,64.0,0.45" : "1.8,64.0,1.45").equals(receipt.get(prefix + "Position"))
+                    || !(Double.parseDouble(receipt.getOrDefault(prefix + "DistanceSquared", "NaN")) <= 4.0)
+                    || !"0".equals(receipt.get(prefix + "PlayerHits")) || !"0".equals(receipt.get(prefix + "ForeignDamage"))) return false;
+        }
+        return !receipt.get("contactZombie0Uuid").equals(receipt.get("contactZombie1Uuid"));
+    }
+
+    private static boolean contactShellPreserved(Map<String, String> receipt) {
+        return "5018".equals(receipt.get("contactShellCells"))
+            && "0".equals(receipt.get("contactShellChangedCells"))
+            && "0..6,64..65,0..1".equals(receipt.get("contactPassageBounds"));
+    }
+
+    private boolean preparedSafetyContactCompleted(Map<String, String> receipt, int pickaxeWear) {
+        if (latestSnapshot.health <= 0 || !"true".equals(receipt.get("contactPlayerAlive"))
+                || !"0".equals(receipt.get("contactPlayerDeaths"))
+                || !"false".equals(receipt.get("contactClockFrozen"))
+                || Integer.parseInt(receipt.getOrDefault("contactClockReleaseServerTick", "-1")) < 0
+                || Integer.parseInt(receipt.getOrDefault("contactNativePlayerHits", "0")) < 1
+                || pickaxeWear <= 0 || pickaxeWear > 64 || pickaxeWear % 2 != 0
+                || !contactShellPreserved(receipt)) return false;
+        int hits = 0;
+        for (int index = 0; index < 2; index++) {
+            String prefix = "contactZombie" + index;
+            int nativeHits = Integer.parseInt(receipt.getOrDefault(prefix + "PlayerHits", "0"));
+            if (!activeInitialThreatReceipt.get(prefix + "Uuid").equals(receipt.get(prefix + "Uuid"))
+                    || !"false".equals(receipt.get(prefix + "Alive")) || !"0.0".equals(receipt.get(prefix + "Health"))
+                    || nativeHits < 1 || !"0".equals(receipt.get(prefix + "ForeignDamage"))
+                    || !"player".equals(receipt.get(prefix + "LastDamage"))
+                    || !"true".equals(receipt.get(prefix + "LastDamageByPlayer"))) return false;
+            hits += nativeHits;
+        }
+        return pickaxeWear == hits * 2;
+    }
+
     private void startPreparedSafetyThreatCase() {
         String engineStatus = requireEngine().status();
         if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
             fail("prepared threat command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
+        activeCase = THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
+            : THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
         activeItem = "minecraft:bucket";
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -2326,7 +2417,17 @@ public final class RuntimeVerification implements ClientModInitializer {
         beginCaseClock();
         state = State.PREPARED_SAFETY;
         sendCommand("!lk get bucket 1");
+        if (THREAT_CONTACT_MODE) {
+            var server = client.getSingleplayerServer();
+            if (server == null) throw new IllegalStateException("contact clock release requires integrated server");
+            server.execute(() -> {
+                var player = server.getPlayerList().getPlayer(playerId);
+                if (player == null) throw new IllegalStateException("contact clock release requires original player");
+                VerificationApi.releasePreparedSafetyThreatClock(preparedSafetyThreatFixture, player);
+            });
+        }
     }
+
 
     private static boolean invalidStationRoomTunnelMode() {
         return STATION_ROOM_TUNNEL_PROPERTY != null
@@ -2583,14 +2684,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         } else if (preparedSafetyPhase == PreparedSafetyPhase.THREAT) {
             observed = latestSnapshot.count(activeItem);
             Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
-            int initialPickaxeDamage = Integer.parseInt(activeInitialThreatReceipt.getOrDefault("woodenPickaxeDamage", "-1"));
-            int finalPickaxeDamage = Integer.parseInt(receipt.getOrDefault("woodenPickaxeDamage", "-1"));
+            String pickaxeDamageKey = THREAT_CONTACT_MODE ? "ironPickaxeDamage" : "woodenPickaxeDamage";
+            int initialPickaxeDamage = Integer.parseInt(activeInitialThreatReceipt.getOrDefault(pickaxeDamageKey, "-1"));
+            int finalPickaxeDamage = Integer.parseInt(receipt.getOrDefault(pickaxeDamageKey, "-1"));
             int pickaxeWear = finalPickaxeDamage - initialPickaxeDamage;
             boolean pickaxeShowsNativeHits = pickaxeWear > 0 && pickaxeWear <= 6 && pickaxeWear % 2 == 0;
             passed = observed == 1 && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
                 && latestSnapshot.count("minecraft:iron_ingot") == 0
                 && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
-                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name()) && latestSnapshot.foodLevel == 20
+                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name()) && (THREAT_CONTACT_MODE || latestSnapshot.foodLevel == 20)
                 && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
                 && activeInitialThreatReceipt.get("zombieUuid").equals(receipt.get("zombieUuid"))
                 && activeInitialThreatReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
@@ -2598,7 +2700,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && activeInitialThreatReceipt.get("cowHealth").equals(receipt.get("cowHealth"))
                 && activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
                 && "0".equals(receipt.get("diamondSwordDamage"))
-                && (THREAT_WATER_RETREAT_MODE
+                && (THREAT_CONTACT_MODE ? preparedSafetyContactCompleted(receipt, pickaxeWear)
+                    : THREAT_WATER_RETREAT_MODE
                     ? latestSnapshot.health == 20.0F && "true".equals(receipt.get("zombieAlive"))
                         && "4.0".equals(receipt.get("zombieHealth"))
                         && "true".equals(receipt.get("creeperAlive")) && "false".equals(receipt.get("creeperRemoved"))
@@ -2615,7 +2718,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                     : "true".equals(receipt.get("preparedThreatsCleared"))
                         && "false".equals(receipt.get("zombieAlive")) && "0.0".equals(receipt.get("zombieHealth"))
                         && pickaxeShowsNativeHits);
-            detail = THREAT_WATER_RETREAT_MODE
+            detail = THREAT_CONTACT_MODE
+                ? passed ? "both original full-health live zombies died from native player hits, the player survived native contact damage with zero deaths, the iron pickaxe wore by " + pickaxeWear + ", cow and sword stayed untouched, shell stayed intact, and the supplied iron became one bucket with cursor clear and idle stopped navigation"
+                    : "live contact defense lacked required native hits, two player-attributed deaths, player survival, protected cow/sword, bounded tool wear, intact shell, or bucket completion"
+                : THREAT_WATER_RETREAT_MODE
                 ? passed ? "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation"
                     : "the water-retreat fixture lacked the required native distance, health, untouched-mob/weapon, dry-support, bucket, cursor, or cancellation receipts"
                 : passed
@@ -3459,6 +3565,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("worldKind", "isolated_superflat_fixture");
             root.addProperty("preparedWorld", PREPARED_SAFETY_MODE != null);
             root.addProperty("threatWaterRetreat", THREAT_WATER_RETREAT_MODE);
+            root.addProperty("threatContact", THREAT_CONTACT_MODE);
+            if (THREAT_CONTACT_MODE) root.addProperty("fixtureGrants", "full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65; clock frozen until ordinary bucket command");
             root.addProperty("stationRoomTunnel", STATION_ROOM_TUNNEL_MODE);
             root.addProperty("stationRoomTunnelProperty", STATION_ROOM_TUNNEL_PROPERTY);
             if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) root.addProperty("stationRoomSetupScreenshot", stationRoomSetupScreenshot);
@@ -3954,6 +4062,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if ("air".equals(PREPARED_SAFETY_MODE)
                 && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                     || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_air_recovery";
+        if (invalidThreatContactMode()) return "invalid_threat_contact";
         if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_threat_water_retreat";
@@ -3986,7 +4095,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
         if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
-        if (PREPARED_SAFETY_MODE != null) return THREAT_WATER_RETREAT_MODE
+        if (PREPARED_SAFETY_MODE != null) return THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NEARBY_WOOD_MODE) return "nearby_wood";
         if (BULK_WOOD_MODE) return MINING_REQUEST_LIMIT_MODE

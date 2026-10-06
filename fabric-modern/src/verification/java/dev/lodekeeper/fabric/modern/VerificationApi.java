@@ -558,6 +558,7 @@ final class VerificationApi {
 
     static PreparedSafetyThreatFixture seedPreparedSafetyThreatFixture(ServerPlayer player, ServerLevel world) {
         boolean waterRetreat = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
+        if (Boolean.getBoolean("lodekeeper.verify.threatContact")) return seedPreparedSafetyContactFixture(player, world);
         if (waterRetreat) {
             for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) {
                 world.setBlock(new BlockPos(x, 63, z), Blocks.BEDROCK.defaultBlockState(), 3);
@@ -621,6 +622,146 @@ final class VerificationApi {
         return mob;
     }
 
+    static PreparedSafetyThreatFixture seedPreparedSafetyContactFixture(ServerPlayer player, ServerLevel world) {
+        player.level().getServer().tickRateManager().setFrozen(true);
+        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
+            boolean passage = x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= 65;
+            world.setBlock(new BlockPos(x, y, z), (passage ? Blocks.AIR : Blocks.BEDROCK).defaultBlockState(), 3);
+        }
+        if (!player.getInventory().add(new ItemStack(Items.DIAMOND_SWORD))
+                || !player.getInventory().add(new ItemStack(Items.IRON_PICKAXE))
+                || !player.getInventory().add(new ItemStack(Items.IRON_INGOT, 3))
+                || !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
+            throw new IllegalStateException("could not seed the live contact sword, iron pickaxe and bucket stock");
+        }
+        player.getInventory().setSelectedSlot(0);
+        Mob first = preparedMob(world, "minecraft:zombie");
+        Mob second = preparedMob(world, "minecraft:zombie");
+        Mob cow = preparedMob(world, "minecraft:cow");
+        first.setPos(1.8, 64.0, 0.45);
+        second.setPos(1.8, 64.0, 1.45);
+        cow.setPos(2.5, 64.0, 1.5);
+        ((net.minecraft.world.entity.monster.zombie.Zombie) first).setBaby(false);
+        ((net.minecraft.world.entity.monster.zombie.Zombie) second).setBaby(false);
+        first.setNoAi(false);
+        second.setNoAi(false);
+        first.setHealth(first.getMaxHealth());
+        second.setHealth(second.getMaxHealth());
+        first.setTarget(player);
+        second.setTarget(player);
+        cow.setNoAi(true);
+        if (!world.addFreshEntity(first) || !world.addFreshEntity(second) || !world.addFreshEntity(cow)) {
+            throw new IllegalStateException("could not spawn both full-health AI-enabled contact zombies and protected cow");
+        }
+        PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
+        fixture.contact = new ContactThreatObservation(second);
+        return fixture;
+    }
+
+    static void releasePreparedSafetyThreatClock(PreparedSafetyThreatFixture fixture, ServerPlayer player) {
+        if (fixture.contact == null) throw new IllegalStateException("live contact fixture is absent");
+        fixture.contact.observing = true;
+        fixture.contact.releaseServerTick = player.level().getServer().getTickCount();
+        player.level().getServer().tickRateManager().setFrozen(false);
+    }
+
+    static void observePreparedSafetyThreatTick(PreparedSafetyThreatFixture fixture, ServerPlayer player, int serverTick) {
+        if (fixture.contact == null || !fixture.contact.observing) return;
+        ContactThreatObservation contact = fixture.contact;
+        contact.observedServerTicks++;
+        boolean airborne = !player.onGround();
+        boolean moving = player.getDeltaMovement().horizontalDistanceSqr() > 0.0004;
+        if (airborne) contact.airborneTicks++;
+        if (moving) contact.horizontalMotionTicks++;
+        Mob[] zombies = new Mob[]{fixture.zombie, contact.second};
+        for (int index = 0; index < zombies.length; index++) {
+            Mob zombie = zombies[index];
+            if (zombie.getHealth() < contact.lastHealth[index]) {
+                if (airborne || moving) contact.mobHealthDropsWhilePlayerUnsettled++;
+                var damage = zombie.getLastDamageSource();
+                contact.lastDamage[index] = damage == null ? "" : damage.getMsgId();
+                contact.lastDamageByPlayer[index] = damage != null && damage.getEntity() == player;
+                if (damage != null && damage.getEntity() == player && "player".equals(damage.getMsgId())) contact.playerHits[index]++;
+                else contact.foreignDamage[index]++;
+            }
+            contact.lastHealth[index] = zombie.getHealth();
+        }
+        if (player.getHealth() < contact.lastPlayerHealth) {
+            var damage = player.getLastDamageSource();
+            if (damage != null && (damage.getEntity() == fixture.zombie || damage.getEntity() == contact.second)) contact.nativePlayerHits++;
+        }
+        contact.lastPlayerHealth = player.getHealth();
+    }
+
+    private static final class ContactThreatObservation {
+        private final Mob second;
+        private final float[] lastHealth = new float[]{20.0F, 20.0F};
+        private final int[] playerHits = new int[2];
+        private final int[] foreignDamage = new int[2];
+        private final String[] lastDamage = new String[]{"", ""};
+        private final boolean[] lastDamageByPlayer = new boolean[2];
+        private float lastPlayerHealth = 20.0F;
+        private int nativePlayerHits, observedServerTicks;
+        private int airborneTicks, horizontalMotionTicks, mobHealthDropsWhilePlayerUnsettled;
+        private int releaseServerTick = -1;
+        private boolean observing;
+
+        private ContactThreatObservation(Mob second) { this.second = second; }
+    }
+
+    private static void appendContactThreatReceipt(Map<String, String> result, ServerPlayer player, PreparedSafetyThreatFixture fixture) {
+        ContactThreatObservation contact = fixture.contact;
+        if (contact == null) return;
+        Mob[] zombies = new Mob[]{fixture.zombie, contact.second};
+        for (int index = 0; index < zombies.length; index++) {
+            Mob zombie = zombies[index];
+            String prefix = "contactZombie" + index;
+            result.put(prefix + "BlockCollision", Boolean.toString(player.level().getBlockCollisions(zombie, zombie.getBoundingBox()).iterator().hasNext()));
+            result.put(prefix + "Position", zombie.getX() + "," + zombie.getY() + "," + zombie.getZ());
+            result.put(prefix + "Uuid", zombie.getUUID().toString());
+            result.put(prefix + "Health", Float.toString(zombie.getHealth()));
+            result.put(prefix + "Alive", Boolean.toString(zombie.isAlive()));
+            result.put(prefix + "AiEnabled", Boolean.toString(!zombie.isNoAi()));
+            result.put(prefix + "Adult", Boolean.toString(!((net.minecraft.world.entity.monster.zombie.Zombie) zombie).isBaby()));
+            result.put(prefix + "TargetsPlayer", Boolean.toString(zombie.getTarget() == player));
+            result.put(prefix + "Visible", Boolean.toString(player.hasLineOfSight(zombie)));
+            result.put(prefix + "DistanceSquared", Double.toString(zombie.distanceToSqr(player)));
+            result.put(prefix + "OnFire", Boolean.toString(zombie.isOnFire()));
+            result.put(prefix + "PlayerHits", Integer.toString(contact.playerHits[index]));
+            result.put(prefix + "ForeignDamage", Integer.toString(contact.foreignDamage[index]));
+            result.put(prefix + "LastDamage", contact.lastDamage[index]);
+            result.put(prefix + "LastDamageByPlayer", Boolean.toString(contact.lastDamageByPlayer[index]));
+        }
+        int changed = 0, shellCells = 0;
+        var world = player.level();
+        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
+            if (x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= 65) continue;
+            shellCells++;
+            if (!world.getBlockState(new BlockPos(x, y, z)).is(Blocks.BEDROCK)) changed++;
+        }
+        ItemStack pickaxe = player.getInventory().getItem(1);
+        result.put("ironPickaxeDamage", Integer.toString(pickaxe.is(Items.IRON_PICKAXE) ? pickaxe.getDamageValue() : -1));
+        result.put("contactShellCells", Integer.toString(shellCells));
+        result.put("contactShellChangedCells", Integer.toString(changed));
+        result.put("contactPassageBounds", "0..6,64..65,0..1");
+        result.put("contactClockFrozen", Boolean.toString(player.level().getServer().tickRateManager().isFrozen()));
+        result.put("contactClockReleaseServerTick", Integer.toString(contact.releaseServerTick));
+        result.put("contactObservedServerTicks", Integer.toString(contact.observedServerTicks));
+        result.put("contactCowNoAi", Boolean.toString(fixture.cow.isNoAi()));
+        result.put("contactCowPosition", fixture.cow.getX() + "," + fixture.cow.getY() + "," + fixture.cow.getZ());
+        result.put("contactCowBlockCollision", Boolean.toString(player.level().getBlockCollisions(fixture.cow, fixture.cow.getBoundingBox()).iterator().hasNext()));
+        result.put("contactAirborneServerTicks", Integer.toString(contact.airborneTicks));
+        result.put("contactHorizontalMotionServerTicks", Integer.toString(contact.horizontalMotionTicks));
+        result.put("contactMobHealthDropsWhilePlayerUnsettled", Integer.toString(contact.mobHealthDropsWhilePlayerUnsettled));
+        result.put("contactScope", "live_multi_threat_from_idle_no_prior_native_path");
+        result.put("contactNativePlayerHits", Integer.toString(contact.nativePlayerHits));
+        result.put("contactPlayerAlive", Boolean.toString(player.isAlive()));
+        result.put("contactPlayerDeaths", Integer.toString(player.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS))));
+        result.put("contactPlayerPosition", player.getX() + "," + player.getY() + "," + player.getZ());
+        result.put("contactPlayerYaw", Float.toString(player.getYRot()));
+        result.put("contactPlayerPitch", Float.toString(player.getXRot()));
+    }
+
     static Map<String, String> preparedSafetyThreatReceipt(ServerPlayer player,
                                                             PreparedSafetyThreatFixture fixture) {
         ItemStack sword = player.getInventory().getItem(0);
@@ -664,10 +805,12 @@ final class VerificationApi {
             result.put("playerBodyCellsAir", Boolean.toString(world.getBlockState(feet).is(Blocks.AIR)
                     && world.getBlockState(feet.above()).is(Blocks.AIR)));
         }
+        appendContactThreatReceipt(result, player, fixture);
         return Map.copyOf(result);
     }
 
     static final class PreparedSafetyThreatFixture {
+        private ContactThreatObservation contact;
         private final Mob zombie;
         private final Mob cow;
         private final float cowInitialHealth;

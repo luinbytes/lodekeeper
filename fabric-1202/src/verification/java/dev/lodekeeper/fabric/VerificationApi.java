@@ -205,6 +205,12 @@ final class VerificationApi {
         return new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth());
     }
 
+    static void releasePreparedSafetyThreatClock(PreparedSafetyThreatFixture fixture, ServerPlayerEntity player) {
+        throw new IllegalStateException("live contact fixture requires Minecraft 1.21.1 or 26.3");
+    }
+
+    static void observePreparedSafetyThreatTick(PreparedSafetyThreatFixture fixture, ServerPlayerEntity player, int serverTick) {}
+
     static Map<String, String> preparedSafetyThreatReceipt(ServerPlayerEntity player,
                                                             PreparedSafetyThreatFixture fixture) {
         ItemStack sword = player.getInventory().getStack(0);
