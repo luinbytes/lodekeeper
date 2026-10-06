@@ -36,6 +36,7 @@ sourceSets {
     verification {
         compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
         runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+        java.srcDir(modernApiFamily == '26.3' ? 'src/verification-263/java' : 'src/verification-261/java')
     }
 }
 

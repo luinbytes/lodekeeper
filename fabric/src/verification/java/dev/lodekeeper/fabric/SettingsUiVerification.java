@@ -326,13 +326,16 @@ public final class SettingsUiVerification {
         Widget search = fieldContaining("Search settings");
         click(search);
         replaceFocusedText(text);
-        access.log("typed search=" + text + " via native key/character dispatch field=" + search.bounds());
+        String observed = fieldContaining("Search settings").text();
+        access.log("typed search=" + text + " observed=" + observed + " via native key/character dispatch field=" + search.bounds());
+        require(text.equals(observed), "native search text differs from requested text");
     }
 
     private void replaceFocusedText(String text) throws Exception {
         access.dispatchKey(269, 0, 0);
         int existingLength = access.focusedTextLength();
         for (int i = 0; i < existingLength; i++) access.dispatchKey(259, 0, 0);
+        require(access.focusedTextLength() == 0, "native Backspace did not clear the focused field");
         for (int point : text.codePoints().toArray()) access.dispatchCharacter(point);
     }
 
