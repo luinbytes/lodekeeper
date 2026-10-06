@@ -264,7 +264,7 @@ public final class SettingsUiVerification {
         activeStep = steps.get(nextStep);
         try {
             log("step=" + activeStep + " screen=" + screenName() + " size=" + access.screenWidth() + "x" + access.screenHeight());
-            logVisibleBounds();
+            if (access.currentScreen() != null) logVisibleBounds();
             checks.get(nextStep).run();
             trace.add("PASS " + activeStep);
             nextStep++;
