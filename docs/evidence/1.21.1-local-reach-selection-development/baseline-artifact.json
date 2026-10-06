@@ -1,0 +1,9 @@
+{
+  "kind": "development_classes_baseline",
+  "minecraftVersion": "1.21.1",
+  "productionSourceCommit": "c9f23f1b7f3b3eda214e312c46f368cfa531377c",
+  "verifierSha256": "45520031b6e8326f66caf4d59f6a6dc66ca1f5c5cdcad16c4d7fc326c5aab72f",
+  "runId": "2026-10-06T00-04-08-388731Z-be8cdf4e",
+  "expectedOutcome": "failed_first_target_selection",
+  "ordinaryWorldAcceptance": false
+}

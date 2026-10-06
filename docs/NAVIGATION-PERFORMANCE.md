@@ -4,15 +4,25 @@ The immediate acceptance target is responsive local resource gathering: a tree a
 
 ## Architecture research
 
-We inspected Baritone's published `1.21.4` branch to understand its design. Lodekeeper remains an independent implementation; it does not embed Baritone or copy its code.
+We inspected Baritone's published branches and its 26.3 release at commit `25111daedf1d59e6a8dfb5a3e61885cdb8d953df`. Lodekeeper remains an independent implementation; it does not embed Baritone or copy its code.
 
-- [Pathing design](https://github.com/cabaletta/baritone/blob/1.21.4/FEATURES.md): segmented A*, work on the next segment while executing the current one, and bounded useful partial results.
-- [World-query layer](https://github.com/cabaletta/baritone/blob/1.21.4/src/main/java/baritone/utils/BlockStateInterface.java): reuse nearby chunk access and repeated block-state queries during search.
-- [State classification](https://github.com/cabaletta/baritone/blob/1.21.4/src/main/java/baritone/pathing/precompute/PrecomputedData.java): reuse position-independent block properties while keeping contextual queries separate.
-- [Search loop](https://github.com/cabaletta/baritone/blob/1.21.4/src/main/java/baritone/pathing/calc/AStarPathFinder.java): a priority queue, bounded termination, reused movement results and measured search work.
-- [Search/execution coordination](https://github.com/cabaletta/baritone/blob/1.21.4/src/main/java/baritone/behavior/PathingBehavior.java): background calculation and guarded path handoff.
+- [Pathing design](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/FEATURES.md): segmented A*, work on the next segment while executing the current one, and bounded useful partial results.
+- [World-query layer](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/utils/BlockStateInterface.java): reuse nearby chunk access and repeated block-state queries during search.
+- [State classification](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/pathing/precompute/PrecomputedData.java): reuse position-independent block properties while keeping contextual queries separate.
+- [Search loop](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/pathing/calc/AStarPathFinder.java): a priority queue, bounded termination, reused movement results and measured search work.
+- [Search/execution coordination](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/behavior/PathingBehavior.java): background calculation and guarded path handoff.
 
 These are architectural ideas, not evidence that Lodekeeper has matched that implementation's speed. Lodekeeper's native shape queries currently run on the client thread. Moving them to a worker requires a proper immutable terrain snapshot; accessing a live Minecraft world asynchronously is not an acceptable shortcut.
+
+## Nearby target selection
+
+The Preview 4 natural-village feedback exposed a separate selection defect. `BlockSearch` retains the nearest visited positions, but visits chunks and cells in a different order from actual distance. `chooseLogs` and `gather` accept the first positive partial batch and discard the remaining scan. A closer visible log can therefore be missed while navigation works toward an enclosed or distant one.
+
+An isolated chunk-boundary reproduction selected the enclosed log at `(-6,64,-6)` after 272 ms, despite a visible oak log at `(3,64,0)`. Mining intent for the visible log appeared only after 7,502 ms. It eventually acquired the item at full health, but failed the required first-target proof. This confirms wrong target selection in that fixture; it does not identify the exact selected block in the user's world.
+
+Baritone's [mining process](https://github.com/cabaletta/baritone/blob/25111daedf1d59e6a8dfb5a3e61885cdb8d953df/src/main/java/baritone/process/MineProcess.java) filters, sorts and caps several targets, then passes their goals to a composite search. AltoClef's [collection task](https://github.com/gaucho-matrero/altoclef/blob/af22e3bc2f03dde45da703f5f7535baae18ea486/src/main/java/adris/altoclef/tasks/resources/MineAndCollectTask.java) filters cached targets, compares blocks with drops and blacklists attempts that stop progressing. These support evaluating viable alternatives before one target owns the gather attempt.
+
+The immediate correction is a bounded loaded local reach scan using actual face visibility before committing to global discovery results. Subsequent work should preserve a small candidate pool, bound obstruction approaches separately, cache repeated complete grounded-height collections and plan ahead across segment boundaries. A zero-visible-stance fallback cannot simply be removed: safe obstruction mining may create a useful stance. Neither a broad worker-thread rewrite nor weaker geometry is justified by the current evidence.
 
 ## Identified costs
 
