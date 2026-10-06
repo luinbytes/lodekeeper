@@ -28,6 +28,8 @@ public final class LodekeeperConfig {
     public boolean allowContainers = false;
     public boolean pauseOnScreen = true;
     public boolean autoEat = true;
+    public boolean autoEquipArmor = true;
+    public boolean autoDefend = true;
     public boolean optimizeWoodTools = false;
     public boolean showPath = true;
     public boolean showSearch = false;

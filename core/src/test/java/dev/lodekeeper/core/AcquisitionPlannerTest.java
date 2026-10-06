@@ -342,6 +342,65 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void outputScopedSourceRestrictionSelectsAndNarrowsOnlyThatOutput() {
+        ItemId chosenRaw = ItemId.parse("test:chosen_raw_food");
+        ItemId otherRaw = ItemId.parse("test:other_raw_food");
+        ItemId cooked = ItemId.parse("test:restricted_cooked_food");
+        ItemId coal = ItemId.parse("test:restriction_coal");
+        SmeltingSource broadChoice = new SmeltingSource("smelt:chosen_recipe", cooked, 1,
+                Ingredient.choices(List.of(chosenRaw, otherRaw), 1), List.of(ItemSelector.item(coal)), 200, List.of());
+        SmeltingSource cheaper = new SmeltingSource("smelt:cheaper_recipe", cooked, 1,
+                Ingredient.of(otherRaw), List.of(ItemSelector.item(coal)), 100, List.of());
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(chosenRaw, 0).item(otherRaw, 0).item(cooked, 0).item(coal, 0, 1_600)
+                .source(new GatherSource("gather:chosen_raw", chosenRaw, 1,
+                        List.of(BlockId.parse("test:chosen_raw_block"))))
+                .source(new GatherSource("gather:other_raw", otherRaw, 1,
+                        List.of(BlockId.parse("test:other_raw_block"))))
+                .source(broadChoice)
+                .source(cheaper)
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(coal, 1));
+
+        PlanResult unfiltered = planner().planFast(catalog, inventory, cooked, 1);
+        assertTrue(unfiltered.success(), unfiltered.blockedReasons().toString());
+        assertEquals("smelt:cheaper_recipe", unfiltered.steps().get(unfiltered.steps().size() - 1).sourceId());
+
+        CatalogSnapshot idRestricted = catalog.withOutputSources(cooked, Set.of(broadChoice.sourceId()));
+        CatalogSnapshot cannotReenable = idRestricted.withOutputSources(cooked, List.of(cheaper));
+        assertTrue(cannotReenable.sourcesFor(cooked).isEmpty());
+        SmeltingSource narrowedChoice = new SmeltingSource(broadChoice.sourceId(), cooked, broadChoice.outputCount(),
+                Ingredient.of(chosenRaw), broadChoice.fuels(), broadChoice.cookTicks(), broadChoice.requirements(),
+                broadChoice.fuelProgressTicks());
+        CatalogSnapshot restricted = idRestricted.withOutputSources(cooked, List.of(narrowedChoice));
+        assertEquals(List.of(narrowedChoice), restricted.sourcesFor(cooked));
+        assertEquals(narrowedChoice, restricted.sourceById(broadChoice.sourceId()));
+        assertNull(restricted.sourceById(cheaper.sourceId()));
+        assertTrue(restricted.hasRecipeSource(cooked));
+        assertEquals(catalog.gatherSources(), restricted.gatherSources());
+        assertEquals(List.of(new GatherSource("gather:chosen_raw", chosenRaw, 1,
+                List.of(BlockId.parse("test:chosen_raw_block")))), restricted.sourcesFor(chosenRaw));
+        CatalogSnapshot gatherRestricted = catalog.withOutputSources(chosenRaw, Set.of());
+        assertEquals(List.of("gather:other_raw"), gatherRestricted.gatherSources().stream()
+                .map(GatherSource::sourceId).toList());
+        assertEquals(2, catalog.gatherSources().size());
+
+        PlanResult selected = planner().planFast(restricted, inventory, cooked, 1);
+        assertTrue(selected.success(), selected.blockedReasons().toString());
+        assertEquals(List.of("gather:chosen_raw", "smelt:chosen_recipe"),
+                selected.steps().stream().map(PlanStep::sourceId).toList());
+
+        CatalogSnapshot empty = catalog.withOutputSources(cooked, Set.of());
+        assertTrue(empty.sourcesFor(cooked).isEmpty());
+        assertFalse(empty.hasRecipeSource(cooked));
+        assertFalse(planner().planFast(empty, inventory, cooked, 1).success());
+        assertEquals(2, catalog.sourcesFor(cooked).size());
+        PlanResult originalAgain = planner().planFast(catalog, inventory, cooked, 1);
+        assertTrue(originalAgain.success(), originalAgain.blockedReasons().toString());
+        assertEquals("smelt:cheaper_recipe", originalAgain.steps().get(originalAgain.steps().size() - 1).sourceId());
+    }
+
+    @Test
     void nearbyCraftedFuelOutranksGatherFuelWithoutBeatingUsableStock() {
         ItemId raw = ItemId.parse("test:raw_ore");
         ItemId output = ItemId.parse("test:ranked_ingot");
@@ -618,6 +677,230 @@ final class AcquisitionPlannerTest {
         assertEquals(replacement, builder.build().require("extra"));
         assertThrows(IllegalArgumentException.class, () -> builder.registerProvider("other", List.of(original)));
         assertThrows(IllegalArgumentException.class, () -> builder.replaceProvider("missing", List.of(original)));
+    }
+
+    @Test
+    void projectPlanSharesYieldedInventoryAcrossRecipeGoals() {
+        ItemId material = ItemId.parse("test:shared_material");
+        ItemId firstGoal = ItemId.parse("test:first_goal");
+        ItemId secondGoal = ItemId.parse("test:second_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(material, 0).item(firstGoal, 0).item(secondGoal, 0)
+                .source(new GatherSource("gather:shared_material", material, 3,
+                        List.of(BlockId.parse("test:material_ore"))))
+                .source(new CraftingSource("craft:first_goal", firstGoal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(4, material))), List.of()))
+                .source(new CraftingSource("craft:second_goal", secondGoal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(2, material))), List.of()))
+                .build();
+        ProjectSpec project = new ProjectSpec("shared_yield", "Two recipes share yielded materials.",
+                Map.of(firstGoal, 1, secondGoal, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, new InventorySnapshot(Map.of()), project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("gather:shared_material", "craft:first_goal", "craft:second_goal"),
+                result.steps().stream().map(PlanStep::sourceId).toList());
+        PlanStep gather = result.steps().get(0);
+        assertEquals(2, gather.operationCount());
+        assertEquals(6, gather.outputCount());
+    }
+
+    @Test
+    void projectPlanKeepsCompletedGoalStockForLaterRecipes() {
+        ItemId material = ItemId.parse("test:a_project_material");
+        ItemId target = ItemId.parse("test:z_project_target");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(material, 0).item(target, 0)
+                .source(new GatherSource("gather:project_material", material, 1,
+                        List.of(BlockId.parse("test:material_block"))))
+                .source(new CraftingSource("craft:project_target", target, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(material))), List.of()))
+                .build();
+        ProjectSpec project = new ProjectSpec("retain_goal", "Keep the material goal while crafting.",
+                Map.of(material, 1, target, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, new InventorySnapshot(Map.of()), project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(2, result.steps().stream().filter(step -> step.sourceId().equals("gather:project_material"))
+                .mapToInt(PlanStep::outputCount).sum());
+        assertEquals(List.of("gather:project_material", "gather:project_material", "craft:project_target"),
+                result.steps().stream().map(PlanStep::sourceId).toList());
+    }
+
+    @Test
+    void projectPlanReservesHeldStockForLaterGoalBeforePlanningEarlierGoal() {
+        ItemId target = ItemId.parse("test:a_target");
+        ItemId futureGoal = ItemId.parse("test:z_future_material");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(target, 0).item(futureGoal, 0)
+                .source(new GatherSource("gather:future_material", futureGoal, 1,
+                        List.of(BlockId.parse("test:future_material_block"))))
+                .source(new CraftingSource("craft:target", target, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(futureGoal))), List.of()))
+                .build();
+        ProjectSpec project = new ProjectSpec("reserve_future", "Keep held stock for its project goal.",
+                Map.of(target, 1, futureGoal, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog,
+                new InventorySnapshot(Map.of(futureGoal, 1)), project, PlannerLimits.DEFAULT,
+                PlanningPreferences.NONE);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("gather:future_material", "craft:target"),
+                result.steps().stream().map(PlanStep::sourceId).toList());
+    }
+
+    @Test
+    void projectPlanSharesPhysicalToolWearAcrossGoals() {
+        ItemId pickaxe = ItemId.parse("test:project_pickaxe");
+        ItemId firstDrop = ItemId.parse("test:a_first_drop");
+        ItemId secondDrop = ItemId.parse("test:b_second_drop");
+        ToolRequirement tool = new ToolRequirement(Ingredient.of(pickaxe), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(pickaxe, 4).item(firstDrop, 0).item(secondDrop, 0)
+                .source(new GatherSource("gather:first_drop", firstDrop, 1,
+                        List.of(BlockId.parse("test:first_ore")), List.of(tool)))
+                .source(new GatherSource("gather:second_drop", secondDrop, 1,
+                        List.of(BlockId.parse("test:second_ore")), List.of(tool)))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(pickaxe, 1), Set.of(), Map.of(pickaxe, 4),
+                Map.of(), Map.of(pickaxe, List.of(4)),
+                Map.of(pickaxe, List.of(new InventoryToolLot(4, false))));
+        ProjectSpec project = new ProjectSpec("shared_tool_wear", "Two goals share one physical pickaxe.",
+                Map.of(firstDrop, 2, secondDrop, 2), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, inventory, project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+
+        assertFalse(result.success());
+        assertTrue(planner().planFast(catalog, inventory, firstDrop, 2).success());
+        assertTrue(planner().planFast(catalog, inventory, secondDrop, 2).success());
+    }
+
+    @Test
+    void failedProjectPlanLeavesSingleGoalPlanningAvailable() {
+        ItemId feasible = ItemId.parse("test:a_feasible_goal");
+        ItemId blocked = ItemId.parse("test:z_blocked_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(feasible, 0).item(blocked, 0)
+                .source(new GatherSource("gather:feasible", feasible, 1,
+                        List.of(BlockId.parse("test:feasible_block"))))
+                .build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of());
+        ProjectSpec project = new ProjectSpec("partial_fallback", "One goal has no source.",
+                Map.of(feasible, 1, blocked, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, inventory, project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+
+        assertFalse(result.success());
+        assertTrue(result.steps().isEmpty());
+        assertTrue(result.blockedReasons().stream().anyMatch(reason -> reason.item().equals(blocked)));
+        assertTrue(planner().planFast(catalog, inventory, feasible, 1).success());
+    }
+
+    @Test
+    void projectGoalsShareOneExpandedNodeBudget() {
+        ItemId first = ItemId.parse("test:a_project_goal");
+        ItemId second = ItemId.parse("test:b_project_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(first, 0).item(second, 0)
+                .source(new GatherSource("gather:first_project_goal", first, 1,
+                        List.of(BlockId.parse("test:first_goal_block"))))
+                .source(new GatherSource("gather:second_project_goal", second, 1,
+                        List.of(BlockId.parse("test:second_goal_block"))))
+                .build();
+        ProjectSpec project = new ProjectSpec("shared_node_budget", "Two goals use one planner budget.",
+                Map.of(first, 1, second, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+        // One simple gather root takes three visits; the remaining shared budget starts, but
+        // cannot finish, the second root.
+        PlannerLimits limits = new PlannerLimits(48, 4, 25, 12, 4_096, 1_000_000);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, new InventorySnapshot(Map.of()), project,
+                limits, PlanningPreferences.NONE);
+
+        assertFalse(result.success());
+        assertEquals(4, result.expandedNodes());
+        assertEquals(BlockedReason.Code.NODE_LIMIT, result.blockedReasons().get(0).code());
+    }
+
+    @Test
+    void projectPlanBacktracksWhenGreedyGoalChoiceBlocksLaterGoal() {
+        ItemId firstGoal = ItemId.parse("test:a_project_goal");
+        ItemId secondGoal = ItemId.parse("test:b_project_goal");
+        ItemId shared = ItemId.parse("test:shared_input");
+        ItemId alternate = ItemId.parse("test:alternate_input");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .item(firstGoal, 0).item(secondGoal, 0).item(shared, 0).item(alternate, 0)
+                .source(new CraftingSource("craft:a_goal_from_a_shared", firstGoal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(shared))), List.of()))
+                .source(new CraftingSource("craft:a_goal_from_z_alternate", firstGoal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(alternate))), List.of()))
+                .source(new CraftingSource("craft:b_goal_from_shared", secondGoal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(shared))), List.of()))
+                .build();
+        ProjectSpec project = new ProjectSpec("project_backtrack", "Preserve shared stock for a later goal.",
+                Map.of(firstGoal, 1, secondGoal, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog,
+                new InventorySnapshot(Map.of(shared, 1, alternate, 1)), project, PlannerLimits.DEFAULT,
+                PlanningPreferences.NONE);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("craft:a_goal_from_z_alternate", "craft:b_goal_from_shared"),
+                result.steps().stream().map(PlanStep::sourceId).toList());
+    }
+
+    @Test
+    void projectPlanFindsFeasibleWoodToolProgressionAcrossNineGoals() {
+        ItemId woodenPickaxe = ItemId.parse("test:z_wooden_pickaxe");
+        ItemId cobblestone = ItemId.parse("test:cobblestone");
+        List<ItemId> gear = java.util.stream.IntStream.range(0, 8)
+                .mapToObj(index -> ItemId.parse("test:a_gear_" + index)).toList();
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder()
+                .item(LOG, 0).item(PLANKS, 0).item(STICKS, 0).item(woodenPickaxe, 59).item(cobblestone, 0);
+        gear.forEach(item -> builder.item(item, 0));
+        ToolRequirement pickaxe = new ToolRequirement(Ingredient.of(woodenPickaxe), 2, "mine", 1);
+        builder.source(new GatherSource("gather:oak_log", LOG, 1, List.of(BlockId.parse("test:oak_tree"))))
+                .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(LOG))), List.of()))
+                .source(new CraftingSource("craft:sticks", STICKS, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(2, PLANKS))), List.of()))
+                .source(new CraftingSource("craft:wooden_pickaxe", woodenPickaxe, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(3, PLANKS)),
+                                new RecipeSlot(-1, Ingredient.of(2, STICKS))), List.of()))
+                .source(new GatherSource("mine:cobblestone", cobblestone, 4,
+                        List.of(BlockId.parse("test:stone")), List.of(pickaxe)));
+        for (int index = 0; index < gear.size(); index++) {
+            builder.source(new CraftingSource("craft:gear_" + index, gear.get(index), 1, RecipeType.SHAPELESS, 0, 0,
+                    List.of(new RecipeSlot(-1, Ingredient.of(cobblestone)),
+                            new RecipeSlot(-1, Ingredient.of(STICKS))), List.of()));
+        }
+        CatalogSnapshot catalog = builder.build();
+        Map<ItemId, Integer> goals = new HashMap<>();
+        goals.put(woodenPickaxe, 1);
+        gear.forEach(item -> goals.put(item, 1));
+        ProjectSpec project = new ProjectSpec("wood_tool_loadout", "Craft a tool and eight gear goals.",
+                goals, ProjectSpec.Purpose.INVENTORY_GOALS);
+
+        ProjectPlanResult result = planner().planProjectFast(catalog, new InventorySnapshot(Map.of(LOG, 10)),
+                project, PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(9, result.project().goals().size());
+        assertTrue(result.steps().stream().anyMatch(step -> step.sourceId().equals("craft:wooden_pickaxe")));
+        assertEquals(8, result.steps().stream().filter(step -> step.sourceId().startsWith("craft:gear_")).count());
+        int pickaxeIndex = java.util.stream.IntStream.range(0, result.steps().size())
+                .filter(index -> result.steps().get(index).sourceId().equals("craft:wooden_pickaxe"))
+                .findFirst().orElseThrow();
+        int miningIndex = java.util.stream.IntStream.range(0, result.steps().size())
+                .filter(index -> result.steps().get(index).sourceId().equals("mine:cobblestone"))
+                .findFirst().orElseThrow();
+        assertTrue(pickaxeIndex < miningIndex);
     }
 
     @Test

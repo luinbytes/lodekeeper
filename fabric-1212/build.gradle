@@ -40,6 +40,23 @@ def vanillaAttackWearMethod = expectedInputApiFamily == '1215'
         if (type == net.minecraft.item.AxeItem.class) return 2;
         return -1;
     }'''
+def vanillaDefenseAttackWearMethod = expectedInputApiFamily == '1215'
+    ? '''static int defenseAttackWear(net.minecraft.item.ItemStack stack) {
+        Class<?> type = stack.getItem().getClass();
+        if (type != net.minecraft.item.Item.class && type != net.minecraft.item.AxeItem.class
+                && type != net.minecraft.item.ShovelItem.class && type != net.minecraft.item.HoeItem.class) return -1;
+        if (!(stack.isIn(net.minecraft.registry.tag.ItemTags.SWORDS) || stack.isIn(net.minecraft.registry.tag.ItemTags.AXES)
+                || stack.isIn(net.minecraft.registry.tag.ItemTags.PICKAXES) || stack.isIn(net.minecraft.registry.tag.ItemTags.SHOVELS)
+                || stack.isIn(net.minecraft.registry.tag.ItemTags.HOES))) return -1;
+        return attackWear(stack);
+    }'''
+    : '''static int defenseAttackWear(net.minecraft.item.ItemStack stack) {
+        int known = attackWear(stack);
+        if (known >= 0) return known;
+        Class<?> type = stack.getItem().getClass();
+        return type == net.minecraft.item.PickaxeItem.class || type == net.minecraft.item.ShovelItem.class
+                || type == net.minecraft.item.HoeItem.class ? 2 : -1;
+    }'''
 def generateWeaponWearApi = tasks.register('generateWeaponWearApi') {
     inputs.property('inputApiFamily', expectedInputApiFamily)
     outputs.file(generatedWeaponWearFile)
@@ -52,6 +69,8 @@ final class WeaponWearApi {
     private WeaponWearApi() {}
 
     ${vanillaAttackWearMethod}
+
+    ${vanillaDefenseAttackWearMethod}
 }
 """, 'UTF-8')
     }

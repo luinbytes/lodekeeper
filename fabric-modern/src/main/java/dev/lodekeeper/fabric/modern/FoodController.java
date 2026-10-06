@@ -1,5 +1,6 @@
 package dev.lodekeeper.fabric.modern;
 
+import dev.lodekeeper.core.ItemId;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -8,13 +9,28 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.Consumable;
 import net.minecraft.world.item.consume_effects.PlaySoundConsumeEffect;
 
 import java.util.Set;
+import java.util.List;
 
 /** Holds only the use key for a verified ordinary food stack owned by this controller. */
 public final class FoodController {
+    record Preparation(ItemId raw, ItemId item, int targetCount) { }
+    private record CookingPair(Item raw, Item cooked) { }
+    private record FoodInfo(int nutrition, boolean safe) { }
+
+    private static final List<CookingPair> COOKING_PAIRS = List.of(
+            new CookingPair(Items.BEEF, Items.COOKED_BEEF),
+            new CookingPair(Items.PORKCHOP, Items.COOKED_PORKCHOP),
+            new CookingPair(Items.MUTTON, Items.COOKED_MUTTON),
+            new CookingPair(Items.RABBIT, Items.COOKED_RABBIT),
+            new CookingPair(Items.COD, Items.COOKED_COD),
+            new CookingPair(Items.SALMON, Items.COOKED_SALMON));
+    private static final int PREPARATION_NUTRITION_TARGET = 36;
     private static final Set<String> ORDINARY_FOODS = Set.of(
             "apple", "bread", "baked_potato", "beetroot", "beetroot_soup", "carrot", "cookie", "dried_kelp",
             "golden_carrot", "melon_slice", "mushroom_stew", "potato", "pumpkin_pie", "rabbit_stew",
@@ -54,7 +70,8 @@ public final class FoodController {
         long nutrition = 0;
         for (int index = 0; index < 36; index++) {
             var stack = client.player.getInventory().getItem(index);
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || stack.isEnchanted() || GameApi.hasCustomName(stack)
+                    || !ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance())) continue;
             var id = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
             FoodProperties food = stack.get(DataComponents.FOOD);
@@ -68,6 +85,56 @@ public final class FoodController {
             if (nutrition >= 120) return 120;
         }
         return (int) nutrition;
+    }
+
+    Preparation preparationGoal() {
+        if (client.player == null) return null;
+        int currentNutrition = availableNutrition();
+        if (currentNutrition >= PREPARATION_NUTRITION_TARGET) return null;
+        int deficit = PREPARATION_NUTRITION_TARGET - currentNutrition;
+
+        Preparation best = null;
+        int bestGain = 0;
+        for (CookingPair pair : COOKING_PAIRS) {
+            FoodInfo rawFood = foodInfo(pair.raw().getDefaultInstance());
+            FoodInfo cookedFood = foodInfo(pair.cooked().getDefaultInstance());
+            if (rawFood == null || !rawFood.safe() || rawFood.nutrition() < 1
+                    || cookedFood == null || !cookedFood.safe()) continue;
+
+            int gainPerItem = cookedFood.nutrition() - rawFood.nutrition();
+            if (gainPerItem <= 0) continue;
+            ItemId rawId = GameCatalog.id(pair.raw());
+            int safeRaw = availableSafeRaw(pair.raw(), rawFood.nutrition());
+            int reserved = Math.max(0, protectedCounts.getOrDefault(rawId, 0));
+            int unreservedRaw = Math.max(0, safeRaw - reserved);
+            if (unreservedRaw == 0) continue;
+
+            int needed = (deficit + gainPerItem - 1) / gainPerItem;
+            int operations = Math.min(unreservedRaw, needed);
+            int totalGain = operations * gainPerItem;
+            ItemId cookedId = GameCatalog.id(pair.cooked());
+            if (totalGain < bestGain || totalGain == bestGain && best != null
+                    && cookedId.compareTo(best.item()) >= 0) continue;
+
+            int targetCount = Math.addExact(actions.count(pair.cooked()), operations);
+            best = new Preparation(rawId, cookedId, targetCount);
+            bestGain = totalGain;
+        }
+        return best;
+    }
+
+    private int availableSafeRaw(Item raw, int expectedNutrition) {
+        int count = 0;
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getItem(index);
+            if (stack.isEmpty() || !stack.is(raw) || stack.isEnchanted()
+                    || GameApi.hasCustomName(stack)
+                    || !ItemStack.isSameItemSameComponents(stack, raw.getDefaultInstance())) continue;
+            FoodInfo food = foodInfo(stack);
+            if (food == null || !food.safe() || food.nutrition() != expectedNutrition) continue;
+            count = Math.addExact(count, stack.getCount());
+        }
+        return count;
     }
 
 
@@ -86,7 +153,8 @@ public final class FoodController {
         int selected = -1;
         for (int index = 0; index < 36; index++) {
             ItemStack stack = client.player.getInventory().getItem(index);
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || stack.isEnchanted() || GameApi.hasCustomName(stack)
+                    || !ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance())) continue;
             var id = BuiltInRegistries.ITEM.getKey(stack.getItem());
             if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
             if (actions.count(stack.getItem()) <= protectedCounts.getOrDefault(GameCatalog.id(stack.getItem()), 0)) continue;
@@ -105,6 +173,13 @@ public final class FoodController {
     private static boolean safeEffects(Consumable consumable) {
         // Playing a sound has no gameplay effect. Reject status, teleport, custom and unknown effects.
         return consumable.onConsumeEffects().stream().allMatch(PlaySoundConsumeEffect.class::isInstance);
+    }
+
+    private static FoodInfo foodInfo(ItemStack stack) {
+        FoodProperties food = stack.get(DataComponents.FOOD);
+        Consumable consumable = stack.get(DataComponents.CONSUMABLE);
+        return food == null || consumable == null ? null
+                : new FoodInfo(food.nutrition(), safeEffects(consumable));
     }
 
     boolean begin() {

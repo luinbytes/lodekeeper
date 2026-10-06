@@ -17,6 +17,7 @@ import java.util.function.LongSupplier;
 /** Bounded, deterministic backward planner for catalog-described item sources. */
 public final class AcquisitionPlanner {
     private static final int MAX_REASONS = 32;
+    private static final int MAX_PROJECT_ORDER_WORK = 100_000;
     private final LongSupplier clock;
 
     public AcquisitionPlanner() { this(System::nanoTime); }
@@ -44,6 +45,51 @@ public final class AcquisitionPlanner {
     public PlanResult planFast(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count,
                                PlannerLimits limits, PlanningPreferences preferences) {
         return planInternal(catalog, inventory, target, count, limits, preferences, true);
+    }
+
+    /** Plans every project goal against one shared inventory and durability state. */
+    public ProjectPlanResult planProjectFast(CatalogSnapshot catalog, InventorySnapshot inventory,
+                                             ProjectSpec project, PlannerLimits limits,
+                                             PlanningPreferences preferences) {
+        Objects.requireNonNull(catalog, "catalog");
+        Objects.requireNonNull(inventory, "inventory");
+        Objects.requireNonNull(project, "project");
+        Objects.requireNonNull(limits, "limits");
+        Objects.requireNonNull(preferences, "preferences");
+        long started = clock.getAsLong();
+
+        for (Map.Entry<ItemId, Integer> goal : project.goals().entrySet()) {
+            if (goal.getValue() > limits.maximumRequestedCount()) {
+                return projectFailure(project, goal.getKey(), BlockedReason.Code.INVALID_COUNT,
+                        "Project goal count exceeds planner limit " + limits.maximumRequestedCount(), 0, elapsed(started));
+            }
+            if (!catalog.knownItems().contains(goal.getKey())) {
+                return projectFailure(project, goal.getKey(), BlockedReason.Code.UNKNOWN_ITEM,
+                        "Project item is not present in the current catalog", 0, elapsed(started));
+            }
+        }
+
+        Search search = new Search(catalog, limits, started, clock, true, preferences);
+        List<ItemId> goalOrder = search.projectGoalOrder(project);
+        if (goalOrder == null) {
+            List<BlockedReason> reasons = search.reasons();
+            return new ProjectPlanResult(project, List.of(), reasons, false, search.expanded, elapsed(started));
+        }
+        State initial = new State(inventory, catalog);
+        for (ItemId goal : goalOrder) initial.protectHeld(goal, project.goals().get(goal));
+        List<State> plans = search.satisfyProject(project, goalOrder, initial);
+        if (plans.isEmpty() && search.limitCode == null
+                && search.expanded < limits.maximumExpandedNodes()) {
+            search.beginBacktracking();
+            plans = search.satisfyProject(project, goalOrder, initial);
+        }
+        if (plans.isEmpty()) {
+            List<BlockedReason> reasons = search.projectFailureReasons(goalOrder);
+            return new ProjectPlanResult(project, List.of(), reasons, false, search.expanded, elapsed(started));
+        }
+        State best = plans.get(0);
+        return new ProjectPlanResult(project, best.steps, List.of(), !search.truncated && !search.firstFeasible,
+                search.expanded, elapsed(started));
     }
 
     private PlanResult planInternal(CatalogSnapshot catalog, InventorySnapshot inventory, ItemId target, int count,
@@ -99,6 +145,12 @@ public final class AcquisitionPlanner {
         return new PlanResult(target, count, List.of(), List.of(new BlockedReason(code, target, detail, List.of(target))), false, nodes, nanos);
     }
 
+    private static ProjectPlanResult projectFailure(ProjectSpec project, ItemId item, BlockedReason.Code code,
+                                                    String detail, int nodes, long nanos) {
+        return new ProjectPlanResult(project, List.of(),
+                List.of(new BlockedReason(code, item, detail, List.of(item))), false, nodes, nanos);
+    }
+
     private long elapsed(long started) { return Math.max(0, clock.getAsLong() - started); }
 
     private static boolean silkTouchCompatible(AcquisitionSource source) {
@@ -117,7 +169,7 @@ public final class AcquisitionPlanner {
         private final PlannerLimits limits;
         private final long deadline;
         private final LongSupplier clock;
-        private final boolean firstFeasible;
+        private boolean firstFeasible;
         private final PlanningPreferences preferences;
         private final Map<ItemId, Integer> directItemRanks;
         private final PreferenceScorer preferenceScorer;
@@ -128,6 +180,7 @@ public final class AcquisitionPlanner {
         private boolean truncated;
         private BlockedReason.Code limitCode;
         private BlockedReason limitReason;
+        private ItemId unresolvedProjectGoal;
 
         private Search(CatalogSnapshot catalog, PlannerLimits limits, long started, LongSupplier clock,
                        boolean firstFeasible, PlanningPreferences preferences) {
@@ -207,6 +260,101 @@ public final class AcquisitionPlanner {
                 if (rank != null) ranks.put(source.sourceId(), rank);
             }
             return Map.copyOf(ranks);
+        }
+
+        private List<ItemId> projectGoalOrder(ProjectSpec project) {
+            Set<ItemId> projectItems = project.goals().keySet();
+            Set<ItemId> gatheringTools = new HashSet<>();
+            Map<ItemSelector, Set<ItemId>> selectorProjectItems = new HashMap<>();
+            int work = 0;
+            boolean orderIncomplete = false;
+
+            outer:
+            for (GatherSource source : catalog.gatherSources()) {
+                if (++work > MAX_PROJECT_ORDER_WORK) {
+                    orderIncomplete = true;
+                    break;
+                }
+                if (!projectOrderingTimeAvailable(project)) return null;
+                for (Requirement requirement : source.requirements()) {
+                    if (++work > MAX_PROJECT_ORDER_WORK) {
+                        orderIncomplete = true;
+                        break outer;
+                    }
+                    if (!projectOrderingTimeAvailable(project)) return null;
+                    if (requirement instanceof ToolRequirement tool) {
+                        for (ItemSelector selector : tool.tools().alternatives()) {
+                            if (++work > MAX_PROJECT_ORDER_WORK) {
+                                orderIncomplete = true;
+                                break outer;
+                            }
+                            if (!projectOrderingTimeAvailable(project)) return null;
+                            Set<ItemId> expanded = selectorProjectItems.get(selector);
+                            if (expanded == null) {
+                                List<ItemId> candidates = catalog.expand(selector);
+                                Set<ItemId> matching = new HashSet<>();
+                                for (ItemId candidate : candidates) {
+                                    if (++work > MAX_PROJECT_ORDER_WORK) {
+                                        orderIncomplete = true;
+                                        break outer;
+                                    }
+                                    if (!projectOrderingTimeAvailable(project)) return null;
+                                    if (projectItems.contains(candidate)) matching.add(candidate);
+                                }
+                                expanded = Set.copyOf(matching);
+                                selectorProjectItems.put(selector, expanded);
+                            }
+                            gatheringTools.addAll(expanded);
+                        }
+                    }
+                }
+            }
+            if (orderIncomplete) truncated = true;
+            return project.goals().keySet().stream()
+                    .sorted(Comparator.comparingInt((ItemId item) -> gatheringTools.contains(item) ? 0 : 1)
+                            .thenComparing(Comparator.naturalOrder()))
+                    .toList();
+        }
+
+        private boolean projectOrderingTimeAvailable(ProjectSpec project) {
+            if (clock.getAsLong() < deadline) return true;
+            ItemId item = project.goals().keySet().stream().min(Comparator.naturalOrder()).orElseThrow();
+            setLimit(BlockedReason.Code.TIME_LIMIT, item, Set.of());
+            return false;
+        }
+
+        private List<State> satisfyProject(ProjectSpec project, List<ItemId> goalOrder, State initial) {
+            List<State> frontier = List.of(initial);
+            for (ItemId item : goalOrder) {
+                unresolvedProjectGoal = item;
+                var next = new ArrayList<State>();
+                for (State state : frontier) {
+                    for (State satisfied : satisfy(item, project.goals().get(item), false, state,
+                            Set.of(), 0, "project goal", -1)) {
+                        State completed = satisfied.copy();
+                        completed.protectHeld(item, project.goals().get(item));
+                        next.add(completed);
+                    }
+                }
+                frontier = trim(next);
+                if (frontier.isEmpty()) return List.of();
+                unresolvedProjectGoal = null;
+            }
+            return frontier;
+        }
+
+        private void beginBacktracking() { firstFeasible = false; }
+
+        private List<BlockedReason> projectFailureReasons(List<ItemId> goalOrder) {
+            List<BlockedReason> reasons = reasons();
+            ItemId unresolved = unresolvedProjectGoal == null
+                    ? goalOrder.get(goalOrder.size() - 1) : unresolvedProjectGoal;
+            if (reasons.stream().anyMatch(reason -> unresolved.equals(reason.item()))) return reasons;
+            BlockedReason.Code code = limitCode == null ? BlockedReason.Code.NO_SOURCE : limitCode;
+            var withGoal = new ArrayList<BlockedReason>(reasons);
+            withGoal.add(0, new BlockedReason(code, unresolved,
+                    "No bounded acquisition plan was found for project goal", List.of(unresolved)));
+            return withGoal.stream().limit(MAX_REASONS).toList();
         }
 
         /** Derives only finite, bounded hints from simple recipe inputs; it never proves reachability. */
@@ -1139,6 +1287,11 @@ public final class AcquisitionPlanner {
         private State copy() { return new State(this); }
         private int count(ItemId item) { return inventory.getOrDefault(item, 0); }
         private int spendableCount(ItemId item) { return count(item) - protectedHeld.getOrDefault(item, 0); }
+
+        private void protectHeld(ItemId item, int targetCount) {
+            int reserved = Math.min(count(item), targetCount);
+            if (reserved > 0) protectedHeld.merge(item, reserved, Math::max);
+        }
 
         private int remainingDurability(ItemId item, CatalogSnapshot catalog, boolean silkTouchCompatible) {
             if (catalog.maximumDurability(item) == 0) return Integer.MAX_VALUE;

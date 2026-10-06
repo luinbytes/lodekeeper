@@ -23,6 +23,68 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean isHostileMob(net.minecraft.world.entity.Entity entity) {
+        if (!(entity instanceof net.minecraft.world.entity.Mob mob)
+                || !(entity instanceof net.minecraft.world.entity.monster.Enemy)
+                || entity instanceof net.minecraft.world.entity.NeutralMob
+                || entity instanceof net.minecraft.world.entity.monster.piglin.Piglin) return false;
+        return !(entity instanceof net.minecraft.world.entity.monster.spider.Spider)
+                || mob.getTarget() != null || mob.getLightLevelDependentMagicValue() < 0.5f;
+    }
+
+    static double defenseReach(net.minecraft.world.entity.player.Player player) { return player.entityInteractionRange(); }
+
+    static boolean defenseWithinReach(net.minecraft.world.entity.player.Player player, net.minecraft.world.entity.Entity target) {
+        double reach = defenseReach(player);
+        return Double.isFinite(reach) && reach > 0 && player.isWithinEntityInteractionRange(target, 0.0)
+                && player.isWithinAttackRange(player.getMainHandItem(), target.getBoundingBox(), 0.0);
+    }
+
+    static boolean defenseHasSweepCollateral(net.minecraft.world.entity.player.Player player, net.minecraft.world.entity.Entity target) {
+        java.util.List<net.minecraft.world.entity.LivingEntity> nearby = new java.util.ArrayList<>();
+        player.level().getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(net.minecraft.world.entity.LivingEntity.class),
+                target.getBoundingBox().inflate(1.0, 0.25, 1.0), living -> living != player && living != target, nearby, 17);
+        if (nearby.size() >= 17) return true;
+        for (var living : nearby) {
+            double distance = player.distanceToSqr(living);
+            if (!Double.isFinite(distance)) return true;
+            if (distance >= 9.0) continue;
+            if (!(living instanceof net.minecraft.world.entity.Mob mob) || !isHostileMob(mob)
+                    || mob.getTarget() != null && mob.getTarget() != player) return true;
+        }
+        return false;
+    }
+
+    static int defenseAttackWear(ItemStack stack) {
+        if (stack.getItem().getClass() != Item.class) return -1;
+        if (!(stack.is(net.minecraft.tags.ItemTags.SWORDS) || stack.is(net.minecraft.tags.ItemTags.AXES)
+                || stack.is(net.minecraft.tags.ItemTags.PICKAXES) || stack.is(net.minecraft.tags.ItemTags.SHOVELS)
+                || stack.is(net.minecraft.tags.ItemTags.HOES))) return -1;
+        return attackWear(stack);
+    }
+
+    static double defenseAttackDamage(net.minecraft.world.entity.player.Player player, ItemStack stack) {
+        var attribute = net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE;
+        var current = player.getAttribute(attribute);
+        if (current == null) return Double.NaN;
+        var trial = new net.minecraft.world.entity.ai.attributes.AttributeInstance(attribute, ignored -> {});
+        trial.replaceFrom(current);
+        try {
+            player.getMainHandItem().forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (type, modifier) -> {
+                if (type.equals(attribute)) trial.removeModifier(modifier);
+            });
+            stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (type, modifier) -> {
+                if (type.equals(attribute)) trial.addTransientModifier(modifier);
+            });
+            double value = trial.getValue();
+            return Double.isFinite(value) && value > 0 ? value : Double.NaN;
+        } catch (IllegalArgumentException unsupportedModifiers) {
+            return Double.NaN;
+        }
+    }
+
+    static boolean hasCustomName(ItemStack stack) { return stack.getCustomName() != null; }
+
     static boolean hasSilkTouch(ItemStack stack) {
         var enchantments = stack.getEnchantments();
         return enchantments.keySet().stream().anyMatch(enchantment ->

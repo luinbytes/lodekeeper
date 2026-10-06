@@ -22,8 +22,11 @@ import net.minecraft.world.phys.AABB;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** Acquires one verified edible drop from a nearby ordinary cow, pig, or sheep. */
 final class PassiveFoodAction {
@@ -31,8 +34,12 @@ final class PassiveFoodAction {
     private static final double MAX_DISTANCE_SQUARED = MAX_DISTANCE * MAX_DISTANCE;
     private static final double DROP_RADIUS = 8.0;
     private static final long MAX_DURATION_NANOS = 60_000_000_000L;
+    private static final long FAILED_APPROACH_COOLDOWN_NANOS = 30_000_000_000L;
+    private static final int MAX_FAILED_APPROACHES = 128;
     private static final int MAX_APPROACHES = 4;
     private static final int MAX_ATTACKS = 32;
+    private static final Map<UUID, Long> FAILED_APPROACH_UNTIL = new LinkedHashMap<>();
+    private static Object cooldownWorld;
 
     private enum Phase {
         IDLE, APPROACH, STOPPING_FOR_ATTACK, ATTACK, WAITING_FOR_DROP, PICKUP,
@@ -65,11 +72,16 @@ final class PassiveFoodAction {
     private double originZ;
     private long startedAtNanos;
     private int approachCount;
+    private int approachRadius = 1;
     private int attackCount;
     private int originalSlot = -1;
     private int selectedSlot = -1;
     private Item acquiredFood;
     private boolean attacked;
+    private boolean recoveryMode;
+    private Object actionWorld;
+    private BlockPos approachGoal;
+    private BlockPos completedApproachGoal;
 
     PassiveFoodAction(Minecraft client, LodekeeperConfig config, PlayerActions actions,
                       MovementController movement) {
@@ -81,7 +93,7 @@ final class PassiveFoodAction {
 
     boolean ready() {
         if (active()) return false;
-        String reason = unsafeContextReason();
+        String reason = unsafeContextReason(false);
         if (reason != null) {
             status = reason;
             return false;
@@ -95,8 +107,24 @@ final class PassiveFoodAction {
         return true;
     }
 
+    boolean ready(boolean recovery) {
+        if (active() || unsafeContextReason(recovery) != null) return false;
+        var player = client.player;
+        return nearestTarget(player.getX(), player.getY(), player.getZ()) != null;
+    }
+
     boolean begin() {
         if (active() || !ready()) return false;
+        return beginPrepared(false);
+    }
+
+    boolean begin(boolean recovery) {
+        if (active() || !ready(recovery)) return false;
+        return beginPrepared(recovery);
+    }
+
+    private boolean beginPrepared(boolean recovery) {
+        pruneFailedApproaches();
         var player = client.player;
         originX = player.getX();
         originY = player.getY();
@@ -121,10 +149,15 @@ final class PassiveFoodAction {
         startingFoodCounts = snapshotFoodCounts(target.meat());
         startedAtNanos = System.nanoTime();
         approachCount = 0;
+        approachRadius = 1;
         attackCount = 0;
         attacked = false;
         deathPosition = null;
         acquiredFood = null;
+        approachGoal = null;
+        completedApproachGoal = null;
+        recoveryMode = recovery;
+        actionWorld = currentWorld();
         phase = Phase.APPROACH;
         status = "approaching " + target.meat().animal();
         try {
@@ -146,7 +179,10 @@ final class PassiveFoodAction {
         if (phase == Phase.COMPLETE) return true;
         if (!active()) return false;
         try {
-            String reason = unsafeContextReason();
+            if (actionWorld != currentWorld()) {
+                throw new IllegalStateException("world changed during passive food action");
+            }
+            String reason = unsafeContextReason(recoveryMode);
             if (reason != null) throw new IllegalStateException(reason);
             if (System.nanoTime() - startedAtNanos >= MAX_DURATION_NANOS) {
                 throw new IllegalStateException("passive food action exceeded 60 seconds");
@@ -171,6 +207,8 @@ final class PassiveFoodAction {
     }
 
     void stop() {
+        recoveryMode = false;
+        actionWorld = null;
         if (!active()) return;
         boolean cancelled = cancelMovement();
         restoreSelection();
@@ -183,7 +221,15 @@ final class PassiveFoodAction {
 
     private boolean tickApproach() {
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal changed or became unsafe before attack");
+        if (canHitTarget()) {
+            completedApproachGoal = null;
+            movement.stop();
+            phase = Phase.STOPPING_FOR_ATTACK;
+            status = "stopping movement before attack";
+            return false;
+        }
         if (!movement.tick()) return false;
+        completedApproachGoal = approachGoal;
         movement.stop();
         phase = Phase.STOPPING_FOR_ATTACK;
         status = "waiting for movement cancellation";
@@ -195,9 +241,18 @@ final class PassiveFoodAction {
         if (!movement.finishCancellation()) return false;
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal changed or became unsafe before attack");
         if (canHitTarget()) {
+            completedApproachGoal = null;
             phase = Phase.ATTACK;
             status = "attacking " + target.meat().animal();
             return false;
+        }
+        if (completedApproachGoal != null) {
+            BlockPos currentGoal = target.entity().blockPosition();
+            if (approachRadius == 0 && currentGoal.equals(completedApproachGoal)) {
+                failUnreachableTarget();
+            }
+            approachRadius = 0;
+            completedApproachGoal = null;
         }
         startApproach();
         return false;
@@ -286,17 +341,20 @@ final class PassiveFoodAction {
 
     private void complete() {
         restoreSelection();
+        recoveryMode = false;
+        actionWorld = null;
         phase = Phase.COMPLETE;
         status = "acquired " + BuiltInRegistries.ITEM.getKey(acquiredFood);
     }
 
     private void startApproach() {
-        if (approachCount >= MAX_APPROACHES) throw new IllegalStateException("animal remained outside safe hit reach");
+        if (approachCount >= MAX_APPROACHES) failUnreachableTarget();
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal is no longer safe to approach");
         if (!withinOrigin(target.entity().getX(), target.entity().getY(), target.entity().getZ())) {
             throw new IllegalStateException("tracked animal moved beyond the 32-block action limit");
         }
-        movement.start(target.entity().blockPosition(), 1);
+        approachGoal = target.entity().blockPosition();
+        movement.start(approachGoal, approachRadius);
         approachCount++;
         phase = Phase.APPROACH;
         status = "approaching " + target.meat().animal() + " (" + approachCount + ")";
@@ -305,6 +363,33 @@ final class PassiveFoodAction {
     private boolean canHitTarget() {
         return client.player.isWithinEntityInteractionRange(target.entity(), 0.0)
                 && client.player.hasLineOfSight(target.entity());
+    }
+
+    private void failUnreachableTarget() {
+        if (targetStillEligible()) {
+            coolDownFailedTarget();
+            logApproachFailure();
+        }
+        throw new IllegalStateException("animal remained outside safe hit reach");
+    }
+
+    private void logApproachFailure() {
+        var player = client.player;
+        var animal = target.entity();
+        var eye = player.getEyePosition();
+        AABB box = animal.getBoundingBox();
+        double dx = Math.max(box.minX - eye.x, Math.max(0.0, eye.x - box.maxX));
+        double dy = Math.max(box.minY - eye.y, Math.max(0.0, eye.y - box.maxY));
+        double dz = Math.max(box.minZ - eye.z, Math.max(0.0, eye.z - box.maxZ));
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] FOOD_APPROACH_FAILED approaches={} playerFeet=({},{},{}) animalFeet=({},{},{}) closestBoxDistance={} lineOfSight={}",
+                approachCount, round2(player.getX()), round2(player.getY()), round2(player.getZ()),
+                round2(animal.getX()), round2(animal.getY()), round2(animal.getZ()),
+                round2(Math.sqrt(dx * dx + dy * dy + dz * dz)), player.hasLineOfSight(animal));
+    }
+
+    private static double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private boolean targetStillEligible() {
@@ -336,13 +421,41 @@ final class PassiveFoodAction {
         if (client.player == null || client.level == null) return null;
         AABB area = client.player.getBoundingBox().inflate(MAX_DISTANCE);
         return client.level.getEntities(EntityTypeTest.forClass(Animal.class), area, animal ->
-                        eligible(animal) && withinOrigin(animal.getX(), animal.getY(), animal.getZ(), fromX, fromY, fromZ))
+                        eligible(animal) && !isCoolingDown(animal.getUUID())
+                                && withinOrigin(animal.getX(), animal.getY(), animal.getZ(), fromX, fromY, fromZ))
                 .stream()
                 .map(animal -> new Candidate(animal, profileFor(animal)))
                 .min(Comparator.comparingDouble(candidate -> distanceSquared(
                         candidate.entity().getX(), candidate.entity().getY(), candidate.entity().getZ(),
                         fromX, fromY, fromZ)))
                 .orElse(null);
+    }
+
+    private void pruneFailedApproaches() {
+        if (cooldownWorld != client.level) {
+            FAILED_APPROACH_UNTIL.clear();
+            cooldownWorld = client.level;
+        }
+        long now = System.nanoTime();
+        FAILED_APPROACH_UNTIL.entrySet().removeIf(entry -> now - entry.getValue() >= 0L);
+    }
+
+    private boolean isCoolingDown(UUID entityId) {
+        if (cooldownWorld != currentWorld()) return false;
+        Long until = FAILED_APPROACH_UNTIL.get(entityId);
+        return until != null && System.nanoTime() - until < 0L;
+    }
+
+    private void coolDownFailedTarget() {
+        if (target == null || !targetStillEligible()) return;
+        pruneFailedApproaches();
+        FAILED_APPROACH_UNTIL.put(target.entity().getUUID(),
+                System.nanoTime() + FAILED_APPROACH_COOLDOWN_NANOS);
+        while (FAILED_APPROACH_UNTIL.size() > MAX_FAILED_APPROACHES) {
+            Iterator<UUID> oldest = FAILED_APPROACH_UNTIL.keySet().iterator();
+            oldest.next();
+            oldest.remove();
+        }
     }
 
     private ItemEntity nearestFoodDrop() {
@@ -404,10 +517,12 @@ final class PassiveFoodAction {
         return !stack.isDamageableItem() || stack.getMaxDamage() - stack.getDamageValue() > Math.max(2, wear);
     }
 
-    private String unsafeContextReason() {
+    private String unsafeContextReason(boolean recovery) {
         if (client.player == null || client.level == null || client.gameMode == null) return "world unavailable";
         var player = client.player;
-        if (!player.isAlive() || !Float.isFinite(player.getHealth()) || player.getHealth() <= config.pauseBelowHealth) {
+        float health = player.getHealth();
+        float healthFloor = recovery ? Math.min(3.0f, config.pauseBelowHealth) : config.pauseBelowHealth;
+        if (!player.isAlive() || !Float.isFinite(health) || health <= 0.0f || health <= healthFloor) {
             return "player health safeguard";
         }
         if (player.isOnFire() || player.isInLava()) return "player is in a fire or lava hazard";
@@ -417,6 +532,10 @@ final class PassiveFoodAction {
                 || !player.containerMenu.getCarried().isEmpty()) return "inventory screen or cursor is not safe";
         if (manualInput()) return "manual player input has priority";
         return null;
+    }
+
+    private Object currentWorld() {
+        return client.level;
     }
 
     private boolean manualInput() {
@@ -445,6 +564,8 @@ final class PassiveFoodAction {
     private IllegalStateException abort(String reason, RuntimeException cause) {
         boolean cancelled = cancelMovement();
         restoreSelection();
+        recoveryMode = false;
+        actionWorld = null;
         phase = Phase.STOPPED;
         if (!cancelled) reason += "; movement cancellation remains pending";
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;

@@ -17,7 +17,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
+import net.minecraft.entity.EquipmentSlot;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** All actions run on the client thread and use ordinary survival interactions. */
@@ -49,6 +51,29 @@ final class PlayerActions {
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isOf(item)) count += stack.getCount();
         return count;
     }
+    /** Goal stock includes worn armor and offhand, while ingredients remain storage-only. */
+    Map<String, Integer> heldInventory() {
+        Map<String, Integer> result = inventory();
+        if (client.player == null) return result;
+        for (var slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+                EquipmentSlot.FEET, EquipmentSlot.OFFHAND)) {
+            ItemStack stack = client.player.getEquippedStack(slot);
+            if (!stack.isEmpty()) result.merge(Registries.ITEM.getId(stack.getItem()).toString(), stack.getCount(), Math::addExact);
+        }
+        return result;
+    }
+
+    int heldCount(Item item) {
+        int result = count(item);
+        if (client.player == null) return result;
+        for (var slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+                EquipmentSlot.FEET, EquipmentSlot.OFFHAND)) {
+            ItemStack stack = client.player.getEquippedStack(slot);
+            if (!stack.isEmpty() && stack.isOf(item)) result = Math.addExact(result, stack.getCount());
+        }
+        return result;
+    }
+
     boolean select(Item item) {
         if (client.player == null) return false;
         for (int i = 0; i < 36; i++) if (client.player.getInventory().getStack(i).isOf(item)) return selectSlot(i);

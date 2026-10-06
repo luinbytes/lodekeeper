@@ -92,6 +92,12 @@ final class MovementController {
         startMove(new GoalNear(target, radius), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), radius * 16));
     }
 
+    void startRetreat(List<BlockPos> threats, int distance) {
+        if (threats.isEmpty() || threats.size() > 16 || distance < 4 || distance > 32)
+            throw new IllegalArgumentException("Retreat requires bounded threat positions and distance");
+        startMove(new GoalRunAway(distance, threats.toArray(BlockPos[]::new)), null);
+    }
+
     void startInteraction(BlockPos target) {
         startMove(new GoalGetToBlock(target), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32));
     }
@@ -477,8 +483,9 @@ final class MovementController {
             if (!cancelled || bot.getPathingBehavior().hasPath() || bot.getPathingBehavior().isPathing()
                     || bot.getPathingBehavior().getInProgress().isPresent()) return false;
             var velocity = client.player.getDeltaMovement();
-            if (!(client.player.onGround() || client.player.isInWater() || client.player.onClimbable())
-                    || velocity.x * velocity.x + velocity.z * velocity.z > .0004) return false;
+            boolean carriedByFluidOrClimb = client.player.isInWater() || client.player.onClimbable();
+            if (!carriedByFluidOrClimb && (!client.player.onGround()
+                    || velocity.x * velocity.x + velocity.z * velocity.z > .0004)) return false;
         }
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = false; observation = NavigationSnapshot.EMPTY;

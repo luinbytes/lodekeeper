@@ -37,6 +37,67 @@ final class GameApi {
 
     private GameApi() {}
 
+    static boolean isHostileMob(net.minecraft.entity.Entity entity) {
+        if (!(entity instanceof net.minecraft.entity.mob.MobEntity mob)
+                || !(entity instanceof net.minecraft.entity.mob.Monster)
+                || entity instanceof net.minecraft.entity.mob.Angerable
+                || entity instanceof net.minecraft.entity.mob.PiglinEntity) return false;
+        return !(entity instanceof net.minecraft.entity.mob.SpiderEntity)
+                || mob.getTarget() != null || mob.getBrightnessAtEyes() < 0.5f;
+    }
+
+    static double defenseReach(net.minecraft.entity.player.PlayerEntity player) { return 3.0; }
+
+    static boolean defenseWithinReach(net.minecraft.entity.player.PlayerEntity player, net.minecraft.entity.Entity target) {
+        var eye = player.getEyePos();
+        var box = target.getBoundingBox();
+        double dx = Math.max(box.minX - eye.x, Math.max(0.0, eye.x - box.maxX));
+        double dy = Math.max(box.minY - eye.y, Math.max(0.0, eye.y - box.maxY));
+        double dz = Math.max(box.minZ - eye.z, Math.max(0.0, eye.z - box.maxZ));
+        return dx * dx + dy * dy + dz * dz < 9.0;
+    }
+
+    static boolean defenseHasSweepCollateral(net.minecraft.entity.player.PlayerEntity player, net.minecraft.entity.Entity target) {
+        java.util.List<net.minecraft.entity.LivingEntity> nearby = new java.util.ArrayList<>();
+        player.getEntityWorld().collectEntitiesByType(net.minecraft.util.TypeFilter.instanceOf(net.minecraft.entity.LivingEntity.class),
+                target.getBoundingBox().expand(1.0, 0.25, 1.0), living -> living != player && living != target, nearby, 17);
+        if (nearby.size() >= 17) return true;
+        for (var living : nearby) {
+            double distance = player.squaredDistanceTo(living);
+            if (!Double.isFinite(distance)) return true;
+            if (distance >= 9.0) continue;
+            if (!(living instanceof net.minecraft.entity.mob.MobEntity mob) || !isHostileMob(mob)
+                    || mob.getTarget() != null && mob.getTarget() != player) return true;
+        }
+        return false;
+    }
+
+    static int defenseAttackWear(ItemStack stack) {
+        int known = attackWear(stack);
+        if (known >= 0) return known;
+        Class<?> type = stack.getItem().getClass();
+        return type == net.minecraft.item.PickaxeItem.class || type == net.minecraft.item.ShovelItem.class
+                || type == net.minecraft.item.HoeItem.class ? 2 : -1;
+    }
+
+    static double defenseAttackDamage(net.minecraft.entity.player.PlayerEntity player, ItemStack stack) {
+        var attribute = net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE;
+        var current = player.getAttributeInstance(attribute);
+        if (current == null) return Double.NaN;
+        var trial = new net.minecraft.entity.attribute.EntityAttributeInstance(attribute, ignored -> {});
+        trial.setFrom(current);
+        try {
+            for (var modifier : player.getMainHandStack().getAttributeModifiers(net.minecraft.entity.EquipmentSlot.MAINHAND).get(attribute)) trial.removeModifier(modifier);
+            for (var modifier : stack.getAttributeModifiers(net.minecraft.entity.EquipmentSlot.MAINHAND).get(attribute)) trial.addTemporaryModifier(modifier);
+            double value = trial.getValue();
+            return Double.isFinite(value) && value > 0 ? value : Double.NaN;
+        } catch (IllegalArgumentException unsupportedModifiers) {
+            return Double.NaN;
+        }
+    }
+
+    static boolean hasCustomName(ItemStack stack) { return stack.hasCustomName(); }
+
     static double blockReach(MinecraftClient client) { return client.interactionManager.getReachDistance(); }
 
     static Identifier identifier(String value) { return new Identifier(value); }

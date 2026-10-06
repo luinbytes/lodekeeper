@@ -22,6 +22,7 @@ final class SmeltingAction {
     private final StationId station;
     private final Item output, inputItem, fuelItem;
     private final ItemStack expectedOutput;
+    private final boolean ordinaryInputOnly;
     private final int target, plannedOutput, plannedInput, plannedFuel;
     private final int inputPerOperation, outputPerOperation;
     private int remainingInput, remainingFuel, collectedOutput;
@@ -38,6 +39,7 @@ final class SmeltingAction {
 
     SmeltingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
         this.client = client;
+        ordinaryInputOnly = Boolean.parseBoolean(step.attributes().getOrDefault("ordinaryInputOnly", "false"));
         this.actions = actions;
         station = recipe.cookingStation();
         if (step.kind() != PlanKind.SMELT || recipe.cookTicks() < 1 || station == null || !station.equals(step.station()))
@@ -193,9 +195,11 @@ final class SmeltingAction {
         for (Slot slot : menu.slots) {
             if (slot.container != client.player.getInventory() || slot.getContainerSlot() >= 36) continue;
             ItemStack stack = slot.getItem();
-            if (stack.is(inputItem) && (stack.getMaxStackSize() > 99 || stack.getCount() > stack.getMaxStackSize()))
+            if (stack.is(inputItem)
+                    && (!ordinaryInputOnly || ItemStack.isSameItemSameComponents(stack, inputItem.getDefaultInstance())) && (stack.getMaxStackSize() > 99 || stack.getCount() > stack.getMaxStackSize()))
                 throw new IllegalStateException("Cooking input exceeds the bounded cursor-transfer capacity; no materials were inserted");
-            if (stack.is(inputItem) && plannedInput > inputPerOperation && menu.getSlot(AbstractFurnaceMenu.INGREDIENT_SLOT).getMaxStackSize(stack) < 16 * inputPerOperation)
+            if (stack.is(inputItem)
+                    && (!ordinaryInputOnly || ItemStack.isSameItemSameComponents(stack, inputItem.getDefaultInstance())) && plannedInput > inputPerOperation && menu.getSlot(AbstractFurnaceMenu.INGREDIENT_SLOT).getMaxStackSize(stack) < 16 * inputPerOperation)
                 throw new IllegalStateException("Bulk cooking input needs room for at least 16 operations to refill without burn gaps; no materials were inserted");
             if (stack.is(fuelItem) && GameApi.supportedCookingFuelStack(stack)
                     && stack.getMaxStackSize() == fuelItem.getDefaultInstance().getMaxStackSize())
@@ -319,6 +323,8 @@ final class SmeltingAction {
             if (slot.container != inventory || slot.getContainerSlot() >= 36 || !stack.is(item)) continue;
             if (cookingFuel && (!GameApi.supportedCookingFuelStack(stack)
                     || stack.getMaxStackSize() != item.getDefaultInstance().getMaxStackSize())) continue;
+            if (!cookingFuel && ordinaryInputOnly
+                    && !ItemStack.isSameItemSameComponents(stack, item.getDefaultInstance())) continue;
             if (expected != null && !same(stack, expected)) continue;
             return index;
         }

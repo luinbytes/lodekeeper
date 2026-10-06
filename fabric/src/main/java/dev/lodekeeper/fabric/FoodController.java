@@ -1,10 +1,27 @@
 package dev.lodekeeper.fabric;
 
+import dev.lodekeeper.core.ItemId;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
+
+import java.util.List;
 
 /** Holds ordinary item use while eating; selection excludes foods with configured status effects. */
 public final class FoodController {
+    record Preparation(ItemId raw, ItemId item, int targetCount) { }
+    private record CookingPair(Item raw, Item cooked) { }
+
+    private static final List<CookingPair> COOKING_PAIRS = List.of(
+            new CookingPair(Items.BEEF, Items.COOKED_BEEF),
+            new CookingPair(Items.PORKCHOP, Items.COOKED_PORKCHOP),
+            new CookingPair(Items.MUTTON, Items.COOKED_MUTTON),
+            new CookingPair(Items.RABBIT, Items.COOKED_RABBIT),
+            new CookingPair(Items.COD, Items.COOKED_COD),
+            new CookingPair(Items.SALMON, Items.COOKED_SALMON));
+    private static final int PREPARATION_NUTRITION_TARGET = 36;
     private static final java.util.Set<String> ORDINARY_FOODS = java.util.Set.of(
         "apple", "bread", "baked_potato", "beetroot", "beetroot_soup", "carrot", "cookie", "dried_kelp",
         "golden_carrot", "melon_slice", "mushroom_stew", "potato", "pumpkin_pie", "rabbit_stew",
@@ -31,7 +48,8 @@ public final class FoodController {
         long nutrition = 0;
         for (int index = 0; index < 36; index++) {
             var stack = client.player.getInventory().getStack(index);
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || stack.hasEnchantments() || GameApi.hasCustomName(stack)
+                    || !GameApi.canCombine(stack, stack.getItem().getDefaultStack())) continue;
             var id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem());
             if (!id.getNamespace().equals("minecraft") || !ORDINARY_FOODS.contains(id.getPath())) continue;
             var food = GameApi.food(stack);
@@ -46,6 +64,55 @@ public final class FoodController {
         return (int) nutrition;
     }
 
+    Preparation preparationGoal() {
+        if (client.player == null) return null;
+        int currentNutrition = availableNutrition();
+        if (currentNutrition >= PREPARATION_NUTRITION_TARGET) return null;
+        int deficit = PREPARATION_NUTRITION_TARGET - currentNutrition;
+
+        Preparation best = null;
+        int bestGain = 0;
+        for (CookingPair pair : COOKING_PAIRS) {
+            var rawFood = GameApi.food(pair.raw().getDefaultStack());
+            var cookedFood = GameApi.food(pair.cooked().getDefaultStack());
+            if (rawFood == null || !rawFood.safe() || rawFood.nutrition() < 1
+                    || cookedFood == null || !cookedFood.safe()) continue;
+
+            int gainPerItem = cookedFood.nutrition() - rawFood.nutrition();
+            if (gainPerItem <= 0) continue;
+            ItemId rawId = GameCatalog.id(pair.raw());
+            int safeRaw = availableSafeRaw(pair.raw(), rawFood.nutrition());
+            int reserved = Math.max(0, protectedCounts.getOrDefault(rawId, 0));
+            int unreservedRaw = Math.max(0, safeRaw - reserved);
+            if (unreservedRaw == 0) continue;
+
+            int needed = (deficit + gainPerItem - 1) / gainPerItem;
+            int operations = Math.min(unreservedRaw, needed);
+            int totalGain = operations * gainPerItem;
+            ItemId cookedId = GameCatalog.id(pair.cooked());
+            if (totalGain < bestGain || totalGain == bestGain && best != null
+                    && cookedId.compareTo(best.item()) >= 0) continue;
+
+            int targetCount = Math.addExact(actions.count(pair.cooked()), operations);
+            best = new Preparation(rawId, cookedId, targetCount);
+            bestGain = totalGain;
+        }
+        return best;
+    }
+
+    private int availableSafeRaw(Item raw, int expectedNutrition) {
+        int count = 0;
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getStack(index);
+            if (stack.isEmpty() || !stack.isOf(raw) || stack.hasEnchantments()
+                    || GameApi.hasCustomName(stack) || !GameApi.canCombine(stack, raw.getDefaultStack())) continue;
+            var food = GameApi.food(stack);
+            if (food == null || !food.safe() || food.nutrition() != expectedNutrition) continue;
+            count = Math.addExact(count, stack.getCount());
+        }
+        return count;
+    }
+
     private int selectFood() {
         if (client.player == null || client.interactionManager == null || client.player.isUsingItem()
             || client.currentScreen != null || client.player.currentScreenHandler != client.player.playerScreenHandler
@@ -57,6 +124,8 @@ public final class FoodController {
         int selected = -1;
         for (int index = 0; index < 36; index++) {
             var stack = client.player.getInventory().getStack(index);
+            if (stack.isEmpty() || stack.hasEnchantments() || GameApi.hasCustomName(stack)
+                    || !GameApi.canCombine(stack, stack.getItem().getDefaultStack())) continue;
             var food = GameApi.food(stack);
             var id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem());
             // A component alone cannot describe teleporting foods, NBT stew effects or custom item hooks.

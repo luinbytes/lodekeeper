@@ -21,7 +21,9 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.entity.EquipmentSlot;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** All actions use vanilla client input and the server's ordinary survival interaction protocol. */
@@ -59,6 +61,29 @@ final class PlayerActions {
             if (!stack.isEmpty() && stack.is(item)) count += stack.getCount();
         }
         return count;
+    }
+
+    /** Goal stock includes worn armor and offhand, while ingredients remain storage-only. */
+    Map<String, Integer> heldInventory() {
+        Map<String, Integer> result = inventory();
+        if (client.player == null) return result;
+        for (var slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+                EquipmentSlot.FEET, EquipmentSlot.OFFHAND)) {
+            ItemStack stack = client.player.getItemBySlot(slot);
+            if (!stack.isEmpty()) result.merge(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), Math::addExact);
+        }
+        return result;
+    }
+
+    int heldCount(Item item) {
+        int result = count(item);
+        if (client.player == null) return result;
+        for (var slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
+                EquipmentSlot.FEET, EquipmentSlot.OFFHAND)) {
+            ItemStack stack = client.player.getItemBySlot(slot);
+            if (!stack.isEmpty() && stack.is(item)) result = Math.addExact(result, stack.getCount());
+        }
+        return result;
     }
 
     boolean select(Item item) {
