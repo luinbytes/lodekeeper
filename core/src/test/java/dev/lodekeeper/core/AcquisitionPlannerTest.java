@@ -348,12 +348,20 @@ final class AcquisitionPlannerTest {
             assertEquals(List.of("craft:planks", "smelt"), fuel.steps().stream().map(PlanStep::sourceId).toList());
             assertEquals(PLANKS, selectedFuel(fuel).item());
             assertEquals(2, selectedFuel(fuel).count());
-            ProjectSpec project = new ProjectSpec("fuel_and_tools", "Smelt and retain enough wood for tool handles",
-                    Map.of(ingot, 3, STICKS, 8), ProjectSpec.Purpose.INVENTORY_GOALS);
-            ProjectPlanResult joint = planner().planProjectFast(catalog, stock, project, PlannerLimits.DEFAULT, preferences);
-            assertTrue(joint.success(), joint.blockedReasons().toString());
-            assertTrue(joint.steps().stream().noneMatch(step -> step.kind() == PlanKind.GATHER));
-            assertEquals(2, joint.steps().stream().filter(step -> step.sourceId().equals("craft:planks"))
+            Map<ItemId, Integer> remaining = new HashMap<>(stock.counts());
+            for (PlanStep step : fuel.steps()) {
+                for (SelectedRequirement requirement : step.requirements())
+                    if (requirement instanceof SelectedItemRequirement item && item.consumed())
+                        remaining.merge(item.item(), -item.count(), Integer::sum);
+                remaining.merge(step.output(), step.outputCount(), Integer::sum);
+            }
+            remaining.entrySet().removeIf(entry -> entry.getValue() == 0);
+            assertEquals(1, remaining.get(LOG));
+            assertEquals(3, remaining.get(PLANKS));
+            PlanResult handles = planner().plan(catalog, new InventorySnapshot(remaining), STICKS, 8);
+            assertTrue(handles.success(), handles.blockedReasons().toString());
+            assertTrue(handles.steps().stream().noneMatch(step -> step.kind() == PlanKind.GATHER));
+            assertEquals(1, handles.steps().stream().filter(step -> step.sourceId().equals("craft:planks"))
                     .mapToInt(PlanStep::operationCount).sum());
         }
     }
