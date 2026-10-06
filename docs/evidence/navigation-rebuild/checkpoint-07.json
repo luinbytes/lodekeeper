@@ -1,0 +1,41 @@
+{
+  "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+  "candidateSha256": "c8973e3784bf018ada9d68adc8a96d9368d6dcd4f46d33a6ceb7213ba02d965d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37435670896",
+  "case": "fresh normal generated world, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "elapsedMillis": 900115,
+  "firstMovementMillis": 1387,
+  "failure": "natural request exceeded its 900 second wall timeout",
+  "minimumHealth": 7.333335,
+  "endingHealth": 14.300001,
+  "endingHunger": 6,
+  "deathsObserved": 0,
+  "heldTargets": {
+    "minecraft:diamond_pickaxe": 1,
+    "minecraft:diamond_hoe": 1,
+    "minecraft:diamond_helmet": 1,
+    "minecraft:diamond_boots": 1,
+    "minecraft:diamond_chestplate": 1,
+    "minecraft:diamond_leggings": 1,
+    "minecraft:diamond_axe": 1
+  },
+  "missingTargets": [
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_sword"
+  ],
+  "equippedArmor": {
+    "minecraft:diamond_boots": 1,
+    "minecraft:diamond_leggings": 1,
+    "minecraft:diamond_chestplate": 1,
+    "minecraft:diamond_helmet": 1
+  },
+  "remainingDiamonds": 3,
+  "endingMainWoodAndSticks": {
+    "minecraft:birch_planks": 1
+  },
+  "lateAction": "GATHER birch_log from underground after all four armor pieces, diamond pickaxe, axe and hoe were complete",
+  "naturalReceipt": "checkpoint-07-natural.json",
+  "artifactReceipt": "checkpoint-07-artifact.json",
+  "scope": "Failed15minute target; no full-gear completion claim. Natural world, no inventory grants or post-spawn teleportation."
+}

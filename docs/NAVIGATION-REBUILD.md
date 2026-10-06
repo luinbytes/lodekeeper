@@ -1,5 +1,7 @@
 # Navigation and survival rebuild
 
+The current release candidate is Preview 8 at `6ca3e283cffc553a5885eaa5b9ff5bff1329541a`. [All 24 exact builds pass](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). The full fresh-world diamond benchmark remains unpassed.
+
 The current prepared-world checks did not cover the repeated departure failures and elevated drops seen in a natural village. Lu authorized replacing navigation with Baritone on 2026-10-06, followed by AltoClef routines where they improve survival automation. This supersedes the original independent-navigation restriction.
 
 The working period ends at 2026-10-06 15:03 UTC. The acceptance benchmark is one command in a new normal survival world, starting without items, obtaining all five diamond tools and all four armor pieces. This needs 35 diamonds. Command time and world startup time are recorded separately. The target is 10–15 minutes; success on one seed does not guarantee that time on every seed.
@@ -96,3 +98,11 @@ The packaged `21beb07` normal-survival run began moving after 1,325 ms and reach
 All four prepared 1.21.1 safety clients passed, covering stock reserved in offhand, ordinary food use, native melee without friendly damage, armor transfer and a cramped furnace pocket. The first 26.3 station-pocket client failed because a 256-fuel catalog cutoff omitted coal, forcing a wood dependency despite held coal. Prepared fixtures grant their starting materials and do not establish fresh-world survival acquisition. The fuel context now rejects overflow above 512 instead of silently publishing a partial list. Native verification of that correction is pending.
 
 Mining request limits now distinguish a productive yield from zero collected output. A productive yield replans with the same source and retains bounded per-position rejections; zero output pauses with explicit counts. Food batching and safe retreat recovery are being checked before the next full-set attempt. The full diamond target remains unpassed.
+
+## Seventh development checkpoint
+
+The exact `6ca3e283` 1.21.1 jar started moving after 1,387 ms in a fresh normal-survival world with an empty inventory. After 900,115 ms it had equipped all four diamond armor pieces and made a diamond pickaxe, axe and hoe. Three spare diamonds remained, but the sword and shovel were missing. It began gathering another birch log from underground because no sticks remained and only one plank was stored. The run had no deaths, minimum health 7.33 and ending hunger 6. This is a failed 15-minute full-set benchmark. [The native receipt, final image and artifact identity](evidence/navigation-rebuild/checkpoint-07.json) preserve the result.
+
+The same source passes prepared native water-retreat cases on 1.21.1 and 26.3. Both preserve the same unharmed creeper and end on dry support at least twelve blocks away. Other prepared cases cover 26.3 station-room clearing with held coal, offhand reservations, armor transfer, and ordinary melee. One earlier modern melee fixture failed before the command because its zombie died during setup; a diagnostic rerun passed without changing production behavior. That setup failure remains preserved.
+
+A 1.21.1 64-log fixture completes across 21 productive ten-second mining-request boundaries. A separate zero-yield distance-cap case produces the expected explicit failure. These are prepared cases with supplied terrain and inventory, not fresh-world progression tests. [The safety evidence](evidence/survival-safety/checkpoint6ca3.json) records each outcome and its limits.

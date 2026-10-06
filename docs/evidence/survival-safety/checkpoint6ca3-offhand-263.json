@@ -1,0 +1,149 @@
+{
+  "runId": "2026-10-06T08-31-11-751316Z-eedfcba7",
+  "status": "passed",
+  "minecraftVersion": "26.3",
+  "navigationBackend": "baritone",
+  "baritoneMiningObserved": false,
+  "worldKind": "isolated_superflat_fixture",
+  "preparedWorld": true,
+  "threatWaterRetreat": false,
+  "preparedSafetyProperty": "offhand",
+  "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+  "verificationMode": "prepared_safety_offhand",
+  "runDirectory": "/private/tmp/lodekeeper-retreat-food-offhand-263/run-verification",
+  "worldId": "run-6bf6e7671cd74ab4",
+  "elapsedMillis": 29851,
+  "clientTicks": 381,
+  "failure": "",
+  "serverTableOpened": true,
+  "serverFurnaceOpened": false,
+  "serverTableOpenings": 1,
+  "serverFurnaceOpenings": 0,
+  "ironPickaxeFixture": false,
+  "ironPickaxeEmptyDistantWoodFlag": false,
+  "nearbyWoodFlag": false,
+  "nearbyWoodGoal": "wood",
+  "nearbyWoodTerrain": "flat",
+  "coalRecoveryFixture": false,
+  "cases": [
+    {
+      "name": "prepared_offhand_food_reservation_bucket",
+      "item": "minecraft:bucket",
+      "expected": 1,
+      "serverObserved": 1,
+      "inventoryEmptyAtStart": false,
+      "passed": true,
+      "clientTicks": 106,
+      "worldTicks": 105,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "maintained cooked beef remained satisfied by the offhand without queued maintenance work before or after the foreground goal while stored beef was eaten and three stored iron ingots were crafted into a bucket",
+      "serverHealth": 20.0,
+      "serverDifficulty": "NORMAL",
+      "serverCraftingTableOpenedDuringCase": true,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverIronPickaxeCount": 0,
+      "serverFoodLevelAtStart": 7,
+      "serverFoodLevelObserved": 15,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "0.5,64.0,0.5",
+      "initialStorageInventory": {
+        "minecraft:cooked_beef": 1,
+        "minecraft:crafting_table": 1,
+        "minecraft:iron_ingot": 3
+      },
+      "finalStorageInventory": {
+        "minecraft:bucket": 1
+      },
+      "fullServerHeldInventory": {
+        "minecraft:cooked_beef": 1,
+        "minecraft:bucket": 1
+      },
+      "elapsedMillisFromCommand": 5321,
+      "baritoneCompletionGuardEnabled": true,
+      "baritoneNavigationStoppedAtReceipt": true,
+      "initialEquipmentSlotItems": {
+        "offhand": "minecraft:cooked_beef"
+      },
+      "serverEquipmentSlotItems": {
+        "offhand": "minecraft:cooked_beef"
+      },
+      "initialServerCursorEmpty": true,
+      "serverCursorEmpty": true,
+      "noMaintenanceQueuedBeforeForeground": true,
+      "maintainedReservationObservedBeforeForeground": true,
+      "maintainedReservationPresentAtCompletion": true,
+      "noMaintenanceQueued": true,
+      "initialPreparedThreatReceipt": {},
+      "serverPreparedThreatReceipt": {},
+      "initialPreparedStationRoomReceipt": {},
+      "serverPreparedStationRoomReceipt": {}
+    },
+    {
+      "name": "prepared_offhand_ingredients_sticks",
+      "item": "minecraft:stick",
+      "expected": 4,
+      "serverObserved": 4,
+      "inventoryEmptyAtStart": false,
+      "passed": true,
+      "clientTicks": 79,
+      "worldTicks": 78,
+      "engineStatus": "idle · 0 foreground queued · 0 maintenance queued",
+      "detail": "an eight-log offhand maintenance goal protected the held logs while the planner used stored oak logs to craft sticks with block breaking disabled and no maintenance work queued",
+      "serverHealth": 20.0,
+      "serverDifficulty": "NORMAL",
+      "serverCraftingTableOpenedDuringCase": false,
+      "serverFurnaceOpenedDuringCase": false,
+      "serverIronPickaxeCount": 0,
+      "serverFoodLevelAtStart": 15,
+      "serverFoodLevelObserved": 15,
+      "serverBreadAtStart": 0,
+      "serverBreadObserved": 0,
+      "serverPosition": "0.5,64.0,0.5",
+      "initialStorageInventory": {
+        "minecraft:crafting_table": 1,
+        "minecraft:oak_log": 2
+      },
+      "finalStorageInventory": {
+        "minecraft:stick": 4,
+        "minecraft:oak_planks": 2,
+        "minecraft:crafting_table": 1,
+        "minecraft:oak_log": 1
+      },
+      "fullServerHeldInventory": {
+        "minecraft:stick": 4,
+        "minecraft:oak_planks": 2,
+        "minecraft:crafting_table": 1,
+        "minecraft:oak_log": 9
+      },
+      "elapsedMillisFromCommand": 3951,
+      "baritoneCompletionGuardEnabled": true,
+      "baritoneNavigationStoppedAtReceipt": true,
+      "initialEquipmentSlotItems": {
+        "offhand": "minecraft:oak_log"
+      },
+      "serverEquipmentSlotItems": {
+        "offhand": "minecraft:oak_log"
+      },
+      "initialServerCursorEmpty": true,
+      "serverCursorEmpty": true,
+      "noMaintenanceQueuedBeforeForeground": true,
+      "maintainedReservationObservedBeforeForeground": true,
+      "maintainedReservationPresentAtCompletion": true,
+      "noMaintenanceQueued": true,
+      "initialPreparedThreatReceipt": {},
+      "serverPreparedThreatReceipt": {},
+      "initialPreparedStationRoomReceipt": {},
+      "serverPreparedStationRoomReceipt": {}
+    }
+  ],
+  "explorationFixture": false,
+  "diamondBootsFixture": false,
+  "bulkWoodFixtureLogCount": 0,
+  "woodToolsFlag": false,
+  "woodToolsEnabled": false,
+  "miningRequestLimit": false,
+  "miningZeroYield": false,
+  "resourceInitiallyLoaded": false,
+  "explorationAttempts": 0
+}

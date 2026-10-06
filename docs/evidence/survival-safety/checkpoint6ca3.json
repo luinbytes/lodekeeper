@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T08:42:45.923780+00:00",
+  "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37435670896",
+  "ciStatus": "all 24 exact profiles passed",
+  "primaryArtifactsMatchCiBytes": true,
+  "cases": [
+    {
+      "case": "water-1211",
+      "minecraftVersion": "1.21.1",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "c8973e3784bf018ada9d68adc8a96d9368d6dcd4f46d33a6ceb7213ba02d965d",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-water-1211.json",
+      "artifact": "checkpoint6ca3-water-1211-artifact.json",
+      "commands": [
+        {
+          "name": "water_retreat_bucket",
+          "elapsedMillis": 9033,
+          "serverObserved": 1,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "water-263",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-water-263.json",
+      "artifact": "checkpoint6ca3-water-263-artifact.json",
+      "commands": [
+        {
+          "name": "water_retreat_bucket",
+          "elapsedMillis": 8947,
+          "serverObserved": 1,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "station-263",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-station-263.json",
+      "artifact": "checkpoint6ca3-station-263-artifact.json",
+      "commands": [
+        {
+          "name": "prepared_station_room_iron_ingot",
+          "elapsedMillis": 15233,
+          "serverObserved": 1,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "offhand-263",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-offhand-263.json",
+      "artifact": "checkpoint6ca3-offhand-263-artifact.json",
+      "commands": [
+        {
+          "name": "prepared_offhand_food_reservation_bucket",
+          "elapsedMillis": 5321,
+          "serverObserved": 1,
+          "passed": true
+        },
+        {
+          "name": "prepared_offhand_ingredients_sticks",
+          "elapsedMillis": 3951,
+          "serverObserved": 4,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "equipment-263",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-equipment-263.json",
+      "artifact": "checkpoint6ca3-equipment-263-artifact.json",
+      "commands": [
+        {
+          "name": "prepared_equipment_iron_helmet",
+          "elapsedMillis": 1348,
+          "serverObserved": 1,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "request-limit-1211",
+      "minecraftVersion": "1.21.1",
+      "status": "passed",
+      "expectedNegative": false,
+      "failure": "",
+      "clientExitCode": 0,
+      "artifactSha256": "c8973e3784bf018ada9d68adc8a96d9368d6dcd4f46d33a6ceb7213ba02d965d",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-request-limit-1211.json",
+      "artifact": "checkpoint6ca3-request-limit-1211-artifact.json",
+      "commands": [
+        {
+          "name": "bulk_wood_64",
+          "elapsedMillis": 222137,
+          "serverObserved": 64,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "zero-yield-1211",
+      "minecraftVersion": "1.21.1",
+      "status": "failed",
+      "expectedNegative": true,
+      "failure": "automation paused during bulk_wood_64: paused \u00b7 Mining request reached its DISTANCE limit without confirmed collected output for minecraft:oak_log (initial 0, current 0) \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "clientExitCode": 0,
+      "artifactSha256": "c8973e3784bf018ada9d68adc8a96d9368d6dcd4f46d33a6ceb7213ba02d965d",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-zero-yield-1211.json",
+      "artifact": "checkpoint6ca3-zero-yield-1211-artifact.json",
+      "commands": [
+        {
+          "name": "bulk_wood_64",
+          "elapsedMillis": 1348,
+          "serverObserved": 0,
+          "passed": false
+        }
+      ]
+    },
+    {
+      "case": "threat-263",
+      "minecraftVersion": "26.3",
+      "status": "failed",
+      "expectedNegative": false,
+      "failure": "prepared safety fixture did not become server-ready within 400 ticks",
+      "clientExitCode": 0,
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "evidence": "checkpoint6ca3-threat-263.json",
+      "artifact": "checkpoint6ca3-threat-263-artifact.json",
+      "commands": []
+    },
+    {
+      "case": "threat-diagnostic-263",
+      "status": "passed",
+      "minecraftVersion": "26.3",
+      "clientExitCode": 0,
+      "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+      "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "evidence": "checkpoint6ca3-threat-diagnostic-263.json",
+      "artifact": "checkpoint6ca3-threat-diagnostic-263-artifact.json",
+      "commandElapsedMillis": 6823,
+      "zombieHealthBefore": "4.0",
+      "zombieHealthAfter": "0.0",
+      "woodenPickaxeDamageAfter": "6",
+      "cowHealthAfter": "10.0",
+      "diamondSwordDamageAfter": "0"
+    }
+  ],
+  "scope": "Prepared native safety fixtures and one batch-mining request-limit regression. These checks do not establish fresh-world diamond completion or every Minecraft mechanic.",
+  "requestYield": "21 productive 10-second cap boundaries retained the source and continued to exactly 64 inventory logs; zero-output distance cap paused with initial/current counts zero. Rejected positions stayed at zero in this native case, so nonzero rejection retention has static review only.",
+  "meleeFixtureFailure": "First modern fixture lost native zombie health before the command with no weapon wear. A rerun with only added receipt diagnostics passed; its zombie began healthy, unburning and shaded, then native pickaxe hits killed it. The earlier setup failure remains unexplained and preserved. No immunity or health overrides were added.",
+  "fullDiamondAcceptance": "not passed"
+}

@@ -1,0 +1,21 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.8.jar",
+  "artifactSha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+  "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+  "sourceTreeState": "committed",
+  "ciRun": null,
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=station_room",
+    "-Dlodekeeper.verify.candidateSha256=93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-retreat-food-26.3-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

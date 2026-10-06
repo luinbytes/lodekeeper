@@ -1,0 +1,828 @@
+{
+  "ciHeadShaConfirmed": true,
+  "all24JobsPassed": true,
+  "sourceCommit": "6ca3e283cffc553a5885eaa5b9ff5bff1329541a",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37435670896",
+  "checkedAt": "2026-10-06T09:05:27+00:00",
+  "modVersion": "0.1.0-preview.8",
+  "sourcePackaging": {
+    "baritoneGradleSha256": "5ad0734ad36a2d6a88c5466d67e87f82c65b3475e95151ff5576aebcfc1c9beb",
+    "baritoneFetcherSha256": "88059b60663f27e4bd9706db849ade656a4c5ebdb85a39ec940d432c7a762054",
+    "dependencyLedgerSha256": "f890ff89c3446ad6610700094d810ed2701a9ef5252e8b3e662ddb7988d68b45",
+    "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+    "noticeAndLicenseSha256": {
+      "third-party/baritone/NOTICE.md": "a1d9bde793e1912e3d7fedfc4d0d76c3d03fb5212da5897eb8eee614ec70331d",
+      "third-party/baritone/licenses/COPYING": "fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0",
+      "third-party/baritone/licenses/COPYING.LESSER": "a5681bf9b05db14d86776930017c647ad9e6e56ff6bbcfdf21e5848288dfaf1b"
+    }
+  },
+  "scope": "Successful CI for all 24 adapter profiles and exact JAR packaging checks. This record does not establish survival acceptance or multiplayer behavior.",
+  "artifacts": [
+    {
+      "minecraft": "26.3",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.3-0.1.0-preview.8.jar",
+      "sha256": "93ad04ec18757aa4e76aed7903b79bf4c561369cb09dd781899b0c568fb3faf4",
+      "archiveSHA": "sha256:8d23ce9b0e0a66ee4f011db770a6741a307cef88e347de1269eb42294621c189",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [],
+      "baritone": {
+        "version": "1.20.0",
+        "sha256": "49adfc063cfbfd0b6f08e9d814359807baa2d1768c0d39d6c5968268547cbca6",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          69
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.1",
+      "module": "fabric-1211",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.1-0.1.0-preview.8.jar",
+      "sha256": "c8973e3784bf018ada9d68adc8a96d9368d6dcd4f46d33a6ceb7213ba02d965d",
+      "archiveSHA": "sha256:ba9fdfe9c4b056ab7867b98e569d8d63ac29da0c406f8cf402a9a8ca44724b52",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.11.3",
+        "sha256": "f9a9b17a41d7d7ad22c759058b14fd01e3319663282e66f99e18153237fa6767",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.1",
+      "module": "fabric",
+      "java": 17,
+      "artifact": "lodekeeper-1.20.1-0.1.0-preview.8.jar",
+      "sha256": "96c10b1ad86753b14b712ae32a035ae85b220fd5298699c6c163e4262a5fd3d6",
+      "archiveSHA": "sha256:af1febb01e23dfd1526af45e4d036ef52a349f55a402731e00d2c464237fd576",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.5",
+        "sha256": "2ec4cb8f94d0655864090d38b7009aa014c294aa3c09e20069842be0054acc07",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          61
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.11",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.11-0.1.0-preview.8.jar",
+      "sha256": "90ea80a3f30f7967fad4bf3fad9eb614767cb97109fc8c3eda863e4702b26880",
+      "archiveSHA": "sha256:5de1f3b2d58c914a27b6511f355f52a6f5d3dec25421488b51d4e26fc6231e60",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.17.0",
+        "sha256": "a1646893c2a6338ea6bf1a3bdecf2cd743ede61e31a4324bd79a82f3d03360f9",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.2",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.2-0.1.0-preview.8.jar",
+      "sha256": "a7267fa7278498c4587df12df73bcf0ce80cfcbc68947767880a14cd00879892",
+      "archiveSHA": "sha256:a897d59dbced0bbef55f712b7c52031953bb85127d2c4434e4db84bb571fdc8a",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.12.0",
+        "sha256": "b3b36aa3d74c4df053d147ee9254b70c15f4d1e5e11a2766141a146eea3bd60b",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20",
+      "module": "fabric",
+      "java": 17,
+      "artifact": "lodekeeper-1.20-0.1.0-preview.8.jar",
+      "sha256": "1a0190c8bf0f4e9de0d1387e468ebc5d7fb65e2ee707c44b8f8e5be1724c1178",
+      "archiveSHA": "sha256:48aaaa35b1cc0892ee9d8fedda3c260ac58213e1ef251682b10c3d11978a3440",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.5",
+        "sha256": "2ec4cb8f94d0655864090d38b7009aa014c294aa3c09e20069842be0054acc07",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          61
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.2",
+      "module": "fabric-1202",
+      "java": 17,
+      "artifact": "lodekeeper-1.20.2-0.1.0-preview.8.jar",
+      "sha256": "a64bc7d40c56a55ecf1a08facbec421de7b61fe7541e57fb9c3c1936865d408a",
+      "archiveSHA": "sha256:7e66d9401a5beee94819626de14d2b0dfd31d26021b217f8359659632b7cca2e",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.6",
+        "sha256": "728b1868cbd68a0ca9ff537cac6551e2eb1b5b7964957b2862af7ee6d1274df0",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          61
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.3",
+      "module": "fabric-1202",
+      "java": 17,
+      "artifact": "lodekeeper-1.20.3-0.1.0-preview.8.jar",
+      "sha256": "12f5de771bb771f122f535b77060844c3ebd118e5ad3d6802d553896927a54c0",
+      "archiveSHA": "sha256:af8f1cf636431c626d7834e1b77462b20368c34d2cf6799e238830e4c83daa90",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.7",
+        "sha256": "8844b852b71688431d38bfa95530c888f59b68ce7eb1ed7e3e0a05bc158b7c13",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          61
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.4",
+      "module": "fabric-1202",
+      "java": 17,
+      "artifact": "lodekeeper-1.20.4-0.1.0-preview.8.jar",
+      "sha256": "49c8e31ece54694e1ce5be6050b80cbb593139175512b8a42de552590f1c3dbe",
+      "archiveSHA": "sha256:e8c9a01408c9d7cca319eeae5bca94eb3cac9e83a61b27187c0e81659c76df6a",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 61,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.7",
+        "sha256": "8844b852b71688431d38bfa95530c888f59b68ce7eb1ed7e3e0a05bc158b7c13",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          61
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.5",
+      "module": "fabric-1211",
+      "java": 21,
+      "artifact": "lodekeeper-1.20.5-0.1.0-preview.8.jar",
+      "sha256": "145756a0319f1b0939fbee22021fcf75381d9545512680ae6a7e5d1001c59c41",
+      "archiveSHA": "sha256:7b47895b669cae36c8ef7f397465196c9ae69c1a247e5c763030b9f91a2fd254",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.8",
+        "sha256": "edbea33d781e93da14bb75073622dfeb1653cdf3ccdcbc7fddfe8c7d0d3ddc02",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.20.6",
+      "module": "fabric-1211",
+      "java": 21,
+      "artifact": "lodekeeper-1.20.6-0.1.0-preview.8.jar",
+      "sha256": "de28a99f7446ff28b1f860cb928c854422934e32943e875d1be6394119afe20e",
+      "archiveSHA": "sha256:2c1c76f55d666b913fc82429294c67369f992d2d45962cc488e724eeec78f6d6",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.10.8",
+        "sha256": "edbea33d781e93da14bb75073622dfeb1653cdf3ccdcbc7fddfe8c7d0d3ddc02",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21",
+      "module": "fabric-1211",
+      "java": 21,
+      "artifact": "lodekeeper-1.21-0.1.0-preview.8.jar",
+      "sha256": "ea01866ee3d177e6c9e2ccafb5c34cfacfc7e11dec8a3bfea5b4dda72e9ff944",
+      "archiveSHA": "sha256:04d36be8c11b50b0dd5f17191b70b5c574d22c5e7b6f0bc4f912ce3706a5844c",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.11.3",
+        "sha256": "f9a9b17a41d7d7ad22c759058b14fd01e3319663282e66f99e18153237fa6767",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.3",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.3-0.1.0-preview.8.jar",
+      "sha256": "e14f40b4ca86019d8905d0567896f20ee61c1ea57bfa75cfdf71c4afa8f353ee",
+      "archiveSHA": "sha256:5f59d99c9d18542f595beaf8e5d4f3ad7a67db0cca42bd97d44ca0a9194d00a8",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.12.0",
+        "sha256": "b3b36aa3d74c4df053d147ee9254b70c15f4d1e5e11a2766141a146eea3bd60b",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.4",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.4-0.1.0-preview.8.jar",
+      "sha256": "9d01e2e1ea21e84fd40f82b8a6280149741e7bfe1b92f1957f5f1847f9121bc4",
+      "archiveSHA": "sha256:997839e59770fed3ff1d66b830616a5dd048eae16a97245fd41f5ca76380c475",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.13.1",
+        "sha256": "bfb79c3cdb8fe1f7697999b1f9c7f08ea29775f3b69d48ad90c387690ee67b05",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.4.1"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.5",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.5-0.1.0-preview.8.jar",
+      "sha256": "3f0de7f968a5c677ada02943c57ecaded758ac2d79e1e98b27f2b061d39292c4",
+      "archiveSHA": "sha256:e8ae25716c84ff9d9c7f0060f0ba4b629c31e34ccc3d1aec2b8705e76163224c",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.14.0",
+        "sha256": "e7c84733fa7c86d15743866cdd46e46eb27ce8285b1a21fbc95113c6a4d0b9d8",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.4.1"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.6",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.6-0.1.0-preview.8.jar",
+      "sha256": "e8e84a3e3fd31d1c05d6c79511f7e33bcc1d6f1aec7e387e3fad169be4973240",
+      "archiveSHA": "sha256:01d99c33759c86f8b671350ee6337cd765f015f301f6f1f7d6d7b658804ef174",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.15.0",
+        "sha256": "c58ef35a133b6ffce96a74682138ac2ee818cbc063b7c62671db9f9d7d783ebb",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.4.1"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.7",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.7-0.1.0-preview.8.jar",
+      "sha256": "d3837330f2023faa336f3eee2cb07cb11031d32ccd937ca072d7822395448808",
+      "archiveSHA": "sha256:af9ce42fc71525bb3175576a361e67f6734df3bf7f5088b8b23e1b2563aa0027",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.15.0",
+        "sha256": "c58ef35a133b6ffce96a74682138ac2ee818cbc063b7c62671db9f9d7d783ebb",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.4.1"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.8",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.8-0.1.0-preview.8.jar",
+      "sha256": "404d48e54c2040488a24379181fda5bc492ed255ae542c9a03cf2e1997a03d71",
+      "archiveSHA": "sha256:1627a88a3bba2af482c1d2f67f281e6e682f9227875ec4877e4921b5d1b06c61",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.15.0",
+        "sha256": "c58ef35a133b6ffce96a74682138ac2ee818cbc063b7c62671db9f9d7d783ebb",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.4.1"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.9",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.9-0.1.0-preview.8.jar",
+      "sha256": "5cea93bdb526594b7894c835c2850524d7ca937aca8ab923f83113bb41f67183",
+      "archiveSHA": "sha256:e42560c448299f33f540d871e6755b31453c0594bc786cc7c91eba02ec935c7a",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.16.0",
+        "sha256": "7a8c2d08fb6e66b2bc32dd6d78570c798186eed114e6e88f692af4e3742a2b46",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "1.21.10",
+      "module": "fabric-1212",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.10-0.1.0-preview.8.jar",
+      "sha256": "38588a189c5fec57eca84f7fdf3aec1b75e6e3e55ed1bfe47e1e63291f397f56",
+      "archiveSHA": "sha256:8045ec562618b9113a146b6d5b0c8059ba3400d69c95af7427f171c8582b3908",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [
+        "lodekeeper-refmap.json"
+      ],
+      "baritone": {
+        "version": "1.16.0",
+        "sha256": "7a8c2d08fb6e66b2bc32dd6d78570c798186eed114e6e88f692af4e3742a2b46",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          65
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "26.1",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.1-0.1.0-preview.8.jar",
+      "sha256": "f1492f155509d36133197286d5b885ca75076622a66a375b1e80ff615872f4d4",
+      "archiveSHA": "sha256:f424132637719e72fe2f0795bba900034093f884e55e06c9543ef3cb1ce528c6",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [],
+      "baritone": {
+        "version": "1.18.0",
+        "sha256": "beec850e73591ab1dc81cb359d1d224ef3230a35d21dc6e72f8e8d287e7b79d2",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          69
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "26.1.1",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.1.1-0.1.0-preview.8.jar",
+      "sha256": "dd7998fbd22c64ba5428569dce4d9908b76cb434d47f456786399c4ec7d2165a",
+      "archiveSHA": "sha256:d22b8409cf1757c7d26d2a31b56d60f24c25fc7f51a9379d7697cd2799d2e946",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [],
+      "baritone": {
+        "version": "1.18.0",
+        "sha256": "beec850e73591ab1dc81cb359d1d224ef3230a35d21dc6e72f8e8d287e7b79d2",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          69
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "26.1.2",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.1.2-0.1.0-preview.8.jar",
+      "sha256": "15bf4805dd9a2e7c6112f26f5db484d026700b670f7d06c3a4982ae623a22237",
+      "archiveSHA": "sha256:f822fd58da289274244ab7bbe462787908905fdd73d18a7ab6b300d1e46f82a2",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [],
+      "baritone": {
+        "version": "1.18.0",
+        "sha256": "beec850e73591ab1dc81cb359d1d224ef3230a35d21dc6e72f8e8d287e7b79d2",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          69
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    },
+    {
+      "minecraft": "26.2",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.2-0.1.0-preview.8.jar",
+      "sha256": "8dd8818a83ba347267f629e3db80a9ff963a0ed2ac4b29857291468212d02a4c",
+      "archiveSHA": "sha256:7699a4ceff93bd692898725a79f50f9a22ad71dc2252e2da38c12ae268b3aa4e",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftMetadataVerified": true,
+      "modVersionVerified": true,
+      "verificationFixturesExcluded": true,
+      "yarnRefmaps": [],
+      "baritone": {
+        "version": "1.19.0",
+        "sha256": "eca6e2fdf43c6657fe9fea10a8f9a7572d78dc91ad389b998b808bd28fa5b5d1",
+        "sha256MatchesSourcePin": true,
+        "classMajors": [
+          69
+        ],
+        "nestedLibraries": [
+          "nether-pathfinder-1.6"
+        ],
+        "dependencyLedgerEmbeddedFromSource": true,
+        "bridgeMetadataEmbeddedFromSource": true,
+        "bridgeMetadataSha256": "9678cf918706739e21c090a3b66dce432468360a9c979c8bb5cda4a060293b38",
+        "licensesAndNoticeEmbeddedFromSource": true,
+        "accessorMixinConfigured": true
+      }
+    }
+  ]
+}

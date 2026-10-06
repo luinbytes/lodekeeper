@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T08-22-54-921299Z-d6f4bce9",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":true,
+  "preparedSafetyProperty":"threat",
+  "evidenceAuthority":"integrated_server_inventory_entities_and_item_durability",
+  "verificationMode":"prepared_safety_threat_water_retreat",
+  "elapsedMillis":27712,
+  "clientTicks":421,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"water_retreat_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":181,"worldTicks":181,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[1.1761781707361765,64.0,-6.850144686111078],"screenshot":"screenshots/lodekeeper-2026-10-06T08-22-54-921299Z-d6f4bce9-water_retreat_bucket.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:diamond_sword":1,"minecraft:iron_ingot":3,"minecraft:wooden_pickaxe":1},"finalStorageInventory":{"minecraft:bucket":1,"minecraft:diamond_sword":1,"minecraft:wooden_pickaxe":1},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:diamond_sword":1,"minecraft:wooden_pickaxe":1},"elapsedMillisFromCommand":9033,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{"cowAlive":"true","cowHealth":"10.0","cowInitialHealth":"10.0","cowUuid":"6dcb603f-cf8c-48b9-ba32-004630e4cc5c","creeperAlive":"true","creeperDistanceSquared":"30.0","creeperHealth":"20.0","creeperRemoved":"false","creeperUuid":"898ea4b1-e64f-4345-989f-540e811a1453","diamondSwordDamage":"0","lowWaterRoofPresent":"true","playerBodyCellsAir":"false","playerInWater":"true","playerSupportBedrock":"true","preparedThreatsCleared":"false","waterFloorPresent":"true","waterSourceCellsPresent":"true","woodenPickaxeDamage":"0","zombieAlive":"true","zombieHealth":"4.0","zombieRemoved":"false","zombieUuid":"c369d55f-44d3-4265-906f-03f294019ea6"},"serverPreparedThreatReceipt":{"cowAlive":"true","cowHealth":"10.0","cowInitialHealth":"10.0","cowUuid":"6dcb603f-cf8c-48b9-ba32-004630e4cc5c","creeperAlive":"true","creeperDistanceSquared":"154.27857800351316","creeperHealth":"20.0","creeperRemoved":"false","creeperUuid":"898ea4b1-e64f-4345-989f-540e811a1453","diamondSwordDamage":"0","lowWaterRoofPresent":"true","playerBodyCellsAir":"true","playerInWater":"false","playerSupportBedrock":"true","preparedThreatsCleared":"false","waterFloorPresent":"true","waterSourceCellsPresent":"true","woodenPickaxeDamage":"0","zombieAlive":"true","zombieHealth":"4.0","zombieRemoved":"false","zombieUuid":"c369d55f-44d3-4265-906f-03f294019ea6"},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "fixtureGrants":"stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs",
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

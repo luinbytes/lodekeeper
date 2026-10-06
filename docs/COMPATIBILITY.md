@@ -19,6 +19,14 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 | 26.2 | 25 | Exact local and CI development builds pass at `8aafbcf` | Pending |
 | 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Nine controlled progression cases, initially unloaded distant wood and single-command diamond boots pass; natural-world checks pending |
 
+## Preview 8 navigation rebuild
+
+Preview 8 uses source `6ca3e283cffc553a5885eaa5b9ff5bff1329541a` and version-matched bundled Baritone. [All 24 exact CI profiles pass](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). Each downloaded artifact has exact Minecraft metadata, the correct JVM level, pinned nested dependency bytes, licences and source notices. Earlier gameplay rows below retain their original source scope and do not certify the new backend on every version.
+
+Prepared native checks pass water retreat on 1.21.1 and 26.3, plus selected 26.3 station, offhand, armor and melee cases. A prepared 1.21.1 64-log request continues through productive time limits. An expected zero-yield failure and one pre-command melee-fixture failure remain in [the evidence](evidence/survival-safety/checkpoint6ca3.json).
+
+The [normal-survival full diamond run](evidence/navigation-rebuild/checkpoint-07.json) fails its 15-minute target with all four armor pieces equipped and three of five diamond tools complete. Moving-animal pursuit and portable crafting supplies need further work. Ordinary-launcher, remote-server and broader version gameplay acceptance remain pending.
+
 ## What a check proves
 
 - Core/JUnit: dependency quantities, tool/material reservations, cycle handling, deterministic search bounds, command caps.

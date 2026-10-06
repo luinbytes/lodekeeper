@@ -8,7 +8,7 @@
 
 **Give it a goal. Let it do the work.** Lodekeeper is a Minecraft Fabric client mod that gathers resources and works through survival crafting chains using ordinary player actions. The current development branch uses version-matched Baritone navigation with Lodekeeper's inventory planner, station handling, and live task panel.
 
-> **Navigation rebuild in progress.** The development branch now uses Baritone for movement and batch mining. [Preview 7](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.7) predates this rebuild and still has reported movement and pickup failures. A new preview needs gameplay checks before release. Full survival and mechanic coverage remain in development.
+> **Preview 8 introduces Baritone navigation and batch mining.** Download the [jar for your exact Minecraft version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Full survival automation remains experimental. The latest fresh-world test equipped all four diamond armor pieces and made three diamond tools, but missed the 15-minute full-set target.
 
 ### Tell it what you need
 
@@ -23,11 +23,9 @@
 !lk stop
 ```
 
-Matching recipes can use a smoker or blast furnace. Controlled 72-item batches passed on [1.21.1](docs/evidence/1.21.1-smoker/run.json) and [26.3](docs/evidence/26.3-blast-furnace/run.json); see the [current station limits](docs/PROCESSING-STATIONS.md).
+Lodekeeper makes prerequisite tools, places and uses crafting tables, and cooks through matching furnace, smoker or blast-furnace recipes. It also handles ordinary stonecutting. [Station limits](docs/PROCESSING-STATIONS.md) describe unsupported recipes and interactions.
 
-Lodekeeper uses native stonecutting with server-confirmed inventory accounting and safer cleanup. Nearby ordinary stone, wood, held supplies and available stations guide tool progression. Preview 3's exact [1.21.1 iron-pickaxe check](docs/evidence/1.21.1-preview3-iron-pickaxe/run.json) starts with only a crafting table and completes with full health, without mining deepslate.
-
-The development build delegates walking, terrain breaking, scaffold placement, and item collection to Baritone. Mining runs as a batch process. Lodekeeper checks the items that actually reach your inventory before advancing to crafting. Parkour remains configurable with `!lk config allowParkour true`.
+Baritone handles movement, terrain breaking, scaffold placement and item collection. Mining runs in batches. Lodekeeper checks the items that actually reach your inventory before advancing to crafting. Enable parkour with `!lk config allowParkour true`.
 
 Watch the planned path and target while it works. The compact panel shows the current task, elapsed time and route progress. The timer counts from the start of each goal or full project, including pauses. Use `!lk config showPath false` or `!lk config showHud false` to hide them. The Baritone backend displays the executing route and whether it is calculating the next segment. Expanded search nodes are not exposed by that backend.
 
@@ -41,7 +39,7 @@ For large wood requests, try `!lk config optimizeWoodTools true`. This experimen
 
 Lodekeeper works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables and cooking stations, then check the finished item in your inventory. Baritone calculates later path segments during movement. Lodekeeper waits for safe movement cancellation before taking control of inventory screens.
 
-`!lk project gear_diamond` queues a full diamond loadout, including five tools and four armor pieces. This preset is experimental. A fresh-world completion time has not yet been established.
+`!lk project gear_diamond` requests five diamond tools and four armor pieces. Armor equips automatically. This preset is experimental, and the full-set fresh-world benchmark has not passed.
 
 Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
 
@@ -63,13 +61,13 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Download [Development Preview 7](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.7). All 24 exact-version jars were built and inspected. Its exact [1.21.1](docs/evidence/1.21.1-preview7-jar/README.md) and [26.3 jars](docs/evidence/26.3-preview7-jar/README.md) each passed native collision checks and a meadow wood-to-crafting-table command from an empty inventory. Earlier development snapshots also passed controlled [tool progression](docs/evidence/1.21.1-speed-iron-empty-development/README.md) and [drop execution](docs/evidence/1.21.1-drop-departure-development/README.md) checks using development classes. Broader ordinary-world acceptance remains open. Preview 7 still has reported failures for inaccessible dropped items and repeated obstruction retries; pickup recovery, batch mining and the planner/executor break-visibility mismatch are the next fixes.
+Download [Development Preview 8](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Baritone is bundled, so you do not need a separate installation. Replace your previous Lodekeeper jar before launching.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Download the matching `lodekeeper-<minecraft-version>-0.1.0-preview.7.jar` from the release assets, replace any earlier Lodekeeper jar so there is only one copy, and place it plus the matching Fabric API jar in your instance's `mods` folder. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Place `lodekeeper-<minecraft-version>-0.1.0-preview.8.jar` and the matching Fabric API jar in your instance's `mods` folder. Keep one Lodekeeper jar. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
-Each jar targets one exact release. Preview 7 has compiled artifacts for every stable Java release from 1.20 through 26.3, including 1.21.1. The navigation rebuild has compiled locally for 1.21.1 and 26.3; its full version matrix is being checked. Gameplay evidence and remaining limitations are listed in [compatibility](docs/COMPATIBILITY.md); broader supported-version acceptance remains pending. Use server automation only where the server permits it.
+Each jar targets one exact release. Preview 8 includes all 24 stable Java releases from 1.20 through 26.3, including 1.21.1. Every jar passed compilation and packaging checks. Gameplay checks cover selected cases on 1.21.1 and 26.3; [compatibility evidence](docs/COMPATIBILITY.md) separates those results from untested gameplay. Use server automation where the server permits it.
 
 ---
 
@@ -77,6 +75,10 @@ Each jar targets one exact release. Preview 7 has compiled artifacts for every s
 <summary><strong>Development, architecture and verification</strong></summary>
 
 Source lives in `core` for acquisition and commands, `nav` for route views and the earlier navigation tests, and the Fabric adapters for Minecraft integration. The current default movement and mining backend is Baritone. The shared core targets Java 17. Builds run with one worker and no persistent daemon. Exact build profiles are selected with `./scripts/build-version.sh 1.20.1`, `1.21.1`, or `26.3`; set `JAVA_HOME` to a JDK 17, 21, or 25 respectively. These development artifacts still require gameplay verification.
+
+Preview 8 binaries come from source `6ca3e283cffc553a5885eaa5b9ff5bff1329541a` and [its successful 24-profile CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). Prepared native cases verify water retreat, inventory reservations, automatic armor, held coal, and productive mining continuation. The [fresh-world failure receipt](docs/evidence/navigation-rebuild/checkpoint-07.json) records the incomplete full diamond project, including the later wood-supply problem. Prepared cases grant their documented supplies and do not establish fresh-world acceptance.
+
+The release includes SHA-256 checksums, packaging evidence and corresponding upstream source archives. Lodekeeper's code uses the MIT licence. Bundled Baritone retains its LGPL licence and upstream notices. [Dependency notices](third-party/baritone/NOTICE.md) include pinned versions and replacement instructions.
 
 - [Navigation and survival rebuild](docs/NAVIGATION-REBUILD.md)
 - [Baritone dependency notices and replacement instructions](third-party/baritone/NOTICE.md)
