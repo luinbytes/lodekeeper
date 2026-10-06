@@ -1,0 +1,12 @@
+{
+  "status": "failed_station_planning_after_successful_air_recovery",
+  "productionAirRecoveryExercised": true,
+  "commandIssued": true,
+  "nativeDryLedgeReachedMillis": 2242,
+  "nativeAirRefilledMillis": 2618,
+  "minimumNativeHealth": 3.0,
+  "overallBucketCasePassed": false,
+  "cause": "Planner did not observe the placed nearby crafting table and tried to gather station materials in a fixture with no trees.",
+  "correction": "Budgeted loaded-cell station observations included in planner stock, retaining alternatives when closer stations are rejected.",
+  "screenshotInspected": true
+}

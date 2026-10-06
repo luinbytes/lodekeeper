@@ -257,6 +257,7 @@ final class PortableWorkbenchAction {
         if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
             return "portable workbench recovery requires survival play";
         }
+        if (player.isUnderWater()) return "portable workbench recovery waits for breathable air";
         if (!config.allowBreaking) return "block breaking is disabled";
         if (GameApi.screen(client) != null || player.containerMenu == null
                 || player.containerMenu != player.inventoryMenu

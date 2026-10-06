@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T12-00-43-005407Z-4002ad09",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"air",
+  "evidenceAuthority":"integrated_server_air_health_hunger_position_and_inventory",
+  "verificationMode":"prepared_safety_air",
+  "elapsedMillis":17784,
+  "clientTicks":236,
+  "failure":"prepared safety automation paused during prepared_air_recovery_bucket: paused · air recovery needs attention: no breathable route after three attempts · 0 foreground queued · 0 maintenance queued",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "preparedSafetyFixtureGrants":"3 iron ingots, 2 cooked beef, health 3, food level 20 with zero saturation, air 200 at setup, 50 source water cells in a bedrock-bounded 5x5 pool, 24 bedrock roof blocks with one exit gap, bedrock ledge at 3,66,0, and one placed crafting table at 4,66,0",
+  "cases":[
+    {"name":"prepared_air_recovery_bucket","item":"minecraft:bucket","expected":1,"serverObserved":0,"inventoryEmptyAtStart":false,"passed":false,"clientTicks":35,"worldTicks":35,"engineStatus":"paused · air recovery needs attention: no breathable route after three attempts · 0 foreground queued · 0 maintenance queued","detail":"prepared safety automation paused during prepared_air_recovery_bucket: paused · air recovery needs attention: no breathable route after three attempts · 0 foreground queued · 0 maintenance queued","serverHealth":3.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T12-00-43-005407Z-4002ad09-failed-prepared_air_recovery_bucket.png","initialStorageInventory":{"minecraft:cooked_beef":2,"minecraft:iron_ingot":3},"finalStorageInventory":{"minecraft:cooked_beef":2,"minecraft:iron_ingot":3},"fullServerHeldInventory":{"minecraft:cooked_beef":2,"minecraft:iron_ingot":3},"elapsedMillisFromCommand":1783,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{},"serverPreparedPursuitReceipt":{},"initialPreparedAirReceipt":{"airSupply":"178","craftingTablePresent":"true","deathsObserved":"0","dryExitPresent":"true","exitDistance":"3.605551275463989","firstHeadInWaterServerTick":"69","firstHeadOutOfWaterServerTick":"-1","fixtureAirSupply":"200","foodLevel":"20","headInWater":"true","headInWaterAtStart":"true","initialHealth":"3.0","lowWaterRoofPresent":"true","maxAirSupply":"300","maximumDistanceFromStart":"0.0","minimumAirSupply":"178","minimumHealth":"3.0","saturation":"0.0","serverCurrentPosition":"0.5,64.0,0.5","serverLastObservedTick":"89","serverPositionSamples":"67=0.5,64.0,0.5;77=0.5,64.0,0.5;87=0.5,64.0,0.5","serverStartPosition":"0.5,64.0,0.5","serverStartTick":"67","waterBoundaryPresent":"true","waterSourceCellsPresent":"true"},"serverPreparedAirReceipt":{"airSupply":"159","craftingTablePresent":"true","deathsObserved":"0","dryExitPresent":"true","exitDistance":"3.605551275463989","firstHeadInWaterServerTick":"69","firstHeadOutOfWaterServerTick":"-1","fixtureAirSupply":"200","foodLevel":"20","headInWater":"true","headInWaterAtStart":"true","initialHealth":"3.0","lowWaterRoofPresent":"true","maxAirSupply":"300","maximumDistanceFromStart":"0.0","minimumAirSupply":"159","minimumHealth":"3.0","saturation":"0.0","serverCurrentPosition":"0.5,64.0,0.5","serverLastObservedTick":"108","serverPositionSamples":"67=0.5,64.0,0.5;77=0.5,64.0,0.5;87=0.5,64.0,0.5;97=0.5,64.0,0.5;107=0.5,64.0,0.5","serverStartPosition":"0.5,64.0,0.5","serverStartTick":"67","waterBoundaryPresent":"true","waterSourceCellsPresent":"true"}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

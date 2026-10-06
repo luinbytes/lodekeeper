@@ -1,5 +1,7 @@
 package dev.lodekeeper.fabric;
 
+import dev.lodekeeper.core.ItemId;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
@@ -74,6 +76,8 @@ final class PassiveFoodAction {
     private int attackCount;
     private int originalSlot = -1;
     private int selectedSlot = -1;
+    private boolean attackSelectionSettled;
+    private Map<ItemId, Integer> protection = Map.of();
     private Item acquiredFood;
     private boolean attacked;
     private boolean recoveryMode;
@@ -86,6 +90,13 @@ final class PassiveFoodAction {
         this.config = config;
         this.actions = actions;
         this.movement = movement;
+    }
+
+    void updateProtection(Map<ItemId, Integer> reserved) {
+        if (reserved == null || reserved.entrySet().stream().anyMatch(entry ->
+                entry.getKey() == null || entry.getValue() == null || entry.getValue() < 0))
+            throw new IllegalArgumentException("invalid passive food protection counts");
+        protection = Map.copyOf(reserved);
     }
 
     boolean ready() {
@@ -286,6 +297,9 @@ final class PassiveFoodAction {
     }
 
     private boolean tickAttack() {
+        int currentSlot = ClientAccess.selectedSlot(client.player.getInventory());
+        if (attackSelectionSettled && currentSlot != selectedSlot)
+            throw new IllegalStateException("manual hotbar selection has priority over hunting");
         if (targetDead()) {
             if (!attacked) throw new IllegalStateException("tracked animal died before a native attack was sent");
             beginCollection();
@@ -297,22 +311,24 @@ final class PassiveFoodAction {
             return false;
         }
         if (attackCount >= MAX_ATTACKS) throw new IllegalStateException("native attacks made no verified progress");
-        int currentSlot = ClientAccess.selectedSlot(client.player.getInventory());
         int attackSlot = chooseWeaponSlot(currentSlot);
         if (attackSlot < 0) throw new IllegalStateException("no safe attack stack remains available");
         if (currentSlot != attackSlot || selectedSlot != attackSlot) {
             if (!actions.selectSlot(attackSlot))
                 throw new IllegalStateException("could not safely select the attack stack");
             selectedSlot = ClientAccess.selectedSlot(client.player.getInventory());
+            attackSelectionSettled = true;
             status = "waiting for the selected attack stack";
             return false;
         }
+        attackSelectionSettled = true;
         // Native hand attributes and attack cooldown must observe a new slot on the next tick.
         if (!(client.player.getAttackCooldownProgress(0.0f) >= 1.0f)) {
             status = "waiting for native attack cooldown";
             return false;
         }
 
+        logAttackStack();
         actions.look(target.entity().getBoundingBox().getCenter());
         client.interactionManager.attackEntity(client.player, target.entity());
         client.player.swingHand(Hand.MAIN_HAND);
@@ -383,6 +399,9 @@ final class PassiveFoodAction {
     }
 
     private void startApproach() {
+        if (attackSelectionSettled && ClientAccess.selectedSlot(client.player.getInventory()) != selectedSlot)
+            throw new IllegalStateException("manual hotbar selection has priority over hunting");
+        attackSelectionSettled = false;
         if (failedRouteCount >= MAX_FAILED_ROUTES) failUnreachableTarget();
         if (!targetStillEligible()) throw new IllegalStateException("tracked animal is no longer safe to approach");
         if (!withinOrigin(target.entity().getX(), target.entity().getY(), target.entity().getZ())) {
@@ -553,24 +572,43 @@ final class PassiveFoodAction {
 
     private int chooseWeaponSlot(int selected) {
         var inventory = client.player.getInventory();
-        if (safeWeapon(inventory.getStack(selected))) return selected;
-        for (int slot = 0; slot < 9; slot++) {
-            if (GameApi.isSword(inventory.getStack(slot)) && safeWeapon(inventory.getStack(slot))) return slot;
+        int best = -1;
+        double damage = Double.NEGATIVE_INFINITY;
+        boolean sweepCollateral = target != null
+                && GameApi.defenseHasSweepCollateral(client.world, client.player, target.entity());
+        for (int offset = 0; offset < 9; offset++) {
+            int slot = (selected + offset) % 9;
+            ItemStack stack = inventory.getStack(slot);
+            if (!safeAttackStack(stack) || sweepCollateral && GameApi.isSword(stack)) continue;
+            double candidate = GameApi.defenseAttackDamage(client.player, stack);
+            if (Double.isFinite(candidate) && candidate > damage) { best = slot; damage = candidate; }
         }
-        for (int slot = 0; slot < 9; slot++) {
-            if (GameApi.isAxe(inventory.getStack(slot)) && safeWeapon(inventory.getStack(slot))) return slot;
-        }
-        for (int slot = 0; slot < 9; slot++)
-            if (inventory.getStack(slot).isEmpty() || !inventory.getStack(slot).isDamageable()) return slot;
-        return -1;
+        return best;
     }
 
-    private static boolean safeWeapon(ItemStack stack) {
-        if (stack.isEmpty() || stack.hasEnchantments()
-                || !(GameApi.isSword(stack) || GameApi.isAxe(stack))) return false;
-        int wear = GameApi.attackWear(stack);
-        if (wear < 0) return false;
-        return !stack.isDamageable() || stack.getMaxDamage() - stack.getDamage() > Math.max(2, wear);
+    private boolean safeAttackStack(ItemStack stack) {
+        if (stack.isEmpty()) return true;
+        if (stack.hasEnchantments() || GameApi.hasCustomName(stack)
+                || protection.getOrDefault(GameCatalog.id(stack.getItem()), 0) > 0) return false;
+        ItemStack normalized = stack.copy(), ordinary = new ItemStack(stack.getItem());
+        if (stack.isDamageable()) {
+            int wear = GameApi.defenseAttackWear(stack);
+            int reserve = GameApi.isSword(stack) || GameApi.isAxe(stack) ? 2 : 16;
+            if (wear < 0 || stack.getMaxDamage() - stack.getDamage() - wear < reserve) return false;
+            normalized.setDamage(0); ordinary.setDamage(0);
+        }
+        return GameApi.canCombine(normalized, ordinary);
+    }
+
+    private void logAttackStack() {
+        if (!config.debugLogging || client.player == null || selectedSlot < 0) return;
+        ItemStack stack = client.player.getInventory().getStack(selectedSlot);
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] FOOD_TOOL slot={} item={} damage={} wear={} remainingDurability={}",
+                selectedSlot, stack.isEmpty() ? "empty" : GameCatalog.id(stack.getItem()),
+                GameApi.defenseAttackDamage(client.player, stack),
+                stack.isDamageable() ? GameApi.defenseAttackWear(stack) : 0,
+                stack.isDamageable() ? stack.getMaxDamage() - stack.getDamage() : 0);
     }
 
     private String unsafeContextReason(boolean recovery) {
@@ -643,6 +681,7 @@ final class PassiveFoodAction {
         owningPlayer = null;
         actionWorld = null;
         originalSlot = selectedSlot = -1;
+        attackSelectionSettled = false;
     }
 
     private boolean cancelMovement() {

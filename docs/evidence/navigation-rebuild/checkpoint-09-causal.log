@@ -1,0 +1,15 @@
+[11:41:27] [Render thread/INFO] (lodekeeper) [Lodekeeper] SMELT_REQUIREMENTS source=minecraft:cooked_beef selected=[SelectedItemRequirement[item=minecraft:beef, count=4, consumed=true, purpose=smelting input, recipeSlot=-1], SelectedItemRequirement[item=minecraft:birch_planks, count=3, consumed=true, purpose=smelting fuel, recipeSlot=-1], SelectedStationRequirement[station=minecraft:furnace, purpose=use station]]
+[11:42:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] SMELT_REQUIREMENTS source=minecraft:iron_ingot_from_smelting_raw_iron selected=[SelectedItemRequirement[item=minecraft:raw_iron, count=3, consumed=true, purpose=smelting input, recipeSlot=-1], SelectedItemRequirement[item=minecraft:birch_planks, count=2, consumed=true, purpose=smelting fuel, recipeSlot=-1], SelectedStationRequirement[station=minecraft:furnace, purpose=use station]]
+[11:46:53] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:46:53] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:46:53] [Render thread/INFO] (lodekeeper) [Lodekeeper] STEP kind=CRAFT source=minecraft:diamond_pickaxe output=minecraft:diamond_pickaxe count=1 operations=1 auxiliary=false
+[11:46:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:47:17] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Workbench recovery is replanning: portable workbench recovery failed: portable workbench recovery exceeded 20 seconds
+[11:47:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:47:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:47:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_POLICY decision=replace_distant station=minecraft:furnace position=BlockPos{x=-27, y=52, z=35}
+[11:47:21] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=474130 phase=working backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=resting_for_natural_health_recovery___3/10
+[11:47:23] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=476178 phase=working backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=resting_for_natural_health_recovery___2/10
+[11:47:25] [Server thread/INFO] (Minecraft) Player517 drowned
+[11:47:25] [Render thread/INFO] (Minecraft) [System] [CHAT] Player517 drowned
+[11:47:25] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Paused: player is no longer alive. Use resume or stop.

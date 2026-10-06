@@ -256,6 +256,7 @@ final class PortableWorkbenchAction {
         if (!player.isAlive() || player.getAbilities().creativeMode || player.isSpectator()) {
             return "portable workbench recovery requires survival play";
         }
+        if (player.isSubmergedInWater()) return "portable workbench recovery waits for breathable air";
         if (!config.allowBreaking) return "block breaking is disabled";
         if (client.currentScreen != null || player.currentScreenHandler == null
                 || player.currentScreenHandler != player.playerScreenHandler

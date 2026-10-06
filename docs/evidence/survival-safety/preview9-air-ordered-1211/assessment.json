@@ -1,0 +1,12 @@
+{
+  "status": "passed_prepared_ordered_air_and_bucket",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "commandElapsedMillis": 11023,
+  "orderedAirRecoveryObserved": true,
+  "recoveryCompletedBeforeCraft": true,
+  "noBucketAtAirReceipt": true,
+  "bucketCountAtFinalReceipt": 1,
+  "nativeProcessesStoppedAtReceipt": true,
+  "screenshotInspected": true
+}

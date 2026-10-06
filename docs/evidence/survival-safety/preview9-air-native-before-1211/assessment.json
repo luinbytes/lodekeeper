@@ -1,0 +1,7 @@
+{
+  "status": "failed_production",
+  "productionAirRecoveryExercised": true,
+  "commandIssued": true,
+  "cause": "The fully submerged native start had no valid Baritone neighbors; all three AIR searches considered 22 movement types but retained only the start node, and paused without movement after1528ms.",
+  "plannedCorrection": "Use bounded loaded-cell swim steering until breathable space, then native surface/dry navigation. Preserve exact inventory, physical input and native process ownership."
+}

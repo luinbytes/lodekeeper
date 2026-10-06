@@ -1,0 +1,15 @@
+{
+  "status": "passed_prepared_air_and_bucket",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "orderedAirRecoveryEvidence": "causal.log: AIR begin/swim/breathing/complete before food and bucket craft; older frozen verifier final native receipts",
+  "stricterOrderedVerifierRerunPending": true,
+  "commandElapsedMillis": 10030,
+  "minimumNativeHealth": 3.0,
+  "nativeBucketCount": 1,
+  "nativeIronRemaining": 0,
+  "nativeTableOpenings": 1,
+  "nativeAirFinal": 300,
+  "nativeProcessesStoppedAtReceipt": true,
+  "screenshotInspected": true
+}

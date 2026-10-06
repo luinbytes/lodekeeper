@@ -1,0 +1,71 @@
+[13:00:43] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] Enabled. World and evidence paths are under /private/tmp/lodekeeper-air-recovery-corrected-1211-run/run/verification
+[13:00:43] [Render thread/INFO] (lodekeeper) [Lodekeeper] INIT mod=0.1.0-preview.9 minecraft=1.21.1
+[13:00:52] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=WAITING_FOR_WORLD, engine=idle · 0 foreground queued · 0 maintenance queued, screen=CreateWorldScreen, server=null
+[13:00:57] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Stopped
+[13:00:58] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=WAITING_FOR_EMPTY_SNAPSHOT, engine=idle · 0 foreground queued · 0 maintenance queued, screen=none, server=ServerSnapshot[serverTick=68, worldTime=68, inventory={minecraft:iron_ingot=3, minecraft:cooked_beef=2}, woodenAxeRemainingDurability=[], ironPickaxeDeepslateRemaining=-1, coalRecoveryEncasedOreRemaining=-1, coalRecoveryAccessibleOreRemaining=-1, coalStartSurfaceRemaining=-1, coalNavigationCourseMismatchCount=-1, coalNavigationCourseObservedMask=-1, coalNavigationCourseMinimumHealth=-1.0, coalNavigationCourseCheckpointServerTicks=[], nearbyWoodLocalFixture=null, storageInventory={minecraft:iron_ingot=3, minecraft:cooked_beef=2}, equippedItems={}, serverCursorEmpty=true, preparedSafetyThreatReceipt={}, preparedSafetyStationRoomReceipt={}, preparedSafetyPursuitReceipt={}, preparedSafetyAirReceipt={waterBoundaryPresent=true, fixtureAirSupply=200, maximumDistanceFromStart=0.0, serverStartPosition=0.5,64.0,0.5, airSupply=199, maxAirSupply=300, firstHeadInWaterServerTick=-1, serverStartTick=67, foodLevel=20, initialHealth=3.0, dryExitPresent=true, firstHeadOutOfWaterServerTick=-1, saturation=0.0, serverCurrentPosition=0.5,64.0,0.5, serverLastObservedTick=68, headInWater=false, deathsObserved=0, minimumHealth=3.0, craftingTablePresent=true, minimumAirSupply=199, lowWaterRoofPresent=true, headInWaterAtStart=false, serverPositionSamples=67=0.5,64.0,0.5, waterSourceCellsPresent=true, exitDistance=3.605551275463989}, health=3.0, foodLevel=20, difficulty=NORMAL, x=0.5, y=64.0, z=0.5]
+[13:00:59] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] catalog recipes=992, sources=1315, rejected=288, samples=[minecraft:andesite_slab_from_andesite_stonecutting (minecraft:stonecutting), minecraft:andesite_stairs_from_andesite_stonecutting (minecraft:stonecutting), minecraft:andesite_wall_from_andesite_stonecutting (minecraft:stonecutting)]
+[13:00:59] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Queued 1 × bucket
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] BEGIN label=bucket goal=1 inventory=0 startfeet=0,64,0 elapsed_ms=0 continued=false
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=begin phase=DRAINING air=175 maxAir=300 submerged=true attempts=0 elapsedMs=0
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=route phase=ESCAPING air=175 maxAir=300 submerged=true attempts=1 elapsedMs=7
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_STARTED elapsedMs=12
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:iron_ingot slot=0
+[13:00:59] [pool-5-thread-3/INFO] (Minecraft) [STDOUT]: 22 movements considered
+[13:00:59] [pool-5-thread-3/INFO] (Minecraft) [STDOUT]: Open set size: 0
+[13:00:59] [pool-5-thread-3/INFO] (Minecraft) [STDOUT]: PathNode map size: 1
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_FAILED elapsedMs=97
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=97
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=131
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=165
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=234
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=269
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=337
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=372
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=retry phase=STOPPING air=167 maxAir=300 submerged=true attempts=1 elapsedMs=447
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=443
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=443
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=route phase=ESCAPING air=166 maxAir=300 submerged=true attempts=2 elapsedMs=484
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_STARTED elapsedMs=1
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:iron_ingot slot=0
+[13:00:59] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: 22 movements considered
+[13:00:59] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: Open set size: 0
+[13:00:59] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: PathNode map size: 1
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_FAILED elapsedMs=64
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=64
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=97
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=167
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=201
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=268
+[13:00:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=302
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=369
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=403
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=438
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=retry phase=STOPPING air=155 maxAir=300 submerged=true attempts=2 elapsedMs=1017
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=534
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=534
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=route phase=ESCAPING air=154 maxAir=300 submerged=true attempts=3 elapsedMs=1055
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_STARTED elapsedMs=1
+[13:01:00] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: 22 movements considered
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:iron_ingot slot=0
+[13:01:00] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: Open set size: 0
+[13:01:00] [pool-5-thread-4/INFO] (Minecraft) [STDOUT]: PathNode map size: 1
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CALC_FAILED elapsedMs=30
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=31
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=97
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=131
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=165
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=236
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=270
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=338
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=371
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=AIR event=CANCELED elapsedMs=439
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=retry phase=STOPPING air=145 maxAir=300 submerged=true attempts=3 elapsedMs=1528
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=473
+[13:01:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=473
+[13:01:00] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Paused: air recovery needs attention: no breathable route after three attempts. Use resume or stop.
+[13:01:00] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Stopped
+[13:01:00] [Render thread/INFO] (Minecraft) [STDERR]: [Lodekeeper verification] FAILED: prepared safety automation paused during prepared_air_recovery_bucket: paused · air recovery needs attention: no breathable route after three attempts · 0 foreground queued · 0 maintenance queued
+[13:01:00] [IO-Worker-3/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] Saved screenshot as lodekeeper-2026-10-06T12-00-43-005407Z-4002ad09-failed-prepared_air_recovery_bucket.png
+[13:01:01] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Lodekeeper verification]'/minecraft:overworld
+[13:01:01] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Lodekeeper verification]'/minecraft:the_nether
+[13:01:01] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[Lodekeeper verification]'/minecraft:the_end

@@ -1,5 +1,7 @@
 # Navigation performance
 
+This document records the original navigator through Preview 7. Preview 8 uses the licensed Baritone backend. Current native movement and survival results are in [the rebuild log](NAVIGATION-REBUILD.md).
+
 The immediate acceptance target is responsive local resource gathering: a tree about 20 blocks away should not leave the player waiting for minutes. Route search, resource discovery, movement, mining and item collection are measured separately. A prepared-world success does not establish performance in a natural village or superiority over another mod.
 
 ## Architecture research

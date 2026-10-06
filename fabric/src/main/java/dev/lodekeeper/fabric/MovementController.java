@@ -8,6 +8,8 @@ import baritone.api.event.listener.AbstractGameEventListener;
 import baritone.api.pathing.calc.IPath;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.pathing.goals.GoalComposite;
+import baritone.api.process.IBaritoneProcess;
+import baritone.api.process.ICustomGoalProcess;
 import baritone.api.utils.interfaces.IGoalRenderPos;
 import baritone.api.pathing.goals.GoalGetToBlock;
 import baritone.api.pathing.goals.GoalNear;
@@ -20,12 +22,15 @@ import dev.lodekeeper.nav.NavigationSnapshot;
 import dev.lodekeeper.nav.Path;
 import dev.lodekeeper.nav.StanceProbe;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
+import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.math.BlockPos;
 
 import net.minecraft.util.math.ChunkPos;
@@ -36,17 +41,44 @@ import java.util.function.Predicate;
 
 /** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
+    private static final int AIR_RECOVERY_MAX_PROBES = 12_000;
+    private static final long AIR_RECOVERY_SEARCH_BUDGET_NANOS = 4_000_000L;
+    private static final int AIR_RECOVERY_MAX_GOALS = 16;
+    private static final int AIR_SWIM_MAX_VISITED = 4_096;
+    private static final int AIR_SWIM_MAX_PATH = 64;
+    private static final int[][] AIR_SWIM_STEPS = {
+            {0, 1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, -1, 0}
+    };
+
+    private record AirRecoveryCandidate(BlockPos position, int score, int distanceSquared, boolean supported) { }
+    private record AirRecoveryOffset(int x, int z, int distanceSquared) { }
+    private record AirSwimCell(boolean surface, boolean dryExit) { }
+    private record AirSwimNode(BlockPos position, int depth) { }
+
+    private static final Comparator<AirRecoveryCandidate> AIR_RECOVERY_CANDIDATE_ORDER =
+            Comparator.comparingInt(AirRecoveryCandidate::score)
+                    .thenComparingInt(AirRecoveryCandidate::distanceSquared)
+                    .thenComparing(candidate -> !candidate.supported())
+                    .thenComparingInt(candidate -> -candidate.position().getY())
+                    .thenComparingInt(candidate -> candidate.position().getX())
+                    .thenComparingInt(candidate -> candidate.position().getZ());
+
     record RetreatThreat(double x, double z) { }
-    private enum Mode { IDLE, MOVE, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
+    private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
     private final BotInput input;
     private final GameTerrain terrain;
     private IBaritone bot;
+    private IBaritoneProcess cancellationProcess;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
     private boolean cancelling, followCancellationPending;
     private baritone.api.pathing.goals.Goal routeGoal;
+    private baritone.api.pathing.goals.Goal airRecoveryGoal;
+    private BlockPos lastAirRecoveryDestination;
+    private BlockPos airSwimOrigin;
+    private boolean airRecoveryCancellationPending;
     private dev.lodekeeper.nav.Goal diagnosticGoal;
     private Block[] mineBlocks = new Block[0];
     private Item output;
@@ -159,11 +191,336 @@ final class MovementController {
         return List.copyOf(goals);
     }
 
+    enum AirExitPreference { DRY, SURFACE }
+
+    List<BlockPos> startAirRecovery(Set<BlockPos> rejectedGoals, AirExitPreference preference) {
+        Objects.requireNonNull(rejectedGoals);
+        Objects.requireNonNull(preference);
+        if (rejectedGoals.size() > 32) throw new IllegalArgumentException("Air recovery rejection seed exceeds 32 positions");
+        if (client.player == null || client.world == null) throw new NavigationFailure("World unavailable");
+        checkAirRecoveryOwnership();
+        List<BlockPos> goals = new AirRecoverySearch(Set.copyOf(rejectedGoals), preference).findGoals();
+        if (goals.isEmpty()) throw new NavigationFailure("No breathable air recovery stance remains within the bounded search");
+
+        checkAirRecoveryOwnership();
+        prepare();
+        airRecoveryGoal = new GoalComposite(goals.stream().map(GoalBlock::new)
+                .toArray(baritone.api.pathing.goals.Goal[]::new));
+        lastAirRecoveryDestination = null;
+        routeGoal = airRecoveryGoal;
+        diagnosticGoal = null;
+        mode = Mode.AIR;
+        launch();
+        return List.copyOf(goals);
+    }
+
+    private final class AirRecoverySearch {
+        private final Set<BlockPos> rejectedGoals;
+        private final AirExitPreference preference;
+        private final BlockPos center = client.player.getBlockPos();
+        private final long startedNanos = System.nanoTime();
+        private final Map<Long, Boolean> loadedChunks = new HashMap<>();
+        private final List<AirRecoveryCandidate> dryCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
+        private final List<AirRecoveryCandidate> floatingCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
+        private final BlockPos.Mutable feet = new BlockPos.Mutable();
+        private final BlockPos.Mutable head = new BlockPos.Mutable();
+        private final BlockPos.Mutable overhead = new BlockPos.Mutable();
+        private final BlockPos.Mutable support = new BlockPos.Mutable();
+        private int probes;
+        private boolean exhausted;
+
+        private AirRecoverySearch(Set<BlockPos> rejectedGoals, AirExitPreference preference) {
+            this.rejectedGoals = rejectedGoals; this.preference = preference;
+        }
+
+        private List<BlockPos> findGoals() {
+            scanOffset(0, 0);
+            List<AirRecoveryOffset> offsets = new ArrayList<>();
+            for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
+                int distanceSquared = dx * dx + dz * dz;
+                if ((dx != 0 || dz != 0) && distanceSquared <= 12 * 12)
+                    offsets.add(new AirRecoveryOffset(dx, dz, distanceSquared));
+            }
+            offsets.sort(Comparator.comparingInt(AirRecoveryOffset::distanceSquared)
+                    .thenComparingInt(AirRecoveryOffset::x).thenComparingInt(AirRecoveryOffset::z));
+            for (AirRecoveryOffset offset : offsets) {
+                if (exhausted) break;
+                scanOffset(offset.x(), offset.z());
+                List<AirRecoveryCandidate> preferred = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
+                if (preferred.size() == AIR_RECOVERY_MAX_GOALS
+                        && offset.distanceSquared() > preferred.get(preferred.size() - 1).score()) break;
+            }
+            List<AirRecoveryCandidate> selected = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
+            if (selected.isEmpty()) selected = preference == AirExitPreference.DRY ? floatingCandidates : dryCandidates;
+            return selected.stream().map(AirRecoveryCandidate::position).toList();
+        }
+
+        private void scanOffset(int dx, int dz) {
+            if (exhausted) return;
+            probe(dx, dz, 0);
+            for (int dy = 1; dy <= 16; dy++) {
+                if (exhausted) return;
+                probe(dx, dz, dy);
+                if (dy == 1 && !exhausted) probe(dx, dz, -1);
+            }
+        }
+
+        private void probe(int dx, int dz, int dy) {
+            if (exhausted) return;
+            if (probes >= AIR_RECOVERY_MAX_PROBES || System.nanoTime() - startedNanos > AIR_RECOVERY_SEARCH_BUDGET_NANOS) {
+                exhausted = true;
+                return;
+            }
+            probes++;
+
+            int x = center.getX() + dx, y = center.getY() + dy, z = center.getZ() + dz;
+            if (!inWorld(y) || !inWorld(y + 1) || !inWorld(y + 2)
+                    || rejectedGoals.contains(new BlockPos(x, y, z)) || !loaded(x, z)) return;
+            feet.set(x, y, z);
+            head.set(x, y + 1, z);
+            overhead.set(x, y + 2, z);
+            BlockState feetState = client.world.getBlockState(feet);
+            BlockState headState = client.world.getBlockState(head);
+            if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
+                    || !clearAirRecoveryCell(feetState, feet) || !clearAirRecoveryCell(headState, head)
+                    || !headState.getFluidState().isEmpty()
+                    || !(feetState.getFluidState().isEmpty() || feetState.getFluidState().isIn(FluidTags.WATER))) return;
+            if (client.world.getBlockState(overhead).getBlock() instanceof FallingBlock) return;
+
+            boolean waterFeet = feetState.getFluidState().isIn(FluidTags.WATER);
+            if (!inWorld(y - 1)) return;
+            support.set(x, y - 1, z);
+            BlockState supportState = client.world.getBlockState(support);
+            boolean supported = supportState.getFluidState().isEmpty() && !hazardousAirRecoveryState(supportState)
+                    && Block.isShapeFullCube(supportState.getCollisionShape(client.world, support));
+            if (!waterFeet && !supported) return;
+            int distanceSquared = dx * dx + dy * dy + dz * dz;
+            int score = distanceSquared + (supported ? 0 : 3) + (waterFeet ? 2 : 0);
+            AirRecoveryCandidate candidate = new AirRecoveryCandidate(feet.toImmutable(), score,
+                    distanceSquared, supported);
+            List<AirRecoveryCandidate> ranked = waterFeet ? floatingCandidates : dryCandidates;
+            int index = Collections.binarySearch(ranked, candidate, AIR_RECOVERY_CANDIDATE_ORDER);
+            if (index < 0) index = -index - 1;
+            ranked.add(index, candidate);
+            if (ranked.size() > AIR_RECOVERY_MAX_GOALS) ranked.remove(ranked.size() - 1);
+        }
+
+        private boolean loaded(int x, int z) {
+            int chunkX = x >> 4, chunkZ = z >> 4;
+            long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
+            Boolean present = loadedChunks.get(key);
+            if (present == null) {
+                present = client.world.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
+                loadedChunks.put(key, present);
+            }
+            return present;
+        }
+
+        private boolean inWorld(int y) { return !client.world.isOutOfHeightLimit(y); }
+
+    }
+
+    private boolean clearAirRecoveryCell(BlockState state, BlockPos position) {
+        return state.getCollisionShape(client.world, position).isEmpty();
+    }
+
+    private static boolean hazardousAirRecoveryState(BlockState state) {
+        return state.getFluidState().isIn(FluidTags.LAVA) || state.isOf(Blocks.FIRE)
+                || state.isOf(Blocks.SOUL_FIRE) || state.isOf(Blocks.CACTUS)
+                || state.isOf(Blocks.MAGMA_BLOCK) || state.isOf(Blocks.CAMPFIRE)
+                || state.isOf(Blocks.SOUL_CAMPFIRE) || state.isOf(Blocks.POWDER_SNOW)
+                || state.isOf(Blocks.SWEET_BERRY_BUSH) || state.isOf(Blocks.WITHER_ROSE);
+    }
+
+    List<BlockPos> airSwimRoute() {
+        checkAirRecoveryOwnership();
+        if (client.player == null || client.world == null) throw new NavigationFailure("World unavailable");
+        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        var pathing = activeBot.getPathingBehavior();
+        if (mode != Mode.IDLE || resumeMode != Mode.IDLE || cancelling || cancellationProcess != null
+                || airRecoveryCancellationPending || lease != null || pathing.hasPath() || pathing.isPathing()
+                || pathing.getInProgress().isPresent())
+            throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Native movement cancellation must finish before air-swim routing");
+
+        BlockPos start = client.player.getBlockPos();
+        AirSwimSearch search = new AirSwimSearch(start);
+        List<BlockPos> route = search.findRoute();
+        airSwimOrigin = route.isEmpty() ? null : start.toImmutable();
+        return route;
+    }
+
+    /** Revalidates a planned swim step against loaded native collision and fluid state only. */
+    boolean airSwimStepClear(BlockPos feetPosition) {
+        if (feetPosition == null || airSwimOrigin == null || client.player == null || client.world == null
+                || !withinAirSwimBounds(feetPosition, airSwimOrigin)) return false;
+        int x = feetPosition.getX(), y = feetPosition.getY(), z = feetPosition.getZ();
+        if (!airSwimChunkLoaded(x, z) || !airSwimInWorld(y - 1)
+                || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)) return false;
+
+        BlockPos headPosition = new BlockPos(x, y + 1, z);
+        BlockPos supportPosition = new BlockPos(x, y - 1, z);
+        BlockPos overheadPosition = new BlockPos(x, y + 2, z);
+        BlockState feetState = client.world.getBlockState(feetPosition);
+        BlockState headState = client.world.getBlockState(headPosition);
+        BlockState supportState = client.world.getBlockState(supportPosition);
+        if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
+                || hazardousAirRecoveryState(supportState)
+                || !clearAirRecoveryCell(feetState, feetPosition)
+                || !clearAirRecoveryCell(headState, headPosition)
+                || client.world.getBlockState(overheadPosition).getBlock() instanceof FallingBlock
+                || supportState.getBlock() instanceof FallingBlock) return false;
+
+        boolean feetWater = feetState.getFluidState().isIn(FluidTags.WATER);
+        boolean feetDry = feetState.getFluidState().isEmpty();
+        boolean headWater = headState.getFluidState().isIn(FluidTags.WATER);
+        boolean headDry = headState.getFluidState().isEmpty();
+        if ((!feetWater && !feetDry) || (!headWater && !headDry)) return false;
+        boolean supportedDry = supportState.getFluidState().isEmpty()
+                && Block.isShapeFullCube(supportState.getCollisionShape(client.world, supportPosition));
+        boolean aboveWater = supportState.getFluidState().isIn(FluidTags.WATER);
+        return feetWater || supportedDry || feetDry && headDry && aboveWater;
+    }
+
+    private final class AirSwimSearch {
+        private final BlockPos origin;
+        private final long startedNanos = System.nanoTime();
+        private final Map<Long, Boolean> loadedChunks = new HashMap<>();
+        private final Map<BlockPos, BlockPos> parents = new HashMap<>();
+        private final ArrayDeque<AirSwimNode> frontier = new ArrayDeque<>();
+        private final BlockPos.Mutable feet = new BlockPos.Mutable();
+        private final BlockPos.Mutable head = new BlockPos.Mutable();
+        private final BlockPos.Mutable support = new BlockPos.Mutable();
+        private final BlockPos.Mutable overhead = new BlockPos.Mutable();
+        private int probes;
+        private boolean exhausted;
+        private BlockPos surfaceFallback;
+
+        private AirSwimSearch(BlockPos origin) { this.origin = origin.toImmutable(); }
+
+        private List<BlockPos> findRoute() {
+            AirSwimCell startCell = inspect(origin);
+            if (startCell == null) return List.of();
+            parents.put(origin, null);
+            frontier.addLast(new AirSwimNode(origin, 0));
+            if (startCell.surface()) surfaceFallback = origin;
+            if (startCell.dryExit()) return List.of();
+
+            while (!frontier.isEmpty() && !exhausted) {
+                AirSwimNode current = frontier.removeFirst();
+                if (current.depth() >= AIR_SWIM_MAX_PATH) continue;
+                for (int[] step : AIR_SWIM_STEPS) {
+                    if (probes >= AIR_RECOVERY_MAX_PROBES
+                            || System.nanoTime() - startedNanos > AIR_RECOVERY_SEARCH_BUDGET_NANOS) {
+                        exhausted = true;
+                        break;
+                    }
+                    probes++;
+                    BlockPos next = new BlockPos(current.position().getX() + step[0],
+                            current.position().getY() + step[1], current.position().getZ() + step[2]);
+                    if (!withinAirSwimBounds(next, origin) || parents.containsKey(next) || !loaded(next)) continue;
+                    if (parents.size() >= AIR_SWIM_MAX_VISITED) {
+                        exhausted = true;
+                        break;
+                    }
+                    AirSwimCell cell = inspect(next);
+                    if (cell == null) continue;
+                    parents.put(next, current.position());
+                    int depth = current.depth() + 1;
+                    if (cell.dryExit()) return reconstruct(next);
+                    if (surfaceFallback == null && cell.surface()) surfaceFallback = next;
+                    frontier.addLast(new AirSwimNode(next, depth));
+                }
+            }
+            return surfaceFallback == null ? List.of() : reconstruct(surfaceFallback);
+        }
+
+        private AirSwimCell inspect(BlockPos position) {
+            int x = position.getX(), y = position.getY(), z = position.getZ();
+            if (!withinAirSwimBounds(position, origin) || !airSwimInWorld(y - 1)
+                    || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)
+                    || !loaded(x, z)) return null;
+            feet.set(x, y, z); head.set(x, y + 1, z); support.set(x, y - 1, z); overhead.set(x, y + 2, z);
+            BlockState feetState = client.world.getBlockState(feet);
+            BlockState headState = client.world.getBlockState(head);
+            BlockState supportState = client.world.getBlockState(support);
+            if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
+                    || hazardousAirRecoveryState(supportState) || !clearAirRecoveryCell(feetState, feet)
+                    || !clearAirRecoveryCell(headState, head)
+                    || client.world.getBlockState(overhead).getBlock() instanceof FallingBlock
+                    || supportState.getBlock() instanceof FallingBlock) return null;
+
+            boolean feetWater = feetState.getFluidState().isIn(FluidTags.WATER);
+            boolean feetDry = feetState.getFluidState().isEmpty();
+            boolean headWater = headState.getFluidState().isIn(FluidTags.WATER);
+            boolean headDry = headState.getFluidState().isEmpty();
+            if ((!feetWater && !feetDry) || (!headWater && !headDry)) return null;
+
+            boolean supportedDry = supportState.getFluidState().isEmpty()
+                    && Block.isShapeFullCube(supportState.getCollisionShape(client.world, support));
+            boolean aboveWater = supportState.getFluidState().isIn(FluidTags.WATER);
+            boolean transition = feetDry && headDry && aboveWater;
+            if (!feetWater && !supportedDry && !transition) return null;
+            return new AirSwimCell(feetWater && headDry, feetDry && headDry && supportedDry);
+        }
+
+        private boolean loaded(BlockPos position) { return loaded(position.getX(), position.getZ()); }
+
+        private boolean loaded(int x, int z) {
+            int chunkX = x >> 4, chunkZ = z >> 4;
+            long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
+            Boolean present = loadedChunks.get(key);
+            if (present == null) {
+                present = client.world.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
+                loadedChunks.put(key, present);
+            }
+            return present;
+        }
+
+        private List<BlockPos> reconstruct(BlockPos destination) {
+            List<BlockPos> route = new ArrayList<>();
+            BlockPos cursor = destination;
+            while (!cursor.equals(origin)) {
+                if (route.size() >= AIR_SWIM_MAX_PATH) return List.of();
+                route.add(cursor.toImmutable());
+                cursor = parents.get(cursor);
+                if (cursor == null) return List.of();
+            }
+            Collections.reverse(route);
+            return List.copyOf(route);
+        }
+    }
+
+    private boolean withinAirSwimBounds(BlockPos position, BlockPos origin) {
+        int dx = position.getX() - origin.getX(), dz = position.getZ() - origin.getZ();
+        int dy = position.getY() - origin.getY();
+        return Math.abs(dx) <= 12 && Math.abs(dz) <= 12 && dy >= -1 && dy <= 16;
+    }
+
+    private boolean airSwimChunkLoaded(int x, int z) {
+        return client.world.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) != null;
+    }
+
+    private boolean airSwimInWorld(int y) { return !client.world.isOutOfHeightLimit(y); }
+
     boolean debugLogging() { return config.debugLogging; }
 
     BlockPos retreatDestination() {
         if (mode != Mode.MOVE || bot == null || bot.getPathingBehavior().getCurrent() == null) return null;
         return bot.getPathingBehavior().getCurrent().getPath().getDest().toImmutable();
+    }
+
+    BlockPos airRecoveryDestination() {
+        observeAirRecoveryDestination();
+        return lastAirRecoveryDestination == null ? null : lastAirRecoveryDestination.toImmutable();
+    }
+
+    private void observeAirRecoveryDestination() {
+        if (airRecoveryGoal == null || bot == null) return;
+        var current = bot.getPathingBehavior().getCurrent();
+        if (current == null) return;
+        BlockPos destination = current.getPath().getDest();
+        if (airRecoveryGoal.isInGoal(destination)) lastAirRecoveryDestination = destination.toImmutable();
     }
 
     void startInteraction(BlockPos target) {
@@ -238,6 +595,7 @@ final class MovementController {
         discoveredMiningTargets.clear(); pendingMiningTargets.clear();
         requestX = client.player.getX(); requestZ = client.player.getZ();
         routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null;
+        airRecoveryGoal = null; lastAirRecoveryDestination = null; airRecoveryCancellationPending = false;
         observation = NavigationSnapshot.EMPTY; positionObserved = false; pendingBreakFailure = null;
         lastLoggedBreakPosition = miningTarget = null; lastLoggedBreakTool = null;
     }
@@ -247,13 +605,15 @@ final class MovementController {
         phaseStartedTick = requestTicks;
         lease = new SettingsLease();
         Settings settings = BaritoneAPI.getSettings();
-        lease.set(settings.allowBreak, config.allowBreaking);
-        lease.set(settings.allowPlace, config.allowBuilding);
+        boolean airRecovery = mode == Mode.AIR;
+        lease.set(settings.allowBreak, !airRecovery && config.allowBreaking);
+        lease.set(settings.allowPlace, !airRecovery && config.allowBuilding);
         lease.set(settings.allowInventory, false);
-        lease.set(settings.allowParkour, config.allowParkour);
-        lease.set(settings.allowParkourPlace, config.allowParkour && config.allowBuilding);
+        lease.set(settings.allowParkour, !airRecovery && config.allowParkour);
+        lease.set(settings.allowParkourPlace, !airRecovery && config.allowParkour && config.allowBuilding);
         lease.set(settings.allowSprint, true);
         lease.set(settings.allowWaterBucketFall, false);
+        if (airRecovery) lease.set(settings.assumeWalkOnWater, false);
         lease.set(settings.maxFallHeightNoWater, 3);
         lease.set(settings.autoTool, true);
         lease.set(settings.assumeExternalAutoTool, true);
@@ -268,9 +628,9 @@ final class MovementController {
         lease.set(settings.primaryTimeoutMS, 500L); lease.set(settings.failureTimeoutMS, 2000L);
         lease.set(settings.planAheadPrimaryTimeoutMS, 4000L); lease.set(settings.planAheadFailureTimeoutMS, 5000L);
         applyProtection();
-        actions.prepareScaffoldHotbar(scaffoldItems);
+        if (!airRecovery) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
-            case MOVE -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
+            case MOVE, AIR -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
             case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.isOf(output));
             case FOLLOW -> {
                 lease.set(settings.followRadius, 1);
@@ -308,8 +668,11 @@ final class MovementController {
     }
 
     boolean tick() {
-        checkFollowOwnership();
+        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+                || airRecoveryCancellationPending) checkAirRecoveryOwnership();
+        else checkFollowOwnership();
         if (mode == Mode.IDLE && !cancelling) return true;
+        observeAirRecoveryDestination();
         if (client.player == null || client.world == null) { stop(); return false; }
         if ((mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW)
                 && (client.world != followOwnerWorld || client.player != followOwnerPlayer)) {
@@ -352,13 +715,13 @@ final class MovementController {
             boolean finished = finishCancellation();
             return finished && mode == Mode.IDLE && resumeMode == Mode.IDLE;
         }
-        if (mode == Mode.SUSPENDED) { mode = resumeMode; resumeMode = Mode.IDLE; launch(); }
+        if (mode == Mode.SUSPENDED) { mode = resumeMode; resumeMode = Mode.IDLE; cancellationProcess = null; launch(); }
         if (mode == Mode.IDLE) return true;
         input.release();
         observeConfirmedProgress();
         if (requestTicks % 4 == 0) samplePath();
-        actions.prepareScaffoldHotbar(scaffoldItems);
-        boolean satisfied = mode == Mode.MOVE
+        if (mode != Mode.AIR) actions.prepareScaffoldHotbar(scaffoldItems);
+        boolean satisfied = mode == Mode.MOVE || mode == Mode.AIR
                 ? routeGoal.isInGoal(client.player.getBlockPos())
                 : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
         if (satisfied) { stop(); return finishCancellation(); }
@@ -367,7 +730,7 @@ final class MovementController {
             return false;
         }
         boolean active = switch (mode) {
-            case MOVE, DESCEND -> bot.getCustomGoalProcess().isActive();
+            case MOVE, AIR, DESCEND -> bot.getCustomGoalProcess().isActive();
             case MINE -> bot.getMineProcess().isActive();
             case PICKUP, FOLLOW -> bot.getFollowProcess().isActive();
             default -> false;
@@ -421,6 +784,7 @@ final class MovementController {
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] NAV phase={} -> {} targetY={} requestTicks={}", mode, next, miningY, requestTicks);
         if (mode == Mode.MINE && bot.getMineProcess().isActive()) rememberRejectedMiningTargets();
+        cancellationProcess = bot.getMineProcess().isActive() ? bot.getMineProcess() : bot.getCustomGoalProcess();
         resumeMode = next; mode = Mode.SUSPENDED;
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
@@ -566,15 +930,22 @@ final class MovementController {
     }
 
     void suspend() {
-        checkFollowOwnership();
+        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+                || airRecoveryCancellationPending) checkAirRecoveryOwnership();
+        else checkFollowOwnership();
         if (mode == Mode.IDLE || mode == Mode.SUSPENDED) return;
+        cancellationProcess = expectedProcessForMode(bot, mode);
         followCancellationPending = mode == Mode.FOLLOW;
         resumeMode = mode; mode = Mode.SUSPENDED;
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
 
     void stop() {
-        checkFollowOwnership();
+        boolean stoppingAirRecovery = mode == Mode.AIR || mode == Mode.SUSPENDED && resumeMode == Mode.AIR;
+        if (stoppingAirRecovery || airRecoveryCancellationPending) checkAirRecoveryOwnership();
+        else checkFollowOwnership();
+        if (bot != null && cancellationProcess == null) cancellationProcess = expectedProcessForMode(bot, mode);
+        if (stoppingAirRecovery) airRecoveryCancellationPending = true;
         followCancellationPending |= mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW;
         if (bot != null && followFilter != null && bot.getFollowProcess().currentFilter() == followFilter)
             bot.getFollowProcess().cancel();
@@ -599,6 +970,73 @@ final class MovementController {
             throw failure;
         }
         if (foreignFollowOwnsProcess()) throw releaseLostFollowOwnership();
+    }
+
+    void checkAirRecoveryOwnership() {
+        checkFollowOwnership();
+        IBaritone activeBot = bot == null ? BaritoneAPI.getProvider().getPrimaryBaritone() : bot;
+        var custom = activeBot.getCustomGoalProcess();
+        IBaritoneProcess expected = cancellationProcess != null
+                ? cancellationProcess : expectedProcessForMode(activeBot, mode);
+        if (airRecoveryCancellationPending) expected = custom;
+
+        if ((mode == Mode.AIR && !matchesOwnedCustomGoal(custom, airRecoveryGoal))
+                || (mode == Mode.SUSPENDED && resumeMode == Mode.AIR
+                && !matchesOwnedCustomGoal(custom, airRecoveryGoal))
+                || (mode == Mode.MOVE && routeGoal != null && !matchesOwnedCustomGoal(custom, routeGoal))
+                || (cancellationProcess == custom && routeGoal != null && !matchesOwnedCustomGoal(custom, routeGoal))
+                || (airRecoveryCancellationPending && !matchesOwnedCustomGoal(custom, airRecoveryGoal)))
+            throw releaseLostAirRecoveryOwnership();
+        if (hasForeignActiveProcess(activeBot, expected)) throw releaseLostAirRecoveryOwnership();
+        var recent = activeBot.getPathingControlManager().mostRecentInControl();
+        if (recent.isPresent() && recent.get() != expected && recent.get().isActive())
+            throw releaseLostAirRecoveryOwnership();
+    }
+
+    private boolean matchesOwnedCustomGoal(ICustomGoalProcess custom, baritone.api.pathing.goals.Goal expectedGoal) {
+        return expectedGoal != null && (custom.getGoal() == expectedGoal
+                || custom.getGoal() == null && !custom.isActive() && custom.mostRecentGoal() == expectedGoal);
+    }
+
+    private IBaritoneProcess expectedProcessForMode(IBaritone activeBot, Mode expectedMode) {
+        return switch (expectedMode) {
+            case MOVE, AIR, DESCEND -> activeBot.getCustomGoalProcess();
+            case MINE -> activeBot.getMineProcess();
+            case PICKUP, FOLLOW -> activeBot.getFollowProcess();
+            default -> null;
+        };
+    }
+
+    private boolean hasForeignActiveProcess(IBaritone activeBot, IBaritoneProcess expected) {
+        IBaritoneProcess[] processes = {
+                activeBot.getCustomGoalProcess(), activeBot.getMineProcess(), activeBot.getFollowProcess(),
+                activeBot.getBuilderProcess(), activeBot.getExploreProcess(), activeBot.getFarmProcess(),
+                activeBot.getGetToBlockProcess(), activeBot.getElytraProcess()
+        };
+        for (IBaritoneProcess process : processes)
+            if (process != expected && process.isActive()) return true;
+        return false;
+    }
+
+    private NavigationFailure releaseLostAirRecoveryOwnership() {
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] AIR event=ownership-lost mode={} destination={}", mode, lastAirRecoveryDestination);
+        followFilter = null;
+        followTargetId = null;
+        followOwnerWorld = followOwnerPlayer = null;
+        mode = resumeMode = Mode.IDLE;
+        cancelling = followCancellationPending = airRecoveryCancellationPending = false;
+        cancellationProcess = null;
+        input.release();
+        observation = NavigationSnapshot.EMPTY;
+        miningTarget = null;
+        routeGoal = airRecoveryGoal = null;
+        lastAirRecoveryDestination = null;
+        diagnosticGoal = null;
+        pendingBreakFailure = pendingOwnershipFailure = null;
+        if (lease != null) { lease.restore(); lease = null; }
+        return new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST,
+                "Native pathing control changed owner during air recovery");
     }
 
     private boolean foreignFollowOwnsProcess() {
@@ -627,7 +1065,9 @@ final class MovementController {
     }
 
     boolean finishCancellation() {
-        checkFollowOwnership();
+        if (mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+                || airRecoveryCancellationPending) checkAirRecoveryOwnership();
+        else checkFollowOwnership();
         if (!cancelling) return true;
         var pathing = bot.getPathingBehavior();
         boolean hasWork = pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent();
@@ -642,6 +1082,9 @@ final class MovementController {
         }
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = followCancellationPending = false; observation = NavigationSnapshot.EMPTY;
+        cancellationProcess = null;
+        airRecoveryCancellationPending = false;
+        airRecoveryGoal = null;
         if (mode == Mode.IDLE && resumeMode == Mode.IDLE && routeGoal instanceof GoalComposite) {
             terrain.beginSearch();
             routeGoal = null;
@@ -755,6 +1198,7 @@ final class MovementController {
                 + (observation.searching() ? " · planning next route" : "");
         if (mode == Mode.PICKUP) return "collecting dropped " + output;
         if (mode == Mode.FOLLOW) return "following the tracked animal";
+        if (mode == Mode.AIR) return "recovering air";
         return observation.searching() ? "planning route" : "following route";
     }
 

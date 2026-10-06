@@ -199,6 +199,7 @@ final class AutomationEngine {
     private final Map<String, List<BlockPos>> discoveredSources = new LinkedHashMap<>();
     private final AcquisitionPlanner planner = new AcquisitionPlanner();
     private final NearbyResources nearbyResources;
+    private final NearbyStations nearbyStations;
     private long pendingPlanPreferencesVersion, stepPreferencesVersion;
     private int preferenceRefreshCooldown;
     private ClientWorld world;
@@ -215,6 +216,7 @@ final class AutomationEngine {
     private MiningContinuation miningContinuation;
     private record HealthRecovery(long startedNanos) { }
     private HealthRecovery healthRecovery;
+    private final AirRecoveryAction airRecovery;
     private CompletableFuture<PlanningOutcome> pendingPlan;
     private boolean previewPending;
     private long pendingPlanGeneration;
@@ -284,9 +286,11 @@ final class AutomationEngine {
     AutomationEngine(MinecraftClient client, LodekeeperConfig config) {
         this.client = client; this.config = config;
         nearbyResources = new NearbyResources(client);
+        nearbyStations = new NearbyStations(client);
         actions = new PlayerActions(client); input = new BotInput(client); terrain = new GameTerrain(client, config);
         movement = new MovementController(client, config, actions, input, terrain);
         food = new FoodController(client, actions);
+        airRecovery = new AirRecoveryAction(client, config, movement, input);
         equipment = new AutoEquipmentAction(client);
         stationRoom = new StationRoomAction(client, actions);
         threats = new ThreatResponseAction(client, actions, movement);
@@ -307,7 +311,7 @@ final class AutomationEngine {
             stopNow(false); world = client.world; ownedStations.clear(); createdWorkbenches.clear(); unreachableStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null; localReachHint = null;
             recipeRefreshPending = false;
-            nearbyResources.reset();
+            nearbyResources.reset(); nearbyStations.reset();
             inventorySampleTicks = 0; inventoryFingerprintInitialized = false; observedInventory = Map.of();
         }
         if (catalog != null && (recipeRefreshPending || !catalog.usesCurrentProvider())) {
@@ -320,14 +324,16 @@ final class AutomationEngine {
         }
         if (client.player == null || client.world == null) { stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (active != null && !paused && !client.player.isAlive()) { pause("player is no longer alive"); return; }
+        if (!paused && (active != null || airRecovery.active()) && recoverAirIfNeeded()) return;
         if (healthRecovery != null && !paused
                 && System.nanoTime() - healthRecovery.startedNanos() >= 40_000_000_000L) {
             pause("Health did not recover within 40 seconds");
             return;
         }
-        if (tickActiveThreat()) return;
+        if (!airRecovery.active() && tickActiveThreat()) return;
         if (!movement.finishCancellation()) { status = "finishing movement before inventory actions"; return; }
         nearbyResources.tick(catalog, config.scanBlocksPerTick);
+        if (active != null || !queue.isEmpty()) nearbyStations.advance();
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
         if (foodAcquisitionCooldown > 0) foodAcquisitionCooldown--;
@@ -341,7 +347,7 @@ final class AutomationEngine {
             if (!client.player.isAlive()) { pause("player is no longer alive"); return; }
             if (config.pauseOnScreen && client.currentScreen != null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             threats.updateProtection(foodReservations());
-            if (config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
+            if (!airRecovery.active() && config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
                     && !hasOwnedStationHandlerOpen() && !food.active() && !equipment.active() && threats.ready()) {
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
@@ -383,6 +389,7 @@ final class AutomationEngine {
                 return;
             }
             if (foodAcquisition.active()) {
+                foodAcquisition.updateProtection(foodReservations());
                 status = foodAcquisition.status();
                 try {
                     if (foodAcquisition.tick()) {
@@ -402,6 +409,7 @@ final class AutomationEngine {
             }
             if (foodAcquisitionPending) {
                 foodAcquisitionPending = false;
+                foodAcquisition.updateProtection(foodReservations());
                 if (config.autoEat && foodAcquisition.begin(healthRecovery != null)) status = foodAcquisition.status();
                 else { foodAcquisitionCooldown = 200; requestPlan(); }
                 return;
@@ -827,6 +835,14 @@ final class AutomationEngine {
             toolLots.computeIfAbsent(item, ignored -> new ArrayList<>())
                     .add(new InventoryToolLot(remaining, GameApi.hasSilkTouch(stack)));
         }
+        nearbyStations.observations().forEach((pos, id) -> {
+            if (unreachableStations.contains(pos) || rejectedStationSites.contains(pos)) return;
+            BlockPos known = ownedStations.get(id);
+            if (known == null || unreachableStations.contains(known) || rejectedStationSites.contains(known) || !hasLoadedChunk(known)
+                    || client.world.getBlockState(known).getBlock() != client.world.getBlockState(pos).getBlock()
+                    || pos.getSquaredDistance(client.player.getBlockPos()) < known.getSquaredDistance(client.player.getBlockPos()))
+                ownedStations.put(id, pos);
+        });
         Set<StationId> stations = new HashSet<>();
         ownedStations.forEach((id, pos) -> { if (client.world.getBlockState(pos).getBlock() == Registries.BLOCK.get(GameApi.identifier(id.toString()))) stations.add(id); });
         Map<ItemId, Integer> protectedCounts = protectedCounts(counts, activeTarget);
@@ -900,7 +916,7 @@ final class AutomationEngine {
     }
 
     private boolean shouldDrainActiveTransaction() {
-        return stopAfterStep || healthRecovery != null || active != null && active.maintained()
+        return stopAfterStep || airRecovery.active() || healthRecovery != null || active != null && active.maintained()
                 && (foregroundYieldPending || unmaintainAfterStep.contains(active.item())
                 || maintainAfterStep.containsKey(active.item()));
     }
@@ -1033,7 +1049,47 @@ final class AutomationEngine {
         return Map.copyOf(protectedCounts);
     }
 
+    private boolean recoverAirIfNeeded() {
+        if (!airRecovery.active() && !airRecovery.ready()) return false;
+        try {
+            if (client.currentScreen != null && !transactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()) {
+                airRecovery.stop();
+                pause("air recovery is blocked by the open player screen");
+                return true;
+            }
+            if (!airRecovery.active()) {
+                movement.checkAirRecoveryOwnership();
+                if (pendingPlan != null) pendingPlan.cancel(false);
+                pendingPlan = null;
+                healthRecovery = null;
+                stationRoom.stop(); workbenchRecovery.stop(); recoveringWorkbench = null;
+                threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
+                foodAcquisitionPending = foodReplanPending = false;
+                airRecovery.begin();
+            }
+            if (transactionInProgress() || openingStation) {
+                requestActiveTransactionDrain();
+                status = "draining the owned transaction before air escape";
+                return false;
+            }
+            if (step != null || exploring || explorationMoving) resetAction();
+            input.release();
+            if (airRecovery.tick()) {
+                healthRecovery = null;
+                observeInventory();
+                if (active != null) requestPlan();
+            } else status = airRecovery.status();
+            return true;
+        } catch (RuntimeException failure) {
+            if (failure instanceof MovementController.NavigationFailure navigation
+                    && navigation.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw navigation;
+            pause("air recovery needs attention: " + failure.getMessage());
+            return true;
+        }
+    }
+
     private boolean recoverHealthIfNeeded() {
+        if (airRecovery.active()) return false;
         if (stopAfterStep) { healthRecovery = null; return false; }
         float health = client.player.getHealth();
         if (healthRecovery == null && health > config.pauseBelowHealth) return false;
@@ -1168,12 +1224,14 @@ final class AutomationEngine {
     }
 
     private void requestPlan() {
+        if (airRecovery.active()) return;
         if (paused || active == null) return;
         pendingPreferencePlan = false;
         foodReplanPending = false;
         ensureCatalog(); status = "planning";
         if (!catalog.ready()) { status = "waiting for recipe catalog"; return; }
         if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
+        if (!nearbyStations.advance()) { status = "checking nearby crafting stations"; return; }
         observeInventory();
         if (goalCount() >= active.count) { finishGoal(); return; }
         if (active.anyLogs && !config.allowBreaking) {
@@ -1232,11 +1290,22 @@ final class AutomationEngine {
         boolean debugPlanning = config.debugLogging;
         Set<ItemId> logMaterials = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
         pendingPlan = CompletableFuture.supplyAsync(() -> {
-            if (preparation != null && !cookingSources.isEmpty()) {
+            ProjectPlanResult joint = project == null ? null : planner.planProjectFast(filteredSnapshot, inventory, project,
+                    PlannerLimits.DEFAULT, preferences);
+            if (joint != null && !joint.success() && !inventory.availableStations().equals(knownInventory.availableStations())) {
+                joint = planner.planProjectFast(filteredSnapshot, knownInventory, project,
+                        PlannerLimits.DEFAULT, preferences);
+            }
+            if (preparation != null && !cookingSources.isEmpty() && (joint == null || joint.success())) {
+                InventorySnapshot protectedCooking = joint == null ? cookingInventory
+                        : ProjectMaterialReservations.protectOptionalWork(cookingInventory, joint);
+                InventorySnapshot protectedKnownCooking = joint == null ? knownCookingInventory
+                        : ProjectMaterialReservations.protectOptionalWork(knownCookingInventory, joint);
                 CatalogSnapshot cookingCatalog = filteredSnapshot.withOutputSources(preparation.item(), cookingSources);
-                PlanResult cooking = planWithStationFallback(cookingCatalog, cookingInventory, knownCookingInventory,
+                PlanResult cooking = planWithStationFallback(cookingCatalog, protectedCooking, protectedKnownCooking,
                         preparation.item(), preparation.targetCount(), preferences);
-                if (cooking.success() && !cooking.steps().isEmpty()) {
+                if (cooking.success() && !cooking.steps().isEmpty()
+                        && cooking.steps().stream().noneMatch(candidate -> candidate.kind() == PlanKind.GATHER)) {
                     List<PlanStep> safeCooking = cooking.steps().stream().map(candidate -> {
                         Map<String, String> attributes = new HashMap<>(candidate.attributes());
                         attributes.put("foodPreparation", "true");
@@ -1251,13 +1320,7 @@ final class AutomationEngine {
                             cooking.blockedReasons(), cooking.optimal(), cooking.expandedNodes(), cooking.elapsedNanos()), false, true);
                 }
             }
-            if (project != null) {
-                ProjectPlanResult joint = planner.planProjectFast(filteredSnapshot, inventory, project,
-                        PlannerLimits.DEFAULT, preferences);
-                if (!joint.success() && !inventory.availableStations().equals(knownInventory.availableStations())) {
-                    joint = planner.planProjectFast(filteredSnapshot, knownInventory, project,
-                            PlannerLimits.DEFAULT, preferences);
-                }
+            if (joint != null) {
                 List<String> originalGathers = debugPlanning ? joint.steps().stream()
                         .filter(candidate -> candidate.kind() == PlanKind.GATHER)
                         .map(candidate -> candidate.sourceId() + ":" + candidate.outputCount()).toList() : List.of();
@@ -2722,6 +2785,7 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        airRecovery.abandon();
         foodAcquisition.abandonNavigationOwnership();
         if (pendingPlan != null) pendingPlan.cancel(false);
         pendingPlan = null;
@@ -2734,6 +2798,7 @@ final class AutomationEngine {
     }
 
     void pause(String reason) {
+        airRecovery.stop();
         healthRecovery = null;
         stationRoom.stop();
         try { foodAcquisition.stop(); }
@@ -2771,6 +2836,7 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        airRecovery.stop();
         stationPlacementOwner = null; stationPlacementStation = null;
         rejectedStationSites.clear(); stationPlacementFailures = 0;
         healthRecovery = null;

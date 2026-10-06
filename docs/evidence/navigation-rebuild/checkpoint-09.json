@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "5b7e523085ea0b6b88eef8f32d3487f044c5a18d",
+  "candidateSha256": "cba6006ba409d7ce4f7cb44d67e5ea99a8ed773335ffc2bf7cac9def5134848b",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37451084046",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "elapsedMillis": 478002,
+  "failure": "player died during the natural request",
+  "minimumHealth": 0.0,
+  "deathsObserved": 1,
+  "deathCause": "drowned",
+  "lastSuccessfulTarget": "minecraft:diamond_pickaxe",
+  "observations": [
+    "Native iron smelting used two birch planks after a one-log four-plank craft.",
+    "The inventory advertised replacement of the distant furnace using stored materials.",
+    "Owned portable workbench recovery held the player underwater until its twenty-second timeout.",
+    "Health recovery then stopped movement and rested underwater before drowning."
+  ],
+  "naturalReceipt": "checkpoint-09-natural.json",
+  "artifactReceipt": "checkpoint-09-artifact.json",
+  "scope": "Failed full-set run. No supplied inventory or post-spawn teleportation. Air recovery is unverified at this source."
+}

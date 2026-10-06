@@ -8,7 +8,7 @@
 
 **Give it a goal. Let it do the work.** Lodekeeper is a Minecraft Fabric client mod that gathers resources and works through survival crafting chains using ordinary player actions. The current development branch uses version-matched Baritone navigation with Lodekeeper's inventory planner, station handling, and live task panel.
 
-> **Preview 8 introduces Baritone navigation and batch mining.** Download the [jar for your exact Minecraft version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Full survival automation remains experimental. The latest fresh-world test equipped all four diamond armor pieces and made three diamond tools, but missed the 15-minute full-set target.
+> **Preview 8 introduces Baritone navigation and batch mining.** Download the [jar for your exact Minecraft version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Full survival automation remains experimental. Preview 8's fresh-world test equipped all four diamond armor pieces and made three diamond tools, but missed the 15-minute full-set target.
 
 ### Tell it what you need
 

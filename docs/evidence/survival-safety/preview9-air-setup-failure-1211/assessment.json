@@ -1,0 +1,7 @@
+{
+  "status": "failed_setup",
+  "productionAirRecoveryExercised": false,
+  "commandIssued": false,
+  "cause": "The first post-teleport tick reported a stale false head-in-water flag and the verifier latched it. The later flag was true, but setup could never become ready.",
+  "subsequentCorrection": "Latch the first later native submerged observation and record that server tick. Starting command still requires native air160\u2013180, low health and exact supplied inventory."
+}
