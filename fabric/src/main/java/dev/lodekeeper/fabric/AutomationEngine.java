@@ -2309,7 +2309,7 @@ final class AutomationEngine {
             }
         }
         Set<Block> blocks = new LinkedHashSet<>();
-        step.candidateBlocks().forEach(id -> {
+        GatherCandidates.forStep(catalog.snapshot(), step, unavailableSources).forEach(id -> {
             Block block = Registries.BLOCK.get(GameApi.identifier(id.toString()));
             if (block != Blocks.AIR) blocks.add(block);
         });

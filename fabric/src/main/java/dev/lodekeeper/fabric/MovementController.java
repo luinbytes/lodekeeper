@@ -618,8 +618,8 @@ final class MovementController {
         miningY = miningDepthPolicy.bulkDiamonds() ? miningDepthPolicy.desiredY() : miningLevel();
         mode = miningDepthPolicy.shouldDescend((int) Math.floor(client.player.getY())) ? Mode.DESCEND : Mode.MINE;
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] MINING_DEPTH policy={} desiredY={} ceiling={} deficit={} phase={}",
-                miningDepthPolicy.kind(), miningY, miningDepthPolicy.maximumY(), deficit, mode);
+                "[Lodekeeper] MINING_DEPTH policy={} desiredY={} ceiling={} deficit={} phase={} blocks={}",
+                miningDepthPolicy.kind(), miningY, miningDepthPolicy.maximumY(), deficit, mode, Arrays.toString(mineBlocks));
         launch();
     }
 
@@ -783,7 +783,7 @@ final class MovementController {
                         > miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
                 if (mode == Mode.SUSPENDED) {
                     if (aboveCeiling) resumeMode = Mode.DESCEND;
-                } else if (previousMiningY != miningY || mode == Mode.MINE && aboveCeiling) {
+                } else if (previousMiningY != miningY) {
                     changeMiningPhase(aboveCeiling || mode == Mode.DESCEND ? Mode.DESCEND : Mode.MINE);
                     return false;
                 }
@@ -834,7 +834,8 @@ final class MovementController {
                 return false;
             }
         }
-        if (exploring && miningAccess().lodekeeper$knownMiningTargets().isEmpty()
+        if (exploring && !miningDepthPolicy.bulkDiamonds()
+                && miningAccess().lodekeeper$knownMiningTargets().isEmpty()
                 && config.allowExploration && miningY != Integer.MIN_VALUE
                 && Math.abs((int) Math.floor(client.player.getY()) - miningY) > 8) {
             changeMiningPhase(Mode.DESCEND);

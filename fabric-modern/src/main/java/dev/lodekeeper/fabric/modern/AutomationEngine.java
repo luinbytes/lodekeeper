@@ -9,6 +9,7 @@ import dev.lodekeeper.core.CatalogSnapshot;
 import dev.lodekeeper.core.CraftingSource;
 import dev.lodekeeper.core.ExplorationRecovery;
 import dev.lodekeeper.core.GatherSource;
+import dev.lodekeeper.core.GatherCandidates;
 import dev.lodekeeper.core.HarvestInvestment;
 import dev.lodekeeper.core.InventorySnapshot;
 import dev.lodekeeper.core.Ingredient;
@@ -2517,7 +2518,7 @@ final class AutomationEngine {
             }
         }
         Set<Block> blocks = new LinkedHashSet<>();
-        step.candidateBlocks().forEach(id -> {
+        GatherCandidates.forStep(catalog.snapshot(), step, unavailableSources).forEach(id -> {
             Block block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(id.toString()));
             if (block != Blocks.AIR) blocks.add(block);
         });

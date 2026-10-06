@@ -1,0 +1,83 @@
+[14:26:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] INIT mod=0.1.0-preview.10 minecraft=1.21.1
+[14:27:10] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Stopped
+[14:27:12] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Queued 1 × bucket
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] BEGIN label=bucket goal=1 inventory=0 startfeet=0,64,0 elapsed_ms=0 continued=false
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=start target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=1 failedRoutes=0 attacks=0 health=10.0 closestBoxDistance=8.63 elapsedMs=1
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=12
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=38
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=244
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=244
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=897
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=898
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=932
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=932
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=1517
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=1518
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=in-reach target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=1 failedRoutes=0 attacks=0 health=10.0 closestBoxDistance=2.88 elapsedMs=1688
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1688
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1689
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1721
+[14:27:13] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1789
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1824
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_TOOL slot=7 item=minecraft:stone_pickaxe damage=3.0 wear=2 remainingDurability=131
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=native-attack target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=1 failedRoutes=0 attacks=1 health=10.0 closestBoxDistance=2.99 elapsedMs=1930
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=health-progress target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=1 failedRoutes=0 attacks=1 health=7.0 closestBoxDistance=3.07 elapsedMs=1996
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=start target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=1 health=7.0 closestBoxDistance=3.07 elapsedMs=1996
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=2025 phase=working backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=attacking_cow__1_
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=5
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=34
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=136
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=136
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=344
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=344
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=547
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=548
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=753
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:14] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=783
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_STARTED elapsedMs=997
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=FOLLOW event=CALC_FINISHED_NOW_EXECUTING elapsedMs=998
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=in-reach target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=1 health=7.0 closestBoxDistance=2.96 elapsedMs=3199
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1203
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1203
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1238
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1272
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=1340
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_TOOL slot=7 item=minecraft:stone_pickaxe damage=3.0 wear=2 remainingDurability=129
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=native-attack target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=2 health=7.0 closestBoxDistance=2.56 elapsedMs=3441
+[14:27:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=health-progress target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=2 health=4.0 closestBoxDistance=2.42 elapsedMs=3476
+[14:27:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=4055 phase=waiting backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=waiting_for_native_attack_cooldown
+[14:27:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_TOOL slot=7 item=minecraft:stone_pickaxe damage=3.0 wear=2 remainingDurability=127
+[14:27:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=native-attack target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=3 health=4.0 closestBoxDistance=2.78 elapsedMs=4300
+[14:27:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=health-progress target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=3 health=1.0 closestBoxDistance=2.93 elapsedMs=4335
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_TOOL slot=7 item=minecraft:stone_pickaxe damage=3.0 wear=2 remainingDurability=125
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=native-attack target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=4 health=1.0 closestBoxDistance=2.33 elapsedMs=5123
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PURSUIT event=health-progress target=23022ddd-d272-4acd-ab16-acfb0dbf1016 routes=2 failedRoutes=0 attacks=4 health=0.0 closestBoxDistance=1.98 elapsedMs=5194
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=PICKUP event=CALC_STARTED elapsedMs=1
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=PICKUP event=CALC_FINISHED_NOW_EXECUTING elapsedMs=68
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=PICKUP event=CALC_STARTED elapsedMs=103
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV calcTool=minecraft:stone_pickaxe slot=7
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=PICKUP event=CALC_FINISHED_NOW_EXECUTING elapsedMs=103
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=412
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=412
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=baritone mode=IDLE event=CANCELED elapsedMs=445
+[14:27:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] FOOD_PREPARATION decision=cook_stored_food nutrition=3 cooked_potential=8 target=36
+[14:27:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=6078 phase=eating backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=eating_before_continuing_bucket
+[14:27:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] STEP kind=PLACE_STATION source=place:minecraft:crafting_table output=null count=0 operations=1 auxiliary=false
+[14:27:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=16,64,2 block=minecraft:crafting_table
+[14:27:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] TARGET target=none
+[14:27:19] [Render thread/INFO] (lodekeeper) [Lodekeeper] STEP kind=CRAFT source=minecraft:bucket output=minecraft:bucket count=1 operations=1 auxiliary=false
+[14:27:20] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=8106 phase=crafting backend=baritone target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=CRAFT_minecraft:bucket
+[14:27:22] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Complete: 1 × bucket
+[14:27:22] [Render thread/INFO] (lodekeeper) [Lodekeeper] task_end reason=idle label=bucket elapsed_ms=10126 pending_route_events=0 dropped_route_events=0 status=idle

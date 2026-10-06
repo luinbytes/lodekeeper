@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T13-26-56-182449Z-d10a6e82",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"pursuit-tool",
+  "evidenceAuthority":"integrated_server_inventory_hunger_entity_health_and_motion",
+  "verificationMode":"prepared_safety_pursuit-tool",
+  "elapsedMillis":27896,
+  "clientTicks":441,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "preparedSafetyFixtureGrants":"3 iron ingots, one crafting table, one full-durability stone pickaxe in hotbar slot index 7, food level 7, one normal-AI cow, bounded bedrock pen",
+  "cases":[
+    {"name":"prepared_moving_food_pursuit_tool_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":222,"worldTicks":222,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the integrated server recorded 4 native cow health drops, stone-pickaxe wear from hotbar slot 7, and 8.802396057676967 blocks of target movement, then received food and crafted the bucket from the three supplied iron ingots with an empty cursor and idle cancelled navigation","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":7,"serverFoodLevelObserved":10,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[16.07236220065265,64.0,3.519453941657081],"screenshot":"screenshots/lodekeeper-2026-10-06T13-26-56-182449Z-d10a6e82-prepared_moving_food_pursuit_tool_bucket.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:iron_ingot":3,"minecraft:stone_pickaxe":1},"finalStorageInventory":{"minecraft:bucket":1,"minecraft:leather":2,"minecraft:stone_pickaxe":1},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:leather":2,"minecraft:stone_pickaxe":1},"elapsedMillisFromCommand":11094,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{"cowAlive":"true","cowCurrentX":"8.5","cowCurrentY":"64.0","cowCurrentZ":"0.5","cowHealth":"10.0","cowHealthDropsObserved":"0","cowInitialHealth":"10.0","cowInitialUuid":"23022ddd-d272-4acd-ab16-acfb0dbf1016","cowMaximumHorizontalDisplacement":"0.0","cowObservationStartX":"NaN","cowObservationStartY":"NaN","cowObservationStartZ":"NaN","cowRemoved":"false","cowUuid":"23022ddd-d272-4acd-ab16-acfb0dbf1016","currentFoodLevel":"7","currentSaturation":"0.0","initialFoodLevel":"7","initialSaturation":"0.0","maximumDistanceFromPlayerStart":"0.0","playerCurrentX":"0.5","playerCurrentY":"64.0","playerCurrentZ":"0.5","playerObservationStartX":"NaN","playerObservationStartY":"NaN","playerObservationStartZ":"NaN","pursuitObservationEndServerTick":"-1","pursuitObservationStartServerTick":"-1","pursuitObservationStarted":"false","pursuitObservedServerTicks":"0","pursuitToolVariant":"true","stonePickaxeCurrentSlot":"7","stonePickaxeDamage":"0","stonePickaxeInitialDamage":"0","stonePickaxeInitialSlot":"7","stonePickaxeMaxDamage":"131"},"serverPreparedPursuitReceipt":{"cowAlive":"false","cowCurrentX":"17.45099593384173","cowCurrentY":"64.0","cowCurrentZ":"2.1608371445944012","cowHealth":"0.0","cowHealthDropsObserved":"4","cowInitialHealth":"10.0","cowInitialUuid":"23022ddd-d272-4acd-ab16-acfb0dbf1016","cowMaximumHorizontalDisplacement":"8.802396057676967","cowObservationStartX":"9.818645749566953","cowObservationStartY":"64.0","cowObservationStartZ":"1.318251398370618","cowRemoved":"true","cowUuid":"23022ddd-d272-4acd-ab16-acfb0dbf1016","currentFoodLevel":"10","currentSaturation":"1.8000001","initialFoodLevel":"7","initialSaturation":"0.0","maximumDistanceFromPlayerStart":"17.775460216749426","playerCurrentX":"16.07236220065265","playerCurrentY":"64.0","playerCurrentZ":"3.519453941657081","playerObservationStartX":"0.5","playerObservationStartY":"64.0","playerObservationStartZ":"0.5","pursuitObservationEndServerTick":"307","pursuitObservationStartServerTick":"87","pursuitObservationStarted":"true","pursuitObservedServerTicks":"221","pursuitToolVariant":"true","stonePickaxeCurrentSlot":"7","stonePickaxeDamage":"8","stonePickaxeInitialDamage":"0","stonePickaxeInitialSlot":"7","stonePickaxeMaxDamage":"131"},"initialPreparedAirReceipt":{},"serverPreparedAirReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

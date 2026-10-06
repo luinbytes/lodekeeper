@@ -320,6 +320,20 @@ final class VerificationApi {
         }
     }
 
+    static void seedPreparedSafetyWorkbench(ServerPlayerEntity player, ServerWorld world) {
+        throw new UnsupportedOperationException("owned-workbench verification requires Minecraft 1.21.1 or 26.3");
+    }
+
+    static PreparedSafetyWorkbenchFixture prepareOwnedWorkbenchRecovery(ServerPlayerEntity player, ServerWorld world, boolean blocked) {
+        throw new UnsupportedOperationException("owned-workbench verification requires Minecraft 1.21.1 or 26.3");
+    }
+
+    static Map<String, String> preparedSafetyWorkbenchReceipt(ServerPlayerEntity player, ServerWorld world, PreparedSafetyWorkbenchFixture fixture) {
+        throw new UnsupportedOperationException("owned-workbench verification requires Minecraft 1.21.1 or 26.3");
+    }
+
+    static final class PreparedSafetyWorkbenchFixture { }
+
     static PreparedSafetyAirFixture seedPreparedSafetyAirFixture(ServerPlayerEntity player, ServerWorld world) {
         throw new UnsupportedOperationException("Air recovery verification is limited to Minecraft 1.21.1 and 26.3");
     }

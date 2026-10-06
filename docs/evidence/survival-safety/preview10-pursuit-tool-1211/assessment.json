@@ -1,0 +1,13 @@
+{
+  "status": "passed_prepared_tool_pursuit_and_bucket",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "commandElapsedMillis": 11094,
+  "movingCowIdentityPreserved": true,
+  "serverCowHealthDrops": 4,
+  "nativeStonePickaxeWear": 8,
+  "stonePickaxeSlotPreserved": true,
+  "nativeFoodRecovered": true,
+  "nativeProcessesStoppedAtReceipt": true,
+  "screenshotInspected": true
+}

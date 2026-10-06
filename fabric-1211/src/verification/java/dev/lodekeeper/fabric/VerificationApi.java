@@ -129,6 +129,74 @@ final class VerificationApi {
         player.getHungerManager().setSaturationLevel(0.0F);
     }
 
+    static void seedPreparedSafetyWorkbench(ServerPlayerEntity player, ServerWorld world) {
+        for (int x = -10; x <= 10; x++) for (int z = -5; z <= 5; z++) {
+            for (int y = 64; y <= 67; y++) world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState(), 3);
+        }
+        if (!player.getInventory().insertStack(new ItemStack(Items.OAK_PLANKS, 12))) {
+            throw new IllegalStateException("could not seed the twelve ordinary workbench planks");
+        }
+    }
+
+    static PreparedSafetyWorkbenchFixture prepareOwnedWorkbenchRecovery(ServerPlayerEntity player,
+                                                                          ServerWorld world, boolean blocked) {
+        BlockPos table = null;
+        for (int x = -10; x <= 10; x++) for (int z = -5; z <= 5; z++) for (int y = 64; y <= 67; y++) {
+            BlockPos candidate = new BlockPos(x, y, z);
+            if (!world.getBlockState(candidate).isOf(Blocks.CRAFTING_TABLE)) continue;
+            if (table != null) throw new IllegalStateException("setup command left more than one native crafting table");
+            table = candidate;
+        }
+        if (table == null) throw new IllegalStateException("setup command did not leave its native crafting table");
+        for (int x = table.getX() - 2; x <= table.getX() + 10; x++) for (int z = table.getZ() - 3; z <= table.getZ() + 3; z++) {
+            world.setBlockState(new BlockPos(x, table.getY() - 1, z), Blocks.BEDROCK.getDefaultState(), 3);
+        }
+        if (blocked) for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+            if (dx == 0 && dy == 0 && dz == 0) continue;
+            world.setBlockState(new BlockPos(table.getX() + dx, table.getY() + dy, table.getZ() + dz), Blocks.BEDROCK.getDefaultState(), 3);
+        }
+        BlockPos stone = new BlockPos(table.getX() + 8, table.getY(), table.getZ());
+        world.setBlockState(stone, Blocks.STONE.getDefaultState(), 3);
+        if (!teleport(player, world, table.getX() + 6.5, table.getY(), table.getZ() + 0.5, 90.0F, 0.0F)) {
+            throw new IllegalStateException("could not move the stopped verifier player six blocks from its owned table");
+        }
+        return new PreparedSafetyWorkbenchFixture(table, stone, blocked);
+    }
+
+    static Map<String, String> preparedSafetyWorkbenchReceipt(ServerPlayerEntity player, ServerWorld world,
+                                                                PreparedSafetyWorkbenchFixture fixture) {
+        Map<String, String> receipt = new LinkedHashMap<>();
+        receipt.put("tablePosition", fixture.table.getX() + "," + fixture.table.getY() + "," + fixture.table.getZ());
+        receipt.put("stonePosition", fixture.stone.getX() + "," + fixture.stone.getY() + "," + fixture.stone.getZ());
+        receipt.put("tablePresent", Boolean.toString(world.getBlockState(fixture.table).isOf(Blocks.CRAFTING_TABLE)));
+        receipt.put("tableAir", Boolean.toString(world.getBlockState(fixture.table).isAir()));
+        receipt.put("stonePresent", Boolean.toString(world.getBlockState(fixture.stone).isOf(Blocks.STONE)));
+        receipt.put("stoneAir", Boolean.toString(world.getBlockState(fixture.stone).isAir()));
+        receipt.put("blocked", Boolean.toString(fixture.blocked));
+        int shell = 0;
+        for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+            if (dx == 0 && dy == 0 && dz == 0) continue;
+            if (world.getBlockState(new BlockPos(fixture.table.getX() + dx, fixture.table.getY() + dy, fixture.table.getZ() + dz)).isOf(Blocks.BEDROCK)) shell++;
+        }
+        receipt.put("bedrockShellCells", Integer.toString(shell));
+        double dx = player.getX() - fixture.table.getX() - 0.5;
+        double dz = player.getZ() - fixture.table.getZ() - 0.5;
+        receipt.put("horizontalDistance", Double.toString(Math.sqrt(dx * dx + dz * dz)));
+        receipt.put("playerFeetY", Double.toString(player.getY()));
+        return receipt;
+    }
+
+    static final class PreparedSafetyWorkbenchFixture {
+        private final BlockPos table;
+        private final BlockPos stone;
+        private final boolean blocked;
+        private PreparedSafetyWorkbenchFixture(BlockPos table, BlockPos stone, boolean blocked) {
+            this.table = table;
+            this.stone = stone;
+            this.blocked = blocked;
+        }
+    }
+
     static PreparedSafetyAirFixture seedPreparedSafetyAirFixture(ServerPlayerEntity player, ServerWorld world) {
         for (int x = -7; x <= 7; x++) for (int z = -7; z <= 7; z++) {
             world.setBlockState(new BlockPos(x, 63, z), Blocks.BEDROCK.getDefaultState(), 3);

@@ -1,0 +1,23 @@
+{
+  "sourceCommit": "1cdb51fbe81c14f6524991679debfd9b8436a568",
+  "candidateSha256": "cd69327ad7746f4932510a802d7e8bcb15b1d8befd263710e9ad85e549cd3e5d",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37470796838",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "elapsedMillis": 588803,
+  "failure": "automation paused: paused \u00b7 Mining request reached its WALL_TIME limit without confirmed collected output for minecraft:diamond (initial 0, current 0) \u00b7 7 foreground queued \u00b7 0 maintenance queued",
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe"
+  ],
+  "observations": [
+    "The diamond pickaxe was crafted before descending to Y=-55.",
+    "The bulk request selected only ordinary diamond ore rather than its deepslate variant.",
+    "Repeated branch-exploration descent restarted the same unproductive route.",
+    "Portable crafting table remained held at the final native inventory receipt."
+  ],
+  "naturalReceipt": "checkpoint-11-natural.json",
+  "artifactReceipt": "checkpoint-11-artifact.json",
+  "scope": "Failed full-set run. No grants or post-spawn teleports."
+}

@@ -1,0 +1,22 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.10.jar",
+  "artifactSha256": "cd69327ad7746f4932510a802d7e8bcb15b1d8befd263710e9ad85e549cd3e5d",
+  "sourceCommit": "1cdb51fbe81c14f6524991679debfd9b8436a568",
+  "sourceTreeState": "committed",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37470796838",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.naturalGoal=gear_diamond",
+    "-Dlodekeeper.verify.naturalTimeoutSeconds=900",
+    "-Dlodekeeper.verify.candidateSha256=cd69327ad7746f4932510a802d7e8bcb15b1d8befd263710e9ad85e549cd3e5d"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview10-1211-frozen-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}
