@@ -338,7 +338,7 @@ final class NaturalWorldVerification {
 
         Map<String, Integer> inventoryCounts = new HashMap<>();
         PlayerInventory inventory = player.getInventory();
-        countStacks(inventory.main, inventoryCounts);
+        countStacks(ClientAccess.main(inventory), inventoryCounts);
         countStack(player.getEquippedStack(EquipmentSlot.OFFHAND), inventoryCounts);
         Map<String, Integer> armorCounts = new HashMap<>();
         countStack(player.getEquippedStack(EquipmentSlot.HEAD), armorCounts);
@@ -350,8 +350,8 @@ final class NaturalWorldVerification {
         ItemStack cursor = player.currentScreenHandler.getCursorStack();
         String cursorItem = cursor.isEmpty() ? "" : Registries.ITEM.getId(cursor.getItem()).toString();
         int cursorCount = cursor.isEmpty() ? 0 : cursor.getCount();
-        String difficulty = player.getWorld().getDifficulty().name();
-        String gameMode = player.interactionManager.getGameMode().getName();
+        String difficulty = server.getOverworld().getDifficulty().name();
+        String gameMode = player.interactionManager.getGameMode().name().toLowerCase(java.util.Locale.ROOT);
         int deaths = player.getStatHandler().getStat(Stats.CUSTOM.getOrCreateStat(Stats.DEATHS));
         long walkCentimeters = player.getStatHandler().getStat(Stats.CUSTOM.getOrCreateStat(Stats.WALK_ONE_CM));
 
