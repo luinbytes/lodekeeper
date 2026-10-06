@@ -18,6 +18,7 @@ import java.util.HashSet;
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
     private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
+    private record AttackChoice(MobEntity target, int slot, double damage) { }
     private enum Phase { IDLE, STOPPING, MELEE, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
     private static final long MAX_NANOS = 15_000_000_000L;
     private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREATS = 2, MAX_THREATS = 16;
@@ -34,7 +35,7 @@ final class ThreatResponseAction {
     private int ticks, attacks, retreats, lastContactTick;
     private boolean retreatBlocked;
     private int originalSlot = -1, selectedSlot = -1;
-    private MobEntity target;
+    private AttackChoice plannedChoice;
     private RetreatRoute retreatRoute;
     private final Set<BlockPos> rejectedRetreatGoals = new HashSet<>();
     private double retreatProgressX, retreatProgressZ;
@@ -126,8 +127,8 @@ final class ThreatResponseAction {
                         return false;
                     }
                     lastContactTick = ticks;
-                    int slot = chooseWeaponSlot();
-                    if (slot < 0) { stopForRetreat(); return false; }
+                    AttackChoice choice = plannedChoice;
+                    int slot = choice.slot();
                     if (selectedSlot != slot || ClientAccess.selectedSlot(client.player.getInventory()) != slot) {
                         if (!actions.selectSlot(slot)) throw new IllegalStateException("safe defense selection failed");
                         selectedSlot = slot;
@@ -136,16 +137,28 @@ final class ThreatResponseAction {
                     }
                     // The native attribute and attack cooldown tick must observe the selected hand first.
                     if (!(client.player.getAttackCooldownProgress(0.0f) >= 1.0f)) return false;
-                    if (!safeStack(client.player.getMainHandStack()) || !canHit(target)) {
-                        stopForRetreat();
+                    actions.look(choice.target().getBoundingBox().getCenter());
+                    if (ClientAccess.selectedSlot(client.player.getInventory()) != choice.slot()
+                            || selectedSlot != choice.slot())
+                        throw new IllegalStateException("defense attack choice lost its selected slot");
+                    if (!canAttackTarget(choice.target(), client.player.getMainHandStack())) {
+                        plannedChoice = null;
                         return false;
                     }
                     logAttackDecision("attack", slot);
-                    actions.look(target.getBoundingBox().getCenter());
-                    client.interactionManager.attackEntity(client.player, target);
+                    client.interactionManager.attackEntity(client.player, choice.target());
                     client.player.swingHand(Hand.MAIN_HAND);
                     attacks++;
                     status = "native defense attack " + attacks;
+                    plannedChoice = null;
+                    if (selectContactTarget(remainingThreats())) {
+                        int nextSlot = plannedChoice.slot();
+                        if (ClientAccess.selectedSlot(client.player.getInventory()) != nextSlot) {
+                            if (!actions.selectSlot(nextSlot)) throw new IllegalStateException("safe defense selection failed");
+                            selectedSlot = nextSlot;
+                            logAttackDecision("select", nextSlot);
+                        }
+                    }
                 }
                 case CONTACT_WAIT -> {
                     movement.stopForDefense();
@@ -232,18 +245,30 @@ final class ThreatResponseAction {
     }
 
     private boolean selectContactTarget(List<MobEntity> threats) {
-        if (attacks >= MAX_ATTACKS || threats.stream().anyMatch(ThreatResponseAction::creeper)) return false;
-        for (MobEntity mob : threats) {
-            if (!canHit(mob)) continue;
-            target = mob;
-            if (chooseWeaponSlot() >= 0) return true;
+        if (attacks >= MAX_ATTACKS || threats.stream().anyMatch(ThreatResponseAction::creeper)) {
+            plannedChoice = null;
+            return false;
         }
-        target = null;
-        return false;
+        if (plannedChoice != null) {
+            AttackChoice previous = plannedChoice;
+            ItemStack weapon = client.player.getInventory().getStack(previous.slot());
+            if (safeStack(weapon)) {
+                MobEntity nextTarget = canAttackTarget(previous.target(), weapon)
+                        ? previous.target() : chooseTargetForSlot(threats, weapon);
+                if (nextTarget != null) {
+                    plannedChoice = new AttackChoice(nextTarget, previous.slot(), previous.damage());
+                    return true;
+                }
+            }
+            plannedChoice = null;
+        }
+        plannedChoice = chooseAttackChoice(threats);
+        return plannedChoice != null;
     }
 
     private void stopForRetreat() {
         movement.stopForDefense();
+        plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
         phase = Phase.STOPPING;
@@ -252,6 +277,7 @@ final class ThreatResponseAction {
 
     private void startRetreat(List<MobEntity> threats) {
         if (++retreats > MAX_RETREATS) throw new IllegalStateException("moving threats remained after two retreat routes");
+        plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
         int distance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 10 : 8;
@@ -331,18 +357,53 @@ final class ThreatResponseAction {
         return eligible(mob) && client.player.canSee(mob) && GameApi.defenseWithinReach(client.player, mob);
     }
 
-    private int chooseWeaponSlot() {
-        int current = ClientAccess.selectedSlot(client.player.getInventory()), best = -1;
-        double damage = Double.NEGATIVE_INFINITY;
-        boolean sweepCollateral = GameApi.defenseHasSweepCollateral(client.world, client.player, target);
-        for (int offset = 0; offset < 9; offset++) {
-            int slot = (current + offset) % 9;
-            ItemStack stack = client.player.getInventory().getStack(slot);
-            if (!safeStack(stack) || sweepCollateral && GameApi.isSword(stack)) continue;
-            double candidate = GameApi.defenseAttackDamage(client.player, stack);
-            if (Double.isFinite(candidate) && candidate > damage) { best = slot; damage = candidate; }
+    private boolean canAttackTarget(MobEntity mob, ItemStack weapon) {
+        return safeStack(weapon) && canHit(mob) && safeWeaponForTarget(mob, weapon);
+    }
+
+    private boolean safeWeaponForTarget(MobEntity mob, ItemStack weapon) {
+        return !GameApi.isSword(weapon) || !GameApi.defenseHasSweepCollateral(client.world, client.player, mob);
+    }
+
+    private MobEntity chooseTargetForSlot(List<MobEntity> threats, ItemStack weapon) {
+        return threats.stream().filter(this::canHit).filter(mob -> safeWeaponForTarget(mob, weapon))
+                .min(Comparator.comparingDouble(MobEntity::getHealth)
+                        .thenComparingDouble(client.player::squaredDistanceTo)
+                        .thenComparingInt(MobEntity::getId))
+                .orElse(null);
+    }
+
+    private AttackChoice chooseAttackChoice(List<MobEntity> threats) {
+        double[] damageBySlot = new double[9];
+        boolean[] usable = new boolean[9], swords = new boolean[9];
+        boolean swordAvailable = false;
+        for (int slot = 0; slot < 9; slot++) {
+            ItemStack weapon = client.player.getInventory().getStack(slot);
+            if (!safeStack(weapon)) continue;
+            double damage = GameApi.defenseAttackDamage(client.player, weapon);
+            if (!Double.isFinite(damage)) continue;
+            usable[slot] = true;
+            damageBySlot[slot] = damage;
+            swords[slot] = GameApi.isSword(weapon);
+            swordAvailable |= swords[slot];
         }
-        return best;
+        int currentSlot = ClientAccess.selectedSlot(client.player.getInventory());
+        List<AttackChoice> choices = new ArrayList<>(MAX_THREATS * 9);
+        for (MobEntity mob : threats) {
+            if (!canHit(mob)) continue;
+            boolean sweepCollateral = swordAvailable
+                    && GameApi.defenseHasSweepCollateral(client.world, client.player, mob);
+            for (int slot = 0; slot < 9; slot++) {
+                if (usable[slot] && !(sweepCollateral && swords[slot]))
+                    choices.add(new AttackChoice(mob, slot, damageBySlot[slot]));
+            }
+        }
+        return choices.stream().min(Comparator.comparingDouble(AttackChoice::damage).reversed()
+                .thenComparingDouble(choice -> choice.target().getHealth())
+                .thenComparingInt(choice -> choice.slot() == currentSlot ? 0 : 1)
+                .thenComparingDouble(choice -> client.player.squaredDistanceTo(choice.target()))
+                .thenComparingInt(choice -> choice.target().getId())
+                .thenComparingInt(AttackChoice::slot)).orElse(null);
     }
 
     private boolean safeStack(ItemStack stack) {
@@ -399,7 +460,7 @@ final class ThreatResponseAction {
         rejectedRetreatGoals.clear();
         retreatProgressTick = 0;
         retreatProgressX = retreatProgressZ = 0;
-        target = null;
+        plannedChoice = null;
         ownerPlayer = ownerWorld = null;
         originalSlot = selectedSlot = -1;
     }
@@ -409,8 +470,8 @@ final class ThreatResponseAction {
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetHealth={} sweepCollateral={} playerHealth={}",
                 outcome, ticks, slot, GameCatalog.id(client.player.getMainHandStack().getItem()),
-                client.player.getAttackCooldownProgress(0.0f), target.getId(), target.getHealth(),
-                GameApi.defenseHasSweepCollateral(client.world, client.player, target), client.player.getHealth());
+                client.player.getAttackCooldownProgress(0.0f), plannedChoice.target().getId(), plannedChoice.target().getHealth(),
+                GameApi.defenseHasSweepCollateral(client.world, client.player, plannedChoice.target()), client.player.getHealth());
     }
 
     private void log(String outcome) {
