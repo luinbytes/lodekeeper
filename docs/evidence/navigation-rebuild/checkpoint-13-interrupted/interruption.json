@@ -1,0 +1,8 @@
+{
+  "status": "interrupted_experiment",
+  "utc": "2026-10-06T14:26:28.443348+00:00",
+  "ownedPid": 62482,
+  "reason": "Stopped the isolated candidate after its food action repeatedly timed out and immediately selected the same untouched cow. The timeout did not invoke the existing target cooldown.",
+  "fullSetOutcome": "not established by this interrupted run",
+  "worldMutationsByHarnessAfterCommand": false
+}
