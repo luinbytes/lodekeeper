@@ -27,7 +27,13 @@
       }
     },
     "26.3Build": "passed",
-    "independentSourceReview": "pending",
+    "independentSourceReview": {
+      "status": "passed",
+      "sourceCommit": "dd2e51672eba887c2e261f2bcd1a3341afaae0e2",
+      "comparisonCommit": "a739962",
+      "materialFindings": 0,
+      "scope": "Read-only source review confirmed protected stock, recipe and station constraints, bounded conversion work, and no zero-operation crafting. Native verification remains separate."
+    },
     "allVersionCi": "queued",
     "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999"
   },
