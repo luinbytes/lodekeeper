@@ -1,0 +1,27 @@
+{
+  "status": "failed",
+  "expectedFailure": true,
+  "minecraftVersion": "1.21.1",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "productionSourceCommit": "852b72f177befc1b55771cee86076544f39c9f9b",
+  "fixtureSourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+  "artifactSha256": "6adcfd50dc77f077695c94e4d635e1a447ab7045a78e25227f82ed3b0f75370f",
+  "elapsedSequenceMillis": 33014,
+  "cases": 1,
+  "postCommandFixtureMutations": 0,
+  "smeltingInventory": {
+    "minecraft:oak_planks": 3,
+    "minecraft:crafting_table": 1,
+    "minecraft:iron_ingot": 3
+  },
+  "finalInventory": {
+    "minecraft:oak_planks": 3,
+    "minecraft:crafting_table": 1,
+    "minecraft:iron_ingot": 3
+  },
+  "furnaceSlotsDrained": true,
+  "nativeNavigationStopped": true,
+  "failure": "native smelting must deliver exactly three iron ingots, retain both logs and one plank, and drain all furnace slots; inventory={minecraft:oak_planks=3, minecraft:crafting_table=1, minecraft:iron_ingot=3}; furnace={furnaceInputCount=0, nearbyFurnaceCount=1, furnaceOutputCount=0, nativeFurnacePositions=-1,64,0, furnaceFuelCount=0}",
+  "screenshotInspected": true
+}

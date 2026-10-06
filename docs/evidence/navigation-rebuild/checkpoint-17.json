@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+  "candidateSha256": "65657f043c96245001889bdc0d9f4942bccb6746bbed8e0882a6bd21deedf7f4",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37486902109",
+  "minecraftVersion": "26.3",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "commandElapsedMillis": 241538,
+  "firstServerMovementElapsedMillis": 1977,
+  "completedTargets": [],
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "failure": "automation paused: paused \u00b7 Cannot place required station minecraft:furnace at BlockPos{x=-17, y=-10, z=42}: no visible, reachable full-floor placement site nearby; required minecraft:furnace (inventory 1), tried 2 site(s). The current goal and remaining project are preserved \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+  "seed": 483920105,
+  "commandStartPosition": {
+    "x": -8.5,
+    "y": 66.0,
+    "z": 17.5
+  },
+  "naturalReceipt": "checkpoint-17-natural.json",
+  "artifactReceipt": "checkpoint-17-artifact.json",
+  "scope": "One seeded world with no grants or post-spawn teleports; not a time guarantee for every seed, ordinary-launcher acceptance or universal mechanic coverage.",
+  "screenshotInspected": true
+}

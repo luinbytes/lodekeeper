@@ -1,0 +1,21 @@
+{
+  "minecraftVersion": "26.3",
+  "artifact": "lodekeeper-26.3-0.1.0-preview.11.jar",
+  "artifactSha256": "65657f043c96245001889bdc0d9f4942bccb6746bbed8e0882a6bd21deedf7f4",
+  "sourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+  "sourceTreeState": "committed",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37486902109",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=held-fuel",
+    "-Dlodekeeper.verify.candidateSha256=65657f043c96245001889bdc0d9f4942bccb6746bbed8e0882a6bd21deedf7f4"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-preview11-held-fuel-qa-artifacts-263-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

@@ -8,7 +8,10 @@
     "minecraft:furnace": 1,
     "minecraft:crafting_table": 1
   },
-  "commands": ["!lk get iron_ingot 3", "!lk get stick 8"],
+  "commands": [
+    "!lk get iron_ingot 3",
+    "!lk get stick 8"
+  ],
   "postCommandFixtureMutations": 0,
   "sequenceWallLimitMillis": 120000,
   "review": {
@@ -18,7 +21,17 @@
     "otherFindings": 0,
     "constraintsChecked": "Exact server inventories, drained native furnace slots, empty cursor, stopped navigation, one setup mutation and bounded phases."
   },
-  "buildVerification": "pending",
-  "nativeVerification": "pending",
-  "scopeLimit": "Source review does not establish gameplay success or screenshot readability."
+  "buildVerification": {
+    "1.21.1": "passed",
+    "26.3": "passed",
+    "allVersionCi": "passed",
+    "builds": 24,
+    "sourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486"
+  },
+  "nativeVerification": {
+    "before1.21.1": "expected failure, both logs burned",
+    "after1.21.1": "passed, 2 cases",
+    "after26.3": "passed, 2 cases"
+  },
+  "scopeLimit": "The controlled fixture proves exact fuel and later crafting quantities. It does not establish fresh-world timing or other Minecraft mechanics."
 }

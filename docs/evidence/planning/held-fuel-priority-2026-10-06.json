@@ -36,10 +36,24 @@
     },
     "allVersionCi": "passed",
     "allVersionBuilds": 24,
-    "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999"
+    "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999",
+    "nativeHeldFuel": {
+      "1.21.1": "../survival-safety/preview11-held-fuel-after-1211/assessment.json",
+      "26.3": "../survival-safety/preview11-held-fuel-after-263/assessment.json",
+      "expectedBeforeFailure": "../survival-safety/preview11-held-fuel-before-1211/assessment.json",
+      "fixtureSourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+      "fixtureAllVersionBuilds": 24,
+      "fixtureCiRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37486902109"
+    },
+    "natural1.21.1": "../navigation-rebuild/checkpoint-16.json",
+    "natural26.3": {
+      "status": "failed",
+      "receipt": "../navigation-rebuild/checkpoint-17.json",
+      "reason": "Station placement exhausted two air candidates underground after collecting three diamonds."
+    }
   },
   "releaseScope": "Preview 11 development only. Published Preview 10 artifacts and their 1.21.1/26.3 full-world timings remain unchanged.",
-  "runtimeScope": "The new fuel choice has no post-fix native-game receipt yet.",
+  "runtimeScope": "The exact held-fuel sequence passes on 1.21.1 and 26.3 with no post-command fixture mutations. Preview 10 reproduces the wrong fuel choice in the same fixture. The Preview 11 1.21.1 jar passes a fresh-world full diamond loadout. The 26.3 repeat fails station placement after three diamonds; this candidate is not published.",
   "sourceBefore": "852b72f177befc1b55771cee86076544f39c9f9b",
   "sourceAfter": "dd2e51672eba887c2e261f2bcd1a3341afaae0e2"
 }

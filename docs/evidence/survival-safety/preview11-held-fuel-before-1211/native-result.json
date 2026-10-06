@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T15-26-08-697563Z-0fd46004",
+  "status":"failed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"held-fuel",
+  "evidenceAuthority":"integrated_server_inventory_native_furnace_slots_and_idle_navigation",
+  "verificationMode":"prepared_safety_held-fuel",
+  "elapsedMillis":49951,
+  "clientTicks":861,
+  "failure":"native smelting must deliver exactly three iron ingots, retain both logs and one plank, and drain all furnace slots; inventory={minecraft:oak_planks=3, minecraft:crafting_table=1, minecraft:iron_ingot=3}; furnace={furnaceInputCount=0, nearbyFurnaceCount=1, furnaceOutputCount=0, nativeFurnacePositions=-1,64,0, furnaceFuelCount=0}",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":true,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":1,
+  "preparedHeldFuel":{"authority":"prepared_integrated_server_inventory_native_furnace_slots_and_idle_navigation","fixtureGrants":"exactly 3 raw iron, 2 oak logs, 3 oak planks, one furnace and one crafting table before the first command, full health and hunger","commands":"!lk get iron_ingot 3, then !lk get stick 8 without fixture mutation","sequenceWallLimitMillis":120000,"elapsedSequenceMillis":33014,"blockBreakingAllowed":false,"postCommandFixtureMutations":0,"setupScreenshot":"screenshots/lodekeeper-2026-10-06T15-26-08-697563Z-0fd46004-prepared_held_fuel_setup.png","nativeNavigationStopped":true,"setupServerInventory":{"minecraft:furnace":1,"minecraft:oak_planks":3,"minecraft:crafting_table":1,"minecraft:raw_iron":3,"minecraft:oak_log":2},"smeltingServerInventory":{"minecraft:oak_planks":3,"minecraft:crafting_table":1,"minecraft:iron_ingot":3},"finalServerInventory":{"minecraft:oak_planks":3,"minecraft:crafting_table":1,"minecraft:iron_ingot":3},"setupServerReceipt":{"furnaceInputCount":"0","nearbyFurnaceCount":"0","furnaceOutputCount":"0","nativeFurnacePositions":"","furnaceFuelCount":"0"},"smeltingServerReceipt":{"furnaceInputCount":"0","nearbyFurnaceCount":"1","furnaceOutputCount":"0","nativeFurnacePositions":"-1,64,0","furnaceFuelCount":"0"},"finalServerReceipt":{"furnaceInputCount":"0","nearbyFurnaceCount":"1","furnaceOutputCount":"0","nativeFurnacePositions":"-1,64,0","furnaceFuelCount":"0"},"vanillaCraftingAccounting":"one log yields four planks; two batches use four planks to make eight sticks; one plank remains"},
+  "cases":[
+    {"name":"prepared_held_fuel_iron_ingots","item":"minecraft:iron_ingot","expected":3,"serverObserved":3,"inventoryEmptyAtStart":false,"passed":false,"clientTicks":661,"worldTicks":661,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"native smelting must deliver exactly three iron ingots, retain both logs and one plank, and drain all furnace slots; inventory={minecraft:oak_planks=3, minecraft:crafting_table=1, minecraft:iron_ingot=3}; furnace={furnaceInputCount=0, nearbyFurnaceCount=1, furnaceOutputCount=0, nativeFurnacePositions=-1,64,0, furnaceFuelCount=0}","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":true,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T15-26-08-697563Z-0fd46004-failed-prepared_held_fuel_iron_ingots.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:furnace":1,"minecraft:oak_log":2,"minecraft:oak_planks":3,"minecraft:raw_iron":3},"finalStorageInventory":{"minecraft:crafting_table":1,"minecraft:iron_ingot":3,"minecraft:oak_planks":3},"fullServerHeldInventory":{"minecraft:crafting_table":1,"minecraft:iron_ingot":3,"minecraft:oak_planks":3},"elapsedMillisFromCommand":33014,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{},"serverPreparedPursuitReceipt":{},"initialPreparedAirReceipt":{},"serverPreparedAirReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

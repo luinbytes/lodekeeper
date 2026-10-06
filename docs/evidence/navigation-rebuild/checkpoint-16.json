@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "dd2e51672eba887c2e261f2bcd1a3341afaae0e2",
+  "candidateSha256": "1aba0c64e6155ce7430438ed95e9c0ba86471c0b01e310a92fe15e746a6c73f5",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37483883999",
+  "minecraftVersion": "1.21.1",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "passed",
+  "commandElapsedMillis": 512889,
+  "firstServerMovementElapsedMillis": 1706,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_leggings",
+    "minecraft:diamond_boots"
+  ],
+  "minimumHealth": 20.0,
+  "deathsObserved": 0,
+  "failure": "",
+  "seed": 483920105,
+  "commandStartPosition": {
+    "x": -3.5,
+    "y": 73.0,
+    "z": 37.5
+  },
+  "naturalReceipt": "checkpoint-16-natural.json",
+  "artifactReceipt": "checkpoint-16-artifact.json",
+  "scope": "One seeded world with no grants or post-spawn teleports; not a time guarantee for every seed, ordinary-launcher acceptance or universal mechanic coverage.",
+  "screenshotInspected": true,
+  "fuelObservation": "Native log selected two birch planks for three iron ingots. The exact held-fuel fixture remains a separate verification gate."
+}

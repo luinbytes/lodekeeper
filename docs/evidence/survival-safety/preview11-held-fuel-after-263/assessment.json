@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "expectedFailure": false,
+  "minecraftVersion": "26.3",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "productionSourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+  "fixtureSourceCommit": "c18761118cbc3daa2b99ceac8104576cb7c36486",
+  "artifactSha256": "65657f043c96245001889bdc0d9f4942bccb6746bbed8e0882a6bd21deedf7f4",
+  "elapsedSequenceMillis": 39096,
+  "cases": 2,
+  "postCommandFixtureMutations": 0,
+  "smeltingInventory": {
+    "minecraft:iron_ingot": 3,
+    "minecraft:oak_planks": 1,
+    "minecraft:oak_log": 2,
+    "minecraft:crafting_table": 1
+  },
+  "finalInventory": {
+    "minecraft:crafting_table": 1,
+    "minecraft:oak_planks": 1,
+    "minecraft:iron_ingot": 3,
+    "minecraft:oak_log": 1,
+    "minecraft:stick": 8
+  },
+  "furnaceSlotsDrained": true,
+  "nativeNavigationStopped": true,
+  "failure": "",
+  "screenshotInspected": true
+}
