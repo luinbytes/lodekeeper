@@ -297,6 +297,84 @@ final class PlannerTest {
     }
 
     @Test
+    void dominatedMediumTransitionsSkipMotionProofsAndPreserveBreakActions() {
+        FakeTerrain prunedTerrain = new FakeTerrain();
+        FakeTerrain baselineTerrain = new FakeTerrain();
+        for (FakeTerrain terrain : new FakeTerrain[] {prunedTerrain, baselineTerrain}) {
+            for (int x = 0; x <= 5; x++) terrain.stance(x, 0, 0).water = true;
+            addObstruction(terrain.stance(2, 0, 0), 2, 1, 77);
+        }
+        Planner.Options options = new Planner.Options().maxDrop(0).allowBreaking(true);
+        Planner pruned = planner(prunedTerrain, 0, 0, 0, Goal.exact(5, 0, 0), options);
+        options.pruneDominatedTransitions = false;
+        Planner baseline = planner(baselineTerrain, 0, 0, 0, Goal.exact(5, 0, 0), options);
+        assertEquals(NavStatus.FOUND, finish(pruned));
+        assertEquals(NavStatus.FOUND, finish(baseline));
+        assertSamePath(baseline.getPath(), pruned.getPath());
+        assertEquals(105, pruned.getPath().cost);
+        assertEquals(Action.Type.BREAK_BLOCK, pruned.getPath().step(2).action(0).type);
+        assertEquals(77, pruned.getPath().step(2).action(0).token);
+        assertTrue(pruned.getDominatedTransitionsSkipped() > 0,
+                "the constructor must copy the enabled policy before its options change");
+        assertEquals(0, baseline.getDominatedTransitionsSkipped());
+        assertEquals(0, prunedTerrain.groundedChecks);
+        assertEquals(0, baselineTerrain.groundedChecks);
+        assertTrue(prunedTerrain.motionChecks < baselineTerrain.motionChecks);
+        assertEquals(baseline.getExpandedNodes(), pruned.getExpandedNodes());
+    }
+
+    @Test
+    void dominatedParkourTransitionsSkipArcsWithoutChangingTheCheapestRoute() {
+        FakeTerrain prunedTerrain = FakeTerrain.infiniteFloor();
+        FakeTerrain baselineTerrain = FakeTerrain.infiniteFloor();
+        Planner.Options options = new Planner.Options().maxDrop(0).allowParkour(true);
+        Planner pruned = planner(prunedTerrain, 0, 0, 0, Goal.exact(8, 0, 0), options);
+        options.pruneDominatedTransitions = false;
+        Planner baseline = planner(baselineTerrain, 0, 0, 0, Goal.exact(8, 0, 0), options);
+        assertEquals(NavStatus.FOUND, finish(pruned));
+        assertEquals(NavStatus.FOUND, finish(baseline));
+        assertSamePath(baseline.getPath(), pruned.getPath());
+        assertEquals(80, pruned.getPath().cost);
+        assertTrue(pruned.getDominatedTransitionsSkipped() > 0);
+        assertEquals(0, baseline.getDominatedTransitionsSkipped());
+        assertEquals(baselineTerrain.groundedChecks, prunedTerrain.groundedChecks);
+        assertTrue(prunedTerrain.motionChecks < baselineTerrain.motionChecks,
+                "the saved proofs are parkour arcs, with grounded WALK proofs unchanged");
+        assertEquals(baseline.getExpandedNodes(), pruned.getExpandedNodes());
+    }
+
+    @Test
+    void dominatedPruningKeepsTheMoreExpensiveArrivalWithAnUnusedBridgeReservation() {
+        FakeTerrain terrain = new FakeTerrain();
+        for (int z = 0; z <= 4; z++) {
+            terrain.stance(0, 0, z).fullSupport = true;
+            terrain.stance(2, 0, z).fullSupport = true;
+        }
+        terrain.stance(1, 0, 4).fullSupport = true;
+        terrain.stance(1, 0, 0);
+        terrain.stance(3, 0, 0);
+        terrain.stance(4, 0, 0).fullSupport = true;
+        terrain.stance(5, 0, 0);
+        terrain.stance(6, 0, 0).fullSupport = true;
+        Planner.Options options = new Planner.Options().maxDrop(0).allowBuilding(true).placements(2, 42);
+        Planner pruned = planner(terrain, 0, 0, 0, Goal.exact(6, 0, 0), options);
+        options.pruneDominatedTransitions = false;
+        Planner baseline = planner(terrain, 0, 0, 0, Goal.exact(6, 0, 0), options);
+        assertEquals(NavStatus.FOUND, finish(pruned));
+        assertEquals(NavStatus.FOUND, finish(baseline));
+        assertSamePath(baseline.getPath(), pruned.getPath());
+        Path path = pruned.getPath();
+        assertEquals(230, path.cost);
+        assertEquals(2, path.placementsReserved);
+        Path.Step bridge = path.step(path.length() - 2);
+        assertEquals(Path.Movement.BRIDGE, bridge.movement);
+        assertEquals(5, bridge.x);
+        assertEquals(1, bridge.actionCount());
+        assertEquals(Action.Type.PLACE_BLOCK, bridge.action(0).type);
+        assertEquals(42, bridge.action(0).token);
+    }
+
+    @Test
     void mediumCanExitToSupportedBankAndPlannedBridgeCanBeWalkedOff() {
         FakeTerrain waterBank = new FakeTerrain();
         waterBank.stance(0, 0, 0).water = true;
@@ -560,6 +638,30 @@ final class PlannerTest {
         assertEquals(NavStatus.FOUND, finish(planner));
         assertEquals(800, planner.getPath().cost);
         assertTrue(planner.getExpandedNodes() <= 100, "An open 80-block route should stay close to its 81 stances");
+    }
+
+    private static void assertSamePath(Path expected, Path actual) {
+        assertEquals(expected.cost, actual.cost);
+        assertEquals(expected.placementsReserved, actual.placementsReserved);
+        assertEquals(expected.terrainRevision, actual.terrainRevision);
+        assertEquals(expected.length(), actual.length());
+        for (int i = 0; i < expected.length(); i++) {
+            Path.Step expectedStep = expected.step(i), actualStep = actual.step(i);
+            assertEquals(expectedStep.x, actualStep.x);
+            assertEquals(expectedStep.y, actualStep.y);
+            assertEquals(expectedStep.z, actualStep.z);
+            assertEquals(expectedStep.feetY16, actualStep.feetY16);
+            assertEquals(expectedStep.movement, actualStep.movement);
+            assertEquals(expectedStep.actionCount(), actualStep.actionCount());
+            for (int j = 0; j < expectedStep.actionCount(); j++) {
+                Action expectedAction = expectedStep.action(j), actualAction = actualStep.action(j);
+                assertEquals(expectedAction.type, actualAction.type);
+                assertEquals(expectedAction.x, actualAction.x);
+                assertEquals(expectedAction.y, actualAction.y);
+                assertEquals(expectedAction.z, actualAction.z);
+                assertEquals(expectedAction.token, actualAction.token);
+            }
+        }
     }
 
     private static Planner planner(FakeTerrain terrain, int x, int y, int z, Goal goal, Planner.Options options) {

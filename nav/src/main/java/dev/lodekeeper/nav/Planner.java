@@ -29,6 +29,8 @@ public final class Planner {
         public boolean allowBreaking;
         public boolean allowBuilding;
         public boolean allowParkour;
+        /** Skip generic transition proofs when their exact destination state cannot improve. */
+        public boolean pruneDominatedTransitions = true;
         public boolean allowSwimming = true;
         public boolean allowClimbing = true;
         /** Reserved placeable blocks available to this search; this caps placements at every path prefix. */
@@ -57,6 +59,7 @@ public final class Planner {
     private final boolean allowBreaking;
     private final boolean allowBuilding;
     private final boolean allowParkour;
+    private final boolean pruneDominatedTransitions;
     private final boolean allowSwimming;
     private final boolean allowClimbing;
     private final int maxPlacements;
@@ -94,6 +97,7 @@ public final class Planner {
     private int nodeCount;
     private int heapSize;
     private long expandedNodes;
+    private long dominatedTransitionsSkipped;
     private long groundedCollectionRequests;
     private long groundedCollectionCalls;
     private int placementsInFoundPath;
@@ -134,6 +138,7 @@ public final class Planner {
         this.allowBreaking = options.allowBreaking;
         this.allowBuilding = options.allowBuilding;
         this.allowParkour = options.allowParkour;
+        this.pruneDominatedTransitions = options.pruneDominatedTransitions;
         this.allowSwimming = options.allowSwimming;
         this.allowClimbing = options.allowClimbing;
         this.maxPlacements = options.maxPlacements;
@@ -258,6 +263,7 @@ public final class Planner {
 
     public NavStatus getStatus() { return status; }
     public Path getPath() { return path; }
+    public long getDominatedTransitionsSkipped() { return dominatedTransitionsSkipped; }
     public long getExpandedNodes() { return expandedNodes; }
     public int getDiscoveredNodes() { return nodeCount; }
     public int getOpenNodes() { return heapSize; }
@@ -498,6 +504,7 @@ public final class Planner {
         if (!targetProbe.loaded || !targetProbe.bodyClear || !targetProbe.fullSupport
                 || targetProbe.hazard || targetProbe.breakCount != 0) return;
         long baseCost = distance == 2 ? PARKOUR_TWO_COST : PARKOUR_THREE_COST;
+        if (isDominatedTransition(current, tx, y, tz, baseCost, 0, false)) return;
         if (!motionClear(x, y, z, tx, y, tz, 1.35, targetProbe)) return;
         relax(current, tx, y, tz, baseCost, Path.Movement.PARKOUR, 0,
                 false, targetProbe);
@@ -510,6 +517,7 @@ public final class Planner {
         if (!destination.loaded || !destination.bodyClear || destination.hazard
                 || destination.fullSupport || destination.surfaceSupport
                 || destination.water || destination.climbable) return;
+        if (isDominatedTransition(current, tx, ty, tz, BRIDGE_COST, 1, true)) return;
         if (!terrain.canPlaceBridgeFrom(x, y, z, tx, ty - 1, tz,
                 placementItemToken, builtSupport[current] != 0)) return;
         if (!motionClear(x, y, z, tx, ty, tz, 0.0, destination)) return;
@@ -543,6 +551,7 @@ public final class Planner {
             if (!medium) return;
         }
         if (!destination.fullSupport && !allowMedium && requireSupport) return;
+        if (isDominatedTransition(current, tx, ty, tz, baseCost, 0, false)) return;
         if (diagonal && !cornersClear(x, Math.min(y, ty), z, tx - x, tz - z)) return;
         if (!motionClear(x, y, z, tx, ty, tz, arcHeight, destination)) return;
 
@@ -653,6 +662,17 @@ public final class Planner {
         sourceAfterBreak.water = sourceProbe.water;
         sourceAfterBreak.climbable = sourceProbe.climbable;
         sourceAfterBreak.breakCount = count;
+        return true;
+    }
+
+    private boolean isDominatedTransition(int current, int x, int y, int z, long baseCost,
+                                           int addedPlacements, boolean supportBuilt) {
+        if (!pruneDominatedTransitions) return false;
+        int slot = locateSlot(Position.pack(x, y, z), 0,
+                placementsUsed[current] + addedPlacements, supportBuilt);
+        int existing = hashSlots[slot] - 1;
+        if (existing < 0 || costs[existing] > costs[current] + baseCost) return false;
+        dominatedTransitionsSkipped++;
         return true;
     }
 

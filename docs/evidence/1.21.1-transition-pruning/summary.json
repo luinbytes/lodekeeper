@@ -1,0 +1,47 @@
+{
+  "minecraftVersion": "1.21.1",
+  "runId": "2026-10-06T01-45-30-511736Z-8e0b3d88",
+  "comparison": "Alternating disabled/enabled within one JVM, four balanced warmups, six measured searches per side",
+  "verdict": "Timing inconclusive; deterministic work reduction and path parity pass",
+  "pathFingerprintSha256": "af519266f1bf983dbb855206c76b94ddcf874c1db09c471dc15f72d255498dc9",
+  "expanded": 56,
+  "discovered": 187,
+  "pathSteps": 21,
+  "results": {
+    "disabled": {
+      "elapsed": {
+        "samples": 6,
+        "medianMillis": 49.167497,
+        "minimumMillis": 34.863175,
+        "maximumMillis": 66.851578
+      },
+      "threadCpu": {
+        "samples": 6,
+        "medianMillis": 46.607,
+        "minimumMillis": 33.235,
+        "maximumMillis": 62.602
+      },
+      "voxelQueries": 372275,
+      "dominatedTransitionsSkipped": 0
+    },
+    "enabled": {
+      "elapsed": {
+        "samples": 6,
+        "medianMillis": 41.22685,
+        "minimumMillis": 34.100038,
+        "maximumMillis": 70.255222
+      },
+      "threadCpu": {
+        "samples": 6,
+        "medianMillis": 41.236999999999995,
+        "minimumMillis": 34.115,
+        "maximumMillis": 56.576
+      },
+      "voxelQueries": 369470,
+      "dominatedTransitionsSkipped": 5
+    }
+  },
+  "commandMillis": 18413,
+  "firstServerMovementMillis": 2334,
+  "health": 20.0
+}

@@ -31,7 +31,7 @@ JAVA_HOME=/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
 
 This task must run with the separate `lodekeeper-verification` development mod on the client classpath and the `lodekeeper.verify` JVM property enabled. Start it from the title screen, with no other Minecraft client running. The harness creates a new uniquely named test world and ends its isolated client when complete. It stops with a failure record if the complete run exceeds five minutes.
 
-For the 1.21.1 adapter, use its own isolated run directory and verification task:
+For the 1.21.1 adapter, select JDK 21 with `JAVA_HOME` and use its own isolated run directory and verification task:
 
 ```sh
 ./gradlew --no-daemon --max-workers=1 -Padapter=1211 -Pminecraft_version=1.21.1 \
@@ -45,14 +45,16 @@ If the environment does not have the JDK at the path above, set `JAVA_HOME` to a
 
 ## Evidence and limits
 
-Each version profile writes its own jar beneath that adapter's `build/libs` directory; the output filename is `lodekeeper-<minecraft-version>-0.1.0-dev.jar`:
+Each version profile writes its own jar beneath that adapter's `build/libs` directory; the output filename is `lodekeeper-<minecraft-version>-<mod-version>.jar`, using `mod_version` from `gradle.properties`:
 
 | Minecraft profile | Adapter | Jar |
 | --- | --- | --- |
-| 1.20.1 | `fabric` | `fabric/build/libs/lodekeeper-1.20.1-0.1.0-dev.jar` |
-| 1.20.2–1.20.4 | `fabric-1202` | `fabric-1202/build/libs/lodekeeper-<selected-version>-0.1.0-dev.jar` |
-| 1.21.1 | `fabric-1211` | `fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-dev.jar` |
-| 26.3 | `fabric-modern` | `fabric-modern/build/libs/lodekeeper-26.3-0.1.0-dev.jar` |
+| 1.20.1 | `fabric` | `fabric/build/libs/lodekeeper-1.20.1-<mod-version>.jar` |
+| 1.20.2–1.20.4 | `fabric-1202` | `fabric-1202/build/libs/lodekeeper-<selected-version>-<mod-version>.jar` |
+| 1.21.1 | `fabric-1211` | `fabric-1211/build/libs/lodekeeper-1.21.1-<mod-version>.jar` |
+| 26.3 | `fabric-modern` | `fabric-modern/build/libs/lodekeeper-26.3-<mod-version>.jar` |
+
+The 26.x adapter uses JDK 25 and `fabric-modern/run-verification`; its evidence is nested under `verification/<run-id>/evidence`.
 
 The development verifier itself is never included in those production jars. Each adapter writes verification output to its own run directory: `fabric/run` for 1.20.1 and `fabric-1211/run` for 1.21.1. A run writes:
 

@@ -1556,28 +1556,41 @@ public final class RuntimeVerification implements ClientModInitializer {
         int samples = routeBenchmarkIntProperty("routeBenchmarkSamples", 4, 4, 16);
         int warmups = routeBenchmarkIntProperty("routeBenchmarkWarmups", 1, 1, 4);
         if (warmups > samples - 2) throw new IllegalArgumentException("routeBenchmarkWarmups must leave at least two measured samples");
+        var cpuClock = java.lang.management.ManagementFactory.getThreadMXBean();
+        boolean cpuClockAvailable = cpuClock.isCurrentThreadCpuTimeSupported() && cpuClock.isThreadCpuTimeEnabled();
+        boolean comparePruning = Boolean.getBoolean("lodekeeper.verify.compareTransitionPruning");
+        if (comparePruning && (samples - warmups < 10 || (samples & 1) != 0 || (warmups & 1) != 0))
+            throw new IllegalArgumentException("Paired pruning benchmark requires even warmups and samples, with at least five measured samples per side");
         for (int sample = 0; sample < samples; sample++) {
             GameTerrain terrain = new GameTerrain(client, requireEngine().config);
             terrain.beginSearch();
             long initialVoxelQueries = terrain.voxelQueries, initialReadMisses = terrain.readMisses;
             long initialShapeMisses = terrain.shapeMisses, initialChunkQueries = terrain.chunkQueries;
             long initialChunkMisses = terrain.chunkMisses;
+            var options = new dev.lodekeeper.nav.Planner.Options().maxNodes(16000).maxDrop(3).allowBreaking(true);
+            options.pruneDominatedTransitions = !comparePruning || (sample & 1) != 0;
+            long startedCpu = cpuClockAvailable ? cpuClock.getCurrentThreadCpuTime() : -1L;
             long started = System.nanoTime();
             dev.lodekeeper.nav.Planner planner = new dev.lodekeeper.nav.Planner(terrain, 0, PLAYER_Y, -3,
                 dev.lodekeeper.nav.Goal.exact(20, PLAYER_Y + (MEADOW_BENCHMARK ? 3 : 0), -3),
-                new dev.lodekeeper.nav.Planner.Options().maxNodes(16000).maxDrop(3).allowBreaking(true));
+                options);
             int calls = 0;
             while (planner.getStatus() == dev.lodekeeper.nav.NavStatus.IN_PROGRESS && calls < 10000
                     && System.nanoTime() - started < 5_000_000_000L) {
                 planner.advance(128, 2_000_000L);
                 calls++;
             }
+            long elapsedNanos = System.nanoTime() - started;
+            long threadCpuNanos = startedCpu < 0L ? -1L : cpuClock.getCurrentThreadCpuTime() - startedCpu;
             JsonObject row = new JsonObject();
             row.addProperty("warmup", sample < warmups);
             row.addProperty("sampleIndex", sample);
-            row.addProperty("elapsedNanos", System.nanoTime() - started);
+            row.addProperty("transitionPruning", options.pruneDominatedTransitions);
+            row.addProperty("elapsedNanos", elapsedNanos);
+            row.addProperty("threadCpuNanos", threadCpuNanos);
             row.addProperty("groundedCollectionRequests", planner.getGroundedCollectionRequests());
             row.addProperty("groundedCollectionCalls", planner.getGroundedCollectionCalls());
+            row.addProperty("dominatedTransitionsSkipped", planner.getDominatedTransitionsSkipped());
             row.addProperty("voxelQueries", terrain.voxelQueries - initialVoxelQueries);
             row.addProperty("readMisses", terrain.readMisses - initialReadMisses);
             row.addProperty("shapeMisses", terrain.shapeMisses - initialShapeMisses);
