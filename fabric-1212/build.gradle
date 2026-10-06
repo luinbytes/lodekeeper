@@ -175,11 +175,13 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/VerificationContentInitializer.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/GeometryEpochVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/ConfigRoundTripVerification.java'),
-    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java'),
-    clientApiFamily == '1219'
-        ? layout.projectDirectory.file('src/verification-1219/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java').asFile
-        : rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java')
+    rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java')
 ]
+if (!['1.21.9', '1.21.10'].contains(minecraftVersion)) {
+    sharedVerificationSources.add(clientApiFamily == '1219'
+        ? layout.projectDirectory.file('src/verification-1219/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java').asFile
+        : rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java'))
+}
 def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
 def copySharedVerifier = tasks.register('copySharedVerifier', Sync) {
     from(sharedVerificationSources) { into 'dev/lodekeeper/fabric' }

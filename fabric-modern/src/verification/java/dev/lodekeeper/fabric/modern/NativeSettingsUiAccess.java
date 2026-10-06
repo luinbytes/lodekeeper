@@ -55,7 +55,7 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
         GameApi.setScreen(client, new net.minecraft.client.gui.screens.ChatScreen("", false));
         String command = config.prefix + "config";
         for (int codePoint : command.codePoints().toArray()) dispatchCharacter(codePoint);
-        dispatchKey(257, 0, 0);
+        dispatchKey(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0);
         log.accept("[Lodekeeper UI verification] Submitted config command through the native chat screen Enter key");
     }
 
@@ -89,7 +89,12 @@ final class NativeSettingsUiAccess implements SettingsUiVerification.Access {
     @Override public void dispatchKey(int keyCode, int scanCode, int modifiers) {
         Screen screen = GameApi.screen(client);
         if (screen == null) throw new IllegalStateException("no screen for key input");
-        screen.keyPressed(new KeyEvent(keyCode, scanCode, modifiers));
+        int nativeKey = switch (keyCode) {
+            case 259 -> com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE;
+            case 269 -> com.mojang.blaze3d.platform.InputConstants.KEY_END;
+            default -> keyCode;
+        };
+        screen.keyPressed(new KeyEvent(nativeKey, scanCode, modifiers));
     }
 
     @Override public void dispatchCharacter(int codePoint) {
