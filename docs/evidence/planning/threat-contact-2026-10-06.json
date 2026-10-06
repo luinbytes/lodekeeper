@@ -45,5 +45,22 @@
     "alternative": "Proactive combat movement requires separate terrain and input ownership design. First replay the proven cooldown fix.",
     "limits": "Existing 15 second / 300 tick / 24 attack / 16 threat / 32 block budgets remain unchanged.",
     "qaCorrection": "Moving mobs can make a sword attack safe. Permit bounded native sword wear in the live moving contact case while retaining cow health and player-attributed kill checks. The static sweep and water-retreat weapon guards remain unchanged."
-  }
+  },
+  "candidate": {
+    "sourceCommit": "1c0799330cc0fc47628917617785c44c9b3b1349",
+    "independentSourceReview": "No material findings in paired attack choice and scoped moving-contact verification changes. Runtime proof remains separate.",
+    "checks": {
+      "core": 104,
+      "navigation": 91,
+      "failures": 0,
+      "primaryVersionsBuilt": [
+        "1.21.1",
+        "26.3"
+      ]
+    },
+    "liveStatus": "failed_one_zombie_killed_player_died",
+    "ci": "https://github.com/luinbytes/lodekeeper/actions/runs/37507536192",
+    "receipt": "../survival-safety/preview11-contact-stable-1211/assessment.json"
+  },
+  "nextDecision": "Measure a terrain-checked jump and native falling sword attack, with per-hit collateral safeguards. Stable choices cannot make low-damage standing contact win this fixture."
 }
