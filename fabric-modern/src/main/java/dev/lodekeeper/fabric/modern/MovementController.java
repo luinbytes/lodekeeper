@@ -400,6 +400,8 @@ final class MovementController {
                 if (++ticksWithoutProgress > config.actionTimeoutTicks) throw new NavigationFailure("World action made no progress");
                 return false;
             }
+            if (validatedPathIndex != pathIndex && requiresCenteredLaunch(next.movement)
+                    && !prepareCenteredLaunch(path.step(pathIndex - 1), next)) return false;
             if (next.movement == Path.Movement.PARKOUR && !config.allowParkour) {
                 retry("Parkour was disabled while following the route"); return false;
             }
@@ -474,18 +476,22 @@ final class MovementController {
             boolean mediumArrival = (next.movement == Path.Movement.SWIM || next.movement == Path.Movement.CLIMB)
                     && Math.abs(delta.y) < .35 && currentMediumSafe(next.movement);
             boolean centeredLaunchRequired = pathIndex + 1 < path.length()
-                    && switch (path.step(pathIndex + 1).movement) {
-                        case JUMP, DROP, PARKOUR, BRIDGE -> true;
-                        default -> false;
-                    };
-            double arrivalRadius = centeredLaunchRequired ? .10 : .22;
-            if (horizontal < arrivalRadius && (currentFeetY16 == next.feetY16 || mediumArrival)
+                    && requiresCenteredLaunch(path.step(pathIndex + 1).movement);
+            boolean launchApproach = next.movement == Path.Movement.WALK && centeredLaunchRequired;
+            Vec3 arrivalMotion = client.player.getDeltaMovement();
+            double arrivalRadius = centeredLaunchRequired ? LaunchApproach.ARRIVAL_RADIUS : .22;
+            if (horizontal < arrivalRadius
+                    && (!launchApproach || LaunchApproach.isSettled(horizontal, arrivalMotion.x, arrivalMotion.z))
+                    && (currentFeetY16 == next.feetY16 || mediumArrival)
                     && (client.player.onGround() || probe.water || probe.climbable)
                     && (next.movement != Path.Movement.DROP || sourceProbe.fullSupport)) {
                 boolean walkThrough = path.isStraightLevelWalkThrough(pathIndex)
                         && client.player.onGround() && currentFeetY16 == next.feetY16
                         && !sourceProbe.water && !sourceProbe.climbable;
                 client.player.setSprinting(false);
+                if (launchApproach && config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] Settled launch approach at " + currentFeetX + "," + currentFeetY + "," + currentFeetZ
+                                + " horizontal=" + horizontal + " speed=" + Math.hypot(arrivalMotion.x, arrivalMotion.z));
                 pathIndex++; actionIndex = 0; lastDistance = Double.POSITIVE_INFINITY;
                 dropPhase = DropPhase.NONE; recordProgress();
                 if (walkThrough && edgePass == 0) continue walkEdge;
@@ -494,6 +500,11 @@ final class MovementController {
             double distance = delta.lengthSqr();
             if (distance < lastDistance - .002) { lastDistance = distance; ticksWithoutProgress = 0; }
             else if (++ticksWithoutProgress > 80) { retry("Movement stalled"); return false; }
+            if (launchApproach && client.player.onGround() && currentFeetY16 == next.feetY16) {
+                driveLaunchApproach(source, next, edgeStartX, edgeStartY, edgeStartZ,
+                        next.x + .5, next.z + .5, false);
+                return false;
+            }
             client.player.setYRot((float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90));
             client.player.setXRot(0);
             if (next.movement == Path.Movement.JUMP) {
@@ -515,6 +526,84 @@ final class MovementController {
             return false;
         }
         return false;
+    }
+
+    private static boolean requiresCenteredLaunch(Path.Movement movement) {
+        return switch (movement) {
+            case JUMP, DROP, PARKOUR, BRIDGE -> true;
+            default -> false;
+        };
+    }
+
+    private boolean prepareCenteredLaunch(Path.Step source, Path.Step destination) {
+        Vec3 motion = client.player.getDeltaMovement();
+        double feetX = client.player.getX(), feetY = client.player.getY(), feetZ = client.player.getZ();
+        double centerX = source.x + .5, centerZ = source.z + .5;
+        double distance = Math.hypot(centerX - feetX, centerZ - feetZ);
+        boolean crouching = client.player.isCrouching();
+        if (!crouching && LaunchApproach.isSettled(distance, motion.x, motion.z)) return true;
+        int feetY16 = GameTerrain.quantizedFeetY16(feetY);
+        if (!client.player.onGround() || feetY16 != source.feetY16) {
+            throw new NavigationFailure("Launch centering requires its grounded source height");
+        }
+        if (!PathEdgeValidator.isCurrentStanceSafe(terrain, source,
+                feetX, feetY, feetZ, sourceProbe, emptyProbe)) {
+            throw new NavigationFailure("Launch centering requires its safe source stance");
+        }
+        if (++ticksWithoutProgress > 80) throw new NavigationFailure("Launch centering stalled");
+        double startX = centerX, startZ = centerZ;
+        // Extend the correction corridor back to a fractional start; retain the source
+        // center when returning from the bridge lip so reverse motion stays inside it.
+        if ((feetX - centerX) * (destination.x - source.x)
+                + (feetZ - centerZ) * (destination.z - source.z) < 0) {
+            startX = feetX; startZ = feetZ;
+        }
+        if (crouching) {
+            client.player.setSprinting(false);
+            if (client.player.isUsingItem() || client.player.getAbilities().flying
+                    || !Double.isFinite(GameApi.launchInputAcceleration(client.player,
+                    (float) groundFriction(feetX, feetY16, feetZ)))
+                    || !LaunchApproach.isSafeCoast(terrain, source, destination, startX, source.feetY(), startZ,
+                    feetX, feetY16, feetZ, motion.x, motion.z, true, true,
+                    this::groundFriction, sourceProbe, emptyProbe)) {
+                throw new NavigationFailure("Cannot prove safe grounded coast while clearing launch crouch");
+            }
+            input.idle();
+            return false;
+        }
+        driveLaunchApproach(source, destination, startX, source.feetY(), startZ,
+                centerX, centerZ, true);
+        return false;
+    }
+
+    private void driveLaunchApproach(Path.Step source, Path.Step destination,
+                                     double startX, double startY, double startZ,
+                                     double targetX, double targetZ, boolean requireFullSupport) {
+        client.player.setSprinting(false);
+        Vec3 motion = client.player.getDeltaMovement();
+        int feetY16 = GameTerrain.quantizedFeetY16(client.player.getY());
+        LaunchApproach.Control control = feetY16 == GameTerrain.INVALID_FEET_Y16 ? null
+                : LaunchApproach.control(terrain, source, destination, startX, startY, startZ,
+                client.player.getX(), feetY16, client.player.getZ(), targetX, targetZ,
+                motion.x, motion.z, client.player.onGround(), requireFullSupport,
+                launchInputAcceleration(feetY16), this::groundFriction, sourceProbe, emptyProbe);
+        if (control == null) throw new NavigationFailure("Cannot prove safe grounded launch braking or centering");
+        if (control.input() != 0) {
+            client.player.setYRot((float) (Math.toDegrees(Math.atan2(control.directionZ(), control.directionX())) - 90));
+            client.player.setXRot(0);
+        }
+        input.drive(control.input(), 0, false, false);
+    }
+
+    private double launchInputAcceleration(int feetY16) {
+        if (client.player.isUsingItem() || client.player.isCrouching() || client.player.getAbilities().flying) return Double.NaN;
+        float friction = (float) groundFriction(client.player.getX(), feetY16, client.player.getZ());
+        return GameApi.launchInputAcceleration(client.player, friction);
+    }
+
+    private double groundFriction(double x, int feetY16, double z) {
+        BlockPos support = BlockPos.containing(x, feetY16 / 16.0 - .5000001, z);
+        return hasLoadedChunk(support) ? client.level.getBlockState(support).getBlock().getFriction() : Double.NaN;
     }
 
     private boolean hasDepartedDropLaunch(Path.Step source, Path.Step destination,

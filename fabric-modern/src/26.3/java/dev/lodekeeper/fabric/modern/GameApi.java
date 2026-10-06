@@ -38,6 +38,13 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static double launchInputAcceleration(net.minecraft.client.player.LocalPlayer player, float friction) {
+        if (player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FRICTION_MODIFIER) != 1
+                || player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.AIR_DRAG_MODIFIER) != 1) return Double.NaN;
+        float acceleration = friction > .6 ? player.getSpeed() * (.21600002f / (friction * friction * friction)) : player.getSpeed();
+        return acceleration * .98f;
+    }
+
     static Object stonecuttingProviderIdentity(Minecraft client) {
         if (client.level == null || client.getConnection() == null) return null;
         return client.getConnection().recipes().stonecutterRecipes();

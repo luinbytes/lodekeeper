@@ -12,6 +12,7 @@ import dev.lodekeeper.core.InventorySnapshot;
 import dev.lodekeeper.core.ItemId;
 import dev.lodekeeper.core.PlanResult;
 import dev.lodekeeper.core.PlanStep;
+import dev.lodekeeper.nav.LaunchApproach;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -100,6 +101,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String IRON_INGOT_ID = "minecraft:iron_ingot";
     private static final int IRON_PICKAXE_PROBE_TIMEOUT_TICKS = 200;
     private static final int IRON_PICKAXE_DEEPSLATE_FIXTURE_BLOCK_COUNT = 4;
+    private static final int MAX_NEARBY_WOOD_LAUNCH_HANDOFF_OBSERVATIONS = 32;
+    private static final double FORCED_PREPHYSICS_HANDOFF_SPEED = .015;
     private static final Field ENGINE_MOVEMENT_FIELD = findField(AutomationEngine.class, "movement");
     private static final Field MOVEMENT_PATH_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "path");
     private static final Field MOVEMENT_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "pathIndex");
@@ -148,6 +151,16 @@ public final class RuntimeVerification implements ClientModInitializer {
     private int firstRouteTick = -1;
     private volatile long firstMovementMillis = -1;
     private volatile MovementClock movementClock;
+    private Object nearbyWoodLaunchObservedPath;
+    private int nearbyWoodLaunchPreviousPathIndex = -1;
+    private int nearbyWoodLaunchPathGeneration = -1;
+    private int nearbyWoodLaunchHandoffCount;
+    private int nearbyWoodLaunchJumpHandoffCount;
+    private int nearbyWoodLaunchSettledHandoffCount;
+    private int nearbyWoodLaunchUnsettledHandoffCount;
+    private double nearbyWoodLaunchMaximumHorizontalSpeed;
+    private final List<NearbyWoodLaunchHandoffObservation> nearbyWoodLaunchHandoffs = new ArrayList<>();
+    private boolean nearbyWoodLaunchObserverRegistered;
     private String liveRouteScreenshot;
     private JsonArray routeBenchmark;
     private boolean worldLaunchQueued;
@@ -380,6 +393,8 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void tick(Minecraft currentClient) {
         if (state == State.COMPLETE || state == State.FAILED || state == State.DISABLED) return;
+        registerNearbyWoodMeadowLaunchObserver();
+        if (state == State.FAILED) return;
         clientTicks++;
         if (clientTicks % 100 == 0) {
             System.out.println("[Lodekeeper verification] state=" + state + ", engine=" + requireEngine().status()
@@ -1101,6 +1116,117 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
     }
 
+    private void registerNearbyWoodMeadowLaunchObserver() {
+        if (!MEADOW_BENCHMARK || nearbyWoodLaunchObserverRegistered) return;
+        if (isNearbyWoodMeadowLaunchHandoffSettled(LaunchApproach.ARRIVAL_RADIUS / 2,
+                FORCED_PREPHYSICS_HANDOFF_SPEED, true)) {
+            fail("nearbyWood meadow pure handoff probe accepted speed " + FORCED_PREPHYSICS_HANDOFF_SPEED);
+            return;
+        }
+        ClientTickEvents.START_CLIENT_TICK.register(mc -> observeNearbyWoodMeadowLaunchHandoffAtEngineStart());
+        nearbyWoodLaunchObserverRegistered = true;
+    }
+
+    private void observeNearbyWoodMeadowLaunchHandoffAtEngineStart() {
+        if (!MEADOW_BENCHMARK) return;
+        if (state != State.GATHERING_WOOD || client.player == null) {
+            resetNearbyWoodMeadowLaunchPathObservation();
+            return;
+        }
+        try {
+            Object movement = ENGINE_MOVEMENT_FIELD.get(requireEngine());
+            dev.lodekeeper.nav.Path path = (dev.lodekeeper.nav.Path) MOVEMENT_PATH_FIELD.get(movement);
+            if (path == null) {
+                resetNearbyWoodMeadowLaunchPathObservation();
+                return;
+            }
+            int pathIndex = MOVEMENT_PATH_INDEX_FIELD.getInt(movement);
+            if (path != nearbyWoodLaunchObservedPath) {
+                nearbyWoodLaunchObservedPath = path;
+                nearbyWoodLaunchPreviousPathIndex = pathIndex;
+                nearbyWoodLaunchPathGeneration++;
+                return;
+            }
+
+            int previousPathIndex = nearbyWoodLaunchPreviousPathIndex;
+            nearbyWoodLaunchPreviousPathIndex = pathIndex;
+            int indexAdvance = pathIndex - previousPathIndex;
+            if (previousPathIndex < 0 || indexAdvance <= 0) {
+                if (indexAdvance < 0) nearbyWoodLaunchPathGeneration++;
+                return;
+            }
+            if (indexAdvance > 2) {
+                nearbyWoodLaunchPathGeneration++;
+                return;
+            }
+
+            int reachedPathIndex = pathIndex - 1;
+            int sourcePathIndex = reachedPathIndex - 1;
+            if (sourcePathIndex < 0 || pathIndex >= path.length()) return;
+            dev.lodekeeper.nav.Path.Step reached = path.step(reachedPathIndex);
+            dev.lodekeeper.nav.Path.Step outgoing = path.step(pathIndex);
+            int validatedPathIndex = MOVEMENT_VALIDATED_PATH_INDEX_FIELD.getInt(movement);
+            if (validatedPathIndex != reachedPathIndex
+                    || reached.movement != dev.lodekeeper.nav.Path.Movement.WALK
+                    || !isNearbyWoodStrictLaunchMovement(outgoing.movement)) return;
+
+            double playerX = client.player.getX();
+            double playerY = client.player.getY();
+            double playerZ = client.player.getZ();
+            var velocity = client.player.getDeltaMovement();
+            double offsetX = playerX - (reached.x + .5);
+            double offsetY = playerY - reached.feetY();
+            double offsetZ = playerZ - (reached.z + .5);
+            double centerDistanceXZ = Math.hypot(offsetX, offsetZ);
+            double horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+            boolean grounded = client.player.onGround();
+            boolean settled = isNearbyWoodMeadowLaunchHandoffSettled(centerDistanceXZ, horizontalSpeed, grounded);
+
+            nearbyWoodLaunchHandoffCount++;
+            if (outgoing.movement == dev.lodekeeper.nav.Path.Movement.JUMP) nearbyWoodLaunchJumpHandoffCount++;
+            if (settled) nearbyWoodLaunchSettledHandoffCount++;
+            else nearbyWoodLaunchUnsettledHandoffCount++;
+            if (Double.isFinite(horizontalSpeed)) {
+                nearbyWoodLaunchMaximumHorizontalSpeed = Math.max(nearbyWoodLaunchMaximumHorizontalSpeed, horizontalSpeed);
+            }
+            if (nearbyWoodLaunchHandoffs.size() < MAX_NEARBY_WOOD_LAUNCH_HANDOFF_OBSERVATIONS) {
+                nearbyWoodLaunchHandoffs.add(new NearbyWoodLaunchHandoffObservation(
+                    nearbyWoodLaunchPathGeneration, previousPathIndex, pathIndex, sourcePathIndex,
+                    reachedPathIndex, pathIndex, validatedPathIndex, clientTicks + 1,
+                    reached.movement.name(), outgoing.movement.name(), playerX, playerY, playerZ,
+                    velocity.x, velocity.z, offsetX, offsetY, offsetZ, centerDistanceXZ,
+                    horizontalSpeed, grounded, settled));
+            }
+            if (!settled) {
+                fail("nearbyWood meadow WALK-to-" + outgoing.movement.name()
+                    + " handoff was unsettled before launch (centerDistanceXZ=" + centerDistanceXZ
+                    + ", horizontalSpeed=" + horizontalSpeed + ", grounded=" + grounded
+                    + "; required distance < " + LaunchApproach.ARRIVAL_RADIUS
+                    + " and speed < " + LaunchApproach.SETTLED_SPEED + " with grounded=true)");
+            }
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            fail("could not inspect nearbyWood meadow launch handoff: " + exception.getMessage());
+        }
+    }
+
+    private void resetNearbyWoodMeadowLaunchPathObservation() {
+        nearbyWoodLaunchObservedPath = null;
+        nearbyWoodLaunchPreviousPathIndex = -1;
+    }
+
+    private static boolean isNearbyWoodStrictLaunchMovement(dev.lodekeeper.nav.Path.Movement movement) {
+        return movement == dev.lodekeeper.nav.Path.Movement.JUMP
+            || movement == dev.lodekeeper.nav.Path.Movement.DROP
+            || movement == dev.lodekeeper.nav.Path.Movement.PARKOUR
+            || movement == dev.lodekeeper.nav.Path.Movement.BRIDGE;
+    }
+
+    private static boolean isNearbyWoodMeadowLaunchHandoffSettled(double centerDistanceXZ,
+                                                                   double horizontalSpeed,
+                                                                   boolean grounded) {
+        return grounded && LaunchApproach.isSettled(centerDistanceXZ, horizontalSpeed, 0);
+    }
+
     private static BlockPos coalRecoveryAccessibleOrePosition() {
         // Interaction candidates extend two cells: x18 forces the earliest valid stance
         // onto x16 at height 68, beyond the jump ledge. x17 could be mined from x15.
@@ -1444,8 +1570,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         int observed = latestSnapshot.count(activeItem);
+        if (MEADOW_BENCHMARK && state == State.GATHERING_WOOD && observed >= activeCount
+                && requireEngine().status().startsWith("idle") && nearbyWoodLaunchJumpHandoffCount == 0) {
+            fail("nearbyWood meadow reached its item target without a client-observed WALK-to-JUMP handoff");
+            return;
+        }
         boolean targetReached = (COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE ? observed == activeCount : observed >= activeCount)
             && requireEngine().status().startsWith("idle")
+            && (!MEADOW_BENCHMARK || (nearbyWoodLaunchJumpHandoffCount > 0
+                && nearbyWoodLaunchUnsettledHandoffCount == 0))
             && (state != State.CRAFTING_WOOD_PICK || serverTableOpened)
             && (state != State.SMELTING_IRON || serverFurnaceOpened)
             && (!PROCESSING_MODE || (state == State.COOKING
@@ -1487,6 +1620,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                     + latestSnapshot.serverTick + " observed exact starting stock restored with zero slabs (command target 144, expected output 0)"
                 : PROCESSING_MODE
                 ? "server inventory reached " + activeCount + " " + cookingOutputId() + " with 56 inputs remaining after opening the native " + PROCESSING_STATION_MODE + " menu"
+                : MEADOW_BENCHMARK
+                ? "server inventory reached the meadow nearby-wood target after "
+                    + nearbyWoodLaunchJumpHandoffCount + " client-observed settled WALK-to-JUMP handoffs"
                 : BULK_WOOD_MODE
                 ? (WOOD_TOOLS_MODE
                     ? "server inventory reached exactly 64 oak logs after opening the crafting table and acquiring at least two wooden axes"
@@ -1836,6 +1972,77 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (client != null && client.isRunning()) client.stop();
     }
 
+    private JsonObject nearbyWoodMeadowLaunchHandoffEvidence() {
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("evidenceAuthority", "client_player_position_velocity_and_ground_state");
+        evidence.addProperty("serverPhysicsTimingIncluded", false);
+        evidence.addProperty("sampleRegistrationPhase", "first_end_client_tick");
+        evidence.addProperty("samplePhase", "start_client_tick_after_lodekeeper_engine_callback_before_client_physics");
+        evidence.addProperty("observerRegistered", nearbyWoodLaunchObserverRegistered);
+        JsonObject forcedProbe = new JsonObject();
+        forcedProbe.addProperty("kind", "pure_settled_predicate");
+        forcedProbe.addProperty("horizontalSpeed", FORCED_PREPHYSICS_HANDOFF_SPEED);
+        forcedProbe.addProperty("grounded", true);
+        forcedProbe.addProperty("settled", isNearbyWoodMeadowLaunchHandoffSettled(
+            LaunchApproach.ARRIVAL_RADIUS / 2, FORCED_PREPHYSICS_HANDOFF_SPEED, true));
+        evidence.add("forcedHandoffProbe", forcedProbe);
+        evidence.addProperty("observationLimit", MAX_NEARBY_WOOD_LAUNCH_HANDOFF_OBSERVATIONS);
+        evidence.addProperty("handoffCount", nearbyWoodLaunchHandoffCount);
+        evidence.addProperty("jumpHandoffCount", nearbyWoodLaunchJumpHandoffCount);
+        evidence.addProperty("settledHandoffCount", nearbyWoodLaunchSettledHandoffCount);
+        evidence.addProperty("unsettledHandoffCount", nearbyWoodLaunchUnsettledHandoffCount);
+        evidence.addProperty("maximumHorizontalSpeed", nearbyWoodLaunchMaximumHorizontalSpeed);
+        JsonObject contract = new JsonObject();
+        contract.addProperty("centerDistanceXZLessThan", LaunchApproach.ARRIVAL_RADIUS);
+        contract.addProperty("horizontalSpeedLessThan", LaunchApproach.SETTLED_SPEED);
+        contract.addProperty("grounded", true);
+        evidence.add("settledContract", contract);
+        evidence.addProperty("recordedObservationCount", nearbyWoodLaunchHandoffs.size());
+        JsonArray observations = new JsonArray();
+        for (NearbyWoodLaunchHandoffObservation observation : nearbyWoodLaunchHandoffs) {
+            JsonObject item = new JsonObject();
+            item.addProperty("pathGeneration", observation.pathGeneration);
+            item.addProperty("previousPathIndex", observation.previousPathIndex);
+            item.addProperty("pathIndex", observation.pathIndex);
+            item.addProperty("sourcePathIndex", observation.sourcePathIndex);
+            item.addProperty("reachedPathIndex", observation.reachedPathIndex);
+            item.addProperty("outgoingPathIndex", observation.outgoingPathIndex);
+            item.addProperty("validatedPathIndex", observation.validatedPathIndex);
+            item.addProperty("clientTick", observation.clientTick);
+            item.addProperty("incomingMovement", observation.incomingMovement);
+            item.addProperty("outgoingMovement", observation.outgoingMovement);
+            JsonArray position = new JsonArray();
+            addFiniteJsonNumber(position, observation.playerX);
+            addFiniteJsonNumber(position, observation.playerY);
+            addFiniteJsonNumber(position, observation.playerZ);
+            item.add("playerPosition", position);
+            JsonArray velocity = new JsonArray();
+            addFiniteJsonNumber(velocity, observation.velocityX);
+            addFiniteJsonNumber(velocity, observation.velocityZ);
+            item.add("horizontalVelocity", velocity);
+            JsonArray centerOffset = new JsonArray();
+            addFiniteJsonNumber(centerOffset, observation.offsetX);
+            addFiniteJsonNumber(centerOffset, observation.offsetY);
+            addFiniteJsonNumber(centerOffset, observation.offsetZ);
+            item.add("reachedCenterOffset", centerOffset);
+            item.add("centerDistanceXZ", finiteJsonNumber(observation.centerDistanceXZ));
+            item.add("horizontalSpeed", finiteJsonNumber(observation.horizontalSpeed));
+            item.addProperty("grounded", observation.grounded);
+            item.addProperty("settled", observation.settled);
+            observations.add(item);
+        }
+        evidence.add("observations", observations);
+        return evidence;
+    }
+
+    private static com.google.gson.JsonElement finiteJsonNumber(double value) {
+        return Double.isFinite(value) ? new com.google.gson.JsonPrimitive(value) : com.google.gson.JsonNull.INSTANCE;
+    }
+
+    private static void addFiniteJsonNumber(JsonArray array, double value) {
+        array.add(finiteJsonNumber(value));
+    }
+
     private void writeEvidence(String status) {
         if (evidenceDirectory == null || runId == null) return;
         try {
@@ -1862,6 +2069,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("nearbyWoodTerrain", NEARBY_WOOD_TERRAIN);
             if (NEARBY_WOOD_MODE) root.add("nativeRouteBenchmark", routeBenchmark == null
                 ? com.google.gson.JsonNull.INSTANCE : routeBenchmark.deepCopy());
+            if (MEADOW_BENCHMARK) {
+                root.add("nearbyWoodMeadowLaunchHandoffEvidence", nearbyWoodMeadowLaunchHandoffEvidence());
+            }
             if (IRON_PICKAXE_MODE) {
                 JsonObject initialStock = new JsonObject();
                 if (!IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE) initialStock.addProperty("minecraft:crafting_table", 1);
@@ -2258,6 +2468,17 @@ public final class RuntimeVerification implements ClientModInitializer {
         int count(String id) { return inventory.getOrDefault(id, 0); }
         boolean inventoryEmpty() { return inventory.isEmpty(); }
     }
+
+    private record NearbyWoodLaunchHandoffObservation(int pathGeneration, int previousPathIndex,
+                                                       int pathIndex, int sourcePathIndex,
+                                                       int reachedPathIndex, int outgoingPathIndex,
+                                                       int validatedPathIndex, int clientTick,
+                                                       String incomingMovement, String outgoingMovement,
+                                                       double playerX, double playerY, double playerZ,
+                                                       double velocityX, double velocityZ,
+                                                       double offsetX, double offsetY, double offsetZ,
+                                                       double centerDistanceXZ, double horizontalSpeed,
+                                                       boolean grounded, boolean settled) { }
 
     private record CaseResult(String name, String item, int expected, int observed, boolean inventoryEmptyAtStart,
                               boolean requiresEmptyAtStart, boolean passed, int clientTicks, long worldTicks, long elapsedMillis, String engineStatus, String detail,

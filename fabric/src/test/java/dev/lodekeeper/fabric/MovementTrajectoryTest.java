@@ -27,6 +27,27 @@ class MovementTrajectoryTest {
         }
         assertArrayEquals(new double[]{1.5, 65, .5}, point, .00001);
     }
+    @Test void nativeSweptChordsRequireACenteredLaunchEvenWhenIndividualPointsClear() {
+        for (double startX : new double[]{.5, .59, .599}) {
+            assertFalse(nativeJumpChordsHitLedge(startX), "centered launch must clear every native chord");
+        }
+        assertTrue(nativeJumpChordsHitLedge(.699999988079071),
+                "the native seven-sample chord union rejects the near-wall launch");
+    }
+
+    private static boolean nativeJumpChordsHitLedge(double startX) {
+        int samples = Math.max(2, (int) Math.ceil(Math.hypot(1.5 - startX, 1) / .2));
+        double[] previous = {startX, 64, .5}, current = new double[3];
+        for (int i = 1; i <= samples; i++) {
+            MovementTrajectory.sample(startX, 64, .5, 1.5, 65, .5, .85, (double) i / samples, current);
+            if (Math.max(previous[0], current[0]) + .3 > 1
+                    && Math.min(previous[0], current[0]) - .3 < 2
+                    && Math.min(previous[1], current[1]) + .001 < 65
+                    && Math.max(previous[1], current[1]) + 1.8 > 64) return true;
+            System.arraycopy(current, 0, previous, 0, 3);
+        }
+        return false;
+    }
     @Test void infinitesimalArcKeepsContinuationChordsStraight() {
         double[] point = new double[3];
         MovementTrajectory.sample(.5, 64, .5, 1.5, 65, .5, 1e-12, .25, point);

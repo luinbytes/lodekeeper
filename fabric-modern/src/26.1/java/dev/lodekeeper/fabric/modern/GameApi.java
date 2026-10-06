@@ -22,6 +22,11 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static double launchInputAcceleration(net.minecraft.client.player.LocalPlayer player, float friction) {
+        float acceleration = player.getSpeed() * (.21600002f / (friction * friction * friction));
+        return acceleration * .98f;
+    }
+
     static Object stonecuttingProviderIdentity(Minecraft client) {
         if (client.level == null || client.getConnection() == null) return null;
         return client.getConnection().recipes().stonecutterRecipes();

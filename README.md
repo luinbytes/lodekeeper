@@ -30,7 +30,9 @@ It walks across actual collision faces on paths, farmland, slabs, stairs and sno
 
 If a resource is unreachable, bounded recovery tries another target. Status and blockers retain the failed position and reason. Fractional jumps, parkour, fluid movement and broader terrain behavior still need their own gameplay checks.
 
-Watch the planned path and target while it works. The compact panel shows the current task and route progress. Use `!lk config showPath false` or `!lk config showHud false` to hide them, and `!lk config showSearch true` to display search nodes.
+Watch the planned path and target while it works. The compact panel shows the current task, elapsed time and route progress. The timer counts from the start of each goal, including pauses. Use `!lk config showPath false` or `!lk config showHud false` to hide them, and `!lk config showSearch true` to display search nodes.
+
+Lodekeeper also writes a short progress trace to the launcher console and your instance's `logs/latest.log`. If a task stalls, copy the `[Lodekeeper]` lines from `BEGIN` through the latest `PROGRESS` or `task_end`. They include the target, elapsed time, search work and retries. Logging is enabled by default; use `!lk config debugLogging false` to turn it off.
 
 For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; it is disabled by default. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
