@@ -1,0 +1,33 @@
+{
+  "runId":"2026-10-06T13-16-49-200271Z-7937c65f",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "threatWaterRetreat":false,
+  "preparedSafetyProperty":"air",
+  "evidenceAuthority":"integrated_server_air_health_hunger_position_and_inventory",
+  "verificationMode":"prepared_safety_air",
+  "elapsedMillis":30039,
+  "clientTicks":461,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "preparedSafetyFixtureGrants":"3 iron ingots, 2 cooked beef, health 3, food level 20 with zero saturation, air 200 at setup, 50 source water cells in a bedrock-bounded 5x5 pool, 24 bedrock roof blocks with one exit gap, bedrock ledge at 3,66,0, and one placed crafting table at 4,66,0",
+  "cases":[
+    {"name":"prepared_air_recovery_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":220,"worldTicks":220,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the integrated server observed submerged low-air recovery, native movement to breathable space and air refill, preserved the player's starting health of three without death, then crafted a bucket from the supplied iron at the dry ledge","serverHealth":12.066667,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[3.306777015916119,66.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T13-16-49-200271Z-7937c65f-prepared_air_recovery_bucket.png","initialStorageInventory":{"minecraft:cooked_beef":2,"minecraft:iron_ingot":3},"finalStorageInventory":{"minecraft:bucket":1,"minecraft:cooked_beef":1},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:cooked_beef":1},"elapsedMillisFromCommand":10990,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{},"initialPreparedPursuitReceipt":{},"serverPreparedPursuitReceipt":{},"initialPreparedAirReceipt":{"airSupply":"162","craftingTablePresent":"true","deathsObserved":"0","dryExitPresent":"true","exitDistance":"3.605551275463989","firstHeadInWaterServerTick":"66","firstHeadOutOfWaterServerTick":"-1","fixtureAirSupply":"200","foodLevel":"20","headInWater":"true","headInWaterAtStart":"true","initialHealth":"3.0","lowWaterRoofPresent":"true","maxAirSupply":"300","maximumDistanceFromStart":"0.0","minimumAirSupply":"162","minimumHealth":"3.0","saturation":"0.0","serverCurrentPosition":"0.5,64.0,0.5","serverLastObservedTick":"102","serverPositionSamples":"64=0.5,64.0,0.5;74=0.5,64.0,0.5;84=0.5,64.0,0.5;94=0.5,64.0,0.5","serverStartPosition":"0.5,64.0,0.5","serverStartTick":"64","waterBoundaryPresent":"true","waterSourceCellsPresent":"true"},"serverPreparedAirReceipt":{"airSupply":"300","craftingTablePresent":"true","deathsObserved":"0","dryExitPresent":"true","exitDistance":"3.605551275463989","firstHeadInWaterServerTick":"66","firstHeadOutOfWaterServerTick":"131","fixtureAirSupply":"200","foodLevel":"20","headInWater":"false","headInWaterAtStart":"true","initialHealth":"3.0","lowWaterRoofPresent":"true","maxAirSupply":"300","maximumDistanceFromStart":"3.592038246012189","minimumAirSupply":"135","minimumHealth":"3.0","saturation":"0.8000002","serverCurrentPosition":"3.306777015916119,66.0,0.5","serverLastObservedTick":"322","serverPositionSamples":"64=0.5,64.0,0.5;74=0.5,64.0,0.5;84=0.5,64.0,0.5;94=0.5,64.0,0.5;104=0.5,64.0,0.5;114=1.04261336192039,64.20000004768372,0.5;124=1.9756493718790533,64.20000004768372,0.5;134=2.6518462481261666,64.7335008437787,0.5;144=2.7570359884283246,66.49638641827649,0.5;154=3.286992939956607,66.0,0.5;164=3.306777015916119,66.0,0.5;174=3.306777015916119,66.0,0.5;184=3.306777015916119,66.0,0.5;194=3.306777015916119,66.0,0.5;204=3.306777015916119,66.0,0.5;214=3.306777015916119,66.0,0.5;224=3.306777015916119,66.0,0.5;234=3.306777015916119,66.0,0.5;244=3.306777015916119,66.0,0.5;254=3.306777015916119,66.0,0.5;264=3.306777015916119,66.0,0.5;274=3.306777015916119,66.0,0.5;284=3.306777015916119,66.0,0.5;294=3.306777015916119,66.0,0.5;304=3.306777015916119,66.0,0.5;314=3.306777015916119,66.0,0.5","serverStartPosition":"0.5,64.0,0.5","serverStartTick":"64","waterBoundaryPresent":"true","waterSourceCellsPresent":"true"},"airRecoveryObserved":true,"airRecoveryCompletedBeforeCraft":true,"airRecoveryObservedClientTick":223,"airRecoveryTransitionClientTick":282,"airRecoveryCompletionClientTick":283,"airRecoveryCompletionServerTick":164,"airRecoveryTransitionObservationSequence":6,"airRecoveryTableOpeningsAtTransition":0,"airRecoveryBucketCountAtCompletion":0,"airRecoveryEndEngineStatus":"indexing local resource options · 0 foreground queued · 0 maintenance queued","airRecoveryCompletionReceipt":{"airSupply":"275","craftingTablePresent":"true","deathsObserved":"0","dryExitPresent":"true","exitDistance":"3.605551275463989","firstHeadInWaterServerTick":"66","firstHeadOutOfWaterServerTick":"131","fixtureAirSupply":"200","foodLevel":"19","headInWater":"false","headInWaterAtStart":"true","initialHealth":"3.0","lowWaterRoofPresent":"true","maxAirSupply":"300","maximumDistanceFromStart":"3.592038246012189","minimumAirSupply":"135","minimumHealth":"3.0","saturation":"0.0","serverCurrentPosition":"3.306777015916119,66.0,0.5","serverLastObservedTick":"164","serverPositionSamples":"64=0.5,64.0,0.5;74=0.5,64.0,0.5;84=0.5,64.0,0.5;94=0.5,64.0,0.5;104=0.5,64.0,0.5;114=1.04261336192039,64.20000004768372,0.5;124=1.9756493718790533,64.20000004768372,0.5;134=2.6518462481261666,64.7335008437787,0.5;144=2.7570359884283246,66.49638641827649,0.5;154=3.286992939956607,66.0,0.5;164=3.306777015916119,66.0,0.5","serverStartPosition":"0.5,64.0,0.5","serverStartTick":"64","waterBoundaryPresent":"true","waterSourceCellsPresent":"true"}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "miningRequestLimit":false,
+  "miningZeroYield":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

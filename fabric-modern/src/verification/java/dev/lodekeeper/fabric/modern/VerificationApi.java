@@ -77,8 +77,205 @@ final class VerificationApi {
         player.getFoodData().setSaturation(0.0F);
     }
 
+    static PreparedSafetyAirFixture seedPreparedSafetyAirFixture(ServerPlayer player, ServerLevel world) {
+        for (int x = -7; x <= 7; x++) for (int z = -7; z <= 7; z++) {
+            world.setBlock(new BlockPos(x, 63, z), Blocks.BEDROCK.defaultBlockState(), 3);
+        }
+        for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) {
+            if (Math.abs(x) != 3 && Math.abs(z) != 3) continue;
+            for (int y = 64; y <= 65; y++) {
+                world.setBlock(new BlockPos(x, y, z), Blocks.BEDROCK.defaultBlockState(), 3);
+            }
+        }
+        for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+            world.setBlock(new BlockPos(x, 64, z), Blocks.WATER.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(x, 65, z), Blocks.WATER.defaultBlockState(), 3);
+            if (x != 2 || z != 0) {
+                world.setBlock(new BlockPos(x, 66, z), Blocks.BEDROCK.defaultBlockState(), 3);
+            }
+        }
+        world.setBlock(new BlockPos(4, 65, 0), Blocks.BEDROCK.defaultBlockState(), 3);
+        world.setBlock(new BlockPos(4, 66, 0), Blocks.CRAFTING_TABLE.defaultBlockState(), 3);
+        if (!player.getInventory().add(new ItemStack(Items.IRON_INGOT, 3))
+                || !player.getInventory().add(new ItemStack(Items.COOKED_BEEF, 2))) {
+            throw new IllegalStateException("could not seed the prepared air-recovery iron and food stock");
+        }
+        return new PreparedSafetyAirFixture(world);
+    }
+
+    static void initializePreparedSafetyAirFixture(PreparedSafetyAirFixture fixture,
+                                                    ServerPlayer player, int serverTick) {
+        player.setHealth(3.0F);
+        player.getFoodData().setFoodLevel(20);
+        player.getFoodData().setSaturation(0.0F);
+        setAirSupply(player, 200);
+        fixture.begin(player, serverTick);
+    }
+
+    static void observePreparedSafetyAirTick(PreparedSafetyAirFixture fixture,
+                                              ServerPlayer player, int serverTick) {
+        fixture.observe(player, serverTick);
+    }
+
+    static Map<String, String> preparedSafetyAirReceipt(ServerPlayer player,
+                                                         PreparedSafetyAirFixture fixture) {
+        return fixture.receipt(player);
+    }
+
+    private static void setAirSupply(ServerPlayer player, int airSupply) {
+        player.setAirSupply(airSupply);
+    }
+
+    private static int airSupply(ServerPlayer player) {
+        return player.getAirSupply();
+    }
+
+    private static boolean headInWater(ServerPlayer player) {
+        return player.isUnderWater();
+    }
+
+    private static String position(ServerPlayer player) {
+        return Double.toString(player.getX()) + "," + Double.toString(player.getY()) + ","
+            + Double.toString(player.getZ());
+    }
+
+    static final class PreparedSafetyAirFixture {
+        private final ServerLevel world;
+        private boolean recording;
+        private int startServerTick = -1;
+        private int lastServerTick = -1;
+        private int initialAirSupply = -1;
+        private int minimumAirSupply = Integer.MAX_VALUE;
+        private int maximumAirSupply = -1;
+        private float initialHealth = Float.NaN;
+        private float minimumHealth = Float.POSITIVE_INFINITY;
+        private boolean initialHeadInWater;
+        private boolean startHeadObserved;
+        private int firstHeadInWaterServerTick = -1;
+        private boolean wasAlive;
+        private int deathsObserved;
+        private int firstHeadOutOfWaterServerTick = -1;
+        private double startX, startY, startZ;
+        private double currentX, currentY, currentZ;
+        private double maximumDistanceFromStart;
+        private final StringBuilder serverPositionSamples = new StringBuilder();
+
+        private PreparedSafetyAirFixture(ServerLevel world) {
+            this.world = world;
+        }
+
+        private void begin(ServerPlayer player, int serverTick) {
+            recording = true;
+            startServerTick = serverTick;
+            initialAirSupply = airSupply(player);
+            maximumAirSupply = player.getMaxAirSupply();
+            minimumAirSupply = initialAirSupply;
+            initialHealth = player.getHealth();
+            minimumHealth = initialHealth;
+            initialHeadInWater = false;
+            startHeadObserved = false;
+            wasAlive = player.isAlive();
+            startX = currentX = player.getX();
+            startY = currentY = player.getY();
+            startZ = currentZ = player.getZ();
+            lastServerTick = serverTick;
+            appendPosition(serverTick, player);
+        }
+
+        private void observe(ServerPlayer player, int serverTick) {
+            if (!recording) return;
+            lastServerTick = serverTick;
+            int currentAir = airSupply(player);
+            boolean currentHeadInWater = headInWater(player);
+            if (!startHeadObserved && serverTick > startServerTick && currentHeadInWater) {
+                initialHeadInWater = true;
+                startHeadObserved = true;
+                firstHeadInWaterServerTick = serverTick;
+            }
+            minimumAirSupply = Math.min(minimumAirSupply, currentAir);
+            minimumHealth = Math.min(minimumHealth, player.getHealth());
+            if (wasAlive && !player.isAlive()) deathsObserved++;
+            wasAlive = player.isAlive();
+            if (initialHeadInWater && !currentHeadInWater && firstHeadOutOfWaterServerTick < 0) {
+                firstHeadOutOfWaterServerTick = serverTick;
+            }
+            currentX = player.getX();
+            currentY = player.getY();
+            currentZ = player.getZ();
+            double dx = currentX - startX, dy = currentY - startY, dz = currentZ - startZ;
+            maximumDistanceFromStart = Math.max(maximumDistanceFromStart,
+                Math.sqrt(dx * dx + dy * dy + dz * dz));
+            if ((serverTick - startServerTick) % 10 == 0) appendPosition(serverTick, player);
+        }
+
+        private void appendPosition(int serverTick, ServerPlayer player) {
+            if (serverPositionSamples.length() > 0) serverPositionSamples.append(';');
+            serverPositionSamples.append(serverTick).append('=').append(position(player));
+        }
+
+        private Map<String, String> receipt(ServerPlayer player) {
+            Map<String, String> result = new LinkedHashMap<>();
+            result.put("fixtureAirSupply", Integer.toString(initialAirSupply));
+            result.put("airSupply", Integer.toString(airSupply(player)));
+            result.put("maxAirSupply", Integer.toString(maximumAirSupply));
+            result.put("minimumAirSupply", Integer.toString(minimumAirSupply));
+            result.put("headInWaterAtStart", Boolean.toString(initialHeadInWater));
+            result.put("firstHeadInWaterServerTick", Integer.toString(firstHeadInWaterServerTick));
+            result.put("headInWater", Boolean.toString(headInWater(player)));
+            result.put("initialHealth", Float.toString(initialHealth));
+            result.put("minimumHealth", Float.toString(minimumHealth));
+            result.put("foodLevel", Integer.toString(player.getFoodData().getFoodLevel()));
+            result.put("saturation", Float.toString(player.getFoodData().getSaturationLevel()));
+            result.put("deathsObserved", Integer.toString(deathsObserved));
+            result.put("firstHeadOutOfWaterServerTick", Integer.toString(firstHeadOutOfWaterServerTick));
+            result.put("serverStartTick", Integer.toString(startServerTick));
+            result.put("serverLastObservedTick", Integer.toString(lastServerTick));
+            result.put("serverStartPosition", startX + "," + startY + "," + startZ);
+            result.put("serverCurrentPosition", position(player));
+            result.put("serverPositionSamples", serverPositionSamples.toString());
+            result.put("maximumDistanceFromStart", Double.toString(maximumDistanceFromStart));
+            result.put("waterSourceCellsPresent", Boolean.toString(waterSourceCellsPresent()));
+            result.put("lowWaterRoofPresent", Boolean.toString(lowWaterRoofPresent()));
+            result.put("waterBoundaryPresent", Boolean.toString(waterBoundaryPresent()));
+            result.put("dryExitPresent", Boolean.toString(world.getBlockState(new BlockPos(3, 66, 0)).isAir()
+                && world.getBlockState(new BlockPos(3, 67, 0)).isAir()
+                && world.getBlockState(new BlockPos(3, 65, 0)).is(Blocks.BEDROCK)));
+            result.put("craftingTablePresent", Boolean.toString(world.getBlockState(new BlockPos(4, 66, 0)).is(Blocks.CRAFTING_TABLE)
+                && world.getBlockState(new BlockPos(4, 65, 0)).is(Blocks.BEDROCK)));
+            result.put("exitDistance", Double.toString(Math.sqrt(13.0)));
+            return Map.copyOf(result);
+        }
+
+        private boolean waterSourceCellsPresent() {
+            for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) for (int y = 64; y <= 65; y++) {
+                BlockPos position = new BlockPos(x, y, z);
+                if (!world.getBlockState(position).is(Blocks.WATER) || !world.getFluidState(position).isSource()) return false;
+            }
+            return true;
+        }
+
+        private boolean lowWaterRoofPresent() {
+            for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+                if (x == 2 && z == 0) continue;
+                if (!world.getBlockState(new BlockPos(x, 66, z)).is(Blocks.BEDROCK)) return false;
+            }
+            return world.getBlockState(new BlockPos(2, 66, 0)).isAir();
+        }
+
+        private boolean waterBoundaryPresent() {
+            for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) {
+                if (Math.abs(x) != 3 && Math.abs(z) != 3) continue;
+                for (int y = 64; y <= 65; y++) {
+                    if (!world.getBlockState(new BlockPos(x, y, z)).is(Blocks.BEDROCK)) return false;
+                }
+            }
+            return true;
+        }
+    }
+
     static PreparedSafetyPursuitFixture seedPreparedSafetyPursuitFixture(ServerPlayer player,
                                                                           ServerLevel world) {
+        boolean toolVariant = "pursuit-tool".equals(System.getProperty("lodekeeper.verify.preparedSafety"));
         for (int x = -12; x <= 18; x++) for (int y = 64; y <= 67; y++) {
             world.setBlockAndUpdate(new BlockPos(x, y, -6), Blocks.BEDROCK.defaultBlockState());
             world.setBlockAndUpdate(new BlockPos(x, y, 6), Blocks.BEDROCK.defaultBlockState());
@@ -91,6 +288,12 @@ final class VerificationApi {
                 || !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE))) {
             throw new IllegalStateException("could not seed the pursuit bucket ingredients and crafting table");
         }
+        if (toolVariant) {
+            player.getInventory().setItem(7, new ItemStack(Items.STONE_PICKAXE));
+            if (!player.getInventory().getItem(7).is(Items.STONE_PICKAXE)) {
+                throw new IllegalStateException("could not seed the pursuit-tool stone pickaxe in hotbar slot 7");
+            }
+        }
         player.getFoodData().setFoodLevel(7);
         player.getFoodData().setSaturation(0.0F);
         Mob cow = preparedMob(world, "minecraft:cow");
@@ -99,7 +302,8 @@ final class VerificationApi {
         cow.setXRot(0.0F);
         if (!world.addFreshEntity(cow)) throw new IllegalStateException("could not spawn the prepared pursuit cow");
         return new PreparedSafetyPursuitFixture(cow, player.getFoodData().getFoodLevel(),
-            player.getFoodData().getSaturationLevel());
+            player.getFoodData().getSaturationLevel(), toolVariant,
+            toolVariant ? 7 : -1, toolVariant ? player.getInventory().getItem(7).getDamageValue() : -1);
     }
 
     static void observePreparedSafetyPursuitTick(PreparedSafetyPursuitFixture fixture,
@@ -139,7 +343,24 @@ final class VerificationApi {
         result.put("initialSaturation", Float.toString(fixture.initialSaturation));
         result.put("currentFoodLevel", Integer.toString(player.getFoodData().getFoodLevel()));
         result.put("currentSaturation", Float.toString(player.getFoodData().getSaturationLevel()));
+        if (fixture.toolVariant) {
+            int stonePickaxeSlot = findStonePickaxeSlot(player);
+            ItemStack stonePickaxe = stonePickaxeSlot < 0 ? ItemStack.EMPTY : player.getInventory().getItem(stonePickaxeSlot);
+            result.put("pursuitToolVariant", "true");
+            result.put("stonePickaxeInitialSlot", Integer.toString(fixture.stonePickaxeInitialSlot));
+            result.put("stonePickaxeCurrentSlot", Integer.toString(stonePickaxeSlot));
+            result.put("stonePickaxeInitialDamage", Integer.toString(fixture.stonePickaxeInitialDamage));
+            result.put("stonePickaxeDamage", Integer.toString(stonePickaxeSlot < 0 ? -1 : stonePickaxe.getDamageValue()));
+            result.put("stonePickaxeMaxDamage", Integer.toString(stonePickaxeSlot < 0 ? -1 : stonePickaxe.getMaxDamage()));
+        }
         return Map.copyOf(result);
+    }
+
+    private static int findStonePickaxeSlot(ServerPlayer player) {
+        for (int slot = 0; slot < 9; slot++) {
+            if (player.getInventory().getItem(slot).is(Items.STONE_PICKAXE)) return slot;
+        }
+        return -1;
     }
 
     static final class PreparedSafetyPursuitFixture {
@@ -148,6 +369,9 @@ final class VerificationApi {
         private final float initialHealth;
         private final int initialFoodLevel;
         private final float initialSaturation;
+        private final boolean toolVariant;
+        private final int stonePickaxeInitialSlot;
+        private final int stonePickaxeInitialDamage;
         private volatile boolean observing;
         private float lastObservedHealth;
         private int healthDrops;
@@ -161,13 +385,18 @@ final class VerificationApi {
         private double maximumHorizontalDisplacement;
         private double maximumDistanceFromPlayerStart;
 
-        private PreparedSafetyPursuitFixture(Mob cow, int initialFoodLevel, float initialSaturation) {
+        private PreparedSafetyPursuitFixture(Mob cow, int initialFoodLevel, float initialSaturation,
+                                              boolean toolVariant, int stonePickaxeInitialSlot,
+                                              int stonePickaxeInitialDamage) {
             this.cow = cow;
             cowUuid = cow.getUUID().toString();
             initialHealth = cow.getHealth();
             lastObservedHealth = initialHealth;
             this.initialFoodLevel = initialFoodLevel;
             this.initialSaturation = initialSaturation;
+            this.toolVariant = toolVariant;
+            this.stonePickaxeInitialSlot = stonePickaxeInitialSlot;
+            this.stonePickaxeInitialDamage = stonePickaxeInitialDamage;
         }
 
         void beginObservation() { observing = true; }

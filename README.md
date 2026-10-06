@@ -8,7 +8,7 @@
 
 **Give it a goal. Let it do the work.** Lodekeeper is a Minecraft Fabric client mod that gathers resources and works through survival crafting chains using ordinary player actions. The current development branch uses version-matched Baritone navigation with Lodekeeper's inventory planner, station handling, and live task panel.
 
-> **Preview 8 introduces Baritone navigation and batch mining.** Download the [jar for your exact Minecraft version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Full survival automation remains experimental. Preview 8's fresh-world test equipped all four diamond armor pieces and made three diamond tools, but missed the 15-minute full-set target.
+> **Preview 9 adds air recovery and survival supply safeguards.** Download the [jar for your exact Minecraft version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.9). Full survival automation remains experimental. Preview 9's fresh-world test made two diamond tools and three armor pieces, then paused in a narrow tunnel after 13 minutes 44 seconds. The full-set target remains unmet.
 
 ### Tell it what you need
 
@@ -31,7 +31,7 @@ Watch the planned path and target while it works. The compact panel shows the cu
 
 Lodekeeper also writes a short progress trace to the launcher console and your instance's `logs/latest.log`. If a task stalls, copy the `[Lodekeeper]` lines from `BEGIN` through the latest `PROGRESS` or `task_end`. They include the task, elapsed time, navigation phase, route events, and retries. Logging is enabled by default; use `!lk config debugLogging false` to turn it off.
 
-For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; Preview 8 defaults it to off. Current development builds default it to on; saved configurations retain their previous value. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
+For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; Preview 9 defaults it to on; saved configurations retain their previous value. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
 `wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.
 
@@ -61,13 +61,13 @@ Unknown recipes or unsupported mechanics report a blocker. Modded items using or
 
 ### Installation and compatibility
 
-Download [Development Preview 8](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.8). Baritone is bundled, so you do not need a separate installation. Replace your previous Lodekeeper jar before launching.
+Download [Development Preview 9](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.9). Baritone is bundled, so you do not need a separate installation. Replace your previous Lodekeeper jar before launching.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Place `lodekeeper-<minecraft-version>-0.1.0-preview.8.jar` and the matching Fabric API jar in your instance's `mods` folder. Keep one Lodekeeper jar. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+2. Place `lodekeeper-<minecraft-version>-0.1.0-preview.9.jar` and the matching Fabric API jar in your instance's `mods` folder. Keep one Lodekeeper jar. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
 3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
 
-Each jar targets one exact release. Preview 8 includes all 24 stable Java releases from 1.20 through 26.3, including 1.21.1. Every jar passed compilation and packaging checks. Gameplay checks cover selected cases on 1.21.1 and 26.3; [compatibility evidence](docs/COMPATIBILITY.md) separates those results from untested gameplay. Use server automation where the server permits it.
+Each jar targets one exact release. Preview 9 includes all 24 stable Java releases from 1.20 through 26.3, including 1.21.1. Every jar passed compilation and packaging checks. Gameplay checks cover selected cases on 1.21.1 and 26.3; [compatibility evidence](docs/COMPATIBILITY.md) separates those results from untested gameplay. Use server automation where the server permits it.
 
 ---
 
@@ -76,7 +76,7 @@ Each jar targets one exact release. Preview 8 includes all 24 stable Java releas
 
 Source lives in `core` for acquisition and commands, `nav` for route views and the earlier navigation tests, and the Fabric adapters for Minecraft integration. The current default movement and mining backend is Baritone. The shared core targets Java 17. Builds run with one worker and no persistent daemon. Exact build profiles are selected with `./scripts/build-version.sh 1.20.1`, `1.21.1`, or `26.3`; set `JAVA_HOME` to a JDK 17, 21, or 25 respectively. These development artifacts still require gameplay verification.
 
-Preview 8 binaries come from source `6ca3e283cffc553a5885eaa5b9ff5bff1329541a` and [its successful 24-profile CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). Prepared native cases verify water retreat, inventory reservations, automatic armor, held coal, and productive mining continuation. The [fresh-world failure receipt](docs/evidence/navigation-rebuild/checkpoint-07.json) records the incomplete full diamond project, including the later wood-supply problem. Prepared cases grant their documented supplies and do not establish fresh-world acceptance.
+Preview 9 binaries come from source `8efb9c988a1f6d336521f29cc9e1d48df11eb5b2` and [its successful 24-profile CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37465601775). Prepared native air checks verify recovery before crafting on 1.21.1 and 26.3. The [fresh-world failure receipt](docs/evidence/navigation-rebuild/checkpoint-10.json) records the incomplete full diamond project and tunnel-retreat pause. Prepared cases grant their documented supplies and do not establish fresh-world acceptance.
 
 The release includes SHA-256 checksums, packaging evidence and corresponding upstream source archives. Lodekeeper's code uses the MIT licence. Bundled Baritone retains its LGPL licence and upstream notices. [Dependency notices](third-party/baritone/NOTICE.md) include pinned versions and replacement instructions.
 

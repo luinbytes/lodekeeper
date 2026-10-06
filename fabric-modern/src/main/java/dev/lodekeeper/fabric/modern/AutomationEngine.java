@@ -247,6 +247,7 @@ final class AutomationEngine {
     private final Set<BlockPos> createdWorkbenches = new HashSet<>(), unreachableStations = new HashSet<>();
     private BlockPos recoveringWorkbench;
     private boolean workbenchRecoveryChecked;
+    private final Set<BlockPos> failedWorkbenchRecoveries = new HashSet<>();
     private final Set<String> unavailableSources = new HashSet<>();
     private final Map<String, List<BlockPos>> discoveredSources = new LinkedHashMap<>();
     private final AcquisitionPlanner planner = new AcquisitionPlanner();
@@ -441,6 +442,8 @@ final class AutomationEngine {
                         requestPlan();
                     }
                 } catch (RuntimeException failure) {
+                    if (recoveringWorkbench != null && failedWorkbenchRecoveries.size() < 16)
+                        failedWorkbenchRecoveries.add(recoveringWorkbench);
                     workbenchRecovery.stop();
                     message("Workbench recovery is replanning: " + failure.getMessage());
                     requestPlan();
@@ -922,6 +925,7 @@ final class AutomationEngine {
             unavailableSources.clear();
             frontier = null; rejectedResources.clear(); lastResourceFailure = null; resetLogDiscovery();
             planningRetries = 0; stationAccessFailures = 0; unreachableStations.clear();
+            failedWorkbenchRecoveries.clear();
             requestPlan();
         }
     }
@@ -2505,7 +2509,8 @@ final class AutomationEngine {
         if (!workbenchRecoveryChecked) {
             workbenchRecoveryChecked = true;
             BlockPos workbench = ownedStations.get(CRAFTING_TABLE);
-            if (createdWorkbenches.contains(workbench) && workbenchRecovery.begin(workbench)) {
+            if (createdWorkbenches.contains(workbench) && failedWorkbenchRecoveries.size() < 16
+                    && !failedWorkbenchRecoveries.contains(workbench) && workbenchRecovery.begin(workbench)) {
                 recoveringWorkbench = workbench;
                 status = workbenchRecovery.status();
                 return;

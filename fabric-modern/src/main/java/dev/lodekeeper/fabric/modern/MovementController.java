@@ -17,6 +17,7 @@ import baritone.api.pathing.goals.GoalRunAway;
 import baritone.api.pathing.goals.GoalYLevel;
 import baritone.api.utils.BlockOptionalMetaLookup;
 import dev.lodekeeper.core.SelectedToolRequirement;
+import dev.lodekeeper.core.MiningDepthPolicy;
 import dev.lodekeeper.nav.ExplorationFrontier;
 import dev.lodekeeper.nav.NavigationSnapshot;
 import dev.lodekeeper.nav.Path;
@@ -30,6 +31,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 
@@ -95,6 +97,7 @@ final class MovementController {
     private boolean positionObserved;
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
     private int miningY = Integer.MIN_VALUE, lastDiscoveryMergeTick = -100, lastScanLogTick = -20;
+    private MiningDepthPolicy miningDepthPolicy;
     private BlockSearch miningDiscovery;
     private final Set<Long> scannedMiningChunks = new HashSet<>();
     private final Set<BlockPos> rejectedMiningTargets = new LinkedHashSet<>();
@@ -153,31 +156,46 @@ final class MovementController {
         terrain.beginSearch();
         BlockPos center = client.player.blockPosition();
         List<BlockPos> goals = new ArrayList<>();
-        Set<BlockPos> examined = new HashSet<>();
+        List<BlockPos> offsets = new ArrayList<>();
+        for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
+            int squared = dx * dx + dz * dz;
+            if (squared >= 4 * 4 && squared <= 12 * 12) offsets.add(new BlockPos(dx, 0, dz));
+        }
+        offsets.sort(Comparator.<BlockPos>comparingDouble(offset ->
+                        retreatThreatClearance(center.getX() + offset.getX(), center.getZ() + offset.getZ(), threats))
+                .reversed().thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
         StanceProbe stance = new StanceProbe();
-        search: for (int radius = 4; radius <= 12; radius++) {
-            for (int direction = 0; direction < 8; direction++) {
-                double angle = direction * Math.PI / 4;
-                int dx = (int) Math.round(Math.cos(angle)) * radius;
-                int dz = (int) Math.round(Math.sin(angle)) * radius;
-                if (dx * dx + dz * dz > 12 * 12) continue;
-                int x = center.getX() + dx;
-                int z = center.getZ() + dz;
-                for (int dy : new int[]{0, 1, -1, 2, -2}) {
+        long searchStarted = System.nanoTime();
+        int candidates = 0, probes = 0;
+        int[] heights = {0, 1, -1, 2, -2};
+        for (int pass = 0; pass < 2 && goals.isEmpty(); pass++) {
+            boolean digging = pass == 1;
+            if (digging && !config.allowBreaking) break;
+            long budgetNanos = digging ? 12_000_000L : 8_000_000L;
+            search: for (BlockPos offset : offsets) {
+                int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
+                if (retreatThreatClearance(x, z, threats) < (distance + 3.0) * (distance + 3.0)) continue;
+                for (int dy : heights) {
+                    if (++candidates > 4_096 || probes >= (digging ? 256 : 192)
+                            || System.nanoTime() - searchStarted >= budgetNanos) break search;
                     BlockPos candidate = new BlockPos(x, center.getY() + dy, z);
-                    if (!examined.add(candidate) || rejectedGoals.contains(candidate)) continue;
+                    if (rejectedGoals.contains(candidate)) continue;
                     double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
                     if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) continue;
-                    if (threats.stream().anyMatch(threat -> {
-                        double tx = x + .5 - threat.x(), tz = z + .5 - threat.z();
-                        return tx * tx + tz * tz < (distance + 3.0) * (distance + 3.0);
-                    })) continue;
                     if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null
                             || !actions.safePlacementSupport(candidate.below())
-                            || client.level.getBlockState(candidate.above(2)).getBlock() instanceof net.minecraft.world.level.block.FallingBlock) continue;
+                            || client.level.getBlockState(candidate.above(2)).getBlock() instanceof FallingBlock) continue;
+                    var feetShape = client.level.getBlockState(candidate).getCollisionShape(client.level, candidate);
+                    var headShape = client.level.getBlockState(candidate.above()).getCollisionShape(client.level, candidate.above());
+                    if (digging ? feetShape.isEmpty() && headShape.isEmpty()
+                            : Block.isShapeFullBlock(feetShape) || Block.isShapeFullBlock(headShape)) continue;
+                    probes++;
                     terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
-                    if (!stance.loaded || !stance.bodyClear || !stance.fullSupport || stance.hazard
-                            || stance.water || stance.climbable || stance.breakCount != 0) continue;
+                    if (!stance.loaded || !stance.fullSupport || stance.hazard || stance.water || stance.climbable) continue;
+                    if (digging) {
+                        if (stance.bodyClear || stance.breakCount < 1 || stance.breakCount > StanceProbe.MAX_BREAK_TARGETS
+                                || !safeRetreatBreakTargets(stance)) continue;
+                    } else if (!stance.bodyClear || stance.breakCount != 0) continue;
                     goals.add(candidate);
                     if (goals.size() == 16) break search;
                 }
@@ -189,6 +207,35 @@ final class MovementController {
         mode = Mode.MOVE;
         launch();
         return List.copyOf(goals);
+    }
+
+    private static double retreatThreatClearance(int x, int z, List<RetreatThreat> threats) {
+        double minimum = Double.POSITIVE_INFINITY;
+        for (RetreatThreat threat : threats) {
+            double dx = x + .5 - threat.x(), dz = z + .5 - threat.z();
+            minimum = Math.min(minimum, dx * dx + dz * dz);
+        }
+        return minimum;
+    }
+
+    private boolean safeRetreatBreakTargets(StanceProbe stance) {
+        for (int index = 0; index < stance.breakCount; index++) {
+            var target = stance.breakTargets[index];
+            BlockPos position = new BlockPos(target.x, target.y, target.z);
+            BlockState state = client.level.getBlockState(position);
+            if (Block.getId(state) != target.stateToken || state.hasBlockEntity()
+                    || protectedBlocks.contains(state.getBlock()) || state.getBlock() instanceof FallingBlock
+                    || !state.getFluidState().isEmpty()) return false;
+            for (var direction : net.minecraft.core.Direction.values()) {
+                BlockPos adjacent = position.relative(direction);
+                if (client.level.isOutsideBuildHeight(adjacent)
+                        || client.level.getChunk(adjacent.getX() >> 4, adjacent.getZ() >> 4, ChunkStatus.FULL, false) == null) return false;
+                BlockState neighbor = client.level.getBlockState(adjacent);
+                if (!neighbor.getFluidState().isEmpty()
+                        || direction == net.minecraft.core.Direction.UP && neighbor.getBlock() instanceof FallingBlock) return false;
+            }
+        }
+        return true;
     }
 
     enum AirExitPreference { DRY, SURFACE }
@@ -561,8 +608,17 @@ final class MovementController {
         if (tool != null && !actions.prepareMiningTool(tool, mineBlocks[0].defaultBlockState(), output)) {
             throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Required mining tool is unavailable or worn: " + tool.item());
         }
-        mode = Mode.MINE;
-        miningY = miningLevel();
+        int deficit = Math.max(0, totalCount - actions.count(output));
+        boolean vanillaDiamonds = output == Items.DIAMOND && Arrays.stream(mineBlocks)
+                .allMatch(block -> block == Blocks.DIAMOND_ORE || block == Blocks.DEEPSLATE_DIAMOND_ORE);
+        miningDepthPolicy = MiningDepthPolicy.select(deficit, vanillaDiamonds, config.allowExploration,
+                client.level.getMinY(), BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+        rejectedMiningTargets.removeIf(position -> !withinMiningDepth(position));
+        miningY = miningDepthPolicy.bulkDiamonds() ? miningDepthPolicy.desiredY() : miningLevel();
+        mode = miningDepthPolicy.shouldDescend((int) Math.floor(client.player.getY())) ? Mode.DESCEND : Mode.MINE;
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] MINING_DEPTH policy={} desiredY={} ceiling={} deficit={} phase={}",
+                miningDepthPolicy.kind(), miningY, miningDepthPolicy.maximumY(), deficit, mode);
         launch();
     }
 
@@ -589,7 +645,7 @@ final class MovementController {
         input.release(); actions.cancel();
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
         lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
-        phaseStartedTick = 0; miningY = Integer.MIN_VALUE;
+        phaseStartedTick = 0; miningY = Integer.MIN_VALUE; miningDepthPolicy = null;
         scannedMiningChunks.clear(); rejectedMiningTargets.clear(); miningDiscovery = null;
         discoveredMiningTargets.clear(); pendingMiningTargets.clear();
         requestX = client.player.getX(); requestZ = client.player.getZ();
@@ -600,6 +656,12 @@ final class MovementController {
     }
 
     private void launch() {
+        if (mode == Mode.MINE || mode == Mode.DESCEND) {
+            refreshMiningDepth();
+            if (miningDepthPolicy.bulkDiamonds() && (int) Math.floor(client.player.getY())
+                    > miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value))
+                mode = Mode.DESCEND;
+        }
         input.release();
         phaseStartedTick = requestTicks;
         lease = new SettingsLease();
@@ -623,6 +685,9 @@ final class MovementController {
         lease.set(settings.mineScanDroppedItems, true);
         lease.set(settings.exploreForBlocks, config.allowExploration);
         lease.set(settings.legitMine, false);
+        if (miningDepthPolicy != null && miningDepthPolicy.bulkDiamonds())
+            lease.set(settings.maxYLevelWhileMining,
+                    miningDepthPolicy.effectiveMaximumY(settings.maxYLevelWhileMining.value));
         lease.set(settings.mineGoalUpdateInterval, 0);
         lease.set(settings.primaryTimeoutMS, 500L); lease.set(settings.failureTimeoutMS, 2000L);
         lease.set(settings.planAheadPrimaryTimeoutMS, 4000L); lease.set(settings.planAheadFailureTimeoutMS, 5000L);
@@ -645,9 +710,8 @@ final class MovementController {
                 bot.getMineProcess().mine(0, new BlockOptionalMetaLookup(mineBlocks));
                 var access = miningAccess();
                 access.lodekeeper$blacklistedMiningTargets().addAll(rejectedMiningTargets);
-                if (!rejectedMiningTargets.isEmpty())
-                    access.lodekeeper$knownMiningTargets(new ArrayList<>(access.lodekeeper$knownMiningTargets().stream()
-                            .filter(position -> !rejectedMiningTargets.contains(position)).toList()));
+                access.lodekeeper$knownMiningTargets(new ArrayList<>(access.lodekeeper$knownMiningTargets().stream()
+                        .filter(position -> withinMiningDepth(position) && !rejectedMiningTargets.contains(position)).toList()));
                 logMiningScan("native-mine", System.nanoTime() - scanStarted, -1);
             }
             default -> throw new IllegalStateException("No navigation request to launch");
@@ -710,6 +774,20 @@ final class MovementController {
                         "Mining tool reached its safe wear reserve: " + tool.item());
             }
         }
+        if (miningRequest) {
+            int previousMiningY = miningY;
+            refreshMiningDepth();
+            if (miningDepthPolicy.bulkDiamonds()) {
+                boolean aboveCeiling = (int) Math.floor(client.player.getY())
+                        > miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+                if (mode == Mode.SUSPENDED) {
+                    if (aboveCeiling) resumeMode = Mode.DESCEND;
+                } else if (previousMiningY != miningY || mode == Mode.MINE && aboveCeiling) {
+                    changeMiningPhase(aboveCeiling || mode == Mode.DESCEND ? Mode.DESCEND : Mode.MINE);
+                    return false;
+                }
+            }
+        }
         if (cancelling) {
             boolean finished = finishCancellation();
             return finished && mode == Mode.IDLE && resumeMode == Mode.IDLE;
@@ -749,7 +827,8 @@ final class MovementController {
                     || rejectedMiningTargets.contains(position));
             if (mode == Mode.MINE && active && requestTicks - lastDiscoveryMergeTick >= 4)
                 mergeMiningDiscoveries();
-            if ((mode == Mode.DESCEND || mode == Mode.MINE && !active) && !pendingMiningTargets.isEmpty()) {
+            if ((mode == Mode.DESCEND && !miningDepthPolicy.bulkDiamonds()
+                    || mode == Mode.MINE && !active) && !pendingMiningTargets.isEmpty()) {
                 changeMiningPhase(Mode.MINE);
                 return false;
             }
@@ -765,6 +844,17 @@ final class MovementController {
                     "Navigation process ended before its target was reached");
         }
         return false;
+    }
+
+    private void refreshMiningDepth() {
+        int maximumY = miningDepthPolicy.effectiveMaximumY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
+        if (maximumY <= client.level.getMinY()) {
+            stop();
+            throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Mining ceiling leaves no usable depth above the world floor");
+        }
+        if (miningDepthPolicy.bulkDiamonds())
+            miningY = miningDepthPolicy.effectiveDesiredY(BaritoneAPI.getSettings().maxYLevelWhileMining.value);
     }
 
     private int miningLevel() {
@@ -783,6 +873,7 @@ final class MovementController {
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] NAV phase={} -> {} targetY={} requestTicks={}", mode, next, miningY, requestTicks);
         if (mode == Mode.MINE && bot.getMineProcess().isActive()) rememberRejectedMiningTargets();
+        cancellationProcess = expectedProcessForMode(bot, mode);
         resumeMode = next; mode = Mode.SUSPENDED;
         cancelling = true; bot.getPathingBehavior().cancelEverything(); input.release();
     }
@@ -791,7 +882,15 @@ final class MovementController {
         return ((long) x << 32) | (z & 0xffffffffL);
     }
 
+    private boolean withinMiningDepth(BlockPos position) {
+        int maximumY = BaritoneAPI.getSettings().maxYLevelWhileMining.value;
+        if (miningDepthPolicy != null && miningDepthPolicy.bulkDiamonds())
+            maximumY = miningDepthPolicy.effectiveMaximumY(maximumY);
+        return position.getY() <= maximumY;
+    }
+
     private boolean validMiningDiscovery(BlockPos position) {
+        if (!withinMiningDepth(position)) return false;
         if (client.level.getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) == null) return false;
         double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
         double dx = position.getX() + .5 - requestX, dz = position.getZ() + .5 - requestZ;
@@ -810,6 +909,7 @@ final class MovementController {
     private void rememberRejectedMiningTargets() {
         for (BlockPos position : miningAccess().lodekeeper$blacklistedMiningTargets()) {
             if (rejectedMiningTargets.size() == 512) break;
+            if (!withinMiningDepth(position)) continue;
             rejectedMiningTargets.add(position.immutable());
         }
     }
@@ -817,10 +917,11 @@ final class MovementController {
     private void mergeMiningDiscoveries() {
         if (pendingMiningTargets.isEmpty()) return;
         var access = miningAccess();
+        List<BlockPos> existingTargets = access.lodekeeper$knownMiningTargets();
         LinkedHashSet<BlockPos> merged = new LinkedHashSet<>();
-        for (BlockPos existing : access.lodekeeper$knownMiningTargets()) {
+        for (BlockPos existing : existingTargets) {
             if (merged.size() == 64) break;
-            if (!rejectedMiningTargets.contains(existing)) merged.add(existing);
+            if (withinMiningDepth(existing) && !rejectedMiningTargets.contains(existing)) merged.add(existing);
         }
         int previousSize = merged.size();
         for (BlockPos fresh : pendingMiningTargets) {
@@ -828,7 +929,7 @@ final class MovementController {
             if (!rejectedMiningTargets.contains(fresh) && validMiningDiscovery(fresh)) merged.add(fresh);
         }
         pendingMiningTargets.removeAll(merged);
-        if (merged.size() == previousSize) return;
+        if (merged.size() == previousSize && merged.size() == existingTargets.size()) return;
         access.lodekeeper$knownMiningTargets(new ArrayList<>(merged));
         lastDiscoveryMergeTick = requestTicks;
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
@@ -1120,7 +1221,8 @@ final class MovementController {
         int inspected = 0;
         for (BlockPos position : miningAccess().lodekeeper$knownMiningTargets()) {
             if (inspected++ >= 512) break;
-            if (position != null && !rejectedMiningTargets.contains(position)) known.add(position.immutable());
+            if (position != null && withinMiningDepth(position) && !rejectedMiningTargets.contains(position))
+                known.add(position.immutable());
         }
         return List.copyOf(known);
     }

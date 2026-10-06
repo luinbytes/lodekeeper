@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "8efb9c988a1f6d336521f29cc9e1d48df11eb5b2",
+  "candidateSha256": "b452c1ad8db953adef4a0ac2281df090b4f385ccec05ec2a17dc0e00c232b05f",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37465601775",
+  "case": "fresh normal survival, empty inventory, single gear_diamond command",
+  "status": "failed",
+  "elapsedMillis": 823687,
+  "failure": "automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 3 foreground queued \u00b7 0 maintenance queued",
+  "minimumHealth": 10.51714,
+  "deathsObserved": 0,
+  "completedTargets": [
+    "minecraft:diamond_pickaxe",
+    "minecraft:diamond_axe",
+    "minecraft:diamond_helmet",
+    "minecraft:diamond_chestplate",
+    "minecraft:diamond_boots"
+  ],
+  "missingTargets": [
+    "minecraft:diamond_shovel",
+    "minecraft:diamond_hoe",
+    "minecraft:diamond_sword",
+    "minecraft:diamond_leggings"
+  ],
+  "observations": [
+    "First integrated-server movement after 1534 milliseconds.",
+    "First diamond pickaxe acquired before the bulk 32-diamond gather.",
+    "Upper-band bulk ore gathering was followed by a surface birch-log supply trip.",
+    "Threat response failed to find a dry retreat stance in a narrow tunnel."
+  ],
+  "naturalReceipt": "checkpoint-10-natural.json",
+  "artifactReceipt": "checkpoint-10-artifact.json",
+  "scope": "Failed full-set run. No supplied inventory or post-spawn teleportation. Five of nine targets held at pause."
+}

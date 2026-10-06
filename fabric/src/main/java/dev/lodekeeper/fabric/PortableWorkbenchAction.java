@@ -14,9 +14,10 @@ import java.util.Map;
 /** Recovers a crafting table only from the exact self-placed position supplied by the owner. */
 final class PortableWorkbenchAction {
     private static final double DROP_RADIUS = 4.0;
+    private static final double MAX_APPROACH_DISTANCE_SQUARED = 16.0 * 16.0;
     private static final long MAX_DURATION_NANOS = 20_000_000_000L;
 
-    private enum Phase { IDLE, MINING, PICKUP, FINISHING, COMPLETE, STOPPED }
+    private enum Phase { IDLE, APPROACH, APPROACH_STOPPING, MINING, PICKUP, FINISHING, COMPLETE, STOPPED }
 
     private final MinecraftClient client;
     private final LodekeeperConfig config;
@@ -27,6 +28,7 @@ final class PortableWorkbenchAction {
     private Phase phase = Phase.IDLE;
     private String status = "portable workbench idle";
     private BlockPos ownedPosition;
+    private Object ownerPlayer, ownerWorld;
     private ItemEntity drop;
     private Map<ItemEntity, Integer> startingNearbyDrops = Map.of();
     private int highestObservedDropCount;
@@ -62,20 +64,29 @@ final class PortableWorkbenchAction {
             status = "the recorded owned position is not a loaded crafting table";
             return false;
         }
-        if (actions.hit(candidate) == null) {
-            status = "the owned crafting table is not reachable now";
+        if (!withinApproachDistance(candidate)) {
+            status = "the owned crafting table is farther than 16 blocks away";
             return false;
         }
 
         this.ownedPosition = candidate;
+        ownerPlayer = client.player;
+        ownerWorld = client.world;
         drop = null;
         startingNearbyDrops = snapshotNearbyDrops(candidate);
         highestObservedDropCount = 0;
         startingTableCount = actions.count(tableItem);
         startedAtNanos = System.nanoTime();
-        phase = Phase.MINING;
-        status = "mining the recorded owned crafting table";
         try {
+            movement.checkAirRecoveryOwnership();
+            if (actions.hit(candidate) == null) {
+                phase = Phase.APPROACH;
+                status = "approaching the recorded owned crafting table";
+                movement.startInteraction(candidate);
+                return true;
+            }
+            phase = Phase.MINING;
+            status = "mining the recorded owned crafting table";
             if (!actions.mine(candidate, null)) {
                 String reasonText = "native mining refused: " + actions.mineFailure();
                 actions.cancel();
@@ -86,12 +97,13 @@ final class PortableWorkbenchAction {
             }
             return true;
         } catch (RuntimeException failure) {
-            throw abort("could not start native crafting-table mining: " + diagnostic(failure), failure);
+            throw abort("could not start owned crafting-table recovery: " + diagnostic(failure), failure);
         }
     }
 
     boolean active() {
-        return phase == Phase.MINING || phase == Phase.PICKUP || phase == Phase.FINISHING;
+        return phase == Phase.APPROACH || phase == Phase.APPROACH_STOPPING
+                || phase == Phase.MINING || phase == Phase.PICKUP || phase == Phase.FINISHING;
     }
 
     boolean tick() {
@@ -103,7 +115,10 @@ final class PortableWorkbenchAction {
             }
             String reason = unsafeContextReason();
             if (reason != null) throw new IllegalStateException(reason);
+            movement.checkAirRecoveryOwnership();
             return switch (phase) {
+                case APPROACH -> tickApproach();
+                case APPROACH_STOPPING -> tickApproachStopping();
                 case MINING -> tickMining();
                 case PICKUP -> tickPickup();
                 case FINISHING -> tickFinishing();
@@ -126,6 +141,51 @@ final class PortableWorkbenchAction {
     }
 
     String status() { return status; }
+
+    private boolean tickApproach() {
+        requireApproachTarget();
+        if (actions.hit(ownedPosition) != null) {
+            movement.stop();
+            phase = Phase.APPROACH_STOPPING;
+            status = "finishing movement before mining the owned crafting table";
+            return tickApproachStopping();
+        }
+        if (movement.tick()) {
+            movement.stop();
+            phase = Phase.APPROACH_STOPPING;
+            status = "checking reach after approaching the owned crafting table";
+            return tickApproachStopping();
+        }
+        return false;
+    }
+
+    private boolean tickApproachStopping() {
+        requireApproachTarget();
+        if (!movement.finishCancellation()) return false;
+        if (actions.hit(ownedPosition) == null) {
+            throw new IllegalStateException("approach ended without reach to the owned crafting table");
+        }
+        phase = Phase.MINING;
+        status = "mining the recorded owned crafting table";
+        return tickMining();
+    }
+
+    private void requireApproachTarget() {
+        if (!client.world.isChunkLoaded(ownedPosition)
+                || !client.world.getBlockState(ownedPosition).isOf(Blocks.CRAFTING_TABLE)) {
+            throw new IllegalStateException("the owned crafting table changed or unloaded during approach");
+        }
+        if (!withinApproachDistance(ownedPosition)) {
+            throw new IllegalStateException("owned crafting-table approach moved beyond 16 blocks");
+        }
+    }
+
+    private boolean withinApproachDistance(BlockPos position) {
+        double dx = position.getX() + 0.5 - client.player.getX();
+        double dy = position.getY() + 0.5 - client.player.getY();
+        double dz = position.getZ() + 0.5 - client.player.getZ();
+        return dx * dx + dy * dy + dz * dz <= MAX_APPROACH_DISTANCE_SQUARED;
+    }
 
     private boolean tickMining() {
         if (!client.world.isChunkLoaded(ownedPosition)) {
@@ -252,6 +312,10 @@ final class PortableWorkbenchAction {
 
     private String unsafeContextReason() {
         if (client.player == null || client.world == null || client.interactionManager == null) return "world unavailable";
+        if (active() && (ownerPlayer != client.player || ownerWorld != client.world)) {
+            return "player or world changed during portable workbench recovery";
+        }
+        if (manualInput()) return "manual player input has priority";
         var player = client.player;
         if (!player.isAlive() || player.getAbilities().creativeMode || player.isSpectator()) {
             return "portable workbench recovery requires survival play";
@@ -262,6 +326,14 @@ final class PortableWorkbenchAction {
                 || player.currentScreenHandler != player.playerScreenHandler
                 || !player.currentScreenHandler.getCursorStack().isEmpty()) return "inventory screen or cursor is not safe";
         return null;
+    }
+
+    private boolean manualInput() {
+        var options = client.options;
+        return options.attackKey.isPressed() || options.useKey.isPressed()
+                || options.forwardKey.isPressed() || options.backKey.isPressed()
+                || options.leftKey.isPressed() || options.rightKey.isPressed()
+                || options.jumpKey.isPressed() || options.sneakKey.isPressed() || options.sprintKey.isPressed();
     }
 
     private IllegalStateException abort(String reason, RuntimeException cause) {
@@ -275,12 +347,15 @@ final class PortableWorkbenchAction {
     }
 
     private void clearOwnership() {
+        ownedPosition = null;
+        ownerPlayer = ownerWorld = null;
         drop = null;
         startingNearbyDrops = Map.of();
     }
 
     private boolean cancelMovement() {
         try {
+            movement.checkAirRecoveryOwnership();
             movement.stop();
             return movement.finishCancellation();
         } catch (RuntimeException ignored) {

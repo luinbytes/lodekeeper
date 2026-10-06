@@ -408,4 +408,22 @@ final class VerificationApi {
             return VerificationContentInitializer.geometryBlockFull ? VoxelShapes.fullCube() : VoxelShapes.empty();
         }
     }
+    static PreparedSafetyAirFixture seedPreparedSafetyAirFixture(ServerPlayerEntity player, ServerWorld world) {
+        throw new UnsupportedOperationException("Air recovery verification is limited to Minecraft 1.21.1 and 26.3");
+    }
+
+    static void initializePreparedSafetyAirFixture(PreparedSafetyAirFixture fixture, ServerPlayerEntity player, int serverTick) {
+        throw new UnsupportedOperationException("Air recovery verification is unavailable in this profile");
+    }
+
+    static void observePreparedSafetyAirTick(PreparedSafetyAirFixture fixture, ServerPlayerEntity player, int serverTick) {
+        throw new UnsupportedOperationException("Air recovery verification is unavailable in this profile");
+    }
+
+    static Map<String, String> preparedSafetyAirReceipt(ServerPlayerEntity player, PreparedSafetyAirFixture fixture) {
+        throw new UnsupportedOperationException("Air recovery verification is unavailable in this profile");
+    }
+
+    static final class PreparedSafetyAirFixture { }
+
 }

@@ -166,7 +166,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         SMELTING_IRON, COOKING, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
         GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
 
-    private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM }
+    private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR }
 
     private MinecraftClient client;
     private State state = State.DISABLED;
@@ -262,6 +262,19 @@ public final class RuntimeVerification implements ClientModInitializer {
     private Map<String, String> activeInitialStationRoomReceipt = Map.of();
     private VerificationApi.PreparedSafetyPursuitFixture preparedSafetyPursuitFixture;
     private Map<String, String> activeInitialPursuitReceipt = Map.of();
+    private VerificationApi.PreparedSafetyAirFixture preparedSafetyAirFixture;
+    private Map<String, String> activeInitialAirReceipt = Map.of();
+    private boolean preparedAirRecoveryObserved;
+    private boolean preparedAirRecoveryCompletedBeforeCraft;
+    private int preparedAirRecoveryObservedClientTick = -1;
+    private int preparedAirRecoveryTransitionClientTick = -1;
+    private int preparedAirRecoveryCompletionClientTick = -1;
+    private int preparedAirRecoveryCompletionServerTick = -1;
+    private long preparedAirRecoveryTransitionObservationSequence = -1;
+    private int preparedAirRecoveryTableOpeningsAtTransition = -1;
+    private int preparedAirRecoveryBucketCountAtCompletion = -1;
+    private String preparedAirRecoveryEndEngineStatus = "";
+    private Map<String, String> preparedAirRecoveryCompletionReceipt = Map.of();
     private int preparedSafetySetupStartedAtTick = -1;
     private Map<String, String> activeInitialEquipment = Map.of();
     private boolean activeInitialCursorEmpty;
@@ -282,7 +295,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
         if (System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
-                && !"pursuit".equals(PREPARED_SAFETY_MODE)) {
+                && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
+                && !"air".equals(PREPARED_SAFETY_MODE)) {
             NaturalWorldVerification.start(MinecraftClient.getInstance());
             return;
         }
@@ -319,10 +333,20 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
-            if ("pursuit".equals(PREPARED_SAFETY_MODE)
+            if (("pursuit".equals(PREPARED_SAFETY_MODE) || "pursuit-tool".equals(PREPARED_SAFETY_MODE))
                     && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                         || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
-                failure = "preparedSafety=pursuit requires baritone=true on Minecraft 1.21.1 or 26.3 without naturalGoal";
+                failure = "preparedSafety=pursuit or pursuit-tool requires baritone=true on Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if ("air".equals(PREPARED_SAFETY_MODE)
+                    && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                        || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
+                failure = "preparedSafety=air requires baritone=true on Minecraft 1.21.1 or 26.3 without naturalGoal";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -391,8 +415,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (PREPARED_SAFETY_MODE != null
                     && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
                     && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("pursuit")
-                    && !PREPARED_SAFETY_MODE.equals("station_room")) {
-                failure = "lodekeeper.verify.preparedSafety must be exactly equipment, offhand, threat, pursuit, or station_room";
+                    && !PREPARED_SAFETY_MODE.equals("pursuit-tool")
+                    && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air")) {
+                failure = "lodekeeper.verify.preparedSafety must be exactly equipment, offhand, threat, pursuit, station_room, or air";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -491,6 +516,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (player == null) return;
                 if (preparedSafetyPursuitFixture != null) {
                     VerificationApi.observePreparedSafetyPursuitTick(preparedSafetyPursuitFixture, player, server.getTicks());
+                }
+                if (preparedSafetyAirFixture != null) {
+                    VerificationApi.observePreparedSafetyAirTick(preparedSafetyAirFixture, player, server.getTicks());
                 }
                 observeFirstServerMovement(player);
                 net.minecraft.screen.ScreenHandler handler = player.currentScreenHandler;
@@ -622,7 +650,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (PREPARED_SAFETY_MODE != null) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (preparedSafetyFixtureReady()) {
-                        if (++readyTicks >= 20 && (THREAT_WATER_RETREAT_MODE || client.player.getY() > FIXTURE_FLOOR_Y
+                        int requiredReadyTicks = preparedSafetyPhase == PreparedSafetyPhase.AIR ? 1 : 20;
+                        if (++readyTicks >= requiredReadyTicks && (THREAT_WATER_RETREAT_MODE || client.player.getY() > FIXTURE_FLOOR_Y
                                 && client.world.getBlockState(new BlockPos(0, FIXTURE_FLOOR_Y, 0)).isOf(Blocks.BEDROCK))) {
                             if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS) {
                                 startPreparedSafetyIngredientsCase();
@@ -632,6 +661,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                                 startPreparedSafetyPursuitCase();
                             } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
                                 startPreparedSafetyStationRoomCase();
+                            } else if (preparedSafetyPhase == PreparedSafetyPhase.AIR) {
+                                startPreparedSafetyAirCase();
                             } else {
                                 startPreparedSafetyCase();
                             }
@@ -728,6 +759,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 return;
             }
+            observePreparedAirRecoveryLatches();
             maybeInjectStonecuttingDrainStop();
             if (clientTicks % OBSERVE_EVERY_TICKS == 0
                     || (stonecuttingDrainStopInjected && requireEngine().status().startsWith("idle")
@@ -1263,7 +1295,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             : PREPARED_SAFETY_MODE.equals("equipment") ? PreparedSafetyPhase.EQUIPMENT
             : PREPARED_SAFETY_MODE.equals("offhand") ? PreparedSafetyPhase.OFFHAND_FOOD
             : PREPARED_SAFETY_MODE.equals("threat") ? PreparedSafetyPhase.THREAT
-            : PREPARED_SAFETY_MODE.equals("pursuit") ? PreparedSafetyPhase.PURSUIT : PreparedSafetyPhase.STATION_ROOM;
+            : PREPARED_SAFETY_MODE.equals("pursuit") || PREPARED_SAFETY_MODE.equals("pursuit-tool") ? PreparedSafetyPhase.PURSUIT
+            : PREPARED_SAFETY_MODE.equals("air") ? PreparedSafetyPhase.AIR : PreparedSafetyPhase.STATION_ROOM;
         preparedSafetySetupStartedAtTick = clientTicks;
         IntegratedServer server = requireServer();
         setupFuture = new CompletableFuture<>();
@@ -1388,6 +1421,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                         preparedSafetyPursuitFixture = VerificationApi.seedPreparedSafetyPursuitFixture(player, world);
                     } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
                         preparedSafetyStationRoomFixture = VerificationApi.seedPreparedSafetyStationRoomFixture(player, world);
+                    } else if (preparedSafetyPhase == PreparedSafetyPhase.AIR) {
+                        preparedSafetyAirFixture = VerificationApi.seedPreparedSafetyAirFixture(player, world);
                     } else {
                         VerificationApi.seedPreparedSafetyFixture(player, PREPARED_SAFETY_MODE);
                     }
@@ -1395,6 +1430,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                 double startFeetY = COAL_RAISED_FULL_DROP_MODE ? PLAYER_Y + 1.0 : PLAYER_Y;
                 if (!VerificationApi.teleport(player, world, MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY, MIXED_NAVIGATION_COURSE ? 0.75 : 0.5, 0.0F, 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
+                }
+                if (preparedSafetyAirFixture != null) {
+                    VerificationApi.initializePreparedSafetyAirFixture(preparedSafetyAirFixture, player, server.getTicks());
                 }
                 if (GEOMETRY_EPOCH_MODE) GeometryEpochVerification.prepareServerFixture(world);
                 player.currentScreenHandler.sendContentUpdates();
@@ -2263,7 +2301,9 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private boolean preparedSafetyFixtureReady() {
         if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
-                || latestSnapshot.health != 20.0F || !latestSnapshot.serverCursorEmpty) return false;
+                || (preparedSafetyPhase == PreparedSafetyPhase.AIR
+                    ? latestSnapshot.health < 3.0F : latestSnapshot.health != 20.0F)
+                || !latestSnapshot.serverCursorEmpty) return false;
         if (preparedSafetyPhase != PreparedSafetyPhase.EQUIPMENT
                 && !latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())) return false;
         return switch (preparedSafetyPhase) {
@@ -2300,13 +2340,21 @@ public final class RuntimeVerification implements ClientModInitializer {
                     && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("playerInWater")));
             case PURSUIT -> {
                 Map<String, String> receipt = latestSnapshot.preparedSafetyPursuitReceipt;
+                boolean toolVariant = "pursuit-tool".equals(PREPARED_SAFETY_MODE);
                 double dx = Double.parseDouble(receipt.getOrDefault("cowCurrentX", "NaN")) - latestSnapshot.x;
                 double dy = Double.parseDouble(receipt.getOrDefault("cowCurrentY", "NaN")) - latestSnapshot.y;
                 double dz = Double.parseDouble(receipt.getOrDefault("cowCurrentZ", "NaN")) - latestSnapshot.z;
-                yield latestSnapshot.storageInventory.equals(Map.of(
-                        "minecraft:crafting_table", 1, "minecraft:iron_ingot", 3))
+                boolean toolReady = !toolVariant || "true".equals(receipt.get("pursuitToolVariant"))
+                    && "7".equals(receipt.get("stonePickaxeInitialSlot"))
+                    && "7".equals(receipt.get("stonePickaxeCurrentSlot"))
+                    && "0".equals(receipt.get("stonePickaxeInitialDamage"))
+                    && Integer.parseInt(receipt.getOrDefault("stonePickaxeMaxDamage", "0")) > 0;
+                yield latestSnapshot.storageInventory.equals(toolVariant
+                        ? Map.of("minecraft:crafting_table", 1, "minecraft:iron_ingot", 3, "minecraft:stone_pickaxe", 1)
+                        : Map.of("minecraft:crafting_table", 1, "minecraft:iron_ingot", 3))
                     && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 7
                     && latestSnapshot.inventory.equals(latestSnapshot.storageInventory)
+                    && toolReady
                     && "true".equals(receipt.get("cowAlive"))
                     && "10.0".equals(receipt.get("cowInitialHealth"))
                     && "10.0".equals(receipt.get("cowHealth"))
@@ -2325,6 +2373,27 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"));
+            case AIR -> {
+                Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
+                int airSupply = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
+                yield latestSnapshot.inventory.equals(Map.of("minecraft:cooked_beef", 2, "minecraft:iron_ingot", 3))
+                    && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+                    && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.health == 3.0F
+                    && latestSnapshot.foodLevel == 20
+                    && "200".equals(receipt.get("fixtureAirSupply"))
+                    && "3.0".equals(receipt.get("initialHealth"))
+                    && "0.0".equals(receipt.get("saturation"))
+                    && "20".equals(receipt.get("foodLevel"))
+                    && "true".equals(receipt.get("headInWaterAtStart"))
+                    && "true".equals(receipt.get("headInWater"))
+                    && airSupply >= 160 && airSupply <= 180
+                    && "true".equals(receipt.get("waterSourceCellsPresent"))
+                    && "true".equals(receipt.get("lowWaterRoofPresent"))
+                    && "true".equals(receipt.get("waterBoundaryPresent"))
+                    && "true".equals(receipt.get("dryExitPresent"))
+                    && "true".equals(receipt.get("craftingTablePresent"))
+                    && Double.parseDouble(receipt.getOrDefault("exitDistance", "NaN")) <= 6.0;
+            }
             case NONE -> false;
         };
     }
@@ -2422,7 +2491,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("prepared pursuit command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = "prepared_moving_food_pursuit_bucket";
+        boolean toolVariant = "pursuit-tool".equals(PREPARED_SAFETY_MODE);
+        activeCase = toolVariant ? "prepared_moving_food_pursuit_tool_bucket" : "prepared_moving_food_pursuit_bucket";
         activeItem = "minecraft:bucket";
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -2441,6 +2511,84 @@ public final class RuntimeVerification implements ClientModInitializer {
         state = State.PREPARED_SAFETY;
         preparedSafetyPursuitFixture.beginObservation();
         sendCommand("!lk get bucket 1");
+    }
+
+    private void startPreparedSafetyAirCase() {
+        String engineStatus = requireEngine().status();
+        if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
+            fail("prepared air-recovery command was not issued from an idle engine: " + engineStatus);
+            return;
+        }
+        Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
+        int airSupply = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
+        if (airSupply < 160 || airSupply > 180 || !"true".equals(receipt.get("headInWater"))) {
+            fail("prepared air-recovery command did not start with the player's head submerged and at least eight seconds of air");
+            return;
+        }
+        activeCase = "prepared_air_recovery_bucket";
+        activeItem = "minecraft:bucket";
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.storageInventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        activeInitialAirReceipt = Map.copyOf(receipt);
+        preparedAirRecoveryObserved = false;
+        preparedAirRecoveryCompletedBeforeCraft = false;
+        preparedAirRecoveryObservedClientTick = -1;
+        preparedAirRecoveryTransitionClientTick = -1;
+        preparedAirRecoveryCompletionClientTick = -1;
+        preparedAirRecoveryCompletionServerTick = -1;
+        preparedAirRecoveryTransitionObservationSequence = -1;
+        preparedAirRecoveryTableOpeningsAtTransition = -1;
+        preparedAirRecoveryBucketCountAtCompletion = -1;
+        preparedAirRecoveryEndEngineStatus = "";
+        preparedAirRecoveryCompletionReceipt = Map.of();
+        preparedSafetyForegroundStarted = true;
+        preparedMaintenanceQueueEmptyBeforeForeground = true;
+        preparedMaintenanceReservationObservedBeforeForeground = false;
+        preparedMaintenanceReservationPresentAtCompletion = false;
+        activeFoodLevelAtStart = latestSnapshot.foodLevel;
+        activeTableOpeningsAtStart = serverTableOpenings;
+        beginCaseClock();
+        state = State.PREPARED_SAFETY;
+        sendCommand("!lk get bucket 1");
+    }
+
+    private void observePreparedAirRecoveryLatches() {
+        if (preparedSafetyPhase != PreparedSafetyPhase.AIR || state != State.PREPARED_SAFETY
+                || !"prepared_air_recovery_bucket".equals(activeCase)) return;
+        String engineStatus = requireEngine().status();
+        if (engineStatus.startsWith("recovering air")) {
+            preparedAirRecoveryObserved = true;
+            if (preparedAirRecoveryObservedClientTick < 0) preparedAirRecoveryObservedClientTick = clientTicks;
+            return;
+        }
+        if (!preparedAirRecoveryObserved || preparedAirRecoveryCompletedBeforeCraft) return;
+        if (preparedAirRecoveryTransitionClientTick < 0) {
+            preparedAirRecoveryTransitionClientTick = clientTicks;
+            preparedAirRecoveryTransitionObservationSequence = observationRequestSequence;
+            preparedAirRecoveryTableOpeningsAtTransition = serverTableOpenings;
+            preparedAirRecoveryEndEngineStatus = engineStatus;
+        }
+        if (observationFuture == null) requestObservation();
+        if (latestSnapshot == null
+                || latestObservationRequestSequence <= preparedAirRecoveryTransitionObservationSequence) return;
+        Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
+        int airSupply = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
+        int maximumAirSupply = Integer.parseInt(receipt.getOrDefault("maxAirSupply", "-1"));
+        if (latestSnapshot.count("minecraft:bucket") == 0
+                && serverTableOpenings == activeTableOpeningsAtStart
+                && preparedAirRecoveryTableOpeningsAtTransition == activeTableOpeningsAtStart
+                && "false".equals(receipt.get("headInWater"))
+                && maximumAirSupply > 0 && airSupply >= maximumAirSupply * 9 / 10) {
+            preparedAirRecoveryCompletedBeforeCraft = true;
+            preparedAirRecoveryCompletionClientTick = clientTicks;
+            preparedAirRecoveryCompletionServerTick = latestSnapshot.serverTick;
+            preparedAirRecoveryBucketCountAtCompletion = latestSnapshot.count("minecraft:bucket");
+            preparedAirRecoveryCompletionReceipt = Map.copyOf(receipt);
+        }
     }
 
     private boolean baritoneNavigationStopped() {
@@ -2486,6 +2634,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (!engineStatus.startsWith("idle") || !navigationStopped) {
             if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
                 fail("prepared safety case timed out after " + PREPARED_SAFETY_CASE_TIMEOUT_TICKS + " ticks: " + activeCase);
+            }
+            return;
+        }
+        if (preparedSafetyPhase == PreparedSafetyPhase.AIR && !preparedAirRecoveryCompletedBeforeCraft) {
+            if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
+                fail("prepared air recovery did not produce an ordered breathable-exit receipt before crafting");
             }
             return;
         }
@@ -2548,6 +2702,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         } else if (preparedSafetyPhase == PreparedSafetyPhase.PURSUIT) {
             observed = latestSnapshot.count(activeItem);
             Map<String, String> receipt = latestSnapshot.preparedSafetyPursuitReceipt;
+            boolean toolVariant = "pursuit-tool".equals(PREPARED_SAFETY_MODE);
             int initialFoodItems = activeInitialResources.getOrDefault("minecraft:beef", 0)
                 + activeInitialResources.getOrDefault("minecraft:cooked_beef", 0);
             int finalFoodItems = latestSnapshot.count("minecraft:beef") + latestSnapshot.count("minecraft:cooked_beef");
@@ -2558,6 +2713,16 @@ public final class RuntimeVerification implements ClientModInitializer {
             boolean sameCow = activeInitialPursuitReceipt.get("cowUuid") != null
                 && activeInitialPursuitReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
                 && receipt.get("cowUuid").equals(receipt.get("cowInitialUuid"));
+            int initialPickaxeDamage = Integer.parseInt(activeInitialPursuitReceipt.getOrDefault("stonePickaxeDamage", "-1"));
+            int finalPickaxeDamage = Integer.parseInt(receipt.getOrDefault("stonePickaxeDamage", "-1"));
+            boolean toolWearObserved = !toolVariant || "true".equals(receipt.get("pursuitToolVariant"))
+                && "7".equals(activeInitialPursuitReceipt.get("stonePickaxeCurrentSlot"))
+                && "7".equals(receipt.get("stonePickaxeCurrentSlot"))
+                && "0".equals(activeInitialPursuitReceipt.get("stonePickaxeDamage"))
+                && "0".equals(receipt.get("stonePickaxeInitialDamage"))
+                && finalPickaxeDamage > initialPickaxeDamage
+                && finalPickaxeDamage < Integer.parseInt(receipt.getOrDefault("stonePickaxeMaxDamage", "0"))
+                && latestSnapshot.count("minecraft:stone_pickaxe") == 1;
             passed = observed == 1 && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
                 && latestSnapshot.count("minecraft:iron_ingot") == 0
                 && latestSnapshot.health == 20.0F && latestSnapshot.foodLevel >= activeFoodLevelAtStart
@@ -2566,14 +2731,21 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
                 && serverTableOpenings > activeTableOpeningsAtStart && foodReceived
                 && sameCow && "false".equals(receipt.get("cowAlive")) && "0.0".equals(receipt.get("cowHealth"))
-                && "10.0".equals(receipt.get("cowInitialHealth")) && healthDrops >= 5
+                && "10.0".equals(receipt.get("cowInitialHealth"))
+                && (toolVariant ? healthDrops > 0 && healthDrops < 10 : healthDrops >= 5)
+                && toolWearObserved
                 && "true".equals(receipt.get("pursuitObservationStarted"))
                 && Integer.parseInt(receipt.getOrDefault("pursuitObservedServerTicks", "0")) > 0
                 && displacement >= 0.5 && maximumDistance < 32.0;
             detail = passed
-                ? "the integrated server recorded " + healthDrops + " native cow health drops and "
-                    + displacement + " blocks of target movement, then received food and crafted the bucket from the three supplied iron ingots with an empty cursor and idle cancelled navigation"
-                : "moving-food pursuit lacked the same cow death, five server health drops, target movement within 32 blocks, actual food, supplied-iron bucket, health, cursor, or idle receipts";
+                ? toolVariant
+                    ? "the integrated server recorded " + healthDrops + " native cow health drops, stone-pickaxe wear from hotbar slot 7, and "
+                        + displacement + " blocks of target movement, then received food and crafted the bucket from the three supplied iron ingots with an empty cursor and idle cancelled navigation"
+                    : "the integrated server recorded " + healthDrops + " native cow health drops and "
+                        + displacement + " blocks of target movement, then received food and crafted the bucket from the three supplied iron ingots with an empty cursor and idle cancelled navigation"
+                : toolVariant
+                    ? "tool pursuit lacked the same cow death, fewer than ten native health drops, stone-pickaxe wear from hotbar slot 7, target movement within 32 blocks, actual food, supplied-iron bucket, health, cursor, or idle receipts"
+                    : "moving-food pursuit lacked the same cow death, five server health drops, target movement within 32 blocks, actual food, supplied-iron bucket, health, cursor, or idle receipts";
         } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
             observed = latestSnapshot.count(activeItem);
             Map<String, String> receipt = latestSnapshot.preparedSafetyStationRoomReceipt;
@@ -2600,6 +2772,53 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ? "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded " + changedStoneCells
                     + " changed native stone cell(s), with the original support and furnace floor still bedrock"
                 : "the prepared station-room goal did not produce the required ingot, raw-iron, furnace-menu, nearby placement, bounded stone-change, floor, health, cursor, and idle receipts";
+        } else if (preparedSafetyPhase == PreparedSafetyPhase.AIR) {
+            observed = latestSnapshot.count(activeItem);
+            Map<String, String> receipt = latestSnapshot.preparedSafetyAirReceipt;
+            int initialAir = Integer.parseInt(activeInitialAirReceipt.getOrDefault("airSupply", "-1"));
+            int finalAir = Integer.parseInt(receipt.getOrDefault("airSupply", "-1"));
+            int maximumAir = Integer.parseInt(receipt.getOrDefault("maxAirSupply", "-1"));
+            int minimumAir = Integer.parseInt(receipt.getOrDefault("minimumAirSupply", "-1"));
+            float minimumHealth = Float.parseFloat(receipt.getOrDefault("minimumHealth", "NaN"));
+            int deaths = Integer.parseInt(receipt.getOrDefault("deathsObserved", "-1"));
+            double distance = Double.parseDouble(receipt.getOrDefault("maximumDistanceFromStart", "NaN"));
+            passed = observed == 1 && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
+                && latestSnapshot.count("minecraft:iron_ingot") == 0
+                && latestSnapshot.health >= 6.0F && latestSnapshot.foodLevel >= activeFoodLevelAtStart
+                && latestSnapshot.count("minecraft:cooked_beef") < activeInitialResources.getOrDefault("minecraft:cooked_beef", 0)
+                && minimumHealth >= 3.0F && deaths == 0 && minimumAir > 0
+                && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
+                && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name())
+                && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
+                && serverTableOpenings > activeTableOpeningsAtStart
+                && initialAir >= 160 && initialAir <= 180
+                && "true".equals(activeInitialAirReceipt.get("headInWater"))
+                && preparedAirRecoveryObserved
+                && preparedAirRecoveryCompletedBeforeCraft
+                && preparedAirRecoveryObservedClientTick >= caseStartedAtTick
+                && preparedAirRecoveryTransitionClientTick > preparedAirRecoveryObservedClientTick
+                && preparedAirRecoveryCompletionClientTick >= preparedAirRecoveryTransitionClientTick
+                && preparedAirRecoveryCompletionServerTick >= 0
+                && preparedAirRecoveryTransitionObservationSequence >= 0
+                && preparedAirRecoveryTableOpeningsAtTransition == activeTableOpeningsAtStart
+                && preparedAirRecoveryBucketCountAtCompletion == 0
+                && "false".equals(preparedAirRecoveryCompletionReceipt.get("headInWater"))
+                && Integer.parseInt(preparedAirRecoveryCompletionReceipt.getOrDefault("airSupply", "-1"))
+                    >= Integer.parseInt(preparedAirRecoveryCompletionReceipt.getOrDefault("maxAirSupply", "0")) * 9 / 10
+                && "true".equals(receipt.get("headInWaterAtStart"))
+                && "false".equals(receipt.get("headInWater"))
+                && Integer.parseInt(receipt.getOrDefault("firstHeadOutOfWaterServerTick", "-1")) >= 0
+                && finalAir >= maximumAir * 9 / 10
+                && distance >= 0.5
+                && "true".equals(receipt.get("waterSourceCellsPresent"))
+                && "true".equals(receipt.get("lowWaterRoofPresent"))
+                && "true".equals(receipt.get("waterBoundaryPresent"))
+                && "true".equals(receipt.get("dryExitPresent"))
+                && "true".equals(receipt.get("craftingTablePresent"))
+                && Double.parseDouble(receipt.getOrDefault("exitDistance", "NaN")) <= 6.0;
+            detail = passed
+                ? "the integrated server observed submerged low-air recovery, native movement to breathable space and air refill, preserved the player's starting health of three without death, then crafted a bucket from the supplied iron at the dry ledge"
+                : "air recovery lacked the required low-air submerged start, breathable exit, server movement, refill, preserved health, zero deaths, bucket, crafting-table use, empty cursor, or idle navigation receipt";
         } else if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD) {
             observed = latestSnapshot.count(activeItem);
             preparedMaintenanceReservationPresentAtCompletion = preparedMaintenanceReservationObservedBeforeForeground
@@ -2821,6 +3040,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                         : VerificationApi.preparedSafetyStationRoomReceipt(player, world, preparedSafetyStationRoomFixture),
                     preparedSafetyPursuitFixture == null ? Map.of()
                         : VerificationApi.preparedSafetyPursuitReceipt(player, preparedSafetyPursuitFixture),
+                    preparedSafetyAirFixture == null ? Map.of()
+                        : VerificationApi.preparedSafetyAirReceipt(player, preparedSafetyAirFixture),
                     player.getHealth(), player.getHungerManager().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ());
                 capture.complete(snapshot);
@@ -2941,7 +3162,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             activeInitialStationRoomReceipt,
             latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyStationRoomReceipt,
             activeInitialPursuitReceipt,
-            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyPursuitReceipt, baritoneNavigationStopped()));
+            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyPursuitReceipt,
+            activeInitialAirReceipt,
+            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyAirReceipt,
+            preparedAirRecoveryObserved, preparedAirRecoveryCompletedBeforeCraft,
+            preparedAirRecoveryObservedClientTick, preparedAirRecoveryTransitionClientTick,
+            preparedAirRecoveryCompletionClientTick, preparedAirRecoveryCompletionServerTick,
+            preparedAirRecoveryTransitionObservationSequence, preparedAirRecoveryTableOpeningsAtTransition,
+            preparedAirRecoveryBucketCountAtCompletion, preparedAirRecoveryEndEngineStatus,
+            preparedAirRecoveryCompletionReceipt, baritoneNavigationStopped()));
     }
 
     private String capture(String name) {
@@ -3048,8 +3277,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ? "integrated_server_inventory_entities_and_item_durability"
                 : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("station_room")
                     ? "integrated_server_inventory_furnace_menu_and_block_states"
-                    : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("pursuit")
+                    : PREPARED_SAFETY_MODE != null && (PREPARED_SAFETY_MODE.equals("pursuit")
+                            || PREPARED_SAFETY_MODE.equals("pursuit-tool"))
                         ? "integrated_server_inventory_hunger_entity_health_and_motion"
+                        : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("air")
+                            ? "integrated_server_air_health_hunger_position_and_inventory"
                         : "integrated_server_inventory")
             .append("\",\n")
             .append("  \"verificationMode\":\"").append(verificationMode()).append("\",\n")
@@ -3062,6 +3294,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"serverFurnaceOpenings\":").append(serverFurnaceOpenings).append(",\n");
         if ("pursuit".equals(PREPARED_SAFETY_MODE)) {
             json.append("  \"preparedSafetyFixtureGrants\":\"3 iron ingots, one crafting table, food level 7, one normal-AI cow, bounded bedrock pen\",\n");
+        } else if ("pursuit-tool".equals(PREPARED_SAFETY_MODE)) {
+            json.append("  \"preparedSafetyFixtureGrants\":\"3 iron ingots, one crafting table, one full-durability stone pickaxe in hotbar slot index 7, food level 7, one normal-AI cow, bounded bedrock pen\",\n");
+        } else if ("air".equals(PREPARED_SAFETY_MODE)) {
+            json.append("  \"preparedSafetyFixtureGrants\":\"3 iron ingots, 2 cooked beef, health 3, food level 20 with zero saturation, air 200 at setup, 50 source water cells in a bedrock-bounded 5x5 pool, 24 bedrock roof blocks with one exit gap, bedrock ledge at 3,66,0, and one placed crafting table at 4,66,0\",\n");
         }
         if (GEOMETRY_EPOCH_MODE) {
             json.append("  \"geometryEpoch\":").append(geometryEpoch == null
@@ -3151,6 +3387,24 @@ public final class RuntimeVerification implements ClientModInitializer {
                 appendStringStringMap(json, result.initialPursuitReceipt);
                 json.append(",\"serverPreparedPursuitReceipt\":");
                 appendStringStringMap(json, result.serverPursuitReceipt);
+                json.append(",\"initialPreparedAirReceipt\":");
+                appendStringStringMap(json, result.initialAirReceipt);
+                json.append(",\"serverPreparedAirReceipt\":");
+                appendStringStringMap(json, result.serverAirReceipt);
+                if ("air".equals(PREPARED_SAFETY_MODE)) {
+                    json.append(",\"airRecoveryObserved\":").append(result.airRecoveryObserved)
+                        .append(",\"airRecoveryCompletedBeforeCraft\":").append(result.airRecoveryCompletedBeforeCraft)
+                        .append(",\"airRecoveryObservedClientTick\":").append(result.airRecoveryObservedClientTick)
+                        .append(",\"airRecoveryTransitionClientTick\":").append(result.airRecoveryTransitionClientTick)
+                        .append(",\"airRecoveryCompletionClientTick\":").append(result.airRecoveryCompletionClientTick)
+                        .append(",\"airRecoveryCompletionServerTick\":").append(result.airRecoveryCompletionServerTick)
+                        .append(",\"airRecoveryTransitionObservationSequence\":").append(result.airRecoveryTransitionObservationSequence)
+                        .append(",\"airRecoveryTableOpeningsAtTransition\":").append(result.airRecoveryTableOpeningsAtTransition)
+                        .append(",\"airRecoveryBucketCountAtCompletion\":").append(result.airRecoveryBucketCountAtCompletion)
+                        .append(",\"airRecoveryEndEngineStatus\":\"").append(escape(result.airRecoveryEndEngineStatus)).append("\"")
+                        .append(",\"airRecoveryCompletionReceipt\":");
+                    appendStringStringMap(json, result.airRecoveryCompletionReceipt);
+                }
             }
             if (NEARBY_WOOD_MODE) {
                 json.append(",\"elapsedMillisFromCommand\":").append(result.elapsedMillis)
@@ -3679,9 +3933,15 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
-        if ("pursuit".equals(PREPARED_SAFETY_MODE)
+        if (("pursuit".equals(PREPARED_SAFETY_MODE) || "pursuit-tool".equals(PREPARED_SAFETY_MODE))
                 && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
-                    || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_moving_food_pursuit";
+                    || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
+            return "pursuit-tool".equals(PREPARED_SAFETY_MODE)
+                ? "invalid_moving_food_pursuit_tool" : "invalid_moving_food_pursuit";
+        }
+        if ("air".equals(PREPARED_SAFETY_MODE)
+                && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                    || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_safety_air";
         if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_threat_water_retreat";
@@ -3691,7 +3951,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (PREPARED_SAFETY_MODE != null
                 && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
                 && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("pursuit")
-                && !PREPARED_SAFETY_MODE.equals("station_room")) {
+                && !PREPARED_SAFETY_MODE.equals("pursuit-tool")
+                && !PREPARED_SAFETY_MODE.equals("station_room") && !PREPARED_SAFETY_MODE.equals("air")) {
             return "invalid_prepared_safety_mode";
         }
         if (NEARBY_WOOD_TERRAIN.equals("local_decoy") && !NEARBY_WOOD_MODE) {
@@ -3816,6 +4077,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                                   Map<String, String> preparedSafetyThreatReceipt,
                                   Map<String, String> preparedSafetyStationRoomReceipt,
                                   Map<String, String> preparedSafetyPursuitReceipt,
+                                  Map<String, String> preparedSafetyAirReceipt,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {
@@ -3827,6 +4089,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             preparedSafetyThreatReceipt = Map.copyOf(preparedSafetyThreatReceipt);
             preparedSafetyStationRoomReceipt = Map.copyOf(preparedSafetyStationRoomReceipt);
             preparedSafetyPursuitReceipt = Map.copyOf(preparedSafetyPursuitReceipt);
+            preparedSafetyAirReceipt = Map.copyOf(preparedSafetyAirReceipt);
         }
         int count(String id) { return inventory.getOrDefault(id, 0); }
         int storageCount(String id) { return storageInventory.getOrDefault(id, 0); }
@@ -3856,7 +4119,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                               Map<String, String> initialStationRoomReceipt,
                               Map<String, String> serverStationRoomReceipt,
                               Map<String, String> initialPursuitReceipt,
-                              Map<String, String> serverPursuitReceipt, boolean navigationStopped) {
+                              Map<String, String> serverPursuitReceipt,
+                              Map<String, String> initialAirReceipt,
+                              Map<String, String> serverAirReceipt,
+                              boolean airRecoveryObserved, boolean airRecoveryCompletedBeforeCraft,
+                              int airRecoveryObservedClientTick, int airRecoveryTransitionClientTick,
+                              int airRecoveryCompletionClientTick, int airRecoveryCompletionServerTick,
+                              long airRecoveryTransitionObservationSequence,
+                              int airRecoveryTableOpeningsAtTransition, int airRecoveryBucketCountAtCompletion,
+                              String airRecoveryEndEngineStatus,
+                              Map<String, String> airRecoveryCompletionReceipt,
+                              boolean navigationStopped) {
         private CaseResult {
             serverInventory = Map.copyOf(serverInventory);
             storageInventory = Map.copyOf(storageInventory);
@@ -3870,6 +4143,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             serverStationRoomReceipt = Map.copyOf(serverStationRoomReceipt);
             initialPursuitReceipt = Map.copyOf(initialPursuitReceipt);
             serverPursuitReceipt = Map.copyOf(serverPursuitReceipt);
+            initialAirReceipt = Map.copyOf(initialAirReceipt);
+            serverAirReceipt = Map.copyOf(serverAirReceipt);
+            airRecoveryCompletionReceipt = Map.copyOf(airRecoveryCompletionReceipt);
         }
     }
 }

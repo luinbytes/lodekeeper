@@ -1,0 +1,21 @@
+{
+  "minecraftVersion": "1.21.1",
+  "artifact": "lodekeeper-1.21.1-0.1.0-preview.9.jar",
+  "artifactSha256": "b452c1ad8db953adef4a0ac2281df090b4f385ccec05ec2a17dc0e00c232b05f",
+  "sourceCommit": "8efb9c988a1f6d336521f29cc9e1d48df11eb5b2",
+  "sourceTreeState": "committed",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37465601775",
+  "runtimeMode": "exact_candidate_jar_in_isolated_development_harness",
+  "productionDevelopmentOutputsRemoved": true,
+  "verificationClassesRetainedSeparately": true,
+  "ordinaryLauncherAcceptance": false,
+  "flags": [
+    "-Dlodekeeper.verify=true",
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.preparedSafety=air",
+    "-Dlodekeeper.verify.candidateSha256=b452c1ad8db953adef4a0ac2281df090b4f385ccec05ec2a17dc0e00c232b05f"
+  ],
+  "verificationClasses": "/tmp/lodekeeper-air-1211-ordered-frozen-verifier",
+  "ownedClientExitCode": 0,
+  "ownedClientExitCodeEvidence": "subprocess.Popen.wait result"
+}

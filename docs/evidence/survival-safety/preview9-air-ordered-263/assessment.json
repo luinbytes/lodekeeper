@@ -1,0 +1,13 @@
+{
+  "status": "passed_prepared_ordered_air_and_bucket",
+  "preparedFixture": true,
+  "emptyInventoryProgression": false,
+  "commandElapsedMillis": 10993,
+  "orderedAirRecoveryObserved": true,
+  "recoveryCompletedBeforeCraft": true,
+  "noBucketAtAirReceipt": true,
+  "bucketCountAtFinalReceipt": 1,
+  "nativeProcessesStoppedAtReceipt": true,
+  "screenshotUnavailable": "Modern prepared-safety harness did not capture a result image in this run.",
+  "productionCommitConfirmed": "8efb9c988a1f6d336521f29cc9e1d48df11eb5b2"
+}
