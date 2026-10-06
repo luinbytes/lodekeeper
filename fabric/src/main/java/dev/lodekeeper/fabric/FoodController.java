@@ -64,6 +64,24 @@ public final class FoodController {
         return (int) nutrition;
     }
 
+    int availableCookedNutrition() {
+        if (client.player == null) return 0;
+        long nutrition = availableNutrition();
+        for (CookingPair pair : COOKING_PAIRS) {
+            var rawFood = GameApi.food(pair.raw().getDefaultStack());
+            var cookedFood = GameApi.food(pair.cooked().getDefaultStack());
+            if (rawFood == null || !rawFood.safe() || rawFood.nutrition() < 1
+                    || cookedFood == null || !cookedFood.safe()) continue;
+            int gainPerItem = cookedFood.nutrition() - rawFood.nutrition();
+            if (gainPerItem <= 0) continue;
+            int reserved = Math.max(0, protectedCounts.getOrDefault(GameCatalog.id(pair.raw()), 0));
+            int unreservedRaw = Math.max(0, availableSafeRaw(pair.raw(), rawFood.nutrition()) - reserved);
+            nutrition += (long) unreservedRaw * gainPerItem;
+            if (nutrition >= 120) return 120;
+        }
+        return (int) nutrition;
+    }
+
     Preparation preparationGoal() {
         if (client.player == null) return null;
         int currentNutrition = availableNutrition();

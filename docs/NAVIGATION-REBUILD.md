@@ -87,3 +87,12 @@ The packaged `918bf43` 1.21.1 offhand fixture passed its food and bucket phase, 
 The fix gives `planFast` a small stored-material recipe search before its general seed, sharing the original deadline and node budget. It respects protected stock and preserves station availability and cooking duration ordering. Both adapters remove gathering sources from planning when breaking is disabled, including exploration recovery. Wood aliases count offhand stock toward their goal. The debug console records the chosen step before execution begins.
 
 Survival actors release native entity, player and world references after cancellation or completion. Food actions restore hotbar selection only for the player and world that started the action. Prepared offhand, food, equipment, threat and station-pocket cases are being rerun against the packaged changes. These fixes do not establish the full diamond target.
+
+
+## Sixth development checkpoint
+
+The packaged `21beb07` normal-survival run began moving after 1,325 ms and reached an iron pickaxe after 297,475 ms. It failed at 383,128 ms during its first diamond descent. Health stayed at 20, hunger ended at 17, and no deaths occurred. Four cooked beef remained. A creeper stayed within the ten-block clearance distance, and retreat stopped in water beneath a low gravel roof until the 15-second defense budget expired. [The native receipt and artifact identity](evidence/navigation-rebuild/checkpoint-06.json) preserve this failed full-set run.
+
+All four prepared 1.21.1 safety clients passed, covering stock reserved in offhand, ordinary food use, native melee without friendly damage, armor transfer and a cramped furnace pocket. The first 26.3 station-pocket client failed because a 256-fuel catalog cutoff omitted coal, forcing a wood dependency despite held coal. Prepared fixtures grant their starting materials and do not establish fresh-world survival acquisition. The fuel context now rejects overflow above 512 instead of silently publishing a partial list. Native verification of that correction is pending.
+
+Mining request limits now distinguish a productive yield from zero collected output. A productive yield replans with the same source and retains bounded per-position rejections; zero output pauses with explicit counts. Food batching and safe retreat recovery are being checked before the next full-set attempt. The full diamond target remains unpassed.

@@ -21,7 +21,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -34,7 +33,6 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.level.LevelInfo;
 import net.minecraft.world.gen.GeneratorOptions;
-import net.minecraft.world.gen.WorldPresets;
 
 /** Minecraft 1.20.2–1.20.4 verifier construction hooks. */
 final class VerificationApi {
@@ -91,9 +89,7 @@ final class VerificationApi {
 
     static void startFlatWorld(IntegratedServerLoader loader, String saveName, LevelInfo levelInfo,
                                GeneratorOptions options) {
-        loader.createAndStart(saveName, levelInfo, options,
-            registry -> registry.get(RegistryKeys.WORLD_PRESET).getOrThrow(WorldPresets.FLAT)
-                .createDimensionsRegistryHolder());
+        VerificationWorldStart.startFlatWorld(loader, saveName, levelInfo, options);
     }
 
     private static final class RubyOreBlock extends Block {

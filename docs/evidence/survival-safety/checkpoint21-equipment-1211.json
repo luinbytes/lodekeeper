@@ -1,0 +1,29 @@
+{
+  "runId":"2026-10-06T07-41-43-012448Z-6ac02029",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "preparedSafetyProperty":"equipment",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"prepared_safety_equipment",
+  "elapsedMillis":17131,
+  "clientTicks":240,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"prepared_equipment_iron_helmet","item":"minecraft:iron_helmet","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":24,"worldTicks":24,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"integrated server received the stored iron helmet in the head slot through a completed goal, with storage empty, cursor empty, and no crafting station opened","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T07-41-43-012448Z-6ac02029-prepared_equipment_iron_helmet.png","initialStorageInventory":{"minecraft:iron_helmet":1},"finalStorageInventory":{},"fullServerHeldInventory":{"minecraft:iron_helmet":1},"elapsedMillisFromCommand":1221,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{"head":"minecraft:iron_helmet"},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":false,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

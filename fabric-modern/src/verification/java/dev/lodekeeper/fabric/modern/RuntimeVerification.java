@@ -65,6 +65,8 @@ import java.util.concurrent.CompletableFuture;
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final boolean BARITONE_MODE = Boolean.getBoolean("lodekeeper.verify.baritone");
+    private static final boolean MINING_REQUEST_LIMIT_MODE = Boolean.getBoolean("lodekeeper.verify.miningRequestLimit");
+    private static final boolean MINING_ZERO_YIELD_MODE = Boolean.getBoolean("lodekeeper.verify.miningZeroYield");
     private boolean baritoneMiningObserved;
 
     private static final boolean NEARBY_WOOD_MODE = Boolean.getBoolean("lodekeeper.verify.nearbyWood");
@@ -77,6 +79,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String COOKING_STATION_MODE = System.getProperty("lodekeeper.verify.cookingStation");
     private static final boolean COOKING_MODE = COOKING_STATION_MODE != null;
     private static final String PREPARED_SAFETY_MODE = System.getProperty("lodekeeper.verify.preparedSafety");
+    private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final boolean STONECUTTING_MODE = Boolean.getBoolean("lodekeeper.verify.stonecutting");
@@ -84,8 +87,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean PROCESSING_MODE = COOKING_MODE || STONECUTTING_MODE;
     private static final String PROCESSING_STATION_MODE = STONECUTTING_MODE ? "stonecutter" : COOKING_STATION_MODE;
     private static final int STONECUTTING_DRAIN_COMMAND_TARGET = 144;
-    private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : 6_000;
-    private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L : 300_000_000_000L;
+    private static final int MAX_RUN_TICKS = COOKING_MODE ? 10_000 : MINING_REQUEST_LIMIT_MODE ? 7_200 : 6_000;
+    private static final long MAX_RUN_WALL_NANOS = COOKING_MODE ? 500_000_000_000L
+        : MINING_REQUEST_LIMIT_MODE ? 360_000_000_000L : 300_000_000_000L;
     private static final int OBSERVE_EVERY_TICKS = 20;
     private static final boolean EXPLORATION_MODE = Boolean.getBoolean("lodekeeper.verify.exploration");
     private static final boolean DIAMOND_BOOTSTRAP_MODE = Boolean.getBoolean("lodekeeper.verify.diamondBoots");
@@ -247,7 +251,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
-        if (System.getProperty("lodekeeper.verify.naturalGoal") != null) {
+        if (System.getProperty("lodekeeper.verify.naturalGoal") != null
+                && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE) {
             NaturalWorldVerification.start(Minecraft.getInstance());
             return;
         }
@@ -259,6 +264,26 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (nearbyWoodFailure != null) {
                 state = State.FAILED;
                 failure = nearbyWoodFailure;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.stop();
+                return;
+            }
+            if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+                    || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                    || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
+                failure = "threatWaterRetreat requires baritone=true, preparedSafety=threat, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.stop();
+                return;
+            }
+            if (MINING_ZERO_YIELD_MODE && !MINING_REQUEST_LIMIT_MODE
+                    || MINING_REQUEST_LIMIT_MODE && (!BARITONE_MODE || !BULK_WOOD_MODE
+                        || System.getProperty("lodekeeper.verify.naturalGoal") != null)) {
+                failure = "miningRequestLimit requires baritone=true and bulkWood=true without naturalGoal; miningZeroYield requires miningRequestLimit=true";
+                state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.stop();
@@ -452,6 +477,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         if (clientTicks > MAX_RUN_TICKS || System.nanoTime() - startedAtNanos > MAX_RUN_WALL_NANOS) {
             fail(COOKING_MODE ? "verification exceeded the 500-second cooking-mode limit"
+                : MINING_REQUEST_LIMIT_MODE ? "verification exceeded the 360-second mining-request-limit limit"
                 : "verification exceeded the five-minute limit");
             return;
         }
@@ -516,8 +542,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (PREPARED_SAFETY_MODE != null) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (preparedSafetyFixtureReady()) {
-                        if (++readyTicks >= 20 && client.player.getY() > FLOOR_Y
-                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK)) {
+                        if (++readyTicks >= 20 && (THREAT_WATER_RETREAT_MODE || client.player.getY() > FLOOR_Y
+                                && client.level.getBlockState(new BlockPos(0, FLOOR_Y, 0)).is(Blocks.BEDROCK))) {
                             if (preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS) {
                                 startPreparedSafetyIngredientsCase();
                             } else if (preparedSafetyPhase == PreparedSafetyPhase.THREAT) {
@@ -658,6 +684,14 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.allowParkour = false;
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
+        if (THREAT_WATER_RETREAT_MODE) engine.config.debugLogging = true;
+        if (MINING_REQUEST_LIMIT_MODE) {
+            engine.config.actionTimeoutTicks = 200;
+            engine.config.explorationAttempts = 1;
+            engine.config.allowExploration = true;
+            engine.config.debugLogging = true;
+            if (MINING_ZERO_YIELD_MODE) engine.config.explorationDistance = 1;
+        }
     }
 
     private void beginFixtureSetup() {
@@ -1739,7 +1773,15 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && "10.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("cowHealth"))
                 && "10.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("cowInitialHealth"))
                 && "0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("diamondSwordDamage"))
-                && "0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("woodenPickaxeDamage"));
+                && "0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("woodenPickaxeDamage"))
+                && (!THREAT_WATER_RETREAT_MODE || "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("creeperAlive"))
+                    && "false".equals(latestSnapshot.preparedSafetyThreatReceipt.get("creeperRemoved"))
+                    && "20.0".equals(latestSnapshot.preparedSafetyThreatReceipt.get("creeperHealth"))
+                    && Double.parseDouble(latestSnapshot.preparedSafetyThreatReceipt.getOrDefault("creeperDistanceSquared", "NaN")) < 36
+                    && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("lowWaterRoofPresent"))
+                    && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("waterSourceCellsPresent"))
+                    && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("waterFloorPresent"))
+                    && "true".equals(latestSnapshot.preparedSafetyThreatReceipt.get("playerInWater")));
             case STATION_ROOM -> latestSnapshot.inventory.equals(Map.of("minecraft:coal", 1,
                     "minecraft:furnace", 1, "minecraft:raw_iron", 1, "minecraft:stone_pickaxe", 1))
                 && latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
@@ -1799,7 +1841,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("prepared threat command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = "prepared_threat_sweep_guard_bucket";
+        activeCase = THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
         activeItem = "minecraft:bucket";
         activeCount = 1;
         activeRequiresEmpty = false;
@@ -1914,16 +1956,33 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
                 && latestSnapshot.difficulty.equals(Difficulty.NORMAL.name()) && latestSnapshot.foodLevel == 20
                 && noMaintenanceQueued && preparedMaintenanceQueueEmptyBeforeForeground
-                && "true".equals(receipt.get("preparedThreatsCleared"))
                 && activeInitialThreatReceipt.get("zombieUuid").equals(receipt.get("zombieUuid"))
                 && activeInitialThreatReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
-                && "false".equals(receipt.get("zombieAlive"))
-                && "0.0".equals(receipt.get("zombieHealth"))
                 && "true".equals(receipt.get("cowAlive"))
                 && activeInitialThreatReceipt.get("cowHealth").equals(receipt.get("cowHealth"))
                 && activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
-                && "0".equals(receipt.get("diamondSwordDamage")) && pickaxeShowsNativeHits;
-            detail = passed
+                && "0".equals(receipt.get("diamondSwordDamage"))
+                && (THREAT_WATER_RETREAT_MODE
+                    ? latestSnapshot.health == 20.0F && "true".equals(receipt.get("zombieAlive"))
+                        && "4.0".equals(receipt.get("zombieHealth"))
+                        && "true".equals(receipt.get("creeperAlive")) && "false".equals(receipt.get("creeperRemoved"))
+                        && "20.0".equals(receipt.get("creeperHealth"))
+                        && activeInitialThreatReceipt.getOrDefault("creeperUuid", "").equals(receipt.get("creeperUuid"))
+                        && Double.parseDouble(receipt.getOrDefault("creeperDistanceSquared", "NaN")) >= 144
+                        && "0".equals(receipt.get("woodenPickaxeDamage")) && pickaxeWear == 0
+                        && "false".equals(receipt.get("playerInWater"))
+                        && "true".equals(receipt.get("playerSupportBedrock"))
+                        && "true".equals(receipt.get("playerBodyCellsAir"))
+                        && "true".equals(receipt.get("lowWaterRoofPresent"))
+                        && "true".equals(receipt.get("waterSourceCellsPresent"))
+                        && "true".equals(receipt.get("waterFloorPresent"))
+                    : "true".equals(receipt.get("preparedThreatsCleared"))
+                        && "false".equals(receipt.get("zombieAlive")) && "0.0".equals(receipt.get("zombieHealth"))
+                        && pickaxeShowsNativeHits);
+            detail = THREAT_WATER_RETREAT_MODE
+                ? passed ? "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation"
+                    : "the water-retreat fixture lacked the required native distance, health, untouched-mob/weapon, dry-support, bucket, cursor, or cancellation receipts"
+                : passed
                 ? "the integrated server killed the prepared zombie with native wooden-pickaxe hits, left the diamond sword untouched and cow at full health, then completed the bucket goal with an empty cursor and idle engine; measured pickaxe wear=" + pickaxeWear + " (" + (pickaxeWear / 2) + " hits at two wear each)"
                 : "the prepared threat goal did not produce the required native zombie, cow, weapon-wear, bucket, cursor, and idle receipts";
         } else if (preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM) {
@@ -2583,6 +2642,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("baritoneMiningObserved", baritoneMiningObserved);
             root.addProperty("worldKind", "isolated_superflat_fixture");
             root.addProperty("preparedWorld", PREPARED_SAFETY_MODE != null);
+            root.addProperty("threatWaterRetreat", THREAT_WATER_RETREAT_MODE);
+            if (THREAT_WATER_RETREAT_MODE) root.addProperty("fixtureGrants",
+                "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs");
             if (PREPARED_SAFETY_MODE != null) root.addProperty("preparedSafetyProperty", PREPARED_SAFETY_MODE);
             root.addProperty("evidenceAuthority", PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
                 ? "integrated_server_inventory_menu_hunger_entities_and_item_durability"
@@ -2910,6 +2972,25 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("bulkWoodFixtureLogCount", BULK_WOOD_MODE ? 80 : 0);
             root.addProperty("woodToolsFlag", WOOD_TOOLS_MODE);
             root.addProperty("woodToolsEnabled", BULK_WOOD_MODE && WOOD_TOOLS_MODE);
+            root.addProperty("miningRequestLimit", MINING_REQUEST_LIMIT_MODE);
+            root.addProperty("miningZeroYield", MINING_ZERO_YIELD_MODE);
+            if (MINING_REQUEST_LIMIT_MODE) {
+                AutomationEngine engine = LodekeeperClient.engine;
+                if (engine == null) root.add("miningRequestCapConfiguration", com.google.gson.JsonNull.INSTANCE);
+                else {
+                    JsonObject cap = new JsonObject();
+                    cap.addProperty("actionTimeoutTicks", engine.config.actionTimeoutTicks);
+                    cap.addProperty("explorationAttempts", engine.config.explorationAttempts);
+                    cap.addProperty("allowExploration", engine.config.allowExploration);
+                    cap.addProperty("explorationDistance", engine.config.explorationDistance);
+                    int maximumTicks = Math.max(engine.config.actionTimeoutTicks, engine.config.explorationAttempts * 200);
+                    cap.addProperty("requestCapTicks", maximumTicks);
+                    cap.addProperty("requestCapMillis", maximumTicks * 50L);
+                    cap.addProperty("runWallLimitMillis", MAX_RUN_WALL_NANOS / 1_000_000L);
+                    root.add("miningRequestCapConfiguration", cap);
+                }
+                root.addProperty("miningRequestYieldEvidence", "native_debug_log_MINING_REQUEST_YIELD");
+            }
             root.addProperty("resourceInitiallyLoaded", resourceInitiallyLoaded);
             root.addProperty("explorationAttempts",
                 LodekeeperClient.engine == null ? 0 : LodekeeperClient.engine.explorationAttemptsMade());
@@ -2991,6 +3072,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+                || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_threat_water_retreat";
+
+        if (MINING_ZERO_YIELD_MODE && !MINING_REQUEST_LIMIT_MODE) return "invalid_mining_zero_yield";
+        if (MINING_REQUEST_LIMIT_MODE && (!BARITONE_MODE || !BULK_WOOD_MODE
+                || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_mining_request_limit";
         if (PREPARED_SAFETY_MODE != null
                 && !PREPARED_SAFETY_MODE.equals("equipment") && !PREPARED_SAFETY_MODE.equals("offhand")
                 && !PREPARED_SAFETY_MODE.equals("threat") && !PREPARED_SAFETY_MODE.equals("station_room")) {
@@ -3012,9 +3100,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (COAL_RECOVERY_MODE) return MIXED_NAVIGATION_COURSE ? "coal_recovery_mixed_navigation" : "coal_recovery";
         if (STONECUTTING_MODE) return "stonecutting";
         if (COOKING_MODE) return "cooking_" + COOKING_STATION_MODE;
-        if (PREPARED_SAFETY_MODE != null) return "prepared_safety_" + PREPARED_SAFETY_MODE;
+        if (PREPARED_SAFETY_MODE != null) return THREAT_WATER_RETREAT_MODE
+            ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NEARBY_WOOD_MODE) return "nearby_wood";
-        if (BULK_WOOD_MODE) return "bulk_wood";
+        if (BULK_WOOD_MODE) return MINING_REQUEST_LIMIT_MODE
+            ? MINING_ZERO_YIELD_MODE ? "bulk_wood_mining_zero_yield" : "bulk_wood_mining_request_limit" : "bulk_wood";
         if (DIAMOND_BOOTSTRAP_MODE) return "diamond_boots";
         return EXPLORATION_MODE ? "exploration" : "default";
     }

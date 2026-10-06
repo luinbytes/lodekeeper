@@ -94,7 +94,9 @@ final class GameCatalog {
                                 progressTicks -= progressTicks % work.cookTicks();
                             }
                             if (progressTicks > 0) fuelProgressTicks.put(fuel.getKey(), progressTicks);
-                            if (fuelProgressTicks.size() == 256) break;
+                            if (fuelProgressTicks.size() > SmeltingSource.MAX_FUELS) {
+                                throw new IllegalArgumentException("cooking fuel alternatives exceed " + SmeltingSource.MAX_FUELS);
+                            }
                         }
                         List<ItemSelector> fuels = fuelProgressTicks.keySet().stream().map(ItemSelector::item).toList();
                         if (fuels.isEmpty()) {

@@ -492,10 +492,14 @@ final class GameCatalog {
                 if (!GameApi.supportedCookingFuelStack(fuel)) continue;
                 long capacity = GameApi.cookingFuelProgressTicks(level, fuel, station, cookTicks);
                 if (capacity > 0 && capacity <= 1_000_000_000L) resolved.put(id(item), capacity);
-                if (resolved.size() == 256) break;
+                if (resolved.size() > SmeltingSource.MAX_FUELS) break;
             }
             capacities = Map.copyOf(resolved);
             cookingFuels.put(context, capacities);
+        }
+        if (capacities.size() > SmeltingSource.MAX_FUELS) {
+            rejected.add(sourceId + ": cooking fuel alternatives exceed " + SmeltingSource.MAX_FUELS);
+            return null;
         }
         if (capacities.isEmpty()) {
             rejected.add(sourceId + ": no supported cooking fuels for this station and recipe");

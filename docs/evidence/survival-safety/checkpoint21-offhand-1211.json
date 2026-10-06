@@ -1,0 +1,30 @@
+{
+  "runId":"2026-10-06T07-40-13-732531Z-6525e993",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "preparedSafetyProperty":"offhand",
+  "evidenceAuthority":"integrated_server_inventory",
+  "verificationMode":"prepared_safety_offhand",
+  "elapsedMillis":27202,
+  "clientTicks":421,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"prepared_offhand_food_reservation_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":105,"worldTicks":105,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"maintained cooked beef remained satisfied by the offhand without queued maintenance work before or after the foreground goal while stored beef was eaten and three stored iron ingots were crafted into a bucket","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":7,"serverFoodLevelObserved":15,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T07-40-13-732531Z-6525e993-prepared_offhand_food_reservation_bucket.png","initialStorageInventory":{"minecraft:cooked_beef":1,"minecraft:crafting_table":1,"minecraft:iron_ingot":3},"finalStorageInventory":{"minecraft:bucket":1},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:cooked_beef":1},"elapsedMillisFromCommand":5263,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{"offhand":"minecraft:cooked_beef"},"serverEquipmentSlotItems":{"offhand":"minecraft:cooked_beef"},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":true,"maintainedReservationPresentAtCompletion":true,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{}},
+    {"name":"prepared_offhand_ingredients_sticks","item":"minecraft:stick","expected":4,"serverObserved":4,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":79,"worldTicks":79,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"an eight-log offhand maintenance goal protected the held logs while the planner used stored oak logs to craft sticks with block breaking disabled and no maintenance work queued","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":15,"serverFoodLevelObserved":15,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T07-40-13-732531Z-6525e993-prepared_offhand_ingredients_sticks.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:oak_log":2},"finalStorageInventory":{"minecraft:crafting_table":1,"minecraft:oak_log":1,"minecraft:oak_planks":2,"minecraft:stick":4},"fullServerHeldInventory":{"minecraft:crafting_table":1,"minecraft:oak_log":9,"minecraft:oak_planks":2,"minecraft:stick":4},"elapsedMillisFromCommand":3966,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{"offhand":"minecraft:oak_log"},"serverEquipmentSlotItems":{"offhand":"minecraft:oak_log"},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":true,"maintainedReservationPresentAtCompletion":true,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

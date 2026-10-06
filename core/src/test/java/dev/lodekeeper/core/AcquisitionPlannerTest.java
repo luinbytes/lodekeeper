@@ -494,6 +494,37 @@ final class AcquisitionPlannerTest {
     }
 
     @Test
+    void completeLargeFuelCatalogUsesHeldCoalBeyondTheFormerCutoff() {
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId output = ItemId.parse("test:smelted");
+        ItemId coal = ItemId.parse("test:coal");
+        var fuels = new java.util.ArrayList<ItemSelector>();
+        Map<ItemId, Long> capacities = new HashMap<>();
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder().item(raw, 0).item(output, 0);
+        for (int index = 0; index < 511; index++) {
+            ItemId fuel = ItemId.parse("test:fuel_" + index);
+            fuels.add(ItemSelector.item(fuel));
+            capacities.put(fuel, 200L);
+            builder.item(fuel, 0, 200).source(new GatherSource("gather:fuel_" + index, fuel, 1,
+                    List.of(BlockId.parse("test:fuel_block_" + index))));
+        }
+        fuels.add(ItemSelector.item(coal));
+        capacities.put(coal, 1_600L);
+        builder.item(coal, 0, 1_600).source(new SmeltingSource("test:smelt", output, 1,
+                Ingredient.of(raw), fuels, 200, List.of(), capacities));
+        CatalogSnapshot catalog = builder.build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(raw, 1, coal, 1));
+
+        for (PlanResult result : List.of(planner().plan(catalog, inventory, output, 1),
+                planner().planFast(catalog, inventory, output, 1))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(coal, selectedFuel(result).item());
+            assertEquals(1, selectedFuel(result).count());
+            assertEquals(List.of(PlanKind.SMELT), result.steps().stream().map(PlanStep::kind).toList());
+        }
+    }
+
+    @Test
     void protectedFuelMustBeReplacedBeforeItCanSatisfySmelting() {
         ItemId coal = ItemId.parse("test:coal");
         SmeltingSource source = new SmeltingSource("test:smelt", ItemId.parse("test:smelted"), 1,
@@ -533,10 +564,13 @@ final class AcquisitionPlannerTest {
         nullValue.put(coal, null);
         assertThrows(IllegalArgumentException.class, () -> fuelSource(nullValue));
         Map<ItemId, Long> excessive = new HashMap<>();
-        for (int index = 0; index < 257; index++) {
+        for (int index = 0; index < 513; index++) {
             excessive.put(ItemId.parse("test:fuel_" + index), 1L);
         }
         assertThrows(IllegalArgumentException.class, () -> fuelSource(excessive));
+        List<ItemSelector> excessiveSelectors = excessive.keySet().stream().map(ItemSelector::item).toList();
+        assertThrows(IllegalArgumentException.class, () -> new SmeltingSource("test:smelt", output, 1,
+                Ingredient.of(raw), excessiveSelectors, 200, List.of()));
     }
 
     private static SmeltingSource fuelSource(Map<ItemId, Long> capacities) {

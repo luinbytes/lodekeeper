@@ -18,6 +18,7 @@ import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.nav.ExplorationFrontier;
 import dev.lodekeeper.nav.NavigationSnapshot;
 import dev.lodekeeper.nav.Path;
+import dev.lodekeeper.nav.StanceProbe;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.client.Minecraft;
@@ -32,11 +33,13 @@ import java.util.*;
 
 /** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
+    record RetreatThreat(double x, double z) { }
     private enum Mode { IDLE, MOVE, MINE, DESCEND, PICKUP, SUSPENDED }
     private final Minecraft client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
     private final BotInput input;
+    private final GameTerrain terrain;
     private IBaritone bot;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
     private boolean cancelling;
@@ -65,16 +68,27 @@ final class MovementController {
     private List<Item> scaffoldItems = List.of();
     private NavigationSnapshot observation = NavigationSnapshot.EMPTY;
 
+    enum RequestLimitCause { DISTANCE, TICKS, WALL_TIME }
+    record MiningRequestLimit(RequestLimitCause cause, int requestTicks, int maximumTicks,
+                              long elapsedMillis, double distance, double maximumDistance,
+                              Set<BlockPos> rejectedPositions) {
+        MiningRequestLimit { rejectedPositions = Set.copyOf(rejectedPositions); }
+    }
+
     static final class NavigationFailure extends IllegalStateException {
-        enum Kind { TOOL, PROCESS_ENDED, PROTECTED_BLOCK, OTHER }
+        enum Kind { TOOL, PROCESS_ENDED, REQUEST_LIMIT, PROTECTED_BLOCK, OTHER }
         final Kind kind;
+        final MiningRequestLimit requestLimit;
         NavigationFailure(String reason) { this(Kind.OTHER, reason); }
-        NavigationFailure(Kind kind, String reason) { super(reason); this.kind = kind; }
+        NavigationFailure(Kind kind, String reason) { this(kind, reason, null); }
+        NavigationFailure(Kind kind, String reason, MiningRequestLimit requestLimit) {
+            super(reason); this.kind = kind; this.requestLimit = requestLimit;
+        }
     }
 
     MovementController(Minecraft client, LodekeeperConfig config, PlayerActions actions,
                        BotInput input, GameTerrain terrain) {
-        this.client = client; this.config = config; this.actions = actions; this.input = input;
+        this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
     }
 
     void updateProtection(Set<Item> reserved, Set<Block> protectedBlocks) {
@@ -92,10 +106,58 @@ final class MovementController {
         startMove(new GoalNear(target, radius), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), radius * 16));
     }
 
-    void startRetreat(List<BlockPos> threats, int distance) {
-        if (threats.isEmpty() || threats.size() > 16 || distance < 4 || distance > 32)
+    List<BlockPos> startRetreat(List<RetreatThreat> threats, int distance, Set<BlockPos> rejectedGoals, BlockPos origin) {
+        if (threats.isEmpty() || threats.size() > 16 || distance < 4 || distance > 32
+                || rejectedGoals.size() > 32 || origin == null
+                || threats.stream().anyMatch(threat -> !Double.isFinite(threat.x()) || !Double.isFinite(threat.z())))
             throw new IllegalArgumentException("Retreat requires bounded threat positions and distance");
-        startMove(new GoalRunAway(distance, threats.toArray(BlockPos[]::new)), null);
+        prepare();
+        terrain.beginSearch();
+        BlockPos center = client.player.blockPosition();
+        List<BlockPos> goals = new ArrayList<>();
+        Set<BlockPos> examined = new HashSet<>();
+        StanceProbe stance = new StanceProbe();
+        search: for (int radius = 4; radius <= 12; radius++) {
+            for (int direction = 0; direction < 8; direction++) {
+                double angle = direction * Math.PI / 4;
+                int dx = (int) Math.round(Math.cos(angle)) * radius;
+                int dz = (int) Math.round(Math.sin(angle)) * radius;
+                if (dx * dx + dz * dz > 12 * 12) continue;
+                int x = center.getX() + dx;
+                int z = center.getZ() + dz;
+                for (int dy : new int[]{0, 1, -1, 2, -2}) {
+                    BlockPos candidate = new BlockPos(x, center.getY() + dy, z);
+                    if (!examined.add(candidate) || rejectedGoals.contains(candidate)) continue;
+                    double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
+                    if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) continue;
+                    if (threats.stream().anyMatch(threat -> {
+                        double tx = x + .5 - threat.x(), tz = z + .5 - threat.z();
+                        return tx * tx + tz * tz < (distance + 3.0) * (distance + 3.0);
+                    })) continue;
+                    if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null
+                            || !actions.safePlacementSupport(candidate.below())
+                            || client.level.getBlockState(candidate.above(2)).getBlock() instanceof net.minecraft.world.level.block.FallingBlock) continue;
+                    terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
+                    if (!stance.loaded || !stance.bodyClear || !stance.fullSupport || stance.hazard
+                            || stance.water || stance.climbable || stance.breakCount != 0) continue;
+                    goals.add(candidate);
+                    if (goals.size() == 16) break search;
+                }
+            }
+        }
+        if (goals.isEmpty()) throw new NavigationFailure("No safe dry retreat stance remains within the bounded search");
+        routeGoal = new GoalComposite(goals.stream().map(GoalBlock::new).toArray(baritone.api.pathing.goals.Goal[]::new));
+        diagnosticGoal = null;
+        mode = Mode.MOVE;
+        launch();
+        return List.copyOf(goals);
+    }
+
+    boolean debugLogging() { return config.debugLogging; }
+
+    BlockPos retreatDestination() {
+        if (mode != Mode.MOVE || bot == null || bot.getPathingBehavior().getCurrent() == null) return null;
+        return bot.getPathingBehavior().getCurrent().getPath().getDest().immutable();
     }
 
     void startInteraction(BlockPos target) {
@@ -114,9 +176,12 @@ final class MovementController {
         mode = Mode.PICKUP; launch();
     }
 
-    void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool) {
+    void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool,
+                     Set<BlockPos> priorRejectedPositions) {
         if (blocks.length == 0) throw new NavigationFailure("No supported mining blocks for " + output);
+        if (priorRejectedPositions.size() > 512) throw new IllegalArgumentException("Mining rejection seed exceeds 512 positions");
         prepare(); mineBlocks = blocks.clone(); this.output = output; targetCount = totalCount; this.tool = tool;
+        rejectedMiningTargets.addAll(priorRejectedPositions);
         if (tool != null && !actions.prepareMiningTool(tool, mineBlocks[0].defaultBlockState(), output)) {
             throw new NavigationFailure(NavigationFailure.Kind.TOOL, "Required mining tool is unavailable or worn: " + tool.item());
         }
@@ -230,10 +295,16 @@ final class MovementController {
             double limit = config.allowExploration ? config.explorationDistance : config.searchRadius;
             double dx = client.player.getX() - requestX, dz = client.player.getZ() - requestZ;
             int maxTicks = Math.max(config.actionTimeoutTicks, config.explorationAttempts * 200);
-            if (dx * dx + dz * dz > limit * limit || requestTicks > maxTicks
-                    || System.nanoTime() - startedNanos > maxTicks * 50_000_000L) {
-                stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                        "Mining reached its configured exploration distance or request-time limit");
+            long elapsedNanos = System.nanoTime() - startedNanos;
+            RequestLimitCause limitCause = dx * dx + dz * dz > limit * limit ? RequestLimitCause.DISTANCE
+                    : requestTicks > maxTicks ? RequestLimitCause.TICKS
+                    : elapsedNanos > maxTicks * 50_000_000L ? RequestLimitCause.WALL_TIME : null;
+            if (limitCause != null) {
+                if (mode == Mode.MINE && bot.getMineProcess().isActive()) rememberRejectedMiningTargets();
+                MiningRequestLimit receipt = new MiningRequestLimit(limitCause, requestTicks, maxTicks,
+                        elapsedNanos / 1_000_000L, Math.sqrt(dx * dx + dz * dz), limit, rejectedMiningTargets);
+                stop(); throw new NavigationFailure(NavigationFailure.Kind.REQUEST_LIMIT,
+                        "Mining request reached its " + limitCause + " limit", receipt);
             }
             if (!config.allowBreaking || !config.allowExploration
                     && (mode == Mode.DESCEND || resumeMode == Mode.DESCEND)) {
@@ -489,6 +560,11 @@ final class MovementController {
         }
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = false; observation = NavigationSnapshot.EMPTY;
+        if (mode == Mode.IDLE && resumeMode == Mode.IDLE && routeGoal instanceof GoalComposite) {
+            terrain.beginSearch();
+            routeGoal = null;
+            diagnosticGoal = null;
+        }
         return true;
     }
 

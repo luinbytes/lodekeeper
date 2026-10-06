@@ -254,6 +254,15 @@ final class AutomationEngine {
     private ClientLevel world;
     private GameCatalog catalog;
     private Request active;
+    private record MiningContinuation(Object world, Object dimension, Request request, String sourceId,
+                                      Set<BlockPos> rejectedPositions) {
+        MiningContinuation { rejectedPositions = Set.copyOf(rejectedPositions); }
+        boolean matches(Object currentWorld, Object currentDimension, Request currentRequest, String currentSource) {
+            return world == currentWorld && java.util.Objects.equals(dimension, currentDimension)
+                    && request == currentRequest && sourceId.equals(currentSource);
+        }
+    }
+    private MiningContinuation miningContinuation;
     private record HealthRecovery(long startedNanos) { }
     private HealthRecovery healthRecovery;
     private CompletableFuture<PlanningOutcome> pendingPlan;
@@ -310,6 +319,7 @@ final class AutomationEngine {
     private int inventorySampleTicks;
     private int foodCooldown;
     private boolean foodReplanPending, foodAcquisitionPending;
+    private Boolean loggedFoodPreparationDeferred;
     private int foodAcquisitionCooldown, stationAccessFailures;
     private boolean inventoryFingerprintInitialized;
     private long lastInventoryFingerprint;
@@ -634,6 +644,31 @@ final class AutomationEngine {
                 try { if (movement.tick()) { moving = false; movingPickup = false; movement.stop(); } }
                 catch (MovementController.NavigationFailure blocked) {
                     if (step.kind() == PlanKind.GATHER) {
+                        if (blocked.kind == MovementController.NavigationFailure.Kind.REQUEST_LIMIT) {
+                            MovementController.MiningRequestLimit limit = blocked.requestLimit;
+                            int currentCount = actions.count(GameCatalog.item(step.output()));
+                            int collected = Math.max(0, currentCount - baseline);
+                            MiningContinuation continuation = new MiningContinuation(client.level, client.level.dimension(),
+                                    active, step.sourceId(), limit.rejectedPositions());
+                            if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                                    "[Lodekeeper] MINING_REQUEST_YIELD source={} output={} initialCount={} currentCount={} collected={} cause={} requestTicks={} maximumTicks={} elapsedMillis={} distance={} maximumDistance={} retainedRejects={}",
+                                    step.sourceId(), step.output(), baseline, currentCount, collected, limit.cause(),
+                                    limit.requestTicks(), limit.maximumTicks(), limit.elapsedMillis(), limit.distance(),
+                                    limit.maximumDistance(), limit.rejectedPositions().size());
+                            if (collected == 0) {
+                                miningContinuation = continuation;
+                                pause("Mining request reached its " + limit.cause()
+                                        + " limit without confirmed collected output for " + step.output()
+                                        + " (initial " + baseline + ", current " + currentCount + ")");
+                                return;
+                            }
+                            message("Mining collected " + collected + " " + step.output()
+                                    + " before its " + limit.cause() + " limit; replanning");
+                            resetAction();
+                            miningContinuation = continuation;
+                            requestPlan();
+                            return;
+                        }
                         message("Mining is replanning: " + blocked.getMessage());
                         if (blocked.kind != MovementController.NavigationFailure.Kind.TOOL)
                             unavailableSources.add(step.sourceId());
@@ -855,6 +890,7 @@ final class AutomationEngine {
             } else {
                 return;
             }
+            miningContinuation = null;
             unavailableSources.clear();
             frontier = null; rejectedResources.clear(); lastResourceFailure = null; resetLogDiscovery();
             planningRetries = 0; stationAccessFailures = 0; unreachableStations.clear();
@@ -1075,13 +1111,31 @@ final class AutomationEngine {
     }
 
     private boolean needsMiningFoodStock() {
-        if (step == null || step.kind() != PlanKind.GATHER || food.availableNutrition() >= 36) return false;
+        if (step == null || step.kind() != PlanKind.GATHER || food.availableCookedNutrition() >= 36) return false;
         return step.candidateBlocks().stream().anyMatch(block -> {
             String id = block.toString();
             return id.equals("minecraft:iron_ore") || id.equals("minecraft:deepslate_iron_ore")
                     || id.equals("minecraft:diamond_ore") || id.equals("minecraft:deepslate_diamond_ore")
                     || id.equals("minecraft:coal_ore") || id.equals("minecraft:deepslate_coal_ore");
         });
+    }
+
+    private FoodController.Preparation foodPreparationOffer() {
+        FoodController.Preparation preparation = config.autoEat ? food.preparationGoal() : null;
+        if (preparation == null) {
+            loggedFoodPreparationDeferred = null;
+            return null;
+        }
+        int cookedPotential = food.availableCookedNutrition();
+        boolean urgent = healthRecovery != null || client.player.getFoodData().getFoodLevel() <= 14;
+        boolean deferred = !urgent && cookedPotential < 36 && foodAcquisition.ready(false);
+        if (config.debugLogging && !Boolean.valueOf(deferred).equals(loggedFoodPreparationDeferred)) {
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] FOOD_PREPARATION decision={} nutrition={} cooked_potential={} target=36",
+                    deferred ? "batch_raw_food" : "cook_stored_food", food.availableNutrition(), cookedPotential);
+            loggedFoodPreparationDeferred = deferred;
+        }
+        return deferred ? null : preparation;
     }
 
     private Map<ItemId, Integer> foodReservations() {
@@ -1202,7 +1256,7 @@ final class AutomationEngine {
                 ? remainingProject(active.project().spec, inventory) : null;
         Map<ItemId, Integer> gatherCapacity = project == null ? Map.of() : gatherCapacity(filteredSnapshot);
         food.updateProtection(foodReservations());
-        FoodController.Preparation offeredPreparation = config.autoEat ? food.preparationGoal() : null;
+        FoodController.Preparation offeredPreparation = foodPreparationOffer();
         FoodController.Preparation preparation = offeredPreparation != null
                 && offeredPreparation.targetCount() - actions.count(GameCatalog.item(offeredPreparation.item()))
                     <= gatherCapacity(offeredPreparation.item()) ? offeredPreparation : null;
@@ -2053,7 +2107,11 @@ final class AutomationEngine {
     }
 
     private void begin(PlanStep next, boolean auxiliaryInvestment, long plannedPreferencesVersion) {
+        MiningContinuation continuation = miningContinuation;
         resetAction();
+        if (next.kind() == PlanKind.GATHER && continuation != null
+                && continuation.matches(client.level, client.level.dimension(), active, next.sourceId()))
+            miningContinuation = continuation;
         prepareStationAttempts(next);
         stationDiscoveryDone = false;
         workbenchRecoveryChecked = false;
@@ -2302,8 +2360,17 @@ final class AutomationEngine {
                 .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
         if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
         refreshNavigationProtection();
+        Set<BlockPos> priorRejectedPositions = Set.of();
+        if (miningContinuation != null) {
+            if (miningContinuation.matches(client.level, client.level.dimension(), active, step.sourceId()))
+                priorRejectedPositions = miningContinuation.rejectedPositions();
+            else miningContinuation = null;
+        }
+        if (config.debugLogging && !priorRejectedPositions.isEmpty())
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] MINING_CONTINUE source={} retainedRejects={}", step.sourceId(), priorRejectedPositions.size());
         movement.startMining(blocks.toArray(Block[]::new), GameCatalog.item(step.output()),
-                Math.addExact(baseline, step.outputCount()), tool);
+                Math.addExact(baseline, step.outputCount()), tool, priorRejectedPositions);
         moving = true; movingPickup = false; status = movement.status();
     }
 
@@ -2616,6 +2683,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedMenu) {
+        miningContinuation = null;
         stationRoom.stop();
         workbenchRecovery.stop(); recoveringWorkbench = null;
         foodAcquisition.stop(); foodAcquisitionPending = false;

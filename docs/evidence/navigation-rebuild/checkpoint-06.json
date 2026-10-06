@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "createdUtc": "2026-10-06T08:04:03.413664+00:00",
+  "cases": [
+    {
+      "minecraftVersion": "1.21.1",
+      "goal": "gear_diamond",
+      "status": "failed",
+      "commandElapsedMillis": 383128,
+      "firstServerMovementElapsedMillis": 1325,
+      "minimumHealth": 20.0,
+      "serverHealth": 20.0,
+      "serverHunger": 17,
+      "deathsObserved": 0,
+      "goalSatisfied": false,
+      "failure": "automation paused: paused \u00b7 Threat response needs attention: threat response failed: IllegalStateException: defense exceeded its 15 second budget \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+      "serverHeldCounts": {
+        "minecraft:birch_planks": 1,
+        "minecraft:birch_sapling": 1,
+        "minecraft:stick": 2,
+        "minecraft:crafting_table": 1,
+        "minecraft:leather": 3,
+        "minecraft:cooked_beef": 4,
+        "minecraft:cobblestone": 29,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:dirt": 7,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stone_pickaxe": 1
+      },
+      "serverArmorCounts": {},
+      "serverCursor": {
+        "item": "",
+        "count": 0
+      },
+      "sourceCommit": "21beb0722088b3051eff5345fa58bc3e167fc722",
+      "artifactSha256": "ad189ace0cd1135b44ddc71cb6bd46bafa4a8507fb48bc21ac6c33b06cedf98e",
+      "clientExitCode": 0,
+      "evidence": "natural-diamond-checkpoint06-1211.json",
+      "artifact": "natural-diamond-checkpoint06-1211-artifact.json"
+    }
+  ],
+  "fullDiamondAcceptance": "not passed",
+  "comparison": "One unpaired normal-survival run. No competitor speed claim.",
+  "failureAnalysis": "A creeper remained 9.296 blocks away. Retreat stalled at a source-water cell beneath a low gravel roof, with two path nodes remaining, then exceeded the 15-second defense budget. No damage or deaths occurred.",
+  "nextChanges": "Choose bounded safe dry retreat stances, detect stalled routes, refresh moving threats, and batch elective food preparation."
+}

@@ -16,6 +16,7 @@ public record SmeltingSource(
         List<Requirement> requirements,
         Map<ItemId, Long> fuelProgressTicks
 ) implements AcquisitionSource {
+    public static final int MAX_FUELS = 512;
     private static final long MAX_FUEL_PROGRESS_TICKS = 1_000_000_000L;
 
     public SmeltingSource {
@@ -24,13 +25,13 @@ public record SmeltingSource(
         outputCount = SourceValidation.outputCount(outputCount);
         Objects.requireNonNull(input, "input");
         fuels = List.copyOf(Objects.requireNonNull(fuels, "fuels"));
-        if (fuels.isEmpty() || fuels.size() > 256 || fuels.stream().anyMatch(Objects::isNull)) {
-            throw new IllegalArgumentException("Smelting source needs 1..256 fuel alternatives");
+        if (fuels.isEmpty() || fuels.size() > MAX_FUELS || fuels.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Smelting source needs 1.." + MAX_FUELS + " fuel alternatives");
         }
         if (cookTicks < 1 || cookTicks > 1_000_000) throw new IllegalArgumentException("cookTicks out of range");
         requirements = SourceValidation.requirements(requirements);
         Objects.requireNonNull(fuelProgressTicks, "fuelProgressTicks");
-        if (fuelProgressTicks.size() > 256) throw new IllegalArgumentException("fuelProgressTicks must contain at most 256 fuels");
+        if (fuelProgressTicks.size() > MAX_FUELS) throw new IllegalArgumentException("fuelProgressTicks must contain at most " + MAX_FUELS + " fuels");
         Map<ItemId, Long> fuelProgressCopy = new HashMap<>();
         for (Map.Entry<ItemId, Long> entry : fuelProgressTicks.entrySet()) {
             ItemId fuel = entry.getKey();

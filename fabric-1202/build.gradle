@@ -25,6 +25,8 @@ sourceSets {
         compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
         runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
         java.srcDir(layout.buildDirectory.dir('generated/shared-verification'))
+        def worldStartFamily = rootProject.minecraft_version.toString() == '1.20.2' ? '1202' : '1203'
+        java.srcDir "src/verification-start-${worldStartFamily}/java"
         resources.srcDirs = ['src/verification/resources']
     }
 }

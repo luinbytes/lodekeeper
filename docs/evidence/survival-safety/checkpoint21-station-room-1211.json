@@ -1,0 +1,29 @@
+{
+  "runId":"2026-10-06T07-39-20-275563Z-f4b8288a",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "preparedSafetyProperty":"station_room",
+  "evidenceAuthority":"integrated_server_inventory_furnace_menu_and_block_states",
+  "verificationMode":"prepared_safety_station_room",
+  "elapsedMillis":31074,
+  "clientTicks":521,
+  "failure":"",
+  "serverTableOpened":false,
+  "serverFurnaceOpened":true,
+  "serverTableOpenings":0,
+  "serverFurnaceOpenings":1,
+  "cases":[
+    {"name":"prepared_station_room_iron_ingot","item":"minecraft:iron_ingot","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":298,"worldTicks":298,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the integrated server consumed raw iron, opened the nearby placed furnace, and recorded 2 changed native stone cell(s), with the original support and furnace floor still bedrock","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":false,"serverFurnaceOpenedDuringCase":true,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T07-39-20-275563Z-f4b8288a-prepared_station_room_iron_ingot.png","initialStorageInventory":{"minecraft:coal":1,"minecraft:furnace":1,"minecraft:raw_iron":1,"minecraft:stone_pickaxe":1},"finalStorageInventory":{"minecraft:cobblestone":2,"minecraft:iron_ingot":1,"minecraft:stone_pickaxe":1},"fullServerHeldInventory":{"minecraft:cobblestone":2,"minecraft:iron_ingot":1,"minecraft:stone_pickaxe":1},"elapsedMillisFromCommand":14928,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{},"serverPreparedThreatReceipt":{},"initialPreparedStationRoomReceipt":{"nearbyFurnaceCount":"0","nearbyFurnacePositions":"","playerSupportBedrock":"true","preparedRoomStartPosition":"0.5,64,0.5","roomStoneCellCandidateCount":"73","roomStoneCellsChangedCount":"0","roomStoneCellsChangedPositions":"","roomStoneCellsStillStone":"73","stationFloorBedrock":"false"},"serverPreparedStationRoomReceipt":{"nearbyFurnaceCount":"1","nearbyFurnacePositions":"-1,64,0","playerSupportBedrock":"true","preparedRoomStartPosition":"0.5,64,0.5","roomStoneCellCandidateCount":"73","roomStoneCellsChangedCount":"2","roomStoneCellsChangedPositions":"-1,64,0=minecraft:furnace;-1,65,0=minecraft:air","roomStoneCellsStillStone":"71","stationFloorBedrock":"true"}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}

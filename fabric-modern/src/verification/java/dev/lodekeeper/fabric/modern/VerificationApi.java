@@ -106,11 +106,27 @@ final class VerificationApi {
     }
 
     static PreparedSafetyThreatFixture seedPreparedSafetyThreatFixture(ServerPlayer player, ServerLevel world) {
-        for (int x = 0; x <= 2; x++) for (int z = 0; z <= 1; z++) {
-            world.setBlock(new BlockPos(x, 67, z), Blocks.BEDROCK.defaultBlockState(), 3);
+        boolean waterRetreat = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
+        if (waterRetreat) {
+            for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) {
+                world.setBlock(new BlockPos(x, 63, z), Blocks.BEDROCK.defaultBlockState(), 3);
+                for (int y = 64; y <= 66; y++) world.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), 3);
+            }
+            for (int x = -2; x <= 2; x++) for (int z = -3; z <= 3; z++) {
+                world.setBlock(new BlockPos(x, 62, z), Blocks.BEDROCK.defaultBlockState(), 3);
+                world.setBlock(new BlockPos(x, 63, z), Blocks.WATER.defaultBlockState(), 3);
+            }
+            for (int z = -3; z <= -1; z++) world.setBlock(new BlockPos(0, 65, z), Blocks.BEDROCK.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(20, 63, 20), Blocks.BEDROCK.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(18, 63, 20), Blocks.BEDROCK.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(20, 67, 20), Blocks.BEDROCK.defaultBlockState(), 3);
+        } else {
+            for (int x = 0; x <= 2; x++) for (int z = 0; z <= 1; z++) {
+                world.setBlock(new BlockPos(x, 67, z), Blocks.BEDROCK.defaultBlockState(), 3);
+            }
+            world.setBlock(new BlockPos(3, 64, 0), Blocks.BEDROCK.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(3, 65, 0), Blocks.BEDROCK.defaultBlockState(), 3);
         }
-        world.setBlock(new BlockPos(3, 64, 0), Blocks.BEDROCK.defaultBlockState(), 3);
-        world.setBlock(new BlockPos(3, 65, 0), Blocks.BEDROCK.defaultBlockState(), 3);
         if (!player.getInventory().add(new ItemStack(Items.DIAMOND_SWORD))
                 || !player.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE))
                 || !player.getInventory().add(new ItemStack(Items.IRON_INGOT, 3))
@@ -119,20 +135,29 @@ final class VerificationApi {
         }
         player.getInventory().setSelectedSlot(0);
         Mob zombie = preparedMob(world, "minecraft:zombie");
-        zombie.setPos(2.5, 64.0, 0.5);
+        zombie.setPos(waterRetreat ? 20.5 : 2.5, 64.0, waterRetreat ? 20.5 : 0.5);
         zombie.setYRot(180.0F);
         zombie.setXRot(0.0F);
         zombie.setNoAi(true);
         zombie.setHealth(4.0F);
         Mob cow = preparedMob(world, "minecraft:cow");
-        cow.setPos(2.5, 64.0, 1.5);
+        cow.setPos(waterRetreat ? 18.5 : 2.5, 64.0, waterRetreat ? 20.5 : 1.5);
         cow.setYRot(180.0F);
         cow.setXRot(0.0F);
         cow.setNoAi(true);
         if (!world.addFreshEntity(zombie) || !world.addFreshEntity(cow)) {
             throw new IllegalStateException("could not spawn the prepared native zombie and cow");
         }
-        return new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth());
+        Mob creeper = null;
+        if (waterRetreat) {
+            creeper = preparedMob(world, "minecraft:creeper");
+            creeper.setPos(2.5, 64.0, 5.5);
+            creeper.setNoAi(true);
+            creeper.setHealth(20.0F);
+            if (!world.addFreshEntity(creeper)) throw new IllegalStateException("could not spawn the prepared native creeper");
+        }
+        return waterRetreat ? new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth(), creeper)
+            : new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth());
     }
 
     private static Mob preparedMob(ServerLevel world, String id) {
@@ -161,6 +186,29 @@ final class VerificationApi {
         result.put("diamondSwordDamage", Integer.toString(sword.is(Items.DIAMOND_SWORD) ? sword.getDamageValue() : -1));
         result.put("woodenPickaxeDamage", Integer.toString(pickaxe.is(Items.WOODEN_PICKAXE) ? pickaxe.getDamageValue() : -1));
         result.put("preparedThreatsCleared", Boolean.toString(!fixture.zombie.isAlive() && fixture.zombie.getHealth() <= 0.0F));
+        if (fixture.creeper != null) {
+            var world = fixture.creeper.level();
+            result.put("creeperUuid", fixture.creeper.getUUID().toString());
+            result.put("creeperAlive", Boolean.toString(fixture.creeper.isAlive()));
+            result.put("creeperRemoved", Boolean.toString(fixture.creeper.isRemoved()));
+            result.put("creeperHealth", Float.toString(fixture.creeper.getHealth()));
+            result.put("creeperDistanceSquared", Double.toString(fixture.creeper.distanceToSqr(player)));
+            boolean roofPresent = true, waterPresent = true, floorPresent = true;
+            for (int z = -3; z <= -1; z++) roofPresent &= world.getBlockState(new BlockPos(0, 65, z)).is(Blocks.BEDROCK);
+            for (int x = -2; x <= 2; x++) for (int z = -3; z <= 3; z++) {
+                BlockPos cell = new BlockPos(x, 63, z);
+                waterPresent &= world.getBlockState(cell).is(Blocks.WATER) && world.getFluidState(cell).isSource();
+                floorPresent &= world.getBlockState(new BlockPos(x, 62, z)).is(Blocks.BEDROCK);
+            }
+            BlockPos feet = player.blockPosition();
+            result.put("lowWaterRoofPresent", Boolean.toString(roofPresent));
+            result.put("waterSourceCellsPresent", Boolean.toString(waterPresent));
+            result.put("waterFloorPresent", Boolean.toString(floorPresent));
+            result.put("playerInWater", Boolean.toString(player.isInWater()));
+            result.put("playerSupportBedrock", Boolean.toString(world.getBlockState(feet.below()).is(Blocks.BEDROCK)));
+            result.put("playerBodyCellsAir", Boolean.toString(world.getBlockState(feet).is(Blocks.AIR)
+                    && world.getBlockState(feet.above()).is(Blocks.AIR)));
+        }
         return Map.copyOf(result);
     }
 
@@ -168,11 +216,16 @@ final class VerificationApi {
         private final Mob zombie;
         private final Mob cow;
         private final float cowInitialHealth;
+        private final Mob creeper;
 
         private PreparedSafetyThreatFixture(Mob zombie, Mob cow, float cowInitialHealth) {
+            this(zombie, cow, cowInitialHealth, null);
+        }
+        private PreparedSafetyThreatFixture(Mob zombie, Mob cow, float cowInitialHealth, Mob creeper) {
             this.zombie = zombie;
             this.cow = cow;
             this.cowInitialHealth = cowInitialHealth;
+            this.creeper = creeper;
         }
     }
 

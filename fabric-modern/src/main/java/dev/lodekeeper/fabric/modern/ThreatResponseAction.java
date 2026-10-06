@@ -13,9 +13,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
+    private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
     private enum Phase { IDLE, STOPPING, MELEE, RETREAT, FINISHING, COMPLETE, STOPPED }
     private static final long MAX_NANOS = 15_000_000_000L;
     private static final int MAX_TICKS = 300, MAX_ATTACKS = 12, MAX_RETREATS = 2, MAX_THREATS = 16;
@@ -33,6 +36,11 @@ final class ThreatResponseAction {
     private boolean retreatRequired;
     private int originalSlot = -1, selectedSlot = -1;
     private Mob target;
+    private RetreatRoute retreatRoute;
+    private final Set<BlockPos> rejectedRetreatGoals = new HashSet<>();
+    private double retreatProgressX, retreatProgressZ;
+    private int retreatProgressTick;
+
 
     ThreatResponseAction(Minecraft client, PlayerActions actions, MovementController movement) {
         this.client = client;
@@ -143,12 +151,31 @@ final class ThreatResponseAction {
                         movement.stop();
                         phase = Phase.FINISHING;
                         status = "verifying current threat clearance";
+                    } else {
+                        double rx = client.player.getX() - retreatProgressX, rz = client.player.getZ() - retreatProgressZ;
+                        if (rx * rx + rz * rz >= .25) {
+                            retreatProgressX = client.player.getX();
+                            retreatProgressZ = client.player.getZ();
+                            retreatProgressTick = ticks;
+                        }
+                        boolean drifted = threats.stream().anyMatch(mob -> retreatRoute.threats().stream().noneMatch(position -> {
+                            double tx = mob.getX() - position.getX(), tz = mob.getZ() - position.getZ();
+                            return tx * tx + tz * tz < 4.0;
+                        }));
+                        if (ticks - retreatProgressTick >= 40) {
+                            BlockPos destination = movement.retreatDestination();
+                            if (destination != null && retreatRoute.goals().contains(destination) && rejectedRetreatGoals.size() < 32)
+                                rejectedRetreatGoals.add(destination);
+                            status = drifted ? "refreshing moved threat positions" : "replanning stalled retreat";
+                            log(drifted ? "repath-moving-threat" : "repath-stalled");
+                            movement.stop();
+                            phase = Phase.FINISHING;
+                        }
                     }
                 }
                 case FINISHING -> {
                     movement.stop();
                     if (!movement.finishCancellation()) return false;
-                    // GoalRunAway uses captured positions; mobs can follow while the route executes.
                     if (remainingThreats().isEmpty()) return complete();
                     startRetreat(remainingThreats());
                 }
@@ -187,7 +214,19 @@ final class ThreatResponseAction {
         selectedSlot = -1;
         int distance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 10 : 8;
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
-        movement.startRetreat(positions, distance);
+        List<MovementController.RetreatThreat> capturedThreats = threats.stream()
+                .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ())).toList();
+        List<BlockPos> goals = movement.startRetreat(capturedThreats, distance, rejectedRetreatGoals,
+                new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
+        retreatRoute = new RetreatRoute(positions, goals);
+        retreatProgressX = client.player.getX();
+        retreatProgressZ = client.player.getZ();
+        retreatProgressTick = ticks;
+        if (movement.debugLogging())
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] THREAT_RETREAT threats={} dryGoals={} rejected={}",
+                    threats.stream().map(mob -> mob.getType() + "@" + mob.blockPosition()).toList(), goals, rejectedRetreatGoals);
+
         phase = Phase.RETREAT;
         status = "retreating from live threats " + retreats;
         log("retreat");
@@ -218,7 +257,11 @@ final class ThreatResponseAction {
             tracked.add(mob);
         }
         return tracked.stream().filter(this::eligible)
-                .filter(mob -> client.player.distanceToSqr(mob) < clearanceSquared(mob))
+                .filter(mob -> {
+                    double clearance = Math.sqrt(clearanceSquared(mob))
+                            + (phase == Phase.RETREAT || phase == Phase.FINISHING ? 2 : 0);
+                    return client.player.distanceToSqr(mob) < clearance * clearance;
+                })
                 .sorted(Comparator.comparingDouble(client.player::distanceToSqr)).toList();
     }
 
@@ -299,6 +342,10 @@ final class ThreatResponseAction {
 
     private void clearOwnership() {
         tracked.clear();
+        retreatRoute = null;
+        rejectedRetreatGoals.clear();
+        retreatProgressTick = 0;
+        retreatProgressX = retreatProgressZ = 0;
         target = null;
         ownerPlayer = ownerWorld = null;
         originalSlot = selectedSlot = -1;

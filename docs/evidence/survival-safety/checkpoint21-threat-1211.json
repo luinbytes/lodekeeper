@@ -1,0 +1,29 @@
+{
+  "runId":"2026-10-06T07-41-00-388835Z-139811c0",
+  "status":"passed",
+  "minecraftVersion":"1.21.1",
+  "worldKind":"isolated_superflat_fixture",
+  "preparedWorld":true,
+  "preparedSafetyProperty":"threat",
+  "evidenceAuthority":"integrated_server_inventory_entities_and_item_durability",
+  "verificationMode":"prepared_safety_threat",
+  "elapsedMillis":23931,
+  "clientTicks":361,
+  "failure":"",
+  "serverTableOpened":true,
+  "serverFurnaceOpened":false,
+  "serverTableOpenings":1,
+  "serverFurnaceOpenings":0,
+  "cases":[
+    {"name":"prepared_threat_sweep_guard_bucket","item":"minecraft:bucket","expected":1,"serverObserved":1,"inventoryEmptyAtStart":false,"passed":true,"clientTicks":135,"worldTicks":135,"engineStatus":"idle · 0 foreground queued · 0 maintenance queued","detail":"the integrated server killed the prepared zombie with native wooden-pickaxe hits, left the diamond sword untouched and cow at full health, then completed the bucket goal with an empty cursor and idle engine; measured pickaxe wear=6 (3 hits at two wear each)","serverHealth":20.0,"serverDifficulty":"NORMAL","serverCraftingTableOpenedDuringCase":true,"serverFurnaceOpenedDuringCase":false,"serverIronPickaxeCount":0,"serverFoodLevelAtStart":20,"serverFoodLevelObserved":20,"serverBreadAtStart":0,"serverBreadObserved":0,"serverPosition":[0.5,64.0,0.5],"screenshot":"screenshots/lodekeeper-2026-10-06T07-41-00-388835Z-139811c0-prepared_threat_sweep_guard_bucket.png","initialStorageInventory":{"minecraft:crafting_table":1,"minecraft:diamond_sword":1,"minecraft:iron_ingot":3,"minecraft:wooden_pickaxe":1},"finalStorageInventory":{"minecraft:bucket":1,"minecraft:diamond_sword":1,"minecraft:wooden_pickaxe":1},"fullServerHeldInventory":{"minecraft:bucket":1,"minecraft:diamond_sword":1,"minecraft:wooden_pickaxe":1},"elapsedMillisFromCommand":6734,"baritoneCompletionGuardEnabled":true,"baritoneNavigationStoppedAtReceipt":true,"initialEquipmentSlotItems":{},"serverEquipmentSlotItems":{},"initialServerCursorEmpty":true,"serverCursorEmpty":true,"noMaintenanceQueuedBeforeForeground":true,"maintainedReservationObservedBeforeForeground":false,"maintainedReservationPresentAtCompletion":false,"noMaintenanceQueued":true,"initialPreparedThreatReceipt":{"cowAlive":"true","cowHealth":"10.0","cowInitialHealth":"10.0","cowUuid":"a162bd67-9c4a-4d15-8b33-c25cfa83750c","diamondSwordDamage":"0","preparedThreatsCleared":"false","woodenPickaxeDamage":"0","zombieAlive":"true","zombieHealth":"4.0","zombieRemoved":"false","zombieUuid":"b21c110a-7987-474b-a5c1-921ac983f6a6"},"serverPreparedThreatReceipt":{"cowAlive":"true","cowHealth":"10.0","cowInitialHealth":"10.0","cowUuid":"a162bd67-9c4a-4d15-8b33-c25cfa83750c","diamondSwordDamage":"0","preparedThreatsCleared":"true","woodenPickaxeDamage":"6","zombieAlive":"false","zombieHealth":"0.0","zombieRemoved":"true","zombieUuid":"b21c110a-7987-474b-a5c1-921ac983f6a6"},"initialPreparedStationRoomReceipt":{},"serverPreparedStationRoomReceipt":{}}
+  ],
+  "explorationFixture":false,
+  "diamondBootsFixture":false,
+  "ironPickaxeFixture":false,
+  "coalRecoveryFixture":false,
+  "bulkWoodFixtureLogCount":0,
+  "woodToolsFlag":false,
+  "woodToolsEnabled":false,
+  "resourceInitiallyLoaded":false,
+  "explorationAttempts":0
+}
