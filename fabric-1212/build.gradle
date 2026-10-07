@@ -76,12 +76,26 @@ final class WeaponWearApi {
     }
 }
 def copySharedSources = tasks.register('copySharedSources', Sync) {
+    inputs.property('inputApiFamily', expectedInputApiFamily)
     from(rootProject.file('fabric/src/main/java')) {
         exclude 'dev/lodekeeper/fabric/BotInput.java'
         exclude 'dev/lodekeeper/fabric/ClientAccess.java'
         exclude 'dev/lodekeeper/fabric/mixin/RecipeSyncMixin.java'
         if (renderApiFamily != null) {
             exclude 'dev/lodekeeper/fabric/WorldVisualizationRenderApi.java'
+        }
+        filesMatching('dev/lodekeeper/fabric/MovementController.java') {
+            filter { String line ->
+                String adapted = line
+                    .replace('player.input.jumping', 'player.input.playerInput.jump()')
+                    .replace('player.input.sneaking', 'player.input.playerInput.sneak()')
+                if (expectedInputApiFamily == '1215') {
+                    adapted = adapted
+                        .replace('player.input.movementSideways', 'player.input.getMovementInput().x')
+                        .replace('player.input.movementForward', 'player.input.getMovementInput().y')
+                }
+                adapted
+            }
         }
     }
     into generatedSharedSources
