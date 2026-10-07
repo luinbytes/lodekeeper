@@ -269,6 +269,7 @@ final class ThreatResponseAction {
                         status = "stopping retreat before contact defense";
                         log("contact");
                     } else if (movement.tick()) {
+                        log("retreat-arrived");
                         movement.stopForDefense();
                         phase = Phase.FINISHING;
                         status = "verifying current threat clearance";
@@ -297,6 +298,7 @@ final class ThreatResponseAction {
                 case FINISHING -> {
                     movement.stopForDefense();
                     if (!movement.finishCancellationForDefense()) return false;
+                    log("retreat-drained");
                     return chooseResponse(threats);
                 }
                 default -> { }
@@ -592,7 +594,11 @@ final class ThreatResponseAction {
 
     private void log(String outcome) {
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreats={} ticks={} status={}",
-                outcome, attacks, retreats, ticks, status);
+                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreats={} ticks={} status={} player={} threats={}",
+                outcome, attacks, retreats, ticks, status,
+                client.player == null ? "absent" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ(),
+                client.player == null ? List.of() : tracked.stream().map(mob -> mob.getUUID() + "@"
+                        + mob.getX() + "," + mob.getY() + "," + mob.getZ()
+                        + "/distance=" + Math.sqrt(client.player.distanceToSqr(mob))).toList());
     }
 }

@@ -42,6 +42,8 @@ The inventory warmup passes all nine controlled cases, including custom crafting
 
 The current GUI passes all ten checks on each primary version, including shield controls, saved thresholds of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots and restoration of original settings. The current primary creeper fixture fails after two retreats. The player remains at full health, the same creeper remains alive with its fuse stopped, and weapons are untouched; clearance is still below twelve blocks. This failure blocks release.
 
+The retreat continuation change at `314ffd0` compiles on both primary versions and passes the existing local checks, but the primary native retry still fails with about nine blocks of clearance. Position logging now records route arrival and cancellation drain for the next investigation. These later production changes require fresh native acceptance; the passing shield and GUI results above describe `ce3c967`.
+
 ## Build and native history
 
 Earlier receipts and original screenshots remain distinct from current acceptance.
