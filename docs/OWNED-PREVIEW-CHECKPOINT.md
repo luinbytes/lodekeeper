@@ -1,6 +1,6 @@
 # Preview 11 development checkpoint
 
-Preview 11 is an unreleased development candidate. Preview 10 remains downloadable. All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491). All eighteen shield cases pass across the two primary versions. The remaining release gates are below.
+Preview 11 is an unreleased development candidate. Preview 10 remains downloadable. All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491). All eighteen shield cases pass at `ce3c967`; those checks predate the current retreat correction. The remaining release gates are below.
 
 ## Source state
 
@@ -16,33 +16,35 @@ The remote branch audit recovered the finite-stock planner foundation from `stor
 
 ## Selected evidence
 
-The exact CI production jars match the native gameplay inputs byte for byte:
+The earlier `ce3c967` CI production jars match their shield and GUI gameplay inputs byte for byte:
 
 | Minecraft | Production jar SHA-256 |
 | --- | --- |
 | 1.21.1 | `663c191cbcdf4ab547cfe72b8653e3b141306075f3e3a3ed3071ec464cd2618f` |
 | 26.3 | `afb2e613d63e08dc68492e95fe407c3d060c03c46645f8680f44db244fbedb4e` |
 
-The production source is `ce3c967b567ec1d7592e11a9f67e318cbcfa52c4`. Later runner and capture-helper changes preserve these jar bytes. Local checks pass 159 core, 95 navigation, 13 primary adapter, and three modern adapter cases. All 24 exact CI artifacts pass packaging, namespace, class-version, source-pin, licence, and verifier-exclusion checks. Runtime coverage remains separate.
+That production source is `ce3c967b567ec1d7592e11a9f67e318cbcfa52c4`. Runner and capture-helper changes preserved those bytes before the later production retreat corrections. Local checks pass 159 core, 95 navigation, 13 primary adapter, and three modern adapter cases. All 24 exact CI artifacts pass packaging, namespace, class-version, source-pin, licence, and verifier-exclusion checks. Runtime coverage remains separate.
+
+Current production source `98a78563d2c484b7027a91b77307a1668aadb661` compiles locally for both primary adapters and passes the same 270 existing checks. Its 1.21.1 jar is `fd9510188dc93cca00e8d21e1772b9cbe0e890b161d172f876e7e0ad2215f08e`; its 26.3 jar is `a3c330da2e3d0040e654a47cd0a740c84cb4510cfb3dca8eeb3af0f11c669a7e`. Final exact-source CI remains pending.
 
 | Current gate | Result |
 | --- | --- |
-| Exact adapter and verifier compilation | All 24 profiles pass |
-| Shield modes | 18/18 pass, nine on each primary version |
-| Inventory progression warmup | Current 1.21.1 jar passes 9/9; profiled and uncounted |
+| Exact adapter and verifier compilation | All 24 profiles pass at `ce3c967`; current `98a7856` primary builds pass locally |
+| Shield modes | 18/18 pass at `ce3c967`; current retreat-build reruns pending |
+| Inventory progression warmup | `ce3c967` primary passes 9/9 profiled; current `98a7856` modern passes 9/9 recorded; both uncounted |
 | Repeated inventory comparison | Historical A/B sequence complete: five progression passes each, one additional A timeout and one B cleanup failure; current-build counted trials pending |
-| GUI and settings | Current ten-step GUI passes on both primary versions with saved shield thresholds; 37-value native lease checks pending |
-| Claims, backfill, stations and threats | Current 1.21.1 live-creeper retreat fails after two routes; other fresh safety runs pending |
+| GUI and settings | Ten-step GUI passes on both primary versions at `ce3c967`; current GUI and 37-value native lease checks pending |
+| Claims, backfill, stations and threats | Current live-creeper escape passes on both primary versions; other fresh safety and station-recovery runs pending |
 | Fresh natural full diamond gear | Pending on both primary versions; latest earlier attempts failed |
-| Original gameplay media | Fresh 26.3 queued and worn shield PNG captures pass; raw videos pending |
+| Original gameplay media | Earlier queued/worn shield PNGs retained; current creeper PNGs and original 26.3 controlled-progression video captured |
 
 The queued shield case reserves seven iron before adding a keep floor of four. Twelve starting ingots leave eleven after the shield and six after the bucket and shears. Four reserved planks plus a keep floor of nine leave thirteen after shield crafting. The worn case records native blocked damage, minimum health twenty, and shield restoration. Occupied offhand stock is preserved. Manual takeover uses simulated native key-state input, not physical keyboard input.
 
 The inventory warmup passes all nine controlled cases, including custom crafting and automatic eating. Its profiling samples include navigation and engine work; the receipt exposes no per-click latency. The historical A/B sequence records five progression passes each across eleven attempts. A's additional wooden-pickaxe timeout remains a failure. One B progression pass leaves an owned table pickup incomplete, and one A pass includes a temporary pickup timeout followed by recovery. B's source commit is unknown; its jar hash identifies that historical candidate. Current-build counted trials remain pending, so these results do not establish the released build's speedup.
 
-The current GUI passes all ten checks on each primary version, including shield controls, saved thresholds of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots and restoration of original settings. The current primary creeper fixture fails after two retreats. The player remains at full health, the same creeper remains alive with its fuse stopped, and weapons are untouched; clearance is still below twelve blocks. This failure blocks release.
+The GUI at `ce3c967` passes all ten checks on each primary version, including shield controls, saved thresholds of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots and restoration of original settings. Its primary creeper fixture failed after two retreats with insufficient clearance. That failed receipt and original screenshot remain historical.
 
-The retreat continuation change at `314ffd0` compiles on both primary versions and passes the existing local checks, but the primary native retry still fails with about nine blocks of clearance. Position logs at `13cbcae` show that the client reaches its goal blocks; pursuing threats consume the snapshot clearance. The sixteen-block destination change at `9fe705c` reaches twelve blocks of live clearance, then resumes bucket crafting too close to the pursuer. That native attempt fails with an exploded creeper and minimum player health of 0.92. The next correction requires sixteen blocks of live clearance before handoff and plans twenty-block destinations. Fresh verification remains pending. The passing shield and GUI results above describe `ce3c967`.
+The retreat continuation change at `314ffd0` compiles on both primary versions and passes the existing local checks, but the primary native retry still fails with about nine blocks of clearance. Position logs at `13cbcae` show that the client reaches its goal blocks; pursuing threats consume the snapshot clearance. The sixteen-block destination change at `9fe705c` reaches twelve blocks of live clearance, then resumes bucket crafting too close to the pursuer. That native attempt fails with an exploded creeper and minimum player health of 0.92. The correction at `98a7856` requires sixteen blocks of live clearance before handoff and plans twenty-block destinations. Both exact primary jars pass fresh live-creeper checks with twenty health, zero deaths, an unharmed pursuing creeper, one bucket, an empty cursor and idle navigation. Final clearance is 16.02 blocks on 1.21.1 and 17.24 blocks on 26.3. These fixtures disable block breaking, so the retained table warning is expected and does not prove station recovery. A separate workbench check must verify recovery with breaking enabled. The passing shield and GUI results above describe `ce3c967`.
 
 ## Build and native history
 
@@ -68,4 +70,4 @@ Modern shield completion initially omitted a screenshot request. The capture-onl
 
 Preview 11 is not released or ready for download. Preview 10 remains on the [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Its historical full gear timings are 11:59 on 1.21.1 and 9:33 on 26.3; those figures do not describe Preview 11.
 
-Release requires corrected live-creeper retreat, the remaining settings, safety, inventory comparison, and fresh full gear gates; final exact-source CI and packaging; and labelled original screenshots and raw videos. Uploaded media must pass remote size and SHA-256 read-back before its local copies are removed. Compiled coverage, runtime verification, and Lu's acceptance remain separate.
+Release requires the remaining current-build shield, settings, safety, inventory comparison, and fresh full gear gates; final exact-source CI and packaging; and labelled original screenshots and raw videos. Uploaded media must pass remote size and SHA-256 read-back before its local copies are removed. Compiled coverage, runtime verification, and Lu's acceptance remain separate.
