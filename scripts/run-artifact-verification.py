@@ -25,8 +25,24 @@ VERIFY_PREFIX = "lodekeeper.verify."
 MAIN_CLASS = "net.fabricmc.devlaunchinjector.Main"
 FOREIGN_KERNEL_PREFIXES = ("baritone/", "com/github/cabaletta/baritone/")
 MAX_RENDER_DISTANCE = 8
+MAX_SIMULATION_DISTANCE = 5
+MAX_FPS = 30
 MAX_HEAP = "1536m"
 ACTIVE_PROCESSORS = "2"
+DEFAULT_OPTIONS = {
+    "renderDistance": "2",
+    "simulationDistance": str(MAX_SIMULATION_DISTANCE),
+    "maxFps": str(MAX_FPS),
+    "fullscreen": "false",
+    "enableVsync": "true",
+    "guiScale": "2",
+    "soundCategory_master": "0.0",
+    "particles": "2",
+    "clouds": "false",
+    "entityDistanceScaling": "0.5",
+    "useNativeTransport": "false",
+    "pauseOnLostFocus": "false",
+}
 STATION_LEFT = re.compile(r"\bOWNED_STATION_LEFT\b")
 STATION_RECOVERED = re.compile(r"\bOWNED_STATION_RECOVERED\b")
 CLASS_LOAD = re.compile(
@@ -56,6 +72,8 @@ class LaunchPlan:
     classpath: tuple[Path, ...]
     removed_production_outputs: tuple[str, ...]
     verifier_entries: tuple[Path, ...]
+    source_run_dir: Path
+    launch_metadata: Path | None
     output_run_dir: Path
     prepared_config: Path
     class_load_log: Path
@@ -149,6 +167,9 @@ def parse_args(argv: list[str]) -> RunSpec:
 def discover_launch_args(module_dir: Path) -> Path:
     if not module_dir.is_dir():
         raise VerificationError(f"module directory does not exist: {module_dir}")
+    exported = (module_dir / "build" / "verification-launch" / "launch.args").resolve()
+    if is_within(exported, module_dir.resolve()) and exported.is_file():
+        return exported
     candidates = [
         path
         for path in module_dir.rglob("verification-launch/launch.args")
@@ -207,7 +228,7 @@ def git_state() -> dict[str, Any]:
             stderr=subprocess.PIPE,
             check=False,
         )
-        return result.returncode, result.stdout.strip()
+        return result.returncode, result.stdout.rstrip("\r\n")
 
     commit_status, commit = git("rev-parse", "HEAD")
     dirty_status, dirty_output = git("status", "--porcelain=v1", "--untracked-files=all")
@@ -418,26 +439,42 @@ def verify_class_groups(config_text: str, verifier_entries: tuple[Path, ...]) ->
 
 def parse_options(source: Path, destination: Path) -> int:
     lines = source.read_text(encoding="utf-8").splitlines() if source.is_file() else []
-    replaced = False
-    distance = 2
+    seen: set[str] = set()
     output: list[str] = []
     for line in lines:
-        if line.startswith("renderDistance:"):
-            raw = line.partition(":")[2].strip()
+        name, separator, raw = line.partition(":")
+        if separator and name in DEFAULT_OPTIONS:
+            if name in seen:
+                continue
+            seen.add(name)
+            value = raw.strip()
             try:
-                distance = min(MAX_RENDER_DISTANCE, max(2, int(raw)))
+                if name == "renderDistance":
+                    value = str(min(MAX_RENDER_DISTANCE, max(2, int(value))))
+                elif name == "simulationDistance":
+                    value = str(min(MAX_SIMULATION_DISTANCE, max(2, int(value))))
+                elif name == "maxFps":
+                    value = str(min(MAX_FPS, max(10, int(value))))
+                elif name == "entityDistanceScaling":
+                    value = str(min(0.5, max(0.0, float(value))))
             except ValueError:
-                distance = 2
-            output.append(f"renderDistance:{distance}")
-            replaced = True
+                value = DEFAULT_OPTIONS[name]
+            if name in {"fullscreen", "enableVsync", "soundCategory_master", "clouds", "useNativeTransport", "pauseOnLostFocus"}:
+                value = DEFAULT_OPTIONS[name]
+            output.append(f"{name}:{value}")
         else:
             output.append(line)
-    if not replaced:
-        output.append(f"renderDistance:{distance}")
+    for name, value in DEFAULT_OPTIONS.items():
+        if name not in seen:
+            output.append(f"{name}:{value}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text("\n".join(output) + "\n", encoding="utf-8")
-    if distance > MAX_RENDER_DISTANCE:
-        raise VerificationError("renderDistance exceeds the configured cap")
+    values = dict(line.partition(":")[::2] for line in output if ":" in line)
+    distance = int(values["renderDistance"])
+    if distance > MAX_RENDER_DISTANCE or int(values["simulationDistance"]) > MAX_SIMULATION_DISTANCE:
+        raise VerificationError("render or simulation distance exceeds the configured cap")
+    if int(values["maxFps"]) > MAX_FPS or values["pauseOnLostFocus"] != "false":
+        raise VerificationError("frame rate or focus behavior exceeds the verification bounds")
     return distance
 
 
@@ -478,12 +515,35 @@ def build_launch_plan(spec: RunSpec, artifact_sha: str) -> LaunchPlan:
     prepared_config.write_text(config_text, encoding="utf-8")
     verify_class_groups(config_text, verifier_entries)
 
-    run_dir_name = spec.launch_args.parent.parent.name
+    metadata_path = spec.launch_args.with_name("launch-metadata.json")
+    launch_metadata: Path | None = None
+    if metadata_path.is_file():
+        launch_metadata = metadata_path.resolve()
+        if not is_within(launch_metadata, module_dir):
+            raise VerificationError("Loom launch-metadata.json must remain inside the selected module")
+        try:
+            metadata = json.loads(launch_metadata.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise VerificationError(f"cannot read Loom launch metadata {launch_metadata}: {error}") from error
+        if not isinstance(metadata, dict) or type(metadata.get("schemaVersion")) is not int or metadata["schemaVersion"] != 1:
+            raise VerificationError("Loom launch-metadata.json must use schemaVersion 1")
+        raw_working_directory = metadata.get("workingDirectory")
+        if not isinstance(raw_working_directory, str) or not Path(raw_working_directory).is_absolute():
+            raise VerificationError("Loom launch metadata workingDirectory must be an absolute path")
+        source_run_dir = Path(raw_working_directory).resolve()
+        if not is_within(source_run_dir, module_dir) or not source_run_dir.is_dir():
+            raise VerificationError(f"Loom workingDirectory must be an existing directory inside {module_dir}: {source_run_dir}")
+    else:
+        source_run_dir = spec.launch_args.parent.parent.resolve()
+        if not is_within(source_run_dir, module_dir) or not source_run_dir.is_dir():
+            raise VerificationError(f"legacy Loom run directory must be an existing directory inside {module_dir}: {source_run_dir}")
+
+    run_dir_name = source_run_dir.name
     if not run_dir_name or run_dir_name in {".", ".."}:
-        raise VerificationError("cannot determine Loom run directory from launch.args path")
+        raise VerificationError("cannot determine Loom run directory from launch metadata or legacy path")
     output_run_dir = spec.output_dir / run_dir_name
     output_run_dir.mkdir(parents=True, exist_ok=False)
-    source_options = spec.launch_args.parent.parent / "options.txt"
+    source_options = source_run_dir / "options.txt"
     options_file = output_run_dir / "options.txt"
     render_distance = parse_options(source_options, options_file)
 
@@ -516,11 +576,20 @@ def build_launch_plan(spec: RunSpec, artifact_sha: str) -> LaunchPlan:
         *effective_flags,
     ]
     rewritten[final_cp_index:final_cp_index] = injected
+    fabric_add_mods = [
+        value.partition("=")[2]
+        for value in rewritten
+        if value.startswith("-Dfabric.addMods=")
+    ]
+    if len(fabric_add_mods) != 1 or Path(fabric_add_mods[0]).resolve() != spec.production_jar:
+        raise VerificationError("launch must inject exactly the supplied production jar through fabric.addMods")
     return LaunchPlan(
         argv=(str(spec.java), *rewritten),
         classpath=classpath,
         removed_production_outputs=all_removed,
         verifier_entries=verifier_entries,
+        source_run_dir=source_run_dir,
+        launch_metadata=launch_metadata,
         output_run_dir=output_run_dir,
         prepared_config=prepared_config,
         class_load_log=class_load_log,
@@ -539,23 +608,182 @@ def file_source_path(source: str) -> Path | None:
     return Path(unquote(parsed.path)).resolve()
 
 
-def classload_provenance(log_path: Path, artifact: Path, verifier_entries: tuple[Path, ...]) -> dict[str, Any]:
+def runtime_remap_provenance(
+    artifact: Path,
+    isolated_run_dir: Path,
+    observed_sources: set[Path],
+    loaded_classes: set[str],
+) -> tuple[dict[str, Any], list[str]]:
     artifact = artifact.resolve()
+    processed_mods = (isolated_run_dir.resolve() / ".fabric" / "processedMods").resolve()
+    record: dict[str, Any] = {
+        "transformation": "fabric-loader-runtime-remap",
+        "inputArtifact": {"path": str(artifact), "sha256": sha256_file(artifact)},
+        "cacheDirectory": str(processed_mods),
+        "cacheWasFresh": True,
+        "observedSourceCount": len(observed_sources),
+        "candidateCount": 0,
+        "verified": False,
+    }
+    problems: list[str] = []
+    if not is_within(processed_mods, isolated_run_dir.resolve()):
+        problems.append("runtime remap cache escaped the isolated run directory")
+
+    try:
+        with zipfile.ZipFile(artifact) as input_jar:
+            input_manifest = input_jar.read("META-INF/MANIFEST.MF")
+            input_mod_json = input_jar.read("fabric.mod.json")
+            input_metadata = json.loads(input_mod_json)
+            input_dev_entries = {name for name in input_jar.namelist() if name.startswith("dev/lodekeeper/")}
+            input_classes = {name for name in input_dev_entries if name.endswith(".class")}
+            preserved_input = {
+                prefix: {name: input_jar.read(name) for name in input_classes if name.startswith(prefix)}
+                for prefix in ("dev/lodekeeper/core/", "dev/lodekeeper/nav/")
+            }
+    except (OSError, KeyError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+        problems.append(f"cannot inspect production jar for runtime remap provenance: {error}")
+        return record, problems
+
+    version = input_metadata.get("version")
+    version_text = str(version) if version is not None else ""
+    sanitized_version = re.sub(r"[^\w.\-+]+", "_", version_text)
+    expected_prefix = f"{input_metadata.get('id', '')}-{sanitized_version}-"
+    candidates: list[Path] = []
+    if processed_mods.is_dir():
+        for path in processed_mods.iterdir():
+            if not path.is_file() or path.suffix.lower() != ".jar":
+                continue
+            try:
+                with zipfile.ZipFile(path) as candidate_jar:
+                    candidate_metadata = json.loads(candidate_jar.read("fabric.mod.json"))
+            except (OSError, KeyError, zipfile.BadZipFile, json.JSONDecodeError):
+                if path.name.startswith(expected_prefix):
+                    problems.append(f"invalid Fabric remap candidate in isolated cache: {path}")
+                continue
+            if candidate_metadata.get("id") == MOD_ID:
+                candidates.append(path.resolve())
+    record["candidateCount"] = len(candidates)
+    record["candidatePaths"] = [str(path) for path in candidates]
+    if len(candidates) != 1:
+        problems.append(f"expected one Lodekeeper runtime remap candidate in {processed_mods}; found {len(candidates)}")
+    if len(observed_sources) != 1:
+        problems.append(f"expected one processed jar class source; found {len(observed_sources)}")
+
+    runtime_jar = next(iter(observed_sources)) if len(observed_sources) == 1 else None
+    if runtime_jar is not None:
+        record["runtimeArtifact"] = {"path": str(runtime_jar)}
+        if runtime_jar.parent != processed_mods:
+            problems.append(f"runtime remap source is not a direct child of the isolated processedMods cache: {runtime_jar}")
+        if len(candidates) == 1 and candidates[0] != runtime_jar:
+            problems.append("loaded Lodekeeper classes came from a different jar than the sole cache candidate")
+        filename_suffix = (
+            runtime_jar.name[len(expected_prefix) : -4]
+            if runtime_jar.name.startswith(expected_prefix) and runtime_jar.name.endswith(".jar")
+            else ""
+        )
+        filename_matches = bool(filename_suffix and re.fullmatch(r"[0-9a-f]+", filename_suffix))
+        record["runtimeArtifact"]["filenameMatchesLoaderPattern"] = filename_matches
+        if not filename_matches:
+            problems.append(f"runtime remap source filename does not match the Loader mod-version cache pattern: {runtime_jar.name}")
+        if runtime_jar.is_file():
+            record["runtimeArtifact"]["sha256"] = sha256_file(runtime_jar)
+        else:
+            problems.append(f"runtime remap source is missing: {runtime_jar}")
+    else:
+        problems.append("no unique processed jar source was observed for Lodekeeper classes")
+
+    if runtime_jar is not None and runtime_jar.is_file():
+        try:
+            with zipfile.ZipFile(runtime_jar) as runtime_archive:
+                runtime_manifest = runtime_archive.read("META-INF/MANIFEST.MF")
+                runtime_mod_json = runtime_archive.read("fabric.mod.json")
+                runtime_metadata = json.loads(runtime_mod_json)
+                runtime_dev_entries = {
+                    name for name in runtime_archive.namelist() if name.startswith("dev/lodekeeper/")
+                }
+                runtime_classes = {name for name in runtime_dev_entries if name.endswith(".class")}
+                preserved_runtime = {
+                    prefix: {name: runtime_archive.read(name) for name in runtime_classes if name.startswith(prefix)}
+                    for prefix in ("dev/lodekeeper/core/", "dev/lodekeeper/nav/")
+                }
+        except (OSError, KeyError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+            problems.append(f"cannot inspect Fabric runtime-remapped jar: {error}")
+        else:
+            entries_match = input_dev_entries == runtime_dev_entries
+            metadata_matches = input_mod_json == runtime_mod_json
+            manifest_matches = input_manifest == runtime_manifest
+            loaded_entries = {class_name.replace(".", "/") + ".class" for class_name in loaded_classes}
+            loaded_classes_match = loaded_entries <= input_classes and loaded_entries <= runtime_classes
+            preserved_classes: dict[str, Any] = {}
+            for prefix in ("dev/lodekeeper/core/", "dev/lodekeeper/nav/"):
+                input_prefix = preserved_input[prefix]
+                runtime_prefix = preserved_runtime[prefix]
+                names_match = input_prefix.keys() == runtime_prefix.keys()
+                bytes_match = names_match and all(input_prefix[name] == runtime_prefix[name] for name in input_prefix)
+                preserved_classes[prefix] = {
+                    "classCount": len(input_prefix),
+                    "namesMatch": names_match,
+                    "bytesMatch": bytes_match,
+                }
+                if not input_prefix:
+                    problems.append(f"production jar has no classes under identity-preserved prefix {prefix}")
+                elif not bytes_match:
+                    problems.append(f"runtime remap changed classes under identity-preserved prefix {prefix}")
+            record.update(
+                {
+                    "devLodekeeperEntryCount": len(input_dev_entries),
+                    "devLodekeeperEntryNamesMatch": entries_match,
+                    "fabricModJsonMatches": metadata_matches,
+                    "manifestMatches": manifest_matches,
+                    "identityPreservedClasses": preserved_classes,
+                    "loadedClassCount": len(loaded_classes),
+                    "loadedClassesPresentInInputAndOutput": loaded_classes_match,
+                    "runtimeModId": runtime_metadata.get("id"),
+                    "runtimeModVersion": runtime_metadata.get("version"),
+                }
+            )
+            if not entries_match:
+                problems.append("runtime remapped jar has a different dev/lodekeeper entry-name set than the supplied artifact")
+            if not metadata_matches or runtime_metadata.get("id") != input_metadata.get("id") or runtime_metadata.get("version") != version:
+                problems.append("runtime remapped jar fabric.mod.json does not match the supplied artifact")
+            if not manifest_matches:
+                problems.append("runtime remapped jar manifest does not match the supplied artifact")
+            if not loaded_classes_match:
+                problems.append("observed runtime-loaded production classes are not all present in both artifacts")
+
+    record["verified"] = not problems
+    return record, problems
+
+
+def classload_provenance(
+    log_path: Path,
+    artifact: Path,
+    verifier_entries: tuple[Path, ...],
+    isolated_run_dir: Path,
+) -> dict[str, Any]:
+    artifact = artifact.resolve()
+    processed_mods = (isolated_run_dir.resolve() / ".fabric" / "processedMods").resolve()
     sources: dict[str, int] = {}
     violations: list[str] = []
     production_class_count = 0
+    remapped_class_count = 0
     verifier_class_count = 0
     generated_count = 0
     lodekeeper_class_count = 0
     foreign_kernel_class_count = 0
+    remap_sources: set[Path] = set()
+    remapped_classes: set[str] = set()
+    production_classes: set[str] = set()
     if not log_path.is_file():
         return {
             "log": str(log_path),
             "lodekeeperClasses": 0,
             "productionJarClasses": 0,
+            "runtimeRemappedClasses": 0,
             "verifierClasses": 0,
             "generatedClasses": 0,
             "sourceCounts": {},
+            "runtimeArtifactTransformation": None,
             "violations": ["class-load log was not created"],
         }
     for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -573,6 +801,7 @@ def classload_provenance(log_path: Path, artifact: Path, verifier_entries: tuple
         source_path = file_source_path(source)
         if source_path == artifact:
             production_class_count += 1
+            production_classes.add(class_name)
             sources[str(source_path)] = sources.get(str(source_path), 0) + 1
             continue
         if source_path is not None and any(
@@ -580,6 +809,11 @@ def classload_provenance(log_path: Path, artifact: Path, verifier_entries: tuple
             for entry in verifier_entries
         ):
             verifier_class_count += 1
+            sources[str(source_path)] = sources.get(str(source_path), 0) + 1
+            continue
+        if source_path is not None and is_within(source_path, processed_mods):
+            remap_sources.add(source_path)
+            remapped_classes.add(class_name)
             sources[str(source_path)] = sources.get(str(source_path), 0) + 1
             continue
         if source == "__JVM_LookupDefineClass__" or source.startswith("dev.lodekeeper."):
@@ -590,18 +824,47 @@ def classload_provenance(log_path: Path, artifact: Path, verifier_entries: tuple
             continue
         sources[source] = sources.get(source, 0) + 1
         violations.append(f"{class_name} loaded from {source}")
-    if production_class_count == 0:
-        violations.append("no dev.lodekeeper class was observed loading from the production jar")
+
+    transformation = None
+    if remap_sources:
+        transformation, remap_problems = runtime_remap_provenance(
+            artifact,
+            isolated_run_dir,
+            remap_sources,
+            remapped_classes,
+        )
+        violations.extend(remap_problems)
+        remapped_class_count = sum(sources.get(str(path), 0) for path in remap_sources)
+        production_classes.update(remapped_classes)
+    if production_class_count == 0 and remapped_class_count == 0:
+        violations.append("no dev.lodekeeper class was observed loading from the production artifact or its verified runtime remap")
     if verifier_class_count == 0:
         violations.append("no dev.lodekeeper class was observed loading from separate verifier output")
+
+    try:
+        with zipfile.ZipFile(artifact) as production_jar:
+            production_entries = {
+                name for name in production_jar.namelist()
+                if name.startswith("dev/lodekeeper/") and name.endswith(".class")
+            }
+    except (OSError, zipfile.BadZipFile) as error:
+        production_entries = set()
+        violations.append(f"cannot inspect production classes for class-load membership: {error}")
+    loaded_entries = {class_name.replace(".", "/") + ".class" for class_name in production_classes}
+    if not loaded_entries <= production_entries:
+        violations.append("observed production classes are not all present in the supplied production jar")
+
     return {
         "log": str(log_path),
         "lodekeeperClasses": lodekeeper_class_count,
         "productionJarClasses": production_class_count,
+        "runtimeRemappedClasses": remapped_class_count,
+        "productionArtifactClasses": len(production_classes),
         "verifierClasses": verifier_class_count,
         "generatedClasses": generated_count,
         "foreignKernelClasses": foreign_kernel_class_count,
         "sourceCounts": sources,
+        "runtimeArtifactTransformation": transformation,
         "violations": violations,
     }
 
@@ -762,6 +1025,8 @@ def prepare(spec: RunSpec) -> tuple[LaunchPlan, dict[str, Any]]:
         "loom": {
             "launchArgs": str(spec.launch_args),
             "launchConfig": str(spec.launch_config),
+            "launchMetadata": str(plan.launch_metadata) if plan.launch_metadata else None,
+            "sourceRunDirectory": str(plan.source_run_dir),
             "preparedConfig": str(plan.prepared_config),
         },
         "verificationFlags": list(plan.effective_flags),
@@ -769,8 +1034,11 @@ def prepare(spec: RunSpec) -> tuple[LaunchPlan, dict[str, Any]]:
             "argv": list(plan.argv),
             "workingDirectory": str(plan.output_run_dir),
             "outputIsolated": True,
+            "workingDirectoryCreatedFresh": True,
             "optionsFile": str(plan.options_file),
             "renderDistance": plan.render_distance,
+            "productionModInput": str(spec.production_jar),
+            "productionModArgumentCount": sum(value.startswith("-Dfabric.addMods=") for value in plan.argv),
             "maxHeap": MAX_HEAP,
             "activeProcessors": int(ACTIVE_PROCESSORS),
             "classpath": [str(path) for path in plan.classpath],
@@ -800,7 +1068,12 @@ def main(argv: list[str] | None = None) -> int:
 
         exit_code, timed_out = run_client(spec, plan, receipt)
         native_receipts, screenshots, station_logs = evidence_files(plan.output_run_dir)
-        provenance = classload_provenance(plan.class_load_log, spec.production_jar, plan.verifier_entries)
+        provenance = classload_provenance(
+            plan.class_load_log,
+            spec.production_jar,
+            plan.verifier_entries,
+            plan.output_run_dir,
+        )
         native_ok, native_problems = native_receipt_gate(native_receipts)
         station_ok, station_problems = station_cleanup_gate(station_logs)
         jar_unchanged = sha256_file(spec.production_jar) == receipt["productionJar"]["sha256"]
