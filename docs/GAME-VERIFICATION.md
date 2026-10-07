@@ -144,7 +144,7 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 ## Shield behavior fixture
 
-The shield fixture targets 1.21.1 and 26.3. Seven primary modes pass at `ce3c967`, including the corrected queued recipe reservations and native worn-shield blocking. The occupied-offhand native case also passes, but its runner fails when JVM class-load decorators change mid-file. The corrected parser validates the original raw log and still rejects the wrong production artifact; a fresh native retry remains required. Manual takeover and the modern suite remain pending. Retain all earlier failed receipts. Run only one isolated client at a time.
+All nine shield modes pass on both 1.21.1 and 26.3 with the exact `ce3c967` production jars. The corrected runner at `fbd5261` handles variable JVM class-log decorators and keeps the original class-origin checks. Queued work reserves seven iron; worn shields block native damage and restore; occupied offhand stock is preserved. Manual takeover uses simulated native key-state injection. Keep the earlier failed receipts separate. The modern shield fixture now requests an original screenshot through the existing capture helper; its fresh capture check remains pending. Run only one isolated client at a time.
 
 For the `spare` mode, pass the verifier these full flags:
 

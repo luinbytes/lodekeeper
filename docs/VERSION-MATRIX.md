@@ -31,7 +31,7 @@ Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on
 
 The build selector implements the legacy, 1202, 1211, 1212, and modern profile candidates. The 1212 source family covers 1.21.2–1.21.11 with input overlays for the 1.21.2–1.21.3, 1.21.4, and 1.21.5+ API shapes. The modern selector shares one API overlay across 26.1, 26.1.1, and 26.1.2, then uses separate 26.2 and 26.3 overlays for their known API changes. These are source and dependency candidates until each exact artifact compiles. The validated 1.21.1 profile deliberately pins Fabric API `0.110.0+1.21.1`; updating it to the newer coordinate above requires another check. Loader is pinned to `0.19.5`. Loom is pinned per build family (1.6.12, 1.8.13, or 1.17.21), rather than upgraded implicitly with each game target.
 
-All 24 exact profiles compile at `8d7bb68` in [CI run 37603417871](https://github.com/luinbytes/lodekeeper/actions/runs/37603417871), including their verifier sources. Runtime evidence remains version- and scenario-specific.
+All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491), including their verifier sources. Runtime evidence remains version- and scenario-specific.
 
 ## Why the families differ
 

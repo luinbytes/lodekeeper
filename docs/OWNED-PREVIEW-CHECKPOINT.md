@@ -1,6 +1,6 @@
 # Preview 11 development checkpoint
 
-Preview 11 is an unreleased development candidate. Preview 10 remains downloadable. This checkpoint records source and selected runtime evidence. It does not declare Minecraft version support or release readiness.
+Preview 11 is an unreleased development candidate. Preview 10 remains downloadable. All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491), and all eighteen primary shield cases pass. Fresh GUI, safety, repeated inventory, and natural survival checks still gate release.
 
 ## Source state
 
@@ -34,13 +34,15 @@ The first shield attempt failed before world creation because mode validation re
 
 A later 1.21.1 `spare` attempt at `bc496e4` observed one crafted shield and one bucket, six remaining ingots, thirteen remaining planks, full health, and an empty cursor. The overall run still failed because aggregate validation expected nine cases. Both verifiers now expect one shield case. This failed run and its screenshot are retained; it does not count as suite acceptance.
 
-The nine shield modes and the repeated inventory benchmark remain pending. Repeat the previous native checks with the exact final jars. Do not treat the fixture source as gameplay evidence.
+The first shield rounds below were incomplete. Their failures stay recorded separately from the passing round. Repeat other previous native checks with the exact final jars.
 
 With the verifier corrections at `5df577f`, the 1.21.1 `spare`, `default`, and `off` modes passed their full runner and native receipt gates. The next `queued` run at `432c344` failed. It completed a shield, bucket, and shears with six iron and thirteen planks remaining, but its shield plan reserved only five iron instead of seven. The missing two ingots belong to the queued shears recipe. This exposes a production reservation gap; the assertion remains unchanged. The five other primary modes and all nine modern modes remain unrun in that round. These runs use the byte-identical jars from the `8d7bb68` matrix.
 
 The queued-goal fix now makes one joint plan for active, queued, project, and maintained targets before admitting optional shield work. A changed queue invalidates that work; an owned inventory transfer finishes and drains before replanning. Independent review passed after restoring the existing table-open timeout ahead of the stale-plan guard. Local 1.21.1 and 26.3 builds passed with 159 core, 95 navigation, 13 primary adapter, and 3 modern adapter checks. Fresh native checks and a new 24-profile matrix are still required for this production change. The previous docs-only matrix passed 23 profiles; its 1.21.6 job failed while resolving dependency POM parents.
 
 At `ce3c967`, seven 1.21.1 shield modes passed their runner and native gates. `queued` reserves seven iron and completes with six iron and thirteen planks. `worn` records a blocked native damage event, minimum health twenty, and shield restoration. `occupied` passes its native check but fails the runner because JVM class-load log decoration changes mid-file. The full raw log contains the expected production and verifier classes; replay with the corrected parser validates their exact origins and rejects a different production jar. Keep the failed original receipt and require a fresh native retry. Manual takeover and all modern modes remain unrun in this round.
+
+The fresh `fbd5261` runner completes the remaining modes using byte-identical `ce3c967` CI jars. The combined shield suite passes 18/18. Modern runs initially produced no screenshots because their shield completion path did not request one. The screenshot-only change compiles on 26.3 and leaves the production jar hash unchanged; its native capture check remains pending. A separate, uncounted current inventory warmup passes 9/9 with JFR recording. It does not establish a speed claim.
 
 ## Release status
 

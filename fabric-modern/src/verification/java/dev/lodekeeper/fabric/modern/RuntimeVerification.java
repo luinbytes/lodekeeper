@@ -269,6 +269,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         shieldEvidence.addProperty("passed", passed);
         if (!passed) { fail("shield native scenario failed its required receipts: " + SHIELD_SCENARIO + "; " + shieldServerReceipt + "; plan=" + shieldPreparationAttributes); return; }
         addResult(true, shieldCount("minecraft:bucket"), detail);
+        shieldEvidence.addProperty("screenshot", capture(activeCase));
         shieldPhase = ShieldPhase.FINISHED;
         state = State.CAPTURING;
         captureStartedAtTick = clientTicks;
