@@ -8,6 +8,7 @@ import dev.lodekeeper.navigation.kernel.api.event.listener.AbstractGameEventList
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPath;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPathFinder;
 import dev.lodekeeper.navigation.kernel.api.pathing.movement.IMovement;
+import dev.lodekeeper.navigation.kernel.api.utils.input.Input;
 import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 import dev.lodekeeper.navigation.kernel.pathing.movement.movements.MovementParkour;
 import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalBlock;
@@ -166,6 +167,9 @@ final class MovementController {
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
+    private boolean motionLogAnchorInitialized;
+    private double motionLogAnchorX, motionLogAnchorZ;
+    private int motionLogAnchorRequestTick, motionLogLastRequestTick, motionLogCount;
     private int miningY = Integer.MIN_VALUE, lastDiscoveryMergeTick = -100, lastScanLogTick = -20;
     private MiningDepthPolicy miningDepthPolicy;
     private BlockSearch miningDiscovery;
@@ -831,6 +835,9 @@ final class MovementController {
         retreatRequest = false;
         resetRetreatPrefix();
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
+        motionLogAnchorInitialized = false;
+        motionLogAnchorX = motionLogAnchorZ = 0;
+        motionLogAnchorRequestTick = motionLogLastRequestTick = motionLogCount = 0;
         lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
         phaseStartedTick = 0; miningY = Integer.MIN_VALUE; miningDepthPolicy = null;
         scannedMiningChunks.clear(); rejectedMiningTargets.clear(); miningDiscovery = null;
@@ -1741,8 +1748,27 @@ final class MovementController {
 
     private void samplePath() {
         var pathing = bot.getPathingBehavior();
-        IPath upstream = pathing.getCurrent() == null ? null : pathing.getCurrent().getPath();
-        int index = pathing.getCurrent() == null ? 0 : pathing.getCurrent().getPosition();
+        var current = pathing.getCurrent();
+        IPath upstream = current == null ? null : current.getPath();
+        int index = current == null ? 0 : current.getPosition();
+        if (config.debugLogging && client.player != null) {
+            double x = client.player.getX();
+            double z = client.player.getZ();
+            if (!motionLogAnchorInitialized) {
+                motionLogAnchorInitialized = true;
+                motionLogAnchorX = x;
+                motionLogAnchorZ = z;
+                motionLogAnchorRequestTick = requestTicks;
+            } else {
+                double dx = x - motionLogAnchorX;
+                double dz = z - motionLogAnchorZ;
+                if (dx * dx + dz * dz >= 0.0625) {
+                    motionLogAnchorX = x;
+                    motionLogAnchorZ = z;
+                    motionLogAnchorRequestTick = requestTicks;
+                }
+            }
+        }
         var calculation = pathing.getInProgress();
         boolean searching = calculation.isPresent();
         IPathFinder.SearchPreview searchPreview = calculation
@@ -1763,6 +1789,43 @@ final class MovementController {
             }
             path = Path.observation(coordinates);
             var movements = upstream.movements();
+            if (config.debugLogging && current != null && index >= 0 && index < movements.size()
+                    && index + 1 < positions.size() && motionLogAnchorInitialized) {
+                int stallTicks = requestTicks - motionLogAnchorRequestTick;
+                if (stallTicks >= 80 && motionLogCount < 8
+                        && (motionLogCount == 0 || requestTicks - motionLogLastRequestTick >= 80)) {
+                    IMovement movement = movements.get(index);
+                    var source = movement.getSrc();
+                    var destination = movement.getDest();
+                    boolean sourceLoaded = client.world.getChunk(
+                            source.getX() >> 4, source.getZ() >> 4, ChunkStatus.FULL, false) != null;
+                    boolean destinationLoaded = client.world.getChunk(
+                            destination.getX() >> 4, destination.getZ() >> 4, ChunkStatus.FULL, false) != null;
+                    String sourceFluid = sourceLoaded ? client.world.getFluidState(source).toString() : "unloaded";
+                    String destinationFluid = destinationLoaded ? client.world.getFluidState(destination).toString() : "unloaded";
+                    String destinationHead = destinationLoaded
+                            ? client.world.getBlockState(destination.up()).toString() : "unloaded";
+                    String destinationHead2 = destinationLoaded
+                            ? client.world.getBlockState(destination.up(2)).toString() : "unloaded";
+                    var player = client.player;
+                    var velocity = player.getVelocity();
+                    var inputOverrides = bot.getInputOverrideHandler();
+                    motionLogLastRequestTick = requestTicks;
+                    motionLogCount++;
+                    org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] NAV_MOTION mode={} requestTicks={} stallTicks={} pathIndex={} pathLength={} executor={} movement={} src={} dest={} nativeXYZ=({},{},{}) blockFeet={} kernelPlayerFeet={} pose={} bbox={} velocity=({},{},{}) onGround={} horizontalCollision={} verticalCollision={} srcFluid={} destFluid={} destHead={} destHead2={} yaw={} pitch={} inWater={} underWater={} inputClass={} actualSideways={} actualForward={} actualJump={} actualSneak={} progressToken={} outputCount={} jump={} forward={} back={} sneak={}",
+                            mode, requestTicks, stallTicks, index, positions.size(), System.identityHashCode(current), movement.getClass().getSimpleName(),
+                            source, destination, player.getX(), player.getY(), player.getZ(), player.getBlockPos(),
+                            bot.getPlayerContext().playerFeet(), player.getPose(), player.getBoundingBox(),
+                            velocity.x, velocity.y, velocity.z, player.isOnGround(), player.horizontalCollision,
+                            player.verticalCollision, sourceFluid, destinationFluid, destinationHead, destinationHead2,
+                            player.getYaw(), player.getPitch(), player.isTouchingWater(), player.isSubmergedInWater(),
+                            player.input.getClass().getSimpleName(), player.input.movementSideways, player.input.movementForward,
+                            player.input.jumping, player.input.sneaking, progressToken, output == null ? 0 : actions.count(output),
+                            inputOverrides.isInputForcedDown(Input.JUMP), inputOverrides.isInputForcedDown(Input.MOVE_FORWARD),
+                            inputOverrides.isInputForcedDown(Input.MOVE_BACK), inputOverrides.isInputForcedDown(Input.SNEAK));
+                }
+            }
             int movementCount = Math.min(NavigationSceneSnapshot.MAX_MOVEMENTS,
                     Math.min(Math.max(0, size - 1), Math.max(0, movements.size() - first)));
             byte[] movementKinds = new byte[movementCount];
