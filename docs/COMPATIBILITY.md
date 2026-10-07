@@ -2,19 +2,21 @@
 
 The target covers all stable Java releases from 1.20 through 26.3. This is a target, not a supported-version declaration. A successful compile is separate from a successful gameplay scenario. Never install a jar for a different game release. The exact 24-release dependency ledger and adapter boundaries are in [VERSION-MATRIX.md](VERSION-MATRIX.md).
 
-## Preview 11 source candidate
+## Preview 11 release
 
-Preview 11 remains unreleased. The [matrix at `ce3c967`](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491) and the later [matrix at `bf68249`](https://github.com/luinbytes/lodekeeper/actions/runs/37632112439) passed all 24 exact profiles. The downloaded `ce3c967` primary jars match their shield and GUI gameplay inputs byte for byte. Those CI results describe earlier source.
+[Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) is published for 1.21.1 and 26.3 only, from source `88f2b523648e1e35c16db7e652aca1b719f002b3`. The [matrix at `ce3c967`](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491) and the later [matrix at `bf68249`](https://github.com/luinbytes/lodekeeper/actions/runs/37632112439) passed all 24 exact profiles. The downloaded `ce3c967` primary jars match their shield and GUI gameplay inputs byte for byte. Those CI results describe earlier source.
 
-At `f8f4264a94d691ccdb1933bc6e2dbe1ba90a6db4`, both primary adapters compile locally and pass all 270 existing checks. The 1.21.1 jar SHA-256 is `9dff8d04b370216fe2f85096c29d6b58207395c4fb6e710c37cd6ef741585012`; the 26.3 jar SHA-256 is `f7beec237b0b7114920a837656dcfca0fd33c516ea775023cfc862d80f5e8e36`. Exact 24-profile CI at this source is pending. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md) tracks current hashes, runtime gates, and source-specific failures.
+The released-source native runs use `88f2b523648e1e35c16db7e652aca1b719f002b3`. Both primary adapters compile locally and pass all 270 existing checks. The [exact-source CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37660233575) finished with a failed full 24-profile matrix at newer input diagnostics. Both primary jobs passed. The [packaging receipt](evidence/builds/preview11-88f2b52.json) confirms that their CI jars match the native gameplay and GUI inputs byte for byte. The 1.21.1 jar SHA-256 is `13926eb704eb6743613b5dffd274d2f9c35ca4ec063fba39816c523e1fa181c8`; the 26.3 jar SHA-256 is `db1f7381c5371c70b5d81d48d8f6638ce11add762c15b8ed7ec1663b953a7c61`. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md) retains earlier hashes and source-specific gates.
+
+At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleton retreat from source water. The first two retreats clear; the third path calculation fails before an executor starts. Minimum and final health are 7.499998, with no deaths, an empty cursor, and no diamond gear. The exact search stop reason remains unknown. The 1.21.1 attempt is `INCONCLUSIVE_ENVIRONMENT_ABORT`: storage writes report `ENOSPC`, the runner exits with code 120, and neither a final native JSON nor a finished runner receipt exists. The exact client termination cause is unknown.
 
 The first fresh 1.21.1 `f8f4264` natural survival run passed all five diamond tools and four equipped armor pieces in 683,599 ms. It started in a normal generated Survival world on seed `483920105`, with an empty inventory and cursor, cheats disabled, and no bonus chest. Health stayed at 20, deaths remained zero, and navigation ended idle.
 
-No `THREAT_RESPONSE` event was observed, so the run does not verify creeper response. A distant owned station remained outside the configured recovery range, so this pass does not prove complete station cleanup. The same-seed repeat passed stone-pickaxe crafting, then failed at 900,181 ms after its 900-second wall timeout. It ended with full health, no deaths, an empty cursor, and no diamond gear. The engine was following the long route toward the earlier station when the run ended. Logs show repeated recalculation from the same water cell and vertical bobbing in water. The physical cause needs live movement diagnostics. The fresh 26.3 run fails after 441,801 ms when mining reaches its WALL_TIME limit with zero raw iron collected. It has full health, no deaths, an empty cursor, and no diamond gear. Its displayed remaining route stays at thirteen or fourteen positions for more than five minutes. The displayed index is relative to that remaining route and does not identify the native movement edge. The cause needs live movement diagnostics.
+No `THREAT_RESPONSE` event was observed, so the run does not verify creeper response. A distant owned station remained outside the configured recovery range, so this pass does not prove complete station cleanup. The same-seed repeat passed stone-pickaxe crafting, then failed at 900,181 ms after its 900-second wall timeout. It ended with full health, no deaths, an empty cursor, and no diamond gear. The engine was following the long route toward the earlier station when the run ended. Logs show repeated recalculation from the same water cell and vertical bobbing in water. The physical cause remains unproved. Vertical bobbing falsely counted as progress; that confirmed tracking bug does not establish the physical cause. The earlier `f8f4264` 26.3 run fails after 441,801 ms when mining reaches its WALL_TIME limit with zero raw iron collected. It has full health, no deaths, an empty cursor, and no diamond gear. Its displayed remaining route stays at thirteen or fourteen positions for more than five minutes. The displayed index is relative to that remaining route and does not identify the native movement edge. The physical cause remains unproved.
 
-The f8 source changes inventory diagnostics only. It preserves complete receipt contents without relaxing transfer acceptance. The earlier `89380e6` failure at 61,928 ms and `71462f2` failure at 62,351 ms remain unresolved inventory-transfer failures. The pass above did not reproduce either one. The previous `89380e6` [exact-source matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37642066956) still records five jobs passing and nineteen failing before runner acquisition; those nineteen profiles did not compile at that source. Current f8 shield, settings, 37-value native lease, other safety, station-cleanup, and five counted inventory timing trials remain pending.
+The f8 source changes inventory diagnostics only. It preserves complete receipt contents without relaxing transfer acceptance. The earlier `89380e6` failure at 61,928 ms and `71462f2` failure at 62,351 ms remain unresolved inventory-transfer failures. The pass above did not reproduce either one. The previous `89380e6` [exact-source matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37642066956) still records five jobs passing and nineteen failing before runner acquisition; those nineteen profiles did not compile at that source. At the released source, shield, the 37-value native lease, other safety, station-cleanup, and five counted inventory timing trials remain pending. The exact `88f2b52` settings GUI passes all ten checks on each primary version, twenty checks in total. The [native QA receipt](https://github.com/luinbytes/lodekeeper/releases/download/v0.1.0-preview.11/native-qa.json) covers shield controls, saving test floors of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots, and restoration of the original settings. These test floors do not change the defaults of two iron and sixteen planks.
 
-At `ce3c967`, all nine shield modes pass on each primary version, and the ten-step GUI passes on both. Earlier `98a7856` live-creeper checks pass on both primary versions, but they do not verify f8. The inventory profiling warmup passes nine cases; the historical A/B sequence has five progression passes each, one extra baseline timeout, and one candidate cleanup failure. Current-build counted timing remains pending. No released-build speed claim is made.
+At `ce3c967`, all nine shield modes pass on each primary version, and the ten-step GUI passes on both. Earlier `98a7856` live-creeper checks pass on both primary versions, but they do not verify `88f2b52`. The inventory profiling warmup passes nine cases; the historical A/B sequence has five progression passes each, one extra baseline timeout, and one candidate cleanup failure. Current-build counted timing remains pending. No released-build speed claim is made.
 
 ## Preview 10 release
 
@@ -24,22 +26,24 @@ The exact [1.21.1 jar passes a fresh normal-survival full diamond project](evide
 
 Prepared reachable and blocked workbench checks pass on both versions at the earlier `7ba8d375` source. Their source-specific receipts remain below. Full-catalog fuel selection still chose whole logs in the Preview 10 1.21.1 run. Other seeds, ordinary launchers, remote servers and all Minecraft mechanics remain separate acceptance gates. Historical rows describe their original artifacts.
 
-| Versions | JVM | Adapter build | Gameplay |
+The nonprimary rows below describe historical source builds and gameplay receipts. They do not declare Preview 11 support. Preview 10 retains older-source jars for all 24 profiles.
+
+| Versions | JVM | Adapter build and source scope | Gameplay |
 | --- | --- | --- | --- |
-| 1.20 | 17 | Exact CI development build passes | Pending |
-| 1.20.1 | 17 | Development jar compiles and remaps | Nine controlled cases pass, including iron smelting, custom ore/3×3 crafting and automatic eating; natural-world checks pending |
-| 1.20.2 | 17 | Exact local and CI development builds pass; adapter tests pass | Pending |
-| 1.20.3, 1.20.4 | 17 | Each exact CI development build passes | Pending |
-| 1.20.5, 1.20.6 | 21 | Each exact CI development build passes after identifier compatibility fix | Pending |
-| 1.21 | 21 | Exact CI development build passes | Pending |
-| **1.21.1** | **21** | **Current `f8f4264` development jar compiles; exact 24-profile CI pending** | **First current-source natural full diamond project passes in 11:24; no hazard was observed. The separate Preview 10 release run took 11:59** |
-| 1.21.2, 1.21.3 | 21 | Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
-| 1.21.4, 1.21.5 | 21 | Both exact CI development builds pass after client API/toolchain fixes | Pending |
-| 1.21.6, 1.21.7, 1.21.8 | 21 | Each exact CI development build and native display regressions pass | Pending |
-| 1.21.9, 1.21.10, 1.21.11 | 21 | Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
-| 26.1, 26.1.1, 26.1.2 | 25 | All three exact CI development builds pass at `8aafbcf` | Pending |
-| 26.2 | 25 | Exact local and CI development builds pass at `8aafbcf` | Pending |
-| 26.3 | 25 | Current `f8f4264` development adapter compiles; exact 24-profile CI pending | Preview 10 full diamond project passes one fresh survival world in 9:33. Current Preview 11 natural survival fails at the raw-iron WALL_TIME limit after 7:22 |
+| 1.20 | 17 | Historical source/build. Exact CI development build passes | Pending |
+| 1.20.1 | 17 | Historical source/build. Development jar compiles and remaps | Nine controlled cases pass, including iron smelting, custom ore/3×3 crafting and automatic eating; natural-world checks pending |
+| 1.20.2 | 17 | Historical source/build. Exact local and CI development builds pass; adapter tests pass | Pending |
+| 1.20.3, 1.20.4 | 17 | Historical source/build. Each exact CI development build passes | Pending |
+| 1.20.5, 1.20.6 | 21 | Historical source/build. Each exact CI development build passes after identifier compatibility fix | Pending |
+| 1.21 | 21 | Historical source/build. Exact CI development build passes | Pending |
+| **1.21.1** | **21** | **Released `88f2b52` CI jar passes its exact primary job and packaging checks** | **Current 1.21.1 attempt is inconclusive after an environment abort. Earlier `f8f4264` full diamond project passes in 11:24; Preview 10 took 11:59** |
+| 1.21.2, 1.21.3 | 21 | Historical source/build. Both exact CI development builds pass; 1.21.2 verification source set also compiles | 1.21.2 passes nine controlled progression cases; 1.21.3 runtime pending |
+| 1.21.4, 1.21.5 | 21 | Historical source/build. Both exact CI development builds pass after client API/toolchain fixes | Pending |
+| 1.21.6, 1.21.7, 1.21.8 | 21 | Historical source/build. Each exact CI development build and native display regressions pass | Pending |
+| 1.21.9, 1.21.10, 1.21.11 | 21 | Historical source/build. Each exact CI development build and native display regressions pass after client API/toolchain fixes | 1.21.11 passes nine controlled progression cases; 1.21.9/1.21.10 runtime pending |
+| 26.1, 26.1.1, 26.1.2 | 25 | Historical source/build. All three exact CI development builds pass at `8aafbcf` | Pending |
+| 26.2 | 25 | Historical source/build. Exact local and CI development builds pass at `8aafbcf` | Pending |
+| 26.3 | 25 | Released `88f2b52` CI jar passes its exact primary job and packaging checks | Preview 10 full diamond project passes one fresh survival world in 9:33. Latest `88f2b52` survival fails during the third skeleton retreat after 63,753 ms |
 
 ## Historical Preview 8 navigation rebuild
 

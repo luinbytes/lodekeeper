@@ -2,7 +2,7 @@
 
 ## Decisions
 
-**Lodekeeper** uses Java, Fabric Loader/Fabric API, Gradle with Fabric Loom, and Minecraft's own inventory/network interactions. Preview 10 bundles version-matched Baritone. Preview 11 builds the licensed navigation kernel into Lodekeeper and does not load a separate Baritone runtime. Java 17 is the portable core baseline; adapters use the JVM required by their game version. Original implementation uses the MIT licence.
+**Lodekeeper** uses Java, Fabric Loader/Fabric API, Gradle with Fabric Loom, and Minecraft's own inventory/network interactions. Preview 10 bundles version-matched Baritone. [Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) is published for 1.21.1 and 26.3 at `88f2b52`, with unfinished gameplay. It builds the licensed navigation kernel into Lodekeeper and does not load a separate Baritone runtime. Java 17 is the portable core baseline; adapters use the JVM required by their game version. Original implementation uses the MIT licence.
 
 Separate `core` (acquisition, catalog, commands), `nav` (route views and earlier navigation models), and Fabric adapters (world discovery and tick execution). Minecraft integration is isolated because recipe, item component, input and rendering APIs change between releases. A version can be declared supported only after its exact artifact compiles. Runtime acceptance has a separate status. The current official release manifest says 26.3; snapshots are excluded from stable support. The Preview 11 source map covers 24 exact profiles across 14 navigation source families.
 
@@ -20,7 +20,7 @@ Separate `core` (acquisition, catalog, commands), `nav` (route views and earlier
 1. Research API families and document stack (this plan).
 2. The Java 17 core and navigation modules were implemented and checked through development harnesses. No new repository tests are added without approval.
 3. Adapter work expanded from 1.20.1 to 24 exact profiles across 14 source families. The current Preview 11 matrix and remaining native gates are listed in the [owned automation checkpoint](OWNED-PREVIEW-CHECKPOINT.md).
-4. The Preview 10 release has public source, jars, installation guidance, and selected native evidence. Preview 11 remains unreleased until its current matrix and gameplay gates pass.
+4. Preview 10 retains its historical source, jars, installation guidance, and selected native evidence. Preview 11 publishes only the exact 1.21.1 and 26.3 `88f2b52` jars with source access and known gameplay failures. Both primary CI jobs and packaging checks pass; the full release-source matrix failed. Later main `b789d0c` passes all 24 exact CI adapter jobs, without expanding the published release or establishing gameplay acceptance.
 5. Farming, fishing, trading, dimension travel, structures, and custom machine contracts remain in the coverage ledger.
 
 ## Evidence and research boundaries

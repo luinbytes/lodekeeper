@@ -1,0 +1,125 @@
+{
+  "sourceCommit": "88f2b523648e1e35c16db7e652aca1b719f002b3",
+  "modVersion": "0.1.0-preview.11",
+  "releaseScope": "Development preview for Minecraft 1.21.1 and 26.3 only. Known gameplay failures remain; other exact profiles are excluded from this release.",
+  "ciRun": "https://github.com/luinbytes/lodekeeper/actions/runs/37660233575",
+  "ciHeadShaConfirmed": true,
+  "all24JobsPassed": false,
+  "primaryJobsPassed": true,
+  "checkedAtUtc": "2026-10-07T17:57:12.757084+00:00",
+  "artifactChecks": "Exact metadata, Java 17 core/navigation, mapping namespace, source pins, LGPL/source notices, mixins, and verifier exclusion passed for both jars.",
+  "artifacts": [
+    {
+      "minecraft": "1.21.1",
+      "module": "fabric-1211",
+      "java": 21,
+      "artifact": "lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "13926eb704eb6743613b5dffd274d2f9c35ca4ec063fba39816c523e1fa181c8",
+      "artifactZipSha256": "99f66499906742b54031261c24c22d0b45c7dd62783511a7dd3bb5681bf2072b",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 65,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftAndJavaMetadataVerified": true,
+      "verificationFixturesExcluded": true,
+      "sourceFamily": "primary1.21.1",
+      "sourceCommit": "10e65932e597ee5f11a654030f17798646f563f2",
+      "upstreamArchiveSha256": "4678f9540bb457d167171cfdb1dc982f8446b36f7f8e847414bfec7bdbe78a46",
+      "sourceLockSha256": "d7f25dc723a917a8ac69d9ce2574a2dfd8134f017b1231ba49e5e5d0e41c20e5",
+      "lifecycleOverridesSha256": "778f261b3ccf2bb0a1dbd2c6ea1c5a9038f4c5de24b1d5e9d176369fdc773887",
+      "sourceManifestSha256": "207c28024eb9b237dbde922013ad003f46edd5fe3e11846014ad580f36aba3ce",
+      "generatedSourceFiles": 264,
+      "ownedKernelMixinClasses": 17,
+      "flattenedOwnedKernel": true,
+      "baritoneRuntimeAbsent": true,
+      "yarnRefmaps": [
+        "launch-lodekeeper-owned-kernel-refmap.json",
+        "lodekeeper-refmap.json"
+      ]
+    },
+    {
+      "minecraft": "26.3",
+      "module": "fabric-modern",
+      "java": 25,
+      "artifact": "lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "db1f7381c5371c70b5d81d48d8f6638ce11add762c15b8ed7ec1663b953a7c61",
+      "artifactZipSha256": "17c732ce9efadad5011b85e5b3f0d6b002d9acbb6263ace98779caae99331ef2",
+      "digestMatchesCiReceipt": true,
+      "adapterClassMajor": 69,
+      "coreClassMajor": 61,
+      "navigationClassMajor": 61,
+      "exactMinecraftAndJavaMetadataVerified": true,
+      "verificationFixturesExcluded": true,
+      "sourceFamily": "modern26.3",
+      "sourceCommit": "25111daedf1d59e6a8dfb5a3e61885cdb8d953df",
+      "upstreamArchiveSha256": "b3ddbf081f5a0483dfb1cfc25fddcf787218b05d63c8c78c59bc4de8fdcbd9b7",
+      "sourceLockSha256": "edd9bc0b4f10889c96cf32e5129b175e349bc20a8266989c67867637375c9cd6",
+      "lifecycleOverridesSha256": "04c1241d0f902cdd7571d4f8c94edef7eb96f8ca2422a9e78fd9fb0bf2f266f5",
+      "sourceManifestSha256": "41535246f62d97f81a971e586965d2811c5a0ede2cd0ae78cc99836eb092465e",
+      "generatedSourceFiles": 267,
+      "ownedKernelMixinClasses": 18,
+      "flattenedOwnedKernel": true,
+      "baritoneRuntimeAbsent": true,
+      "yarnRefmaps": []
+    }
+  ],
+  "correspondingSources": {
+    "path": "lodekeeper-preview11-88f2b52-corresponding-sources.zip",
+    "bytes": 40204200,
+    "sha256": "b6dd572998c5b6c32bf4222c5716eee12862b41daf596229ef94fe2f5d3e7b30",
+    "sourceFamilies": 14,
+    "allBundleMembersVerified": true,
+    "exactApplicationSource": {
+      "sha256": "f0a599ba2f9e9701552f641c9111e4e87be673ff31aeda1e807cfbaf26db7527",
+      "fileCount": 2139,
+      "contentMatchesSourceCommit": true
+    }
+  },
+  "nativeJarEquivalence": [
+    {
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "88f2b523648e1e35c16db7e652aca1b719f002b3",
+      "ciRunId": "37660233575",
+      "artifactId": 11500890630,
+      "ciZipDigest": "sha256:99f66499906742b54031261c24c22d0b45c7dd62783511a7dd3bb5681bf2072b",
+      "jarPath": "/tmp/lodekeeper-preview11-primary-ci-37660233575/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "bytes": 1665303,
+      "sha256": "13926eb704eb6743613b5dffd274d2f9c35ca4ec063fba39816c523e1fa181c8",
+      "matchesNativeJar": true
+    },
+    {
+      "minecraftVersion": "26.3",
+      "sourceCommit": "88f2b523648e1e35c16db7e652aca1b719f002b3",
+      "ciRunId": "37660233575",
+      "artifactId": 11500163934,
+      "ciZipDigest": "sha256:17c732ce9efadad5011b85e5b3f0d6b002d9acbb6263ace98779caae99331ef2",
+      "jarPath": "/tmp/lodekeeper-preview11-primary-ci-37660233575/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "bytes": 1669784,
+      "sha256": "db1f7381c5371c70b5d81d48d8f6638ce11add762c15b8ed7ec1663b953a7c61",
+      "matchesNativeJar": true
+    }
+  ],
+  "publication": {
+    "releaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11",
+    "publishedAtUtc": "2026-10-07T18:13:46Z",
+    "assetCount": 30,
+    "originalCaptureCount": 23,
+    "exactReleasedSourceCaptures": 5,
+    "historicalCaptures": 18,
+    "unplayableOriginalVideos": 2,
+    "anonymousAssetLinksChecked": 30,
+    "allAnonymousAssetsReturn200WithExpectedSize": true,
+    "releaseNotesScreenshotsRendered": 10,
+    "originalCapturesRemoteSha256VerifiedBeforeLocalRemoval": true,
+    "representativeAnonymousDownloads": [
+      {
+        "asset": "mc1.21.1-preview11-88f2b52-shield-settings-GUI-PASS-original.png",
+        "sha256": "d08b8bd6899f3e927b604f78afc5e02ad567da91d433c66591bf5194c995d9d4"
+      },
+      {
+        "asset": "mc26.3-preview11-88f2b52-natural-start-FAIL-original.mp4",
+        "sha256": "3423218c36c9d7abe66dd77f9baf3d1dfc278784ab0f319442f042573db16ae4"
+      }
+    ]
+  }
+}

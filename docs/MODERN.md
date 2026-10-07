@@ -1,6 +1,6 @@
 # Minecraft 26.3 Fabric build
 
-This adapter targets **Minecraft 26.3 exactly** and uses Java 25. Preview 10 bundles the matching Baritone runtime. Preview 11 is an unreleased candidate that includes the shared acquisition planner and licensed owned navigation kernel without a separate Baritone runtime. Install only a jar built for Fabric Loader and Fabric API for 26.3.
+This adapter targets **Minecraft 26.3 exactly** and uses Java 25. Preview 10 bundles the matching Baritone runtime. [Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) is published for 1.21.1 and 26.3 with unfinished gameplay. It includes the shared acquisition planner and licensed owned navigation kernel without a separate Baritone runtime. Install only a jar built for Fabric Loader and Fabric API for 26.3.
 
 With Java 25 installed and selected through `JAVA_HOME`, build this adapter with:
 
@@ -12,7 +12,7 @@ Use client chat commands with the configured prefix (default `!lk `), for exampl
 
 The adapter only acts through the connected player's normal survival interaction and container protocols. It reads loaded chunks only; unexplored or unloaded terrain is treated as blocked. Route searches, world scans, and planning work use bounded budgets. Preview 11's owned kernel contains licensed Baritone-derived source. It does not load a separate Baritone runtime.
 
-Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. Earlier controlled 26.3 checks passed eating. Repeat gameplay verification with the exact current candidate jar.
+Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. Earlier controlled 26.3 checks passed eating. Those historical checks do not establish automatic eating on the released `88f2b52` jar.
 
 Modded item names are resolved from registered items, including namespaced IDs and available aliases. Recipe automation uses the integrated world's live recipes in single-player, or only the recipe displays the remote server has revealed to the client. Custom loot tables cannot be inferred from block and item registries. To teach a verified one-item block drop, create `config/lodekeeper-sources.json`:
 
@@ -35,6 +35,8 @@ Each entry maps registered block IDs to a registered output item and assumes one
 Shaped recipe layouts preserve empty grid cells. Integrated recipes use the authoritative native grid; remote displays match each explicit cell to an unused native ingredient with the same complete item set. Unknown display types and ambiguous mappings are rejected rather than filled in a guessed order.
 
 Recipe visibility follows the information available to the client. A client cannot infer hidden server recipes, server-only loot rules, or undisclosed mod behavior. The adapter must report unavailable or incomplete source knowledge instead of claiming universal mod recipe coverage. In local single-player, recipe inspection is permitted only through the integrated server's live registry state on its server thread; this is separate from remote-server client discovery.
+
+Preview 11 publishes only 1.21.1 and 26.3 at source `88f2b523648e1e35c16db7e652aca1b719f002b3`. Both primary CI jobs and packaging checks pass; the [release-source full matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37660233575) fails at newer input diagnostics. Later main `b789d0c` passes [all 24 exact CI adapter jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37663182035). That later compile result does not expand the published release or establish gameplay acceptance. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md) records the unresolved released-source gameplay failures and later development outcomes.
 
 Build success establishes mapped API compatibility only. Game behavior still requires isolated disposable-world verification; it does not prove every modpack mechanic or every server's permission policy.
 

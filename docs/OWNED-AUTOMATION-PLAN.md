@@ -1,6 +1,6 @@
 # Preview 11 owned automation plan
 
-Preview 11 is an unreleased development candidate. Its navigation kernel is built into Lodekeeper under `dev.lodekeeper.navigation.kernel`. The candidate does not load a separate Baritone runtime. Its source profile map routes 24 exact Minecraft profiles through 14 navigation source families.
+[Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) is published for 1.21.1 and 26.3 at `88f2b52`, with unfinished gameplay. Its navigation kernel is built into Lodekeeper under `dev.lodekeeper.navigation.kernel`. It does not load a separate Baritone runtime. Its source profile map routes 24 exact Minecraft profiles through 14 navigation source families.
 
 ## Source architecture
 
@@ -22,7 +22,7 @@ Backfill uses confirmed break receipts and only spare stone or cobblestone after
 
 The settings GUI exposes 23 advanced navigation options through a settings lease limited to the current session. Right Shift and `!lk config` open the editor. It suspends automation while open and saves or discards a draft. The `Protected plots` button opens the claim editor.
 
-Shield use follows `autoDefend`. When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps planned recipe inputs, project goals, and other reservations before spending stock. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The GUI labels are `Iron ingots to keep` and `Planks to keep`. Defense preserves non-shield offhand items and uses a plain shield only with more than 100 durability remaining. A creeper always triggers immediate escape without waiting for inventory or equipment changes or switching to melee.
+Shield use follows `autoDefend`. When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps planned recipe inputs, project goals, and other reservations before spending stock. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The GUI labels are `Iron ingots to keep` and `Planks to keep`. Defense preserves non-shield offhand items and uses a plain shield only with more than 100 durability remaining. A detected creeper is never a melee target. The bounded retreat starts only after owned inventory transactions drain, station menus close, and food and equipment work yield. It can pause when no safe reachable path is available.
 
 Claim commands run on the client. `!lk claim pos1` and `!lk claim pos2` record the targeted block. They use the player block when no block is targeted. `!lk claim add <name> [preferred]` saves the 3D box.
 
@@ -34,13 +34,13 @@ Route, action, claim, station, and restoration views use bounded snapshots. The 
 
 The earlier 26.3 candidate completed a native iron goal in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. These selected results predate the current inventory and shield changes. They do not establish a full gear loadout in a natural survival world. See the [Preview 11 checkpoint](OWNED-PREVIEW-CHECKPOINT.md) for the current CI and native gates.
 
-Preview 11 remains unreleased. Preview 10 is still available from its [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10).
+Preview 11 publishes only 1.21.1 and 26.3 at source `88f2b523648e1e35c16db7e652aca1b719f002b3`. Both primary CI jobs and packaging checks pass; the [release-source full matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37660233575) fails at newer input diagnostics. Later main `b789d0c` passes [all 24 exact CI adapter jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37663182035). That later compile result does not expand the published release or establish gameplay acceptance. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md) records the unresolved released-source gameplay failures and later development outcomes. Preview 10 retains older-source jars for all 24 profiles on its [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10).
 
 ## Remaining gates
 
-All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491). Compile any later source changes before declaring their artifacts supported. Repeat the primary native checks with the exact final jars, including the current GUI and safety paths and the separate repeated inventory benchmark. All nine shield modes already pass on both primary versions. Run full gear loadouts in new survival worlds on the primary versions.
+All 24 exact profiles compile at `ce3c967` in [CI run 37609503491](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491). Compile any later source changes before declaring their artifacts supported. The exact released GUI passes ten checks on each primary version. Shield, the 37-value native lease, other safety, station cleanup, and counted inventory timing trials remain pending at the released source. All nine shield modes pass on each primary version only at historical `ce3c967`. Released `88f2b52` natural full-gear evidence records a 26.3 retreat failure and an inconclusive 1.21.1 environment abort. Repeat these native checks with each changed artifact.
 
-Review the final artifact recursively. It must keep the LGPL notices, exact source locks, modified corresponding source, and rebuild instructions. Do not call the candidate complete or publish it until those gates pass.
+The two published artifacts pass recursive packaging checks and retain LGPL notices, exact source locks, modified corresponding source, and rebuild instructions in the corresponding source bundle. The limited development release leaves the gameplay gates above unfinished. Publication does not establish completion or Lu's acceptance.
 
 ## Upstream sources
 
