@@ -268,7 +268,7 @@ final class ThreatResponseAction {
                         phase = Phase.STOPPING;
                         status = "stopping retreat before contact defense";
                         log("contact");
-                    } else if (threats.isEmpty() || movement.tick()) {
+                    } else if (movement.tick()) {
                         movement.stopForDefense();
                         phase = Phase.FINISHING;
                         status = "verifying current threat clearance";
