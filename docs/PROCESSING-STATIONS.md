@@ -24,6 +24,10 @@ The fast acquisition planner prefers a usable owned station, then an unprotected
 
 Integrated-server recipe types and recipe-display stations must agree. Remote displays must resolve to one supported station; ambiguous or unsupported alternatives are rejected. Display expansion is bounded. Execution accepts the exact native menu class for the planned station and requires empty input, fuel, output and cursor before spending materials. It tracks only inserted materials and their component-exact results. Existing contents are never adopted.
 
+Current main can carry one nearby crafting table confirmed as placed by the same project before a gathering phase that needs later table recipes, passive food acquisition, or exploration. This requires station recovery, building, and breaking to be enabled, available inventory space, and a table within the configured recovery range. The existing recovery action verifies empty native contents, server removal, and the exact item pickup before planning continues. Urgent healing takes priority, and an unfinished exact pickup retains its ownership. Borrowed tables are excluded.
+
+Carrying returns to the project plan rather than marking its goals or final cleanup complete. An interrupted transfer can retry after the interruption clears; a failed transfer remains deferred for final cleanup. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md) records source-specific build and native evidence. Preview 11's released `88f2b52` source predates this behavior.
+
 ## Fuel quantities and native timing
 
 `SmeltingSource.fuelProgressTicks` is a bounded immutable map of effective capacity in each recipe's progress units. A nonempty map is authoritative: omitted fuels are unusable. The old constructor and an empty map retain the catalog's global fuel-capacity contract. Native adapters reject recipes with no supported fuels, rather than accidentally publish an empty override. Eligibility, ranking and quantity ceilings use the same effective capacity.

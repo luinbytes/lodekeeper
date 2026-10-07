@@ -278,7 +278,9 @@ final class AutomationEngine {
     private record StationPlacementWait(Request request, BlockPos position, Block block,
                                         OwnedStationLedger.Session session, boolean sent) { }
     private StationPlacementWait stationPlacementWait;
+    private enum CleanupPurpose { FINISH_JOB, CARRY_TABLE }
     private static final class CleanupRun {
+        final CleanupPurpose purpose;
         final Request request;
         final OwnedStationLedger.Session session;
         final Deque<OwnedStationLedger.StationRecord> remaining;
@@ -286,8 +288,9 @@ final class AutomationEngine {
         OwnedStationLedger.StationRecord current;
         boolean incomplete;
         String incompleteReason;
-        CleanupRun(Request request, OwnedStationLedger.Session session,
+        CleanupRun(CleanupPurpose purpose, Request request, OwnedStationLedger.Session session,
                    List<OwnedStationLedger.StationRecord> records, long startedNanos) {
+            this.purpose = purpose;
             this.startedNanos = startedNanos;
             this.request = request;
             this.session = session;
@@ -617,6 +620,7 @@ final class AutomationEngine {
                 return;
             }
             if (foodAcquisitionPending) {
+                if (config.autoEat && beginCarryTable()) return;
                 foodAcquisitionPending = false;
                 foodAcquisition.updateProtection(foodReservations());
                 if (config.autoEat && foodAcquisition.begin(healthRecovery != null)) status = foodAcquisition.status();
@@ -645,6 +649,7 @@ final class AutomationEngine {
                     && (client.player.getFoodData().getFoodLevel() <= 14
                         || healthRecovery != null || needsMiningFoodStock())
                     && foodAcquisition.ready(healthRecovery != null)) {
+                if (beginCarryTable()) return;
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
                 resetAction();
@@ -714,6 +719,10 @@ final class AutomationEngine {
                             && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) { requestPlan(); return; }
                     if (isFoodPreparation(first) && !config.autoEat) { requestPlan(); return; }
                     if (first.kind() == PlanKind.GATHER) {
+                        if (result.steps().stream().flatMap(planned -> planned.requirements().stream())
+                                .anyMatch(requirement -> requirement instanceof SelectedStationRequirement station
+                                        && CRAFTING_TABLE.equals(station.station()))
+                                && beginCarryTable()) return;
                         int capacity = gatherCapacity(first.output());
                         if (outcome.unbatchedGather() != null && first.outputCount() > capacity)
                             first = outcome.unbatchedGather();
@@ -2680,6 +2689,44 @@ final class AutomationEngine {
                         observedInventory.getOrDefault(goal.getKey(), 0) >= goal.getValue());
     }
 
+    private boolean beginCarryTable() {
+        if (active == null || active.project() == null || active.project().aborted
+                || !projects.contains(active.project()) || healthRecovery != null
+                || !config.recoverPlacedStations || !config.allowBreaking || !config.allowBuilding
+                || config.stationRecoveryRange < 1
+                || actions.heldCount(GameCatalog.item(CRAFTING_TABLE_ITEM)) >= 1
+                || gatherCapacity(CRAFTING_TABLE_ITEM) < 1
+                || pendingStationPickup != null && stationRecovery.pickupRetained()) return false;
+        var session = placementProvenance.session();
+        if (session.isEmpty()) return false;
+        OwnedStationLedger.StationRecord nearest = null;
+        double nearestDistance = (double) config.stationRecoveryRange * config.stationRecoveryRange;
+        for (var record : placementProvenance.records()) {
+            if (record.jobToken() != active.jobToken() || !record.session().equals(session.get())
+                    || !CRAFTING_TABLE_ITEM.equals(record.expectedBlockId())
+                    || !CRAFTING_TABLE_ITEM.equals(record.stationItemId())
+                    || deferredStationCleanup.contains(record)) continue;
+            BlockPos position = stationPosition(record);
+            if (!hasLoadedChunk(position) || client.level.getBlockState(position).getBlock() != Blocks.CRAFTING_TABLE
+                    || !protection.mayBreak(position)) continue;
+            double dx = position.getX() + 0.5 - client.player.getX();
+            double dy = position.getY() + 0.5 - client.player.getY();
+            double dz = position.getZ() + 0.5 - client.player.getZ();
+            double distance = dx * dx + dy * dy + dz * dz;
+            if (distance <= nearestDistance) {
+                nearest = record;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest == null) return false;
+        if (pendingPlan != null) pendingPlan.cancel(false);
+        resetAction();
+        pendingPlan = null;
+        cleanupRun = new CleanupRun(CleanupPurpose.CARRY_TABLE, active, session.get(), List.of(nearest), System.nanoTime());
+        status = "recovering the owned crafting table before leaving";
+        return true;
+    }
+
     private boolean beginStationCleanup(Request request) {
         if (cleanedJobToken == request.jobToken()) return false;
         if (!config.recoverPlacedStations) { cleanedJobToken = request.jobToken(); return false; }
@@ -2706,7 +2753,7 @@ final class AutomationEngine {
         if (cleanupBudget == null || cleanupBudget.jobToken() != request.jobToken()
                 || !cleanupBudget.session().equals(session.get()))
             cleanupBudget = new CleanupBudget(request.jobToken(), session.get(), System.nanoTime());
-        cleanupRun = new CleanupRun(request, session.get(), records, cleanupBudget.startedNanos());
+        cleanupRun = new CleanupRun(CleanupPurpose.FINISH_JOB, request, session.get(), records, cleanupBudget.startedNanos());
         status = "returning confirmed owned stations after the whole job";
         message("Inventory goals reached; checking " + records.size() + " confirmed owned stations for recovery");
         return true;
@@ -2729,7 +2776,7 @@ final class AutomationEngine {
             pendingStationPickup = cleanupRun.current;
         else if (cleanupRun != null && cleanupRun.current != null
                 && cleanupRun.current.equals(pendingStationPickup)) pendingStationPickup = null;
-        if (cleanupRun != null) {
+        if (cleanupRun != null && (cleanupRun.purpose == CleanupPurpose.FINISH_JOB || cleanupRun.incomplete)) {
             if (cleanupRun.current != null && placementProvenance.records().contains(cleanupRun.current)
                     && !deferredStationCleanup.contains(cleanupRun.current))
                 deferredStationCleanup.addLast(cleanupRun.current);
@@ -2846,6 +2893,12 @@ final class AutomationEngine {
     }
 
     private void completeStationCleanup(CleanupRun cleanup) {
+        if (cleanup.purpose == CleanupPurpose.CARRY_TABLE) {
+            stopStationCleanup();
+            observeInventory();
+            requestPlan();
+            return;
+        }
         cleanedJobToken = cleanup.request.jobToken();
         if (cleanup.incomplete) {
             stationCleanupIncompleteJobToken = cleanup.request.jobToken();
@@ -3021,6 +3074,7 @@ final class AutomationEngine {
     private void beginExploration() {
         if (!config.allowExploration) throw new IllegalStateException("Resource not found nearby; exploration is disabled");
         if (unavailableSources.isEmpty()) throw new IllegalStateException("No known gathering source is available for this goal");
+        if (beginCarryTable()) return;
         resetAction();
         BlockPos feet = client.player.blockPosition();
         if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),

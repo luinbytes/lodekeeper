@@ -13,7 +13,7 @@
   "threatResponseEvents": 0,
   "inventoryMismatchObserved": false,
   "releaseStatus": "Post-preview11 main. Not released88f2b52 acceptance.",
-  "interpretation": "All required diamonds and the first diamond pickaxe were obtained, but remaining gear was not crafted. The later birch-log action timed out while trying to reach surface wood from underground. Why another log was needed remains under investigation. This run does not exercise dense-crowd retreat or reproduce the source-water calculation failure.",
+  "interpretation": "All required diamonds and the first diamond pickaxe were obtained, but remaining gear was not crafted. The eight-step gear plan assumed the owned table at (-4,24,20) remained available. Its return route from (-2,-45,23) failed, then replanning needed one log to make a replacement table. Seven held sticks cover the remaining tools. The log gather later timed out while trying to reach surface trees. This run does not exercise dense-crowd retreat or reproduce the source-water calculation failure.",
   "nativeRun": {
     "runId": "2026-10-07T19-13-55.357375Z-e8ddcab2",
     "worldId": "natural-e32ae8f980ac4dd7",
@@ -162,5 +162,28 @@
       "bytes": 38011,
       "caption": "Native final pause after birch-log action timeout. A diamond pickaxe and 32 diamonds do not meet the full-gear goal."
     }
-  ]
+  ],
+  "stationDiagnosis": {
+    "tablePosition": [
+      -4,
+      24,
+      20
+    ],
+    "failedRouteStart": [
+      -2,
+      -45,
+      23
+    ],
+    "remainingPlanSteps": 8,
+    "replacementTableLogDemand": 1,
+    "remainingToolStickDemand": 7,
+    "sourceLogLines": [
+      4254,
+      4256,
+      4286,
+      4289,
+      4292,
+      4294
+    ]
+  }
 }
