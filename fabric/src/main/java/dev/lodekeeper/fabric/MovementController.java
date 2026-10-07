@@ -109,7 +109,9 @@ final class MovementController {
                     .thenComparingInt(candidate -> candidate.position().getX())
                     .thenComparingInt(candidate -> candidate.position().getZ());
 
-    record RetreatThreat(double x, double z, int clearance) { }
+    record RetreatThreat(double x, double y, double z, int clearance, double dangerRadius) { }
+    enum RetreatPrefixStatus { WAITING, CLEAR, BLOCKED }
+    record RetreatPrefixRejection(BlockPos destination) { }
     record DefenseHop(double x, double y, double z, double maxRise) { }
 
     private static final class DefenseHopState {
@@ -140,6 +142,9 @@ final class MovementController {
     private IBaritoneProcess cancellationProcess;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
     private boolean cancelling, followCancellationPending, retreatRequest, defenseSettlingPending;
+    private List<RetreatThreat> retreatHazards = List.of();
+    private RetreatPrefixRejection retreatPrefixRejection;
+    private RuntimeException pendingRetreatPrefixFailure;
     private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal routeGoal;
     private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal airRecoveryGoal;
     private BlockPos lastAirRecoveryDestination;
@@ -217,10 +222,14 @@ final class MovementController {
         if (threats.isEmpty() || threats.size() > 16
                 || rejectedGoals.size() > 32 || origin == null
                 || threats.stream().anyMatch(threat -> threat == null
-                        || !Double.isFinite(threat.x()) || !Double.isFinite(threat.z())
-                        || threat.clearance() < 4 || threat.clearance() > 32))
+                        || !Double.isFinite(threat.x()) || !Double.isFinite(threat.y()) || !Double.isFinite(threat.z())
+                        || threat.clearance() < 4 || threat.clearance() > 32
+                        || !Double.isFinite(threat.dangerRadius())
+                        || threat.dangerRadius() != 3.5 && threat.dangerRadius() != 6.0))
             throw new IllegalArgumentException("Retreat requires bounded threat positions and clearance");
         prepare();
+        retreatHazards = List.copyOf(threats);
+        retreatPrefixRejection = null;
         terrain.beginSearch();
         BlockPos center = client.player.getBlockPos();
         List<BlockPos> goals = new ArrayList<>();
@@ -600,6 +609,105 @@ final class MovementController {
         return bot.getPathingBehavior().getCurrent().getPath().getDest().toImmutable();
     }
 
+    RetreatPrefixStatus checkRetreatPrefix(List<RetreatThreat> threats) {
+        if (!retreatRequest || mode != Mode.MOVE || bot == null) return RetreatPrefixStatus.WAITING;
+        checkAirRecoveryOwnership();
+        var current = bot.getPathingBehavior().getCurrent();
+        if (current == null || current.getPath() == null) return RetreatPrefixStatus.WAITING;
+        var positions = current.getPath().positions();
+        if (positions.isEmpty()) return RetreatPrefixStatus.WAITING;
+        int index = current.getPosition();
+        if (index < 0 || index >= positions.size()) return RetreatPrefixStatus.BLOCKED;
+
+        double startX = client.player.getX(), startY = client.player.getY(), startZ = client.player.getZ();
+        double fromX = startX, fromY = startY, fromZ = startZ;
+        int checked = 0;
+        for (int i = index + 1; i < positions.size() && checked < 4; i++, checked++) {
+            var position = positions.get(i);
+            double toX = position.getX() + .5, toY = position.getY(), toZ = position.getZ() + .5;
+            for (RetreatThreat threat : threats) {
+                double currentDistance = distance(startX, startY, startZ, threat.x(), threat.y(), threat.z());
+                double segmentDistance = distanceToSegment(fromX, fromY, fromZ, toX, toY, toZ,
+                        threat.x(), threat.y(), threat.z());
+                if (currentDistance < threat.dangerRadius()) {
+                    if (segmentDistance < currentDistance - .5) return RetreatPrefixStatus.BLOCKED;
+                } else if (segmentDistance < threat.dangerRadius()) {
+                    return RetreatPrefixStatus.BLOCKED;
+                }
+            }
+            fromX = toX;
+            fromY = toY;
+            fromZ = toZ;
+        }
+        return RetreatPrefixStatus.CLEAR;
+    }
+
+    void resetRetreatPrefix() {
+        retreatHazards = List.of();
+        retreatPrefixRejection = null;
+        pendingRetreatPrefixFailure = null;
+    }
+
+    void updateRetreatHazards(List<RetreatThreat> threats) {
+        if (threats == null || threats.size() > 16 || threats.stream().anyMatch(threat -> threat == null
+                || !Double.isFinite(threat.x()) || !Double.isFinite(threat.y()) || !Double.isFinite(threat.z())
+                || threat.clearance() < 4 || threat.clearance() > 32
+                || !Double.isFinite(threat.dangerRadius())
+                || threat.dangerRadius() != 3.5 && threat.dangerRadius() != 6.0))
+            throw new IllegalArgumentException("Retreat hazard snapshot exceeds its bounded finite shape");
+        retreatHazards = List.copyOf(threats);
+    }
+
+    RetreatPrefixRejection takeRetreatPrefixRejection() {
+        RetreatPrefixRejection rejection = retreatPrefixRejection;
+        retreatPrefixRejection = null;
+        return rejection;
+    }
+
+    RuntimeException takeRetreatPrefixFailure() {
+        RuntimeException failure = pendingRetreatPrefixFailure;
+        pendingRetreatPrefixFailure = null;
+        return failure;
+    }
+
+    private void checkInitialRetreatPath() {
+        if (!retreatRequest) return;
+        try {
+            if (checkRetreatPrefix(retreatHazards) != RetreatPrefixStatus.BLOCKED) return;
+            BlockPos destination = retreatDestination();
+            if (destination == null || routeGoal == null || !routeGoal.isInGoal(destination)) destination = null;
+            stopForDefense();
+            bot.getPathingBehavior().forceCancel();
+            retreatPrefixRejection = new RetreatPrefixRejection(destination);
+        } catch (RuntimeException failure) {
+            pendingRetreatPrefixFailure = failure;
+            if (failure instanceof NavigationFailure navigationFailure
+                    && navigationFailure.kind == NavigationFailure.Kind.OWNERSHIP_LOST) return;
+            try {
+                stopForDefense();
+                bot.getPathingBehavior().forceCancel();
+            } catch (RuntimeException cancellationFailure) {
+                failure.addSuppressed(cancellationFailure);
+            }
+        }
+    }
+
+    private static double distance(double x, double y, double z, double otherX, double otherY, double otherZ) {
+        double dx = x - otherX, dy = y - otherY, dz = z - otherZ;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private static double distanceToSegment(double fromX, double fromY, double fromZ,
+                                            double toX, double toY, double toZ,
+                                            double pointX, double pointY, double pointZ) {
+        double dx = toX - fromX, dy = toY - fromY, dz = toZ - fromZ;
+        double lengthSquared = dx * dx + dy * dy + dz * dz;
+        double t = lengthSquared == 0.0 ? 0.0
+                : Math.max(0.0, Math.min(1.0,
+                ((pointX - fromX) * dx + (pointY - fromY) * dy + (pointZ - fromZ) * dz) / lengthSquared));
+        return distance(fromX + t * dx, fromY + t * dy, fromZ + t * dz, pointX, pointY, pointZ);
+    }
+
     BlockPos airRecoveryDestination() {
         observeAirRecoveryDestination();
         return lastAirRecoveryDestination == null ? null : lastAirRecoveryDestination.toImmutable();
@@ -708,6 +816,7 @@ final class MovementController {
                 @Override public void onPathEvent(PathEvent event) {
                     if (mode == Mode.IDLE && !cancelling) return;
                     if (event == PathEvent.CALC_FAILED) failedCalculations++;
+                    if (event == PathEvent.CALC_FINISHED_NOW_EXECUTING) checkInitialRetreatPath();
                     if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                             "[Lodekeeper] NAV backend=owned-navigation mode={} event={} elapsedMs={}",
                             mode, event, (System.nanoTime() - startedNanos) / 1_000_000);
@@ -720,6 +829,7 @@ final class MovementController {
         }
         input.release(); actions.cancel();
         retreatRequest = false;
+        resetRetreatPrefix();
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
         lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
         phaseStartedTick = 0; miningY = Integer.MIN_VALUE; miningDepthPolicy = null;
@@ -761,6 +871,10 @@ final class MovementController {
         lease.set(settings.allowBreak, !airRecovery && !retreatRequest && config.allowBreaking);
         lease.set(settings.allowPlace, !airRecovery && !retreatRequest && config.allowBuilding);
         lease.set(settings.allowInventory, false);
+        if (retreatRequest) {
+            lease.set(settings.planningTickLookahead, 0);
+            lease.set(settings.splicePath, false);
+        }
         lease.set(settings.allowParkour, !airRecovery && config.allowParkour);
         lease.set(settings.allowParkourPlace, !airRecovery && !retreatRequest
                 && config.allowParkour && config.allowParkourPlace && config.allowBuilding);

@@ -2,6 +2,7 @@ package dev.lodekeeper.fabric.modern;
 
 import dev.lodekeeper.core.ItemId;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -11,18 +12,28 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.UUID;
 
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
     private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
+    private record RouteHazard(UUID uuid, EntityType<?> type, double x, double y, double z) {
+        int clearance() { return type == EntityType.CREEPER ? 20 : 11; }
+        double dangerRadius() { return type == EntityType.CREEPER ? 6.0 : 3.5; }
+        MovementController.RetreatThreat movementThreat() {
+            return new MovementController.RetreatThreat(x, y, z, clearance(), dangerRadius());
+        }
+    }
     private record AttackChoice(Mob target, int slot, double damage, MovementController.DefenseHop hop) { }
     private enum Phase { IDLE, STOPPING, MELEE, HOP_ASCENT, HOP_LANDING, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
     private static final long MAX_NANOS = 15_000_000_000L;
-    private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREATS = 2, MAX_THREATS = 16;
+    private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREAT_STARTS = 4,
+            MAX_COMPLETED_RETREATS = 2, MAX_THREATS = 16;
     private final Minecraft client;
     private final PlayerActions actions;
     private final MovementController movement;
@@ -35,7 +46,7 @@ final class ThreatResponseAction {
     private Object ownerPlayer, ownerWorld;
     private double originX, originY, originZ;
     private long startedAt;
-    private int ticks, attacks, retreats, lastContactTick, hopLaunchWaitTicks;
+    private int ticks, attacks, retreatStarts, completedRetreats, lastContactTick, hopLaunchWaitTicks;
     private boolean retreatBlocked;
     private int originalSlot = -1, selectedSlot = -1;
     private AttackChoice plannedChoice;
@@ -89,7 +100,7 @@ final class ThreatResponseAction {
         originZ = client.player.getZ();
         originalSlot = client.player.getInventory().getSelectedSlot();
         selectedSlot = -1;
-        ticks = attacks = retreats = lastContactTick = hopLaunchWaitTicks = 0;
+        ticks = attacks = retreatStarts = completedRetreats = lastContactTick = hopLaunchWaitTicks = 0;
         retreatBlocked = false;
         startedAt = System.nanoTime();
         tracked.clear();
@@ -98,6 +109,7 @@ final class ThreatResponseAction {
         status = "stopping movement before defense";
         try {
             movement.stopForDefense();
+            movement.resetRetreatPrefix();
             log("started");
             return true;
         } catch (RuntimeException failure) {
@@ -124,6 +136,8 @@ final class ThreatResponseAction {
                 throw new IllegalStateException("defense exceeded 32 blocks from its start");
             if (selectedSlot >= 0 && client.player.getInventory().getSelectedSlot() != selectedSlot)
                 throw new IllegalStateException("player changed the defense selection");
+            RuntimeException retreatPrefixFailure = movement.takeRetreatPrefixFailure();
+            if (retreatPrefixFailure != null) throw retreatPrefixFailure;
             if (!useShield && !shield.finish()) return false;
             List<Mob> threats = remainingThreats();
             if (useShield && (phase == Phase.STOPPING || phase == Phase.FINISHING)
@@ -263,35 +277,56 @@ final class ThreatResponseAction {
                         startRetreat(threats);
                 }
                 case RETREAT -> {
-                    if (selectContactTarget(threats)) {
+                    List<RouteHazard> hazards = routeHazards();
+                    List<MovementController.RetreatThreat> movementHazards = hazards.stream()
+                            .map(RouteHazard::movementThreat).toList();
+                    movement.updateRetreatHazards(movementHazards);
+                    MovementController.RetreatPrefixRejection rejection = movement.takeRetreatPrefixRejection();
+                    if (rejection != null) {
+                        BlockPos destination = rejection.destination();
+                        if (destination != null && retreatRoute.goals().contains(destination)
+                                && rejectedRetreatGoals.size() < 32) rejectedRetreatGoals.add(destination);
+                        status = "draining retreat after a blocked first path prefix";
+                        log("retreat-prefix-blocked");
+                        phase = Phase.FINISHING;
+                    } else if (selectContactTarget(threats)) {
                         movement.stopForDefense();
                         phase = Phase.STOPPING;
                         status = "stopping retreat before contact defense";
                         log("contact");
-                    } else if (movement.tick()) {
-                        log("retreat-arrived");
-                        movement.stopForDefense();
-                        phase = Phase.FINISHING;
-                        status = "verifying current threat clearance";
                     } else {
-                        double rx = client.player.getX() - retreatProgressX, rz = client.player.getZ() - retreatProgressZ;
-                        if (rx * rx + rz * rz >= .25) {
-                            retreatProgressX = client.player.getX();
-                            retreatProgressZ = client.player.getZ();
-                            retreatProgressTick = ticks;
-                        }
-                        boolean drifted = threats.stream().anyMatch(mob -> retreatRoute.threats().stream().noneMatch(position -> {
-                            double tx = mob.getX() - position.getX(), tz = mob.getZ() - position.getZ();
-                            return tx * tx + tz * tz < 4.0;
-                        }));
-                        if (ticks - retreatProgressTick >= 40) {
-                            BlockPos destination = movement.retreatDestination();
-                            if (destination != null && retreatRoute.goals().contains(destination) && rejectedRetreatGoals.size() < 32)
-                                rejectedRetreatGoals.add(destination);
-                            status = drifted ? "refreshing moved threat positions" : "replanning stalled retreat";
-                            log(drifted ? "repath-moving-threat" : "repath-stalled");
+                        MovementController.RetreatPrefixStatus prefix = movement.checkRetreatPrefix(movementHazards);
+                        if (prefix == MovementController.RetreatPrefixStatus.BLOCKED) {
+                            rejectRetreatDestination();
+                            status = "stopping retreat before a hostile hazard";
+                            log("retreat-prefix-blocked");
                             movement.stopForDefense();
                             phase = Phase.FINISHING;
+                        } else if (movement.tick()) {
+                            boolean arrived = retreatRoute.goals().contains(client.player.blockPosition());
+                            status = arrived ? "verifying current threat clearance" : "draining interrupted retreat";
+                            if (arrived) completedRetreats++;
+                            log(arrived ? "retreat-arrived" : "retreat-interrupted");
+                            movement.stopForDefense();
+                            phase = Phase.FINISHING;
+                        } else {
+                            double rx = client.player.getX() - retreatProgressX, rz = client.player.getZ() - retreatProgressZ;
+                            if (rx * rx + rz * rz >= .25) {
+                                retreatProgressX = client.player.getX();
+                                retreatProgressZ = client.player.getZ();
+                                retreatProgressTick = ticks;
+                            }
+                            boolean drifted = threats.stream().anyMatch(mob -> retreatRoute.threats().stream().noneMatch(position -> {
+                                double tx = mob.getX() - position.getX(), tz = mob.getZ() - position.getZ();
+                                return tx * tx + tz * tz < 4.0;
+                            }));
+                            if (ticks - retreatProgressTick >= 40) {
+                                rejectRetreatDestination();
+                                status = drifted ? "refreshing moved threat positions" : "replanning stalled retreat";
+                                log(drifted ? "repath-moving-threat" : "repath-stalled");
+                                movement.stopForDefense();
+                                phase = Phase.FINISHING;
+                            }
                         }
                     }
                 }
@@ -376,25 +411,31 @@ final class ThreatResponseAction {
 
     private void startRetreat(List<Mob> threats) {
         shield.release();
-        if (++retreats > MAX_RETREATS) throw new IllegalStateException("moving threats remained after two retreat routes");
         plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
+        List<RouteHazard> hazards = routeHazards();
+        logRetreatPlanning(hazards);
+        if (retreatStarts >= MAX_RETREAT_STARTS || completedRetreats >= MAX_COMPLETED_RETREATS) {
+            if (hazards.stream().anyMatch(hazard -> hazard.type() == EntityType.CREEPER))
+                throw new IllegalStateException("active creeper remained after bounded retreat routes");
+            retreatBlocked = true;
+            phase = Phase.CONTACT_WAIT;
+            status = "waiting for live contact after bounded retreat routes";
+            log("retreat-budget-exhausted");
+            return;
+        }
+        retreatStarts++;
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
-        List<MovementController.RetreatThreat> capturedThreats = threats.stream()
-                .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ(), creeper(mob) ? 20 : 11)).toList();
-        if (movement.debugLogging())
-            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                    "[Lodekeeper] THREAT_RETREAT planning threats={}",
-                    threats.stream().map(mob -> mob.getUUID() + "/" + mob.getType() + "@" + mob.blockPosition()
-                            + " clearance=" + (creeper(mob) ? 20 : 11)).toList());
+        List<MovementController.RetreatThreat> capturedThreats = hazards.stream()
+                .map(RouteHazard::movementThreat).toList();
         List<BlockPos> goals;
         try {
             goals = movement.startRetreat(capturedThreats, rejectedRetreatGoals,
                     new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
-                    || threats.stream().anyMatch(ThreatResponseAction::creeper)) throw failure;
+                    || hazards.stream().anyMatch(hazard -> hazard.type() == EntityType.CREEPER)) throw failure;
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
             status = "waiting for live contact without an open retreat";
@@ -411,8 +452,43 @@ final class ThreatResponseAction {
                     threats.stream().map(mob -> mob.getType() + "@" + mob.blockPosition()).toList(), goals, rejectedRetreatGoals);
 
         phase = Phase.RETREAT;
-        status = "retreating from live threats " + retreats;
+        status = "retreating from live threats " + retreatStarts;
         log("retreat");
+    }
+
+    private List<RouteHazard> routeHazards() {
+        if (client.player == null || client.level == null)
+            throw new IllegalStateException("world unavailable while checking retreat hazards");
+        var envelope = client.player.getBoundingBox().inflate(24.0, 6.0, 24.0);
+        Map<UUID, Mob> candidates = new LinkedHashMap<>();
+        for (Mob mob : tracked) if (envelope.intersects(mob.getBoundingBox())) addRouteHazard(candidates, mob);
+        for (Mob mob : client.level.getEntities(EntityTypeTest.forClass(Mob.class), envelope, this::eligible))
+            addRouteHazard(candidates, mob);
+        return candidates.values().stream().sorted(Comparator.comparingDouble(client.player::distanceToSqr))
+                .map(mob -> new RouteHazard(mob.getUUID(), mob.getType(), mob.getX(), mob.getY(), mob.getZ())).toList();
+    }
+
+    private void addRouteHazard(Map<UUID, Mob> candidates, Mob mob) {
+        if (!eligible(mob)) return;
+        UUID uuid = mob.getUUID();
+        if (!candidates.containsKey(uuid) && candidates.size() == MAX_THREATS)
+            throw new IllegalStateException("too many loaded route hazards for bounded retreat");
+        candidates.put(uuid, mob);
+    }
+
+    private void logRetreatPlanning(List<RouteHazard> hazards) {
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] THREAT_RETREAT planning starts={} completed={} attacks={} ticks={} hazards={}",
+                retreatStarts, completedRetreats, attacks, ticks,
+                hazards.stream().map(hazard -> hazard.uuid() + "/" + hazard.type() + "@"
+                        + hazard.x() + "," + hazard.y() + "," + hazard.z()
+                        + " clearance=" + hazard.clearance()).toList());
+    }
+
+    private void rejectRetreatDestination() {
+        BlockPos destination = movement.retreatDestination();
+        if (destination != null && retreatRoute != null && retreatRoute.goals().contains(destination)
+                && rejectedRetreatGoals.size() < 32) rejectedRetreatGoals.add(destination);
     }
 
     private boolean complete() {
@@ -569,11 +645,11 @@ final class ThreatResponseAction {
         shield.stop();
         boolean cancelled = cancelMovement();
         restoreSelection();
-        clearOwnership();
         phase = Phase.STOPPED;
         status = "threat response failed: " + failure.getClass().getSimpleName() + ": " + failure.getMessage();
         if (!cancelled) status += "; movement cancellation pending";
         log("failed");
+        clearOwnership();
         return new IllegalStateException(status, failure);
     }
 
@@ -599,11 +675,12 @@ final class ThreatResponseAction {
 
     private void log(String outcome) {
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreats={} ticks={} status={} player={} threats={}",
-                outcome, attacks, retreats, ticks, status,
+                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreatStarts={} completedRetreats={} ticks={} status={} player={} threats={}",
+                outcome, attacks, retreatStarts, completedRetreats, ticks, status,
                 client.player == null ? "absent" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ(),
-                client.player == null ? List.of() : tracked.stream().map(mob -> mob.getUUID() + "@"
+                client.player == null ? List.of() : tracked.stream().map(mob -> mob.getUUID() + "/" + mob.getType() + "@"
                         + mob.getX() + "," + mob.getY() + "," + mob.getZ()
+                        + "/alive=" + mob.isAlive() + "/removed=" + mob.isRemoved() + "/eligible=" + eligible(mob)
                         + "/distance=" + Math.sqrt(client.player.distanceToSqr(mob))).toList());
     }
 }
