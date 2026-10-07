@@ -25,17 +25,17 @@ The earlier `ce3c967` CI production jars match their shield and GUI gameplay inp
 
 That production source is `ce3c967b567ec1d7592e11a9f67e318cbcfa52c4`. Runner and capture-helper changes preserved those bytes before the later production retreat corrections. Local checks pass 159 core, 95 navigation, 13 primary adapter, and three modern adapter cases. All 24 exact CI artifacts pass packaging, namespace, class-version, source-pin, licence, and verifier-exclusion checks. Runtime coverage remains separate.
 
-Current production source `98a78563d2c484b7027a91b77307a1668aadb661` compiles locally for both primary adapters and passes the same 270 existing checks. Its 1.21.1 jar is `fd9510188dc93cca00e8d21e1772b9cbe0e890b161d172f876e7e0ad2215f08e`; its 26.3 jar is `a3c330da2e3d0040e654a47cd0a740c84cb4510cfb3dca8eeb3af0f11c669a7e`. Final exact-source CI remains pending.
+The previous production source `98a78563d2c484b7027a91b77307a1668aadb661` compiles locally for both primary adapters and passes the same 270 existing checks. Its 1.21.1 jar is `fd9510188dc93cca00e8d21e1772b9cbe0e890b161d172f876e7e0ad2215f08e`; its 26.3 jar is `a3c330da2e3d0040e654a47cd0a740c84cb4510cfb3dca8eeb3af0f11c669a7e`. Final exact-source CI remains pending.
 
-| Current gate | Result |
+| Verification gate | Result |
 | --- | --- |
 | Exact adapter and verifier compilation | All 24 profiles pass at `ce3c967`; current `98a7856` primary builds pass locally |
 | Shield modes | 18/18 pass at `ce3c967`; current retreat-build reruns pending |
 | Inventory progression warmup | `ce3c967` primary passes 9/9 profiled; current `98a7856` modern passes 9/9 recorded; both uncounted |
 | Repeated inventory comparison | Historical A/B sequence complete: five progression passes each, one additional A timeout and one B cleanup failure; current-build counted trials pending |
 | GUI and settings | Ten-step GUI passes on both primary versions at `ce3c967`; current GUI and 37-value native lease checks pending |
-| Claims, backfill, stations and threats | Current live-creeper escape passes on both primary versions; other fresh safety and station-recovery runs pending |
-| Fresh natural full diamond gear | Pending on both primary versions; latest earlier attempts failed |
+| Claims, backfill, stations and threats | `98a7856` live-creeper escape passes on both primary versions; fresh per-mob correction and other safety/station-recovery runs pending |
+| Fresh natural full diamond gear | Current `98a7856` primary attempt fails during mixed-mob retreat with two diamonds; modern rerun pending |
 | Original gameplay media | Earlier queued/worn shield PNGs retained; current creeper PNGs and original 26.3 controlled-progression video captured |
 
 The queued shield case reserves seven iron before adding a keep floor of four. Twelve starting ingots leave eleven after the shield and six after the bucket and shears. Four reserved planks plus a keep floor of nine leave thirteen after shield crafting. The worn case records native blocked damage, minimum health twenty, and shield restoration. Occupied offhand stock is preserved. Manual takeover uses simulated native key-state input, not physical keyboard input.
@@ -45,6 +45,8 @@ The inventory warmup passes all nine controlled cases, including custom crafting
 The GUI at `ce3c967` passes all ten checks on each primary version, including shield controls, saved thresholds of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots and restoration of original settings. Its primary creeper fixture failed after two retreats with insufficient clearance. That failed receipt and original screenshot remain historical.
 
 The retreat continuation change at `314ffd0` compiles on both primary versions and passes the existing local checks, but the primary native retry still fails with about nine blocks of clearance. Position logs at `13cbcae` show that the client reaches its goal blocks; pursuing threats consume the snapshot clearance. The sixteen-block destination change at `9fe705c` reaches twelve blocks of live clearance, then resumes bucket crafting too close to the pursuer. That native attempt fails with an exploded creeper and minimum player health of 0.92. The correction at `98a7856` requires sixteen blocks of live clearance before handoff and plans twenty-block destinations. Both exact primary jars pass fresh live-creeper checks with twenty health, zero deaths, an unharmed pursuing creeper, one bucket, an empty cursor and idle navigation. Final clearance is 16.02 blocks on 1.21.1 and 17.24 blocks on 26.3. These fixtures disable block breaking, so the retained table warning is expected and does not prove station recovery. A separate workbench check must verify recovery with breaking enabled. The passing shield and GUI results above describe `ce3c967`.
+
+The fresh `98a7856` 1.21.1 normal-survival attempt fails after 287 seconds with two diamonds, no armor, full health, zero deaths and an empty cursor. Automation pauses when a mixed zombie/creeper pack leaves no safe destination under the single twenty-block requirement applied to every mob. Saved cave data finds no basic supported-air candidate under that requirement; per-mob planning distances of twenty for creepers and eleven for other mobs admit dry candidates within the same bounds. This geometry check does not prove route reachability. The original start video is labelled as a failed run; the pause occurs after that clip ends. Current survival remains a release gate. The subsequent correction assigns planning clearance to each threat, keeping twenty blocks for creepers and eleven for other mobs. It keeps the sixteen-block live creeper handoff and all existing search and movement limits. Fresh native verification remains pending.
 
 ## Build and native history
 

@@ -380,13 +380,17 @@ final class ThreatResponseAction {
         plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
-        int clearance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 20 : 11;
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
         List<MovementController.RetreatThreat> capturedThreats = threats.stream()
-                .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ())).toList();
+                .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ(), creeper(mob) ? 20 : 11)).toList();
+        if (movement.debugLogging())
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] THREAT_RETREAT planning threats={}",
+                    threats.stream().map(mob -> mob.getUUID() + "/" + mob.getType() + "@" + mob.blockPosition()
+                            + " clearance=" + (creeper(mob) ? 20 : 11)).toList());
         List<BlockPos> goals;
         try {
-            goals = movement.startRetreat(capturedThreats, clearance, rejectedRetreatGoals,
+            goals = movement.startRetreat(capturedThreats, rejectedRetreatGoals,
                     new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE

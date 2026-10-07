@@ -109,7 +109,7 @@ final class MovementController {
                     .thenComparingInt(candidate -> candidate.position().getX())
                     .thenComparingInt(candidate -> candidate.position().getZ());
 
-    record RetreatThreat(double x, double z) { }
+    record RetreatThreat(double x, double z, int clearance) { }
     record DefenseHop(double x, double y, double z, double maxRise) { }
 
     private static final class DefenseHopState {
@@ -213,23 +213,26 @@ final class MovementController {
         startMove(new GoalNear(target, radius), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), radius * 16));
     }
 
-    List<BlockPos> startRetreat(List<RetreatThreat> threats, int clearance, Set<BlockPos> rejectedGoals, BlockPos origin) {
-        if (threats.isEmpty() || threats.size() > 16 || clearance < 4 || clearance > 32
+    List<BlockPos> startRetreat(List<RetreatThreat> threats, Set<BlockPos> rejectedGoals, BlockPos origin) {
+        if (threats.isEmpty() || threats.size() > 16
                 || rejectedGoals.size() > 32 || origin == null
-                || threats.stream().anyMatch(threat -> !Double.isFinite(threat.x()) || !Double.isFinite(threat.z())))
+                || threats.stream().anyMatch(threat -> threat == null
+                        || !Double.isFinite(threat.x()) || !Double.isFinite(threat.z())
+                        || threat.clearance() < 4 || threat.clearance() > 32))
             throw new IllegalArgumentException("Retreat requires bounded threat positions and clearance");
         prepare();
         terrain.beginSearch();
         BlockPos center = client.player.getBlockPos();
         List<BlockPos> goals = new ArrayList<>();
         List<BlockPos> offsets = new ArrayList<>();
-        int radius = Math.max(12, clearance);
+        int maximumClearance = threats.stream().mapToInt(RetreatThreat::clearance).max().orElseThrow();
+        int radius = Math.max(12, maximumClearance);
         for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
             int squared = dx * dx + dz * dz;
             if (squared >= 4 * 4 && squared <= radius * radius) offsets.add(new BlockPos(dx, 0, dz));
         }
         offsets.sort(Comparator.<BlockPos>comparingDouble(offset ->
-                        retreatThreatClearance(center.getX() + offset.getX(), center.getZ() + offset.getZ(), threats))
+                        retreatClearanceMargin(center.getX() + offset.getX(), center.getZ() + offset.getZ(), threats))
                 .reversed().thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ));
         StanceProbe stance = new StanceProbe();
         long searchStarted = System.nanoTime();
@@ -237,7 +240,7 @@ final class MovementController {
         int[] heights = {0, 1, -1, 2, -2};
         search: for (BlockPos offset : offsets) {
             int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
-            if (retreatThreatClearance(x, z, threats) < clearance * clearance) continue;
+            if (retreatClearanceMargin(x, z, threats) < 0.0) continue;
             for (int dy : heights) {
                 if (++candidates > 4_096 || probes >= 192
                         || System.nanoTime() - searchStarted >= 8_000_000L) break search;
@@ -269,11 +272,11 @@ final class MovementController {
         return List.copyOf(goals);
     }
 
-    private static double retreatThreatClearance(int x, int z, List<RetreatThreat> threats) {
+    private static double retreatClearanceMargin(int x, int z, List<RetreatThreat> threats) {
         double minimum = Double.POSITIVE_INFINITY;
         for (RetreatThreat threat : threats) {
             double dx = x + .5 - threat.x(), dz = z + .5 - threat.z();
-            minimum = Math.min(minimum, dx * dx + dz * dz);
+            minimum = Math.min(minimum, dx * dx + dz * dz - threat.clearance() * threat.clearance());
         }
         return minimum;
     }
