@@ -21,6 +21,582 @@ final class AcquisitionPlannerTest {
     private static AcquisitionPlanner planner() { return new AcquisitionPlanner(() -> 0L); }
 
     @Test
+    void storedOnlyItemRetrievesExactCountsAndNeverRepeatsExhaustedStock() {
+        ItemId relic = ItemId.parse("test:stored_only_relic");
+        StoredItemSource stock = new StoredItemSource("storage:relic", relic, 5, "chest-slot-4", 17);
+        CatalogSnapshot catalog = CatalogSnapshot.builder().source(stock).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+
+        PlanResult three = planner().plan(catalog, empty, relic, 3);
+        PlanResult five = planner().planFast(catalog, empty, relic, 5);
+        PlanResult six = planner().planFast(catalog, empty, relic, 6);
+
+        assertTrue(three.success(), three.blockedReasons().toString());
+        assertEquals(List.of(PlanKind.CUSTOM), three.steps().stream().map(PlanStep::kind).toList());
+        assertEquals(List.of(3), three.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals("storage", three.steps().get(0).customType());
+        assertEquals(Map.of("stockReference", "chest-slot-4", "stockGeneration", "17", "observedCount", "5"),
+                three.steps().get(0).attributes());
+        assertThrows(UnsupportedOperationException.class, () -> three.steps().get(0).attributes().put("observedCount", "99"));
+        assertTrue(five.success(), five.blockedReasons().toString());
+        assertEquals(List.of(5), five.steps().stream().map(PlanStep::outputCount).toList());
+        assertFalse(six.success());
+        assertEquals(List.of(), six.steps());
+        assertTrue(six.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.NO_SOURCE));
+        assertEquals(List.of(stock), catalog.sourcesFor(relic));
+        assertEquals(List.of(stock), catalog.storedSources());
+        PlannerLimits twoNodes = new PlannerLimits(48, 2, 25, 12, 4_096, 1_000_000);
+        PlanResult bounded = planner().plan(catalog, empty, relic, 1, twoNodes);
+        assertFalse(bounded.success());
+        assertEquals(2, bounded.expandedNodes());
+        assertEquals(BlockedReason.Code.NODE_LIMIT, bounded.blockedReasons().get(0).code());
+    }
+
+    @Test
+    void partialStoredSupplyGathersOnlyTheResidualDeficitAndRespectsStepLimits() {
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(LOG, 0)
+                .source(new StoredItemSource("storage:logs", LOG, 2, "chest-slot-0", 3))
+                .source(new GatherSource("gather:logs", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
+                .build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        PlanResult result = planner().planFast(catalog, empty, LOG, 5);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("storage:logs", "gather:logs"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(2, 3), result.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals(3, result.steps().get(1).operationCount());
+        PlannerLimits oneStep = new PlannerLimits(48, 20_000, 25, 12, 1, 1_000_000);
+        PlanResult limited = planner().plan(catalog, empty, LOG, 5, oneStep);
+        assertTrue(limited.success(), limited.blockedReasons().toString());
+        assertEquals(List.of("gather:logs"), limited.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(5), limited.steps().stream().map(PlanStep::outputCount).toList());
+        CatalogSnapshot twoLots = CatalogSnapshot.builder().item(LOG, 0)
+                .source(new StoredItemSource("storage:a_logs", LOG, 2, "slot-a", 1))
+                .source(new StoredItemSource("storage:b_logs", LOG, 3, "slot-b", 1))
+                .source(new GatherSource("gather:logs", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
+                .build();
+        PlanResult twoLotFallback = planner().planFast(twoLots, empty, LOG, 5, oneStep);
+        assertTrue(twoLotFallback.success(), twoLotFallback.blockedReasons().toString());
+        assertEquals(List.of("gather:logs"), twoLotFallback.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(5), twoLotFallback.steps().stream().map(PlanStep::outputCount).toList());
+    }
+
+    @Test
+    void storedSupplyFromTwoPhysicalLotsStopsAtTheRequestedCount() {
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .source(new StoredItemSource("storage:a_logs", LOG, 2, "slot-a", 1))
+                .source(new StoredItemSource("storage:b_logs", LOG, 3, "slot-b", 1)).build();
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), LOG, 4);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("storage:a_logs", "storage:b_logs"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 3), result.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals("2", result.steps().get(0).attributes().get("observedCount"));
+        assertEquals("3", result.steps().get(1).attributes().get("observedCount"));
+        assertEquals(1, 2 - result.steps().get(0).outputCount());
+    }
+
+    @Test
+    void storedLotAlternativesKeepTheSingleRetrievalThatFitsTheStepBudget() {
+        ItemId relic = ItemId.parse("test:stored_only_relic");
+        CatalogSnapshot catalog = CatalogSnapshot.builder()
+                .source(new StoredItemSource("storage:a_small", relic, 1, "small-slot", 1))
+                .source(new StoredItemSource("storage:z_large", relic, 2, "large-slot", 1)).build();
+        PlannerLimits oneStep = new PlannerLimits(48, 20_000, 25, 12, 1, 1_000_000);
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, relic, 2, oneStep),
+                planner().planFast(catalog, empty, relic, 2, oneStep))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of("storage:z_large"), result.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(List.of(2), result.steps().stream().map(PlanStep::outputCount).toList());
+        }
+    }
+
+    @Test
+    void storedLotAlternativesPreserveTheUsableToolForALaterRequirement() {
+        ItemId pick = ItemId.parse("test:stored_pick");
+        ItemId goal = ItemId.parse("test:consumed_pick_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(goal, 0)
+                .source(new StoredItemSource("storage:a_good", pick, 1, "good-slot", 1,
+                        new InventoryToolLot(100, false)))
+                .source(new StoredItemSource("storage:z_unknown", pick, 1, "unknown-slot", 1))
+                .source(new CraftingSource("craft:consumed_pick_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(pick))),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "later tool", 1)))).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, goal, 1),
+                planner().planFast(catalog, empty, goal, 1))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of("storage:z_unknown", "storage:a_good", "craft:consumed_pick_goal"),
+                    result.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(List.of(1, 1, 1), result.steps().stream().map(PlanStep::outputCount).toList());
+            assertEquals(List.of(new SelectedItemRequirement(pick, 1, true, "recipe ingredient", 0),
+                            new SelectedToolRequirement(pick, 2, "later tool")),
+                    result.steps().get(2).requirements());
+        }
+    }
+
+    @Test
+    void storedItemLotsCanConsumeOneKnownCopyAndKeepAnotherForTheLaterTool() {
+        ItemId pick = ItemId.parse("test:partial_stored_pick");
+        ItemId goal = ItemId.parse("test:partial_consumed_pick_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(goal, 0)
+                .source(new StoredItemSource("storage:a_good", pick, 2, "good-slot", 1,
+                        new InventoryToolLot(100, false)))
+                .source(new StoredItemSource("storage:z_unknown", pick, 1, "unknown-slot", 1))
+                .source(new CraftingSource("craft:partial_consumed_pick_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(2, pick))),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "later tool", 1)))).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, goal, 1),
+                planner().planFast(catalog, empty, goal, 1))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of("storage:a_good", "storage:z_unknown", "storage:a_good", "craft:partial_consumed_pick_goal"),
+                    result.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(List.of(1, 1, 1, 1), result.steps().stream().map(PlanStep::outputCount).toList());
+            assertEquals(List.of(new SelectedItemRequirement(pick, 2, true, "recipe ingredient", 0),
+                            new SelectedToolRequirement(pick, 2, "later tool")), result.steps().get(3).requirements());
+            assertEquals("100", result.steps().get(0).attributes().get("remainingDurability"));
+            assertFalse(result.steps().get(1).attributes().containsKey("remainingDurability"));
+            assertEquals("100", result.steps().get(2).attributes().get("remainingDurability"));
+        }
+    }
+
+    @Test
+    void storedToolLotsCanMixWornCopiesAndKeepOneFreshStrongCopyForTheLaterRequirement() {
+        ItemId pick = ItemId.parse("test:partial_finite_pick");
+        ItemId ore = ItemId.parse("test:partial_finite_ore");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 4).item(ore, 0)
+                .source(new StoredItemSource("storage:a_strong", pick, 2, "strong-slot", 1,
+                        new InventoryToolLot(4, false)))
+                .source(new StoredItemSource("storage:z_weak", pick, 1, "weak-slot", 1,
+                        new InventoryToolLot(3, false)))
+                .source(new GatherSource("gather:partial_finite_ore", ore, 1, List.of(BlockId.parse("test:ore")),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "first tool", 1),
+                                new ToolRequirement(Ingredient.of(pick), 4, "later fresh tool", 0)))).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, ore, 5),
+                planner().planFast(catalog, empty, ore, 5))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of("storage:a_strong", "storage:z_weak", "storage:a_strong", "gather:partial_finite_ore"),
+                    result.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(List.of(1, 1, 1, 5), result.steps().stream().map(PlanStep::outputCount).toList());
+            assertEquals(List.of("4", "3", "4"), result.steps().subList(0, 3).stream()
+                    .map(step -> step.attributes().get("remainingDurability")).toList());
+            assertEquals(List.of(new SelectedToolRequirement(pick, 2, "first tool"),
+                            new SelectedToolRequirement(pick, 4, "later fresh tool")), result.steps().get(3).requirements());
+        }
+        assertFalse(planner().plan(catalog, empty, ore, 6).success());
+        assertFalse(planner().planFast(catalog, empty, ore, 6).success());
+    }
+
+    @Test
+    void storedToolLotsCanSkipTheStrongerCopyToFitTheWholeGather() {
+        ItemId pick = ItemId.parse("test:finite_pick");
+        ItemId ore = ItemId.parse("test:finite_ore");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 4).item(ore, 0)
+                .source(new StoredItemSource("storage:high", pick, 1, "high-slot", 1,
+                        new InventoryToolLot(4, false)))
+                .source(new StoredItemSource("storage:lower", pick, 3, "lower-slot", 1,
+                        new InventoryToolLot(3, false)))
+                .source(new GatherSource("gather:finite_ore", ore, 1, List.of(BlockId.parse("test:ore")),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "mine", 1)))).build();
+        PlannerLimits twoSteps = new PlannerLimits(48, 20_000, 25, 12, 2, 1_000_000);
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, ore, 5, twoSteps),
+                planner().planFast(catalog, empty, ore, 5, twoSteps))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of("storage:lower", "gather:finite_ore"),
+                    result.steps().stream().map(PlanStep::sourceId).toList());
+            assertEquals(List.of(3, 5), result.steps().stream().map(PlanStep::outputCount).toList());
+            assertEquals(5, result.steps().get(1).operationCount());
+            assertEquals(List.of(new SelectedToolRequirement(pick, 2, "mine")), result.steps().get(1).requirements());
+        }
+    }
+
+    @Test
+    void storageAliasesAndChangedObservationsCannotMultiplyOnePhysicalBudget() {
+        StoredItemSource observed = new StoredItemSource("storage:original", LOG, 2, "same-chest-slot", 1);
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder().source(observed);
+        assertThrows(IllegalArgumentException.class, () -> builder.source(
+                new StoredItemSource("storage:alias", LOG, 2, "same-chest-slot", 1)));
+        assertThrows(IllegalArgumentException.class, () -> builder.source(
+                new StoredItemSource("storage:alias", LOG, 4, "same-chest-slot", 2)));
+        CatalogSnapshot catalog = builder.build();
+        assertThrows(IllegalArgumentException.class, () -> catalog.withOutputSources(LOG,
+                List.of(new StoredItemSource("storage:original", LOG, 4, "same-chest-slot", 1))));
+        PlanResult exact = planner().planFast(catalog, new InventorySnapshot(Map.of()), LOG, 2);
+        assertTrue(exact.success(), exact.blockedReasons().toString());
+        assertEquals(List.of(2), exact.steps().stream().map(PlanStep::outputCount).toList());
+        assertFalse(planner().planFast(catalog, new InventorySnapshot(Map.of()), LOG, 3).success());
+        CatalogSnapshot excluded = catalog.withOutputSources(LOG, Set.of());
+        assertFalse(planner().planFast(excluded, new InventorySnapshot(Map.of()), LOG, 1).success());
+    }
+
+    @Test
+    void sharedProjectIngredientsDebitStorageOnceAcrossBothGoals() {
+        ItemId first = ItemId.parse("test:a_stock_goal");
+        ItemId second = ItemId.parse("test:b_stock_goal");
+        ProjectSpec project = new ProjectSpec("finite_stock", "Both goals consume two logs.",
+                Map.of(first, 1, second, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+        for (int storedCount : new int[]{3, 4}) {
+            CatalogSnapshot catalog = CatalogSnapshot.builder().item(first, 0).item(second, 0)
+                    .source(new StoredItemSource("storage:shared_logs", LOG, storedCount, "shared-slot", 1))
+                    .source(new CraftingSource("craft:first_stock_goal", first, 1, RecipeType.SHAPELESS, 0, 0,
+                            List.of(new RecipeSlot(-1, Ingredient.of(2, LOG))), List.of()))
+                    .source(new CraftingSource("craft:second_stock_goal", second, 1, RecipeType.SHAPELESS, 0, 0,
+                            List.of(new RecipeSlot(-1, Ingredient.of(2, LOG))), List.of())).build();
+            ProjectPlanResult result = planner().planProjectFast(catalog, new InventorySnapshot(Map.of()), project,
+                    PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+            if (storedCount == 3) {
+                assertFalse(result.success());
+                assertEquals(List.of(), result.steps());
+                assertTrue(result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.NO_SOURCE));
+            } else {
+                assertTrue(result.success(), result.blockedReasons().toString());
+                assertEquals(List.of("storage:shared_logs", "craft:first_stock_goal", "storage:shared_logs", "craft:second_stock_goal"),
+                        result.steps().stream().map(PlanStep::sourceId).toList());
+                assertEquals(List.of(2, 1, 2, 1), result.steps().stream().map(PlanStep::outputCount).toList());
+                assertEquals(0, 4 - result.steps().stream().filter(step -> step.customType() != null)
+                        .mapToInt(PlanStep::outputCount).sum());
+            }
+        }
+    }
+
+    @Test
+    void protectedHeldMaterialIsPreservedWhenStorageSuppliesTheRecipe() {
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(PLANKS, 0)
+                .source(new StoredItemSource("storage:logs", LOG, 1, "slot-1", 1))
+                .source(new CraftingSource("craft:planks", PLANKS, 4, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(LOG))), List.of())).build();
+        InventorySnapshot protectedHeld = new InventorySnapshot(Map.of(LOG, 1), Set.of(), Map.of(), Map.of(LOG, 1));
+        PlanResult result = planner().planFast(catalog, protectedHeld, PLANKS, 4);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("storage:logs", "craft:planks"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 4), result.steps().stream().map(PlanStep::outputCount).toList());
+        assertFalse(planner().planFast(catalog, protectedHeld, PLANKS, 8).success());
+        assertEquals(1, protectedHeld.count(LOG));
+    }
+
+    @Test
+    void recipeAlternativesUseAvailableStorageBeforeGatheringAndCanSplitStoredLots() {
+        ItemId birch = ItemId.parse("minecraft:birch_log");
+        ItemId goal = ItemId.parse("test:wood_bundle");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(goal, 0).item(LOG, 0).item(birch, 0)
+                .source(new GatherSource("gather:oak", LOG, 1, List.of(BlockId.parse("minecraft:oak_log"))))
+                .source(new StoredItemSource("storage:birch", birch, 2, "birch-slot", 1))
+                .source(new StoredItemSource("storage:oak", LOG, 1, "oak-slot", 1))
+                .source(new CraftingSource("craft:bundle", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(LOG, birch)),
+                                new RecipeSlot(-1, Ingredient.of(LOG, birch)),
+                                new RecipeSlot(-1, Ingredient.of(LOG, birch))), List.of())).build();
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("storage:birch", "storage:oak", "craft:bundle"),
+                result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(2, 1, 1), result.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals(List.of(birch, birch, LOG), result.steps().get(2).requirements().stream()
+                .map(SelectedItemRequirement.class::cast).map(SelectedItemRequirement::item).toList());
+    }
+
+    @Test
+    void mixedStoredTagMembersPreserveTheExactMaterialNeededLater() {
+        ItemId a = ItemId.parse("test:mix_a");
+        ItemId b = ItemId.parse("test:mix_b");
+        ItemId c = ItemId.parse("test:mix_c");
+        ItemId goal = ItemId.parse("test:mixed_stock_goal");
+        TagId choices = TagId.parse("test:stock_choices");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(goal, 0).tag(choices, Set.of(a, b, c))
+                .source(new StoredItemSource("storage:a", a, 2, "slot-a", 1))
+                .source(new StoredItemSource("storage:b", b, 1, "slot-b", 1))
+                .source(new StoredItemSource("storage:c", c, 1, "slot-c", 1))
+                .source(new CraftingSource("craft:mixed_stock_goal", goal, 1, RecipeType.SHAPED, 2, 1,
+                        List.of(new RecipeSlot(0, Ingredient.tag(choices)), new RecipeSlot(1, Ingredient.tag(choices))),
+                        List.of(new ItemRequirement(Ingredient.of(2, a), true, "later exact material")))).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (PlanResult result : List.of(planner().plan(catalog, empty, goal, 1),
+                planner().planFast(catalog, empty, goal, 1))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertEquals(List.of(new SelectedItemRequirement(b, 1, true, "recipe ingredient", 0),
+                            new SelectedItemRequirement(c, 1, true, "recipe ingredient", 1),
+                            new SelectedItemRequirement(a, 2, true, "later exact material", -1)),
+                    result.steps().get(result.steps().size() - 1).requirements());
+            assertEquals(Map.of(a, 2, b, 1, c, 1), result.steps().stream()
+                    .filter(step -> step.kind() == PlanKind.CUSTOM).collect(java.util.stream.Collectors.toMap(
+                            PlanStep::output, PlanStep::outputCount, Integer::sum)));
+        }
+    }
+
+    @Test
+    void mixedStoredTagMembersCanUsePartOfTheLargestLotWithoutSpendingProtectedHeldStock() {
+        ItemId a = ItemId.parse("test:partial_a");
+        ItemId b = ItemId.parse("test:partial_b");
+        ItemId goal = ItemId.parse("test:partial_stock_goal");
+        TagId choices = TagId.parse("test:partial_choices");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(goal, 0).tag(choices, Set.of(a, b))
+                .source(new StoredItemSource("storage:a", a, 2, "slot-a", 1))
+                .source(new StoredItemSource("storage:b", b, 1, "slot-b", 1))
+                .source(new CraftingSource("craft:partial_stock_goal", goal, 1, RecipeType.SHAPED, 2, 1,
+                        List.of(new RecipeSlot(0, Ingredient.tag(choices)), new RecipeSlot(1, Ingredient.tag(choices))),
+                        List.of(new ItemRequirement(Ingredient.of(a), true, "later exact material")))).build();
+        for (InventorySnapshot inventory : List.of(new InventorySnapshot(Map.of()),
+                new InventorySnapshot(Map.of(a, 1), Set.of(), Map.of(), Map.of(a, 1)))) {
+            for (PlanResult result : List.of(planner().plan(catalog, inventory, goal, 1),
+                    planner().planFast(catalog, inventory, goal, 1))) {
+                assertTrue(result.success(), result.blockedReasons().toString());
+                assertEquals(List.of(new SelectedItemRequirement(a, 1, true, "recipe ingredient", 0),
+                                new SelectedItemRequirement(b, 1, true, "recipe ingredient", 1),
+                                new SelectedItemRequirement(a, 1, true, "later exact material", -1)),
+                        result.steps().get(result.steps().size() - 1).requirements());
+                assertEquals(Map.of(a, 2, b, 1), result.steps().stream()
+                        .filter(step -> step.kind() == PlanKind.CUSTOM).collect(java.util.stream.Collectors.toMap(
+                                PlanStep::output, PlanStep::outputCount, Integer::sum)));
+            }
+            assertFalse(planner().plan(catalog, inventory, goal, 2).success());
+            assertFalse(planner().planFast(catalog, inventory, goal, 2).success());
+        }
+    }
+
+    @Test
+    void bulkStoredTagAllocationsAreDeterministicAndReportTheQuantityBranchCap() {
+        ItemId a = ItemId.parse("test:bulk_a");
+        ItemId b = ItemId.parse("test:bulk_b");
+        ItemId goal = ItemId.parse("test:bulk_stock_goal");
+        TagId choices = TagId.parse("test:bulk_choices");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(goal, 0).tag(choices, Set.of(a, b))
+                .source(new StoredItemSource("storage:a", a, 1_000_000, "slot-a", 1))
+                .source(new StoredItemSource("storage:b", b, 1_000_000, "slot-b", 1))
+                .source(new CraftingSource("craft:bulk_stock_goal", goal, 1, RecipeType.SHAPED, 2, 1,
+                        List.of(new RecipeSlot(0, Ingredient.tag(choices)), new RecipeSlot(1, Ingredient.tag(choices))),
+                        List.of())).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        PlanResult full = planner().plan(catalog, empty, goal, 500_000);
+        PlanResult fast = planner().planFast(catalog, empty, goal, 500_000);
+        for (PlanResult result : List.of(full, fast)) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertFalse(result.optimal());
+            assertTrue(result.expandedNodes() <= PlannerLimits.DEFAULT.maximumExpandedNodes());
+            assertEquals(2, result.steps().size());
+            assertEquals(1_000_000, result.steps().get(0).outputCount());
+            assertEquals(List.of(new SelectedItemRequirement(a, 500_000, true, "recipe ingredient", 0),
+                            new SelectedItemRequirement(a, 500_000, true, "recipe ingredient", 1)),
+                    result.steps().get(1).requirements());
+        }
+        assertEquals(full.steps(), planner().plan(catalog, empty, goal, 500_000).steps());
+        assertEquals(fast.steps(), planner().planFast(catalog, empty, goal, 500_000).steps());
+        PlannerLimits capped = new PlannerLimits(48, 20, 25, 12, 4_096, 1_000_000);
+        for (PlanResult result : List.of(planner().plan(catalog, empty, goal, 500_000, capped),
+                planner().planFast(catalog, empty, goal, 500_000, capped))) {
+            assertTrue(result.success(), result.blockedReasons().toString());
+            assertFalse(result.optimal());
+            assertEquals(20, result.expandedNodes());
+            assertEquals(full.steps(), result.steps());
+        }
+    }
+
+    @Test
+    void groupedRecipeAlternativesCanSkipStoredMaterialThroughLaterSourceRequirements() {
+        ItemId stored = ItemId.parse("test:a_stored_ingredient");
+        ItemId gathered = ItemId.parse("test:b_gathered_ingredient");
+        ItemId extra = ItemId.parse("test:c_extra_ingredient");
+        ItemId goal = ItemId.parse("test:bounded_recipe_goal");
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        for (boolean needsExtra : new boolean[]{false, true}) {
+            CatalogSnapshot catalog = CatalogSnapshot.builder().item(goal, 0).item(gathered, 0).item(extra, 0)
+                    .source(new StoredItemSource("storage:ingredient_a", stored, 1, "ingredient-slot", 1))
+                    .source(new GatherSource("gather:ingredient_b", gathered, 1, List.of(BlockId.parse("test:ingredient_block"))))
+                    .source(new GatherSource("gather:ingredient_c", extra, 1, List.of(BlockId.parse("test:extra_block"))))
+                    .source(new CraftingSource("craft:bounded_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                            List.of(new RecipeSlot(-1, Ingredient.of(stored, gathered)),
+                                    new RecipeSlot(-1, Ingredient.of(stored, gathered))),
+                            needsExtra ? List.of(new ItemRequirement(Ingredient.of(extra), true, "extra")) : List.of())).build();
+            PlannerLimits limits = new PlannerLimits(48, 8_000, 25, 12, needsExtra ? 3 : 2, 1_000_000);
+            for (PlanResult result : List.of(planner().plan(catalog, empty, goal, 1, limits),
+                    planner().planFast(catalog, empty, goal, 1, limits))) {
+                assertTrue(result.success(), result.blockedReasons().toString());
+                assertEquals(needsExtra ? List.of("gather:ingredient_b", "gather:ingredient_c", "craft:bounded_goal")
+                                : List.of("gather:ingredient_b", "craft:bounded_goal"),
+                        result.steps().stream().map(PlanStep::sourceId).toList());
+                assertEquals(needsExtra ? List.of(2, 1, 1) : List.of(2, 1),
+                        result.steps().stream().map(PlanStep::outputCount).toList());
+                assertEquals(2, result.steps().get(0).operationCount());
+                PlanStep craft = result.steps().get(result.steps().size() - 1);
+                assertEquals(needsExtra ? List.of(
+                                new SelectedItemRequirement(gathered, 1, true, "recipe ingredient", 0),
+                                new SelectedItemRequirement(gathered, 1, true, "recipe ingredient", 1),
+                                new SelectedItemRequirement(extra, 1, true, "extra", -1))
+                                : List.of(new SelectedItemRequirement(gathered, 1, true, "recipe ingredient", 0),
+                                new SelectedItemRequirement(gathered, 1, true, "recipe ingredient", 1)), craft.requirements());
+            }
+        }
+    }
+
+    @Test
+    void storedToolRetrievalSelectsKnownUsableLotsAndKeepsActualWearCapacity() {
+        ItemId pick = ItemId.parse("test:stored_pick");
+        ItemId ore = ItemId.parse("test:stored_tool_ore");
+        ToolRequirement tool = new ToolRequirement(Ingredient.of(pick), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(ore, 0)
+                .source(new StoredItemSource("storage:a_unknown", pick, 1, "unknown-slot", 1))
+                .source(new StoredItemSource("storage:b_silk", pick, 1, "silk-slot", 1, new InventoryToolLot(100, true)))
+                .source(new StoredItemSource("storage:c_worn", pick, 1, "worn-slot", 1, new InventoryToolLot(1, false)))
+                .source(new StoredItemSource("storage:d_usable", pick, 2, "usable-slot", 1, new InventoryToolLot(3, false)))
+                .source(new GatherSource("mine:ore", ore, 1, List.of(BlockId.parse("test:ore")), List.of(tool))).build();
+        InventorySnapshot heldWorn = new InventorySnapshot(Map.of(pick, 1), Set.of(), Map.of(pick, 1), Map.of(pick, 1));
+        PlanResult four = planner().planFast(catalog, heldWorn, ore, 4);
+        PlanResult five = planner().planFast(catalog, heldWorn, ore, 5);
+
+        assertTrue(four.success(), four.blockedReasons().toString());
+        assertEquals(List.of("storage:d_usable", "mine:ore"), four.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(2, 4), four.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals("3", four.steps().get(0).attributes().get("remainingDurability"));
+        assertEquals("false", four.steps().get(0).attributes().get("silkTouch"));
+        assertFalse(five.success());
+    }
+
+    @Test
+    void silkTouchStorageNeedsCompatibleHarvestAndUnknownDurabilityCannotSupplyATool() {
+        ItemId pick = ItemId.parse("test:stored_pick");
+        ItemId raw = ItemId.parse("test:raw_ore");
+        ItemId block = ItemId.parse("test:ore_block");
+        ToolRequirement tool = new ToolRequirement(Ingredient.of(pick), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(raw, 0).item(block, 0)
+                .source(new StoredItemSource("storage:silk", pick, 1, "silk-slot", 1, new InventoryToolLot(4, true)))
+                .source(new StoredItemSource("storage:unknown", pick, 10, "unknown-slot", 1))
+                .source(new GatherSource("mine:raw", raw, 1, List.of(BlockId.parse("test:ore")), List.of(tool)))
+                .source(new GatherSource("mine:block", block, 1, List.of(BlockId.parse("test:ore")),
+                        List.of(tool), Map.of("silkTouchCompatible", "true"))).build();
+        InventorySnapshot empty = new InventorySnapshot(Map.of());
+        PlanResult compatible = planner().planFast(catalog, empty, block, 3);
+
+        assertTrue(compatible.success(), compatible.blockedReasons().toString());
+        assertEquals(List.of("storage:silk", "mine:block"), compatible.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 3), compatible.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals("true", compatible.steps().get(0).attributes().get("silkTouch"));
+        assertFalse(planner().planFast(catalog, empty, raw, 1).success());
+        assertFalse(planner().planFast(catalog, empty, block, 4).success());
+    }
+
+    @Test
+    void minimumOnlyToolRequirementSkipsInsufficientStoredDurability() {
+        ItemId pick = ItemId.parse("test:stored_pick");
+        ItemId goal = ItemId.parse("test:custom_tool_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(goal, 0)
+                .source(new StoredItemSource("storage:a_worn", pick, 1, "worn-slot", 1, new InventoryToolLot(4, false)))
+                .source(new StoredItemSource("storage:z_usable", pick, 1, "usable-slot", 1, new InventoryToolLot(6, false)))
+                .source(new CustomSource("custom:goal", "tool_action", goal, 1,
+                        List.of(new ToolRequirement(Ingredient.of(pick), 5, "use tool")), Map.of())).build();
+        PlanResult result = planner().planFast(catalog, new InventorySnapshot(Map.of()), goal, 1);
+
+        assertTrue(result.success(), result.blockedReasons().toString());
+        assertEquals(List.of("storage:z_usable", "custom:goal"), result.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals("6", result.steps().get(0).attributes().get("remainingDurability"));
+    }
+
+    @Test
+    void storedDamagedToolAndCraftedReplacementSupplyOnlyTheirRealCombinedCapacity() {
+        ItemId pick = ItemId.parse("test:stored_pick");
+        ItemId ore = ItemId.parse("test:stored_tool_ore");
+        ItemId material = ItemId.parse("test:pick_material");
+        ToolRequirement tool = new ToolRequirement(Ingredient.of(pick), 2, "mine", 1);
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 6).item(ore, 0).item(material, 0)
+                .source(new StoredItemSource("storage:worn", pick, 1, "worn-slot", 1, new InventoryToolLot(3, false)))
+                .source(new CraftingSource("craft:pick", pick, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(material))), List.of()))
+                .source(new GatherSource("mine:ore", ore, 1, List.of(BlockId.parse("test:ore")), List.of(tool))).build();
+        InventorySnapshot oneCraft = new InventorySnapshot(Map.of(material, 1));
+        PlanResult seven = planner().planFast(catalog, oneCraft, ore, 7);
+
+        assertTrue(seven.success(), seven.blockedReasons().toString());
+        assertEquals(List.of("storage:worn", "craft:pick", "mine:ore"), seven.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 1, 7), seven.steps().stream().map(PlanStep::outputCount).toList());
+        assertFalse(planner().planFast(catalog, oneCraft, ore, 8).success());
+        PlannerLimits twoSteps = new PlannerLimits(48, 8_000, 25, 12, 2, 1_000_000);
+        PlanResult craftOnlyFallback = planner().planFast(catalog, oneCraft, ore, 5, twoSteps);
+        assertTrue(craftOnlyFallback.success(), craftOnlyFallback.blockedReasons().toString());
+        assertEquals(List.of("craft:pick", "mine:ore"), craftOnlyFallback.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 5), craftOnlyFallback.steps().stream().map(PlanStep::outputCount).toList());
+    }
+
+    @Test
+    void observedStoredToolsRequireDurableDefinitionsButMayExceedRegistryDurability() {
+        ItemId pick = ItemId.parse("test:component_pick");
+        ItemId ore = ItemId.parse("test:component_ore");
+        StoredItemSource unsafe = new StoredItemSource("storage:undefined_pick", pick, 1, "undefined-slot", 1,
+                new InventoryToolLot(1, true));
+        ToolRequirement tool = new ToolRequirement(Ingredient.of(pick), 2, "mine", 1);
+        CatalogSnapshot.Builder missing = CatalogSnapshot.builder().item(ore, 0).source(unsafe)
+                .source(new GatherSource("mine:component_ore", ore, 1, List.of(BlockId.parse("test:ore")), List.of(tool)));
+        assertThrows(IllegalArgumentException.class, missing::build);
+        assertThrows(IllegalArgumentException.class, () -> CatalogSnapshot.builder().item(pick, 0).source(unsafe).build());
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 3).item(ore, 0)
+                .source(new StoredItemSource("storage:component_pick", pick, 1, "component-slot", 2,
+                        new InventoryToolLot(7, false)))
+                .source(new GatherSource("mine:component_ore", ore, 1, List.of(BlockId.parse("test:ore")), List.of(tool)))
+                .build();
+        PlanResult six = planner().planFast(catalog, new InventorySnapshot(Map.of()), ore, 6);
+        assertTrue(six.success(), six.blockedReasons().toString());
+        assertEquals(List.of("storage:component_pick", "mine:component_ore"), six.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 6), six.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals("7", six.steps().get(0).attributes().get("remainingDurability"));
+        assertFalse(planner().planFast(catalog, new InventorySnapshot(Map.of()), ore, 7).success());
+    }
+
+    @Test
+    void consumedStoredToolCannotLeaveAnAssumedUsableProtectedHeldStack() {
+        ItemId pick = ItemId.parse("test:recipe_pick");
+        ItemId goal = ItemId.parse("test:recipe_tool_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(goal, 0)
+                .source(new StoredItemSource("storage:recipe_pick", pick, 1, "recipe-pick-slot", 1,
+                        new InventoryToolLot(100, false)))
+                .source(new CraftingSource("craft:tool_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(pick))),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "use remaining pick", 1)))).build();
+        InventorySnapshot wornProtected = new InventorySnapshot(Map.of(pick, 1), Set.of(), Map.of(pick, 1), Map.of(pick, 1));
+        InventorySnapshot unknownProtected = new InventorySnapshot(Map.of(pick, 1), Set.of(), Map.of(), Map.of(pick, 1));
+        InventorySnapshot identicalProtected = new InventorySnapshot(Map.of(pick, 1), Set.of(), Map.of(pick, 100), Map.of(pick, 1));
+        PlanResult worn = planner().planFast(catalog, wornProtected, goal, 1);
+        PlanResult unknown = planner().planFast(catalog, unknownProtected, goal, 1);
+        PlanResult identical = planner().planFast(catalog, identicalProtected, goal, 1);
+
+        assertFalse(worn.success());
+        assertEquals(List.of(), worn.steps());
+        assertFalse(unknown.success());
+        assertEquals(List.of(), unknown.steps());
+        assertTrue(identical.success(), identical.blockedReasons().toString());
+        assertEquals(List.of("storage:recipe_pick", "craft:tool_goal"), identical.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1, 1), identical.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals(List.of(new SelectedItemRequirement(pick, 1, true, "recipe ingredient", 0),
+                        new SelectedToolRequirement(pick, 2, "use remaining pick")), identical.steps().get(1).requirements());
+    }
+
+    @Test
+    void consumingToolsWithUnknownCopiesRetainsOnlyGuaranteedKnownSurvivors() {
+        ItemId pick = ItemId.parse("test:recipe_pick");
+        ItemId goal = ItemId.parse("test:recipe_tool_goal");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(pick, 100).item(goal, 0)
+                .source(new CraftingSource("craft:tool_goal", goal, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(pick))),
+                        List.of(new ToolRequirement(Ingredient.of(pick), 2, "use remaining pick", 1)))).build();
+        InventorySnapshot oneKnownOneUnknown = new InventorySnapshot(Map.of(pick, 2), Set.of(), Map.of(pick, 100),
+                Map.of(pick, 1), Map.of(pick, List.of(100)));
+        InventorySnapshot twoKnownOneUnknown = new InventorySnapshot(Map.of(pick, 3), Set.of(), Map.of(pick, 100),
+                Map.of(pick, 1), Map.of(pick, List.of(100, 100)));
+        PlanResult ambiguous = planner().planFast(catalog, oneKnownOneUnknown, goal, 1);
+        PlanResult guaranteed = planner().planFast(catalog, twoKnownOneUnknown, goal, 1);
+
+        assertFalse(ambiguous.success());
+        assertEquals(List.of(), ambiguous.steps());
+        assertTrue(guaranteed.success(), guaranteed.blockedReasons().toString());
+        assertEquals(List.of("craft:tool_goal"), guaranteed.steps().stream().map(PlanStep::sourceId).toList());
+        assertEquals(List.of(1), guaranteed.steps().stream().map(PlanStep::outputCount).toList());
+        assertEquals(List.of(new SelectedItemRequirement(pick, 1, true, "recipe ingredient", 0),
+                        new SelectedToolRequirement(pick, 2, "use remaining pick")), guaranteed.steps().get(0).requirements());
+    }
+
+    @Test
     void elapsedBudgetRejectsTheExactDeadlineWithoutTimingFunctionalChecks() {
         CatalogSnapshot catalog = woodToSticksCatalog();
         InventorySnapshot inventory = new InventorySnapshot(Map.of(LOG, 1));

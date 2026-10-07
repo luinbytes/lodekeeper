@@ -82,7 +82,7 @@ final class VerificationApi {
             if ("occupied".equals(scenario)) player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.TORCH, 8));
             if (!player.getInventory().add(new ItemStack(Items.STONE_SWORD)))
                 throw new IllegalStateException("could not seed ordinary shield defense sword");
-            net.minecraft.world.entity.monster.zombie.Zombie zombie = new net.minecraft.world.entity.monster.zombie.Zombie(net.minecraft.world.entity.EntityType.ZOMBIE, world);
+            net.minecraft.world.entity.monster.zombie.Zombie zombie = (net.minecraft.world.entity.monster.zombie.Zombie) preparedMob(world, "minecraft:zombie");
             zombie.setPos(2.0, 64.0, 0.5);
             zombie.setBaby(false);
             zombie.setNoAi(true);

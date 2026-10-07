@@ -12,6 +12,8 @@ Current source includes 23 advanced navigation options in the settings GUI and 3
 
 Shield use follows `autoDefend`. When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps planned recipe inputs, project goals, and other reservations before it spends stock. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The GUI labels are `Iron ingots to keep` and `Planks to keep`. The defense preserves non-shield offhand items, uses a plain shield only with more than 100 durability remaining, and responds to creepers with immediate escape. It does not wait for inventory or equipment changes or finish a creeper with melee.
 
+The remote branch audit found one planner foundation on `storage-stock`, source `b8b5135`, that was absent from this branch. Its finite observed stock, shared stock debits, bounded partial withdrawals, and stored-tool durability handling have been recovered. The newer fuel selection behavior and existing claim regression remain intact. The original storage receipt is [historical evidence](evidence/planning/storage-foundation-2026-10-06.json). This adds no container registration, storage commands, or native transfers.
+
 Unsupported mechanics report a blocker. Missing world or claim state pauses automated block edits.
 
 ## Selected evidence
@@ -21,6 +23,10 @@ The earlier 26.3 candidate completed one native iron goal in 119 seconds. A stat
 An earlier exact 1.20.1 artifact and its verification sources compiled. Native gameplay on that profile remains unverified.
 
 An earlier CI run passed all 24 profiles at [run 37592201134](https://github.com/luinbytes/lodekeeper/actions/runs/37592201134). The latest completed matrix at [run 37597621889](https://github.com/luinbytes/lodekeeper/actions/runs/37597621889), source `c7c885f2`, passed 12 profiles and failed 12. Failures cover 1.21.5 through 1.21.11 and all five 26.x profiles. The API fixes are in source and await a new matrix. The latest two goals in natural survival worlds failed before the current inventory and shield changes. The current source-owned Preview 11 candidate has not completed a full gear loadout in a natural survival world.
+
+The next [matrix at `42fee35`](https://github.com/luinbytes/lodekeeper/actions/runs/37601999414) includes the drag grouping and native fixture sources. Its 1.20.1, 1.21.1, and 1.21.11 jobs passed. Its 26.3 job caught an incorrect modern helper name, now corrected to the native item-stack comparison. The next matrix must also include the recovered storage foundation.
+
+Local builds of the recovered source pass 159 core checks, 95 navigation checks, 13 primary adapter checks, and three modern adapter checks. The 1.21.1 and 26.3 production jars and verifier sources compile. Their native shield, drag, GUI, and survival runs remain pending.
 
 The nine shield modes and the repeated inventory benchmark remain pending. Repeat the previous native checks with the exact final jars. Do not treat the fixture source as gameplay evidence.
 

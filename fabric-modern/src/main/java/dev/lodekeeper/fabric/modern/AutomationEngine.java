@@ -3313,7 +3313,7 @@ final class AutomationEngine {
             int ordinaryTables = 0;
             for (int index = 0; index < 36; index++) {
                 ItemStack stack = client.player.getInventory().getItem(index);
-                if (!stack.isEmpty() && GameApi.sameItemAndComponents(stack, ordinaryTable))
+                if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, ordinaryTable))
                     ordinaryTables += stack.getCount();
             }
             if (ordinaryTables <= reserved.getOrDefault(table, 0)) {

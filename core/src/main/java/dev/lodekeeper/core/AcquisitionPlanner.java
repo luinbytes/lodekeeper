@@ -193,6 +193,7 @@ public final class AcquisitionPlanner {
         private final LongSupplier clock;
         private boolean firstFeasible;
         private final SourceScope sourceScope;
+        private final boolean hasFiniteStock;
         private final PlanningPreferences preferences;
         private final Map<ItemId, Integer> directItemRanks;
         private final PreferenceScorer preferenceScorer;
@@ -213,6 +214,7 @@ public final class AcquisitionPlanner {
             this.clock = clock;
             this.firstFeasible = firstFeasible;
             this.sourceScope = sourceScope;
+            this.hasFiniteStock = !catalog.storedSources().isEmpty();
             this.preferences = preferences;
             this.directItemRanks = seedDirectItemRanks();
             this.preferenceScorer = new PreferenceScorer();
@@ -607,8 +609,71 @@ public final class AcquisitionPlanner {
 
         private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth,
                                     boolean heldGatherOnly, CraftingSource fuelConversion) {
+            return produce(item, missing, state, path, depth, heldGatherOnly, fuelConversion, true);
+        }
+
+        private List<State> produce(ItemId item, int missing, State state, Set<ItemId> path, int depth,
+                                    boolean heldGatherOnly, CraftingSource fuelConversion, boolean allowStored) {
             if (!visit(item, path, depth)) return List.of();
-            List<AcquisitionSource> sources = fuelConversion == null ? catalog.sourcesFor(item) : List.of(fuelConversion);
+            var results = new ArrayList<State>();
+            if (allowStored && fuelConversion == null) {
+                for (StockSupply supply : storedSupplies(item, missing, state, path, depth)) {
+                    if (supply.missing == 0) results.add(supply.state);
+                    else results.addAll(produceRepeatable(item, supply.missing, supply.state, path, depth,
+                            heldGatherOnly, fuelConversion));
+                }
+            }
+            if (firstFeasible && !results.isEmpty()) return List.of(trim(results).get(0));
+            results.addAll(produceRepeatable(item, missing, state, path, depth, heldGatherOnly, fuelConversion));
+            return trim(results);
+        }
+
+        private record StockSupply(State state, int missing) { }
+
+        private List<StockSupply> storedSupplies(ItemId item, int missing, State state, Set<ItemId> path, int depth) {
+            List<StockSupply> candidates = List.of(new StockSupply(state, missing));
+            stocks: for (StoredItemSource stored : catalog.storedSourcesFor(item)) {
+                if (!visit(item, path, depth)) break;
+                if (state.stockRemaining(stored) == 0) continue;
+                var next = new ArrayList<>(candidates);
+                for (StockSupply candidate : candidates) {
+                    if (candidate.missing == 0) continue;
+                    if (!visit(item, path, depth)) break stocks;
+                    int maximumAmount = Math.min(candidate.missing, candidate.state.stockRemaining(stored));
+                    for (int amount : allocationUseCounts(maximumAmount)) {
+                        if (amount == 0) continue;
+                        if (!visit(item, path, depth)) break stocks;
+                        State supplied = retrieveStored(stored, amount, candidate.state, path);
+                        if (supplied != null) next.add(new StockSupply(supplied, candidate.missing - amount));
+                    }
+                }
+                if (next.size() > limits.maximumCandidatesPerBranch()) truncated = true;
+                candidates = next.stream().sorted(Comparator.comparingInt(StockSupply::missing)
+                                .thenComparing(StockSupply::state, stateOrder()))
+                        .limit(limits.maximumCandidatesPerBranch()).toList();
+            }
+            return candidates.stream().filter(candidate -> candidate.state != state).toList();
+        }
+
+        private State retrieveStored(StoredItemSource source, int amount, State state, Set<ItemId> path) {
+            if (state.steps.size() >= limits.maximumSteps()) {
+                fail(BlockedReason.Code.STEP_LIMIT, source.output(),
+                        "Plan exceeds " + limits.maximumSteps() + " steps", pathWith(path, source.output()));
+                return null;
+            }
+            State result = state.copy();
+            result.addStored(source, amount);
+            result.steps.add(new PlanStep(PlanKind.CUSTOM, source.sourceId(), source.output(), amount, 1,
+                    List.of(), List.of(), null, 0, 0, null, source.sourceType(), source.attributes()));
+            result.operations++;
+            return result;
+        }
+
+        private List<State> produceRepeatable(ItemId item, int missing, State state, Set<ItemId> path, int depth,
+                                              boolean heldGatherOnly, CraftingSource fuelConversion) {
+            List<AcquisitionSource> sources = fuelConversion == null
+                    ? catalog.sourcesFor(item).stream().filter(source -> !(source instanceof StoredItemSource)).toList()
+                    : List.of(fuelConversion);
             Map<String, Integer> sourcePreferenceRanks = freezeSourcePreferenceRanks(sources);
             boolean orderSources = firstFeasible || !preferences.isEmpty();
             Map<String, Integer> stationBootstrapRanks = orderSources
@@ -665,14 +730,21 @@ public final class AcquisitionPlanner {
                     continue;
                 }
                 List<Prepared> prepared = List.of(new Prepared(state.copy(), List.of()));
-                if (source instanceof CraftingSource crafting) {
-                    prepared = prepareCrafting(prepared, crafting, operations, path, depth);
-                } else if (source instanceof SmeltingSource smelting) {
-                    prepared = prepareSmelting(prepared, smelting, operations, path, depth);
+                boolean seedFirst = firstFeasible;
+                try {
+                    // A finite-stock choice can block a later requirement. Select the seed only after the source fits.
+                    if (hasFiniteStock) firstFeasible = false;
+                    if (source instanceof CraftingSource crafting) {
+                        prepared = prepareCrafting(prepared, crafting, operations, path, depth);
+                    } else if (source instanceof SmeltingSource smelting) {
+                        prepared = prepareSmelting(prepared, smelting, operations, path, depth);
+                    }
+                    if (prepared.isEmpty()) continue;
+                    prepared = prepareRequirements(prepared, source.requirements(), operations,
+                            silkTouchCompatible(source), path, depth);
+                } finally {
+                    firstFeasible = seedFirst;
                 }
-                if (prepared.isEmpty()) continue;
-                prepared = prepareRequirements(prepared, source.requirements(), operations,
-                        silkTouchCompatible(source), path, depth);
                 for (Prepared candidate : prepared) {
                     if (candidate.state.steps.size() >= limits.maximumSteps()) {
                         fail(BlockedReason.Code.STEP_LIMIT, item, "Plan exceeds " + limits.maximumSteps() + " steps", pathWith(path, item));
@@ -729,6 +801,23 @@ public final class AcquisitionPlanner {
         private List<Prepared> chooseIngredientGroup(List<Prepared> initial, Ingredient ingredient, int total,
                                                      int perSlot, List<Integer> slots, String purpose,
                                                      Set<ItemId> path, int depth) {
+            List<ItemId> alternatives = expanded(ingredient, path);
+            boolean hasStored = initial.stream().anyMatch(candidate -> alternatives.stream().anyMatch(item ->
+                    catalog.storedSourcesFor(item).stream().anyMatch(source -> candidate.state.stockRemaining(source) > 0)));
+            if (!hasStored) {
+                return allocateIngredientGroup(initial, ingredient, total, perSlot, slots, purpose, path, depth, false);
+            }
+            var next = new ArrayList<Prepared>();
+            for (boolean allocateStored : new boolean[]{true, false}) {
+                next.addAll(allocateIngredientGroup(initial, ingredient, total, perSlot, slots,
+                        purpose, path, depth, allocateStored));
+            }
+            return trimPrepared(next);
+        }
+
+        private List<Prepared> allocateIngredientGroup(List<Prepared> initial, Ingredient ingredient, int total,
+                                                       int perSlot, List<Integer> slots, String purpose,
+                                                       Set<ItemId> path, int depth, boolean allocateStored) {
             var next = new ArrayList<Prepared>();
             List<ItemId> alternatives = expanded(ingredient, path);
             Map<ItemId, Integer> alternativePreferenceRanks = freezeItemPreferenceRanks(alternatives, path);
@@ -738,19 +827,24 @@ public final class AcquisitionPlanner {
             }
             int requiredUses = total / ingredient.count();
             for (Prepared candidate : initial) {
-                // Allocate full ingredient-count chunks from held tag alternatives before sourcing more.
+                // Allocate full ingredient-count chunks from held and observed stock before sourcing more.
                 int ingredientCount = ingredient.count();
                 int remainingUses = requiredUses;
                 var allocations = new LinkedHashMap<ItemId, Integer>();
-                List<ItemId> stocked = alternatives.stream().filter(item -> candidate.state.spendableCount(item) >= ingredientCount)
-                        .sorted(Comparator.comparingInt((ItemId item) -> candidate.state.spendableCount(item)).reversed()
+                List<ItemId> stocked = alternatives.stream().filter(item -> ingredientStock(candidate.state, item, allocateStored) >= ingredientCount)
+                        .sorted(Comparator.comparingLong((ItemId item) -> ingredientStock(candidate.state, item, allocateStored)).reversed()
                                 .thenComparingInt(item -> itemPreferenceRank(item, alternativePreferenceRanks))
                                 .thenComparing(Comparator.naturalOrder()))
                         .limit(limits.maximumCandidatesPerBranch()).toList();
                 if (alternatives.size() > limits.maximumCandidatesPerBranch()) truncated = true;
+                if (allocateStored && stocked.size() > 1) {
+                    next.addAll(allocateStockedIngredientGroup(candidate, ingredient, requiredUses, perSlot, slots,
+                            stocked, purpose, path, depth));
+                    continue;
+                }
                 for (ItemId item : stocked) {
-                    int availableUses = candidate.state.spendableCount(item) / ingredientCount;
-                    int uses = Math.min(remainingUses, availableUses);
+                    long availableUses = ingredientStock(candidate.state, item, allocateStored) / ingredientCount;
+                    int uses = (int) Math.min(remainingUses, availableUses);
                     if (uses > 0) {
                         allocations.put(item, uses * ingredientCount);
                         remainingUses -= uses;
@@ -788,6 +882,88 @@ public final class AcquisitionPlanner {
                 }
             }
             return trimPrepared(next);
+        }
+
+        private record IngredientAllocation(Prepared prepared, Map<ItemId, Integer> amounts, int remainingUses) { }
+
+        private List<Prepared> allocateStockedIngredientGroup(Prepared candidate, Ingredient ingredient,
+                                                             int requiredUses, int perSlot, List<Integer> slots,
+                                                             List<ItemId> stocked, String purpose,
+                                                             Set<ItemId> path, int depth) {
+            List<IngredientAllocation> frontier = List.of(new IngredientAllocation(
+                    new Prepared(candidate.state.copy(), candidate.selected), Map.of(), requiredUses));
+            for (ItemId item : stocked) {
+                var branches = new ArrayList<IngredientAllocation>();
+                for (IngredientAllocation allocation : frontier) {
+                    int maximumUses = (int) Math.min(allocation.remainingUses,
+                            ingredientStock(allocation.prepared.state, item, true) / ingredient.count());
+                    for (int uses : allocationUseCounts(maximumUses)) {
+                        if (!visit(item, path, depth + 1)) break;
+                        if (uses == 0) {
+                            branches.add(allocation);
+                            continue;
+                        }
+                        int amount = uses * ingredient.count();
+                        for (State ready : satisfy(item, amount, true, allocation.prepared.state,
+                                path, depth + 1, purpose, -1)) {
+                            var amounts = new LinkedHashMap<>(allocation.amounts);
+                            amounts.put(item, amount);
+                            branches.add(new IngredientAllocation(new Prepared(ready, allocation.prepared.selected),
+                                    Map.copyOf(amounts), allocation.remainingUses - uses));
+                        }
+                    }
+                }
+                if (branches.size() > limits.maximumCandidatesPerBranch()) truncated = true;
+                frontier = branches.stream().sorted(Comparator.comparingInt(IngredientAllocation::remainingUses)
+                                .thenComparing(allocation -> allocation.prepared.state, stateOrder()))
+                        .limit(limits.maximumCandidatesPerBranch()).toList();
+                if (frontier.isEmpty() || limitCode != null) break;
+            }
+            var next = new ArrayList<Prepared>();
+            for (IngredientAllocation allocation : frontier) {
+                if (allocation.remainingUses == 0) {
+                    next.add(withAllocatedRequirements(allocation.prepared, allocation.amounts, slots, perSlot, purpose));
+                    continue;
+                }
+                int remainingCount = allocation.remainingUses * ingredient.count();
+                for (ItemId fallback : rankedAlternatives(ingredient, allocation.prepared.state,
+                        remainingCount, true, path, true)) {
+                    // Stock-only completions are already represented by the allocation frontier.
+                    if (catalog.sourcesFor(fallback).stream().noneMatch(source -> !(source instanceof StoredItemSource))) continue;
+                    if (!visit(fallback, path, depth + 1)) break;
+                    for (State ready : satisfy(fallback, remainingCount, true, allocation.prepared.state,
+                            path, depth + 1, purpose, -1)) {
+                        var amounts = new LinkedHashMap<>(allocation.amounts);
+                        amounts.merge(fallback, remainingCount, Integer::sum);
+                        next.add(withAllocatedRequirements(new Prepared(ready, allocation.prepared.selected),
+                                amounts, slots, perSlot, purpose));
+                    }
+                }
+            }
+            return trimPrepared(next);
+        }
+
+        private List<Integer> allocationUseCounts(int maximumUses) {
+            int cap = limits.maximumCandidatesPerBranch();
+            if ((long) maximumUses + 1 <= cap) {
+                var counts = new ArrayList<Integer>();
+                for (int uses = maximumUses; uses >= 0; uses--) counts.add(uses);
+                return counts;
+            }
+            truncated = true;
+            var counts = new LinkedHashSet<Integer>();
+            counts.add(maximumUses);
+            if (cap > 1) counts.add(0);
+            if (cap > 2) counts.add(1);
+            if (cap > 3) counts.add(maximumUses - 1);
+            for (int index = 1; index < cap && counts.size() < cap; index++) {
+                counts.add((int) ((long) maximumUses * index / (cap - 1)));
+            }
+            return List.copyOf(counts);
+        }
+
+        private long ingredientStock(State state, ItemId item, boolean includeStored) {
+            return includeStored ? availableWithStored(state, item, true) : state.spendableCount(item);
         }
 
         private Prepared withAllocatedRequirements(Prepared prepared, Map<ItemId, Integer> allocation,
@@ -1066,9 +1242,27 @@ public final class AcquisitionPlanner {
 
         private List<State> ensureTool(ItemId item, ToolRequirement requirement, int operations,
                                        boolean silkTouchCompatible, State state, Set<ItemId> path, int depth) {
+            return ensureTool(item, requirement, operations, silkTouchCompatible, state, path, depth, true);
+        }
+
+        private List<State> ensureTool(ItemId item, ToolRequirement requirement, int operations,
+                                       boolean silkTouchCompatible, State state, Set<ItemId> path, int depth,
+                                       boolean allowStored) {
             if (!visit(item, path, depth)) return List.of();
             int currentCount = state.count(item);
             int maximumDurability = catalog.maximumDurability(item);
+            if (allowStored && !state.canUseTool(item, requirement, operations, catalog, silkTouchCompatible)
+                    && maximumDurability > 0) {
+                var candidates = new ArrayList<State>();
+                for (State supplied : supplyStoredTools(item, requirement, operations,
+                        silkTouchCompatible, state, path, depth)) {
+                    candidates.addAll(ensureTool(item, requirement, operations, silkTouchCompatible,
+                            supplied, path, depth + 1, false));
+                }
+                if (firstFeasible && !candidates.isEmpty()) return List.of(trim(candidates).get(0));
+                candidates.addAll(ensureTool(item, requirement, operations, silkTouchCompatible, state, path, depth, false));
+                return trim(candidates);
+            }
             if (requirement.wearPerOperation() > 0) {
                 if (currentCount > 0 && state.canUseTool(item, requirement, operations, catalog,
                         silkTouchCompatible)) return List.of(state.copy());
@@ -1100,9 +1294,11 @@ public final class AcquisitionPlanner {
                         fail(BlockedReason.Code.CYCLE, item, "Cannot replace a worn tool without a cycle", pathWith(path, item));
                         return List.of();
                     }
-                    candidates = produce(item, (int) copiesNeeded, state, with(path, item), depth + 1);
+                    candidates = produce(item, (int) copiesNeeded, state, with(path, item), depth + 1, false, null, false);
                 } else {
-                    candidates = satisfy(item, (int) copiesNeeded, false, state, path, depth + 1, "tool", -1);
+                    candidates = hasStoredSource(item)
+                            ? produce(item, (int) copiesNeeded, state, with(path, item), depth + 1, false, null, false)
+                            : satisfy(item, (int) copiesNeeded, false, state, path, depth + 1, "tool", -1);
                 }
                 var valid = new ArrayList<State>();
                 for (State candidate : candidates) {
@@ -1126,9 +1322,11 @@ public final class AcquisitionPlanner {
                     fail(BlockedReason.Code.CYCLE, item, "Cannot replace a worn tool without a cycle", pathWith(path, item));
                     return List.of();
                 }
-                candidates = produce(item, 1, state, with(path, item), depth + 1);
+                candidates = produce(item, 1, state, with(path, item), depth + 1, false, null, false);
             } else {
-                candidates = satisfy(item, 1, false, state, path, depth + 1, "tool", -1);
+                candidates = maximumDurability > 0 && hasStoredSource(item)
+                        ? produce(item, 1, state, with(path, item), depth + 1, false, null, false)
+                        : satisfy(item, 1, false, state, path, depth + 1, "tool", -1);
             }
             var valid = new ArrayList<State>();
             for (State candidate : candidates) {
@@ -1137,6 +1335,53 @@ public final class AcquisitionPlanner {
                 else fail(BlockedReason.Code.UNREACHABLE_REQUIREMENT, item, "Available item does not meet required tool durability", pathWith(path, item));
             }
             return trim(valid);
+        }
+
+        private boolean hasStoredSource(ItemId item) {
+            return !catalog.storedSourcesFor(item).isEmpty();
+        }
+
+        private List<State> supplyStoredTools(ItemId item, ToolRequirement requirement, int operations,
+                                             boolean silkTouchCompatible, State state, Set<ItemId> path, int depth) {
+            List<State> candidates = List.of(state);
+            stocks: for (StoredItemSource stock : catalog.storedSourcesFor(item)) {
+                if (!visit(item, path, depth)) break;
+                long capacity = storedToolCapacity(stock, requirement, silkTouchCompatible);
+                if (state.stockRemaining(stock) == 0 || capacity == 0) continue;
+                var next = new ArrayList<>(candidates);
+                for (State candidate : candidates) {
+                    if (candidate.canUseTool(item, requirement, operations, catalog, silkTouchCompatible)) continue;
+                    if (!visit(item, path, depth)) break stocks;
+                    long missingOperations = Math.max(0L, (long) operations
+                            - candidate.toolCapacity(item, requirement, catalog, silkTouchCompatible));
+                    long needed = requirement.wearPerOperation() == 0 ? 1 : ceilDivLong(missingOperations, capacity);
+                    int maximumAmount = (int) Math.min(needed, candidate.stockRemaining(stock));
+                    if (maximumAmount > limits.maximumRequestedCount()) {
+                        fail(BlockedReason.Code.STEP_LIMIT, item, "Required tool copies exceed planner limits", pathWith(path, item));
+                        continue;
+                    }
+                    for (int amount : allocationUseCounts(maximumAmount)) {
+                        if (amount == 0) continue;
+                        if (!visit(item, path, depth)) break stocks;
+                        State supplied = retrieveStored(stock, amount, candidate, path);
+                        if (supplied != null) next.add(supplied);
+                    }
+                }
+                if (next.size() > limits.maximumCandidatesPerBranch()) truncated = true;
+                candidates = next.stream().sorted(Comparator
+                                .comparing((State candidate) -> !candidate.canUseTool(item, requirement, operations, catalog, silkTouchCompatible))
+                                .thenComparing(stateOrder()))
+                        .limit(limits.maximumCandidatesPerBranch()).toList();
+            }
+            return candidates.stream().filter(candidate -> candidate != state).toList();
+        }
+
+        private long storedToolCapacity(StoredItemSource stock, ToolRequirement requirement, boolean silkTouchCompatible) {
+            InventoryToolLot lot = stock.toolLot();
+            if (lot == null || (!silkTouchCompatible && lot.silkTouch())
+                    || lot.remainingDurability() < requirement.minimumDurability()) return 0;
+            return requirement.wearPerOperation() == 0 ? 1
+                    : ToolLots.operationsFor(lot.remainingDurability(), requirement.minimumDurability(), requirement.wearPerOperation());
         }
 
         private List<Prepared> ensureStation(List<Prepared> initial, StationRequirement requirement, Set<ItemId> path, int depth) {
@@ -1194,10 +1439,10 @@ public final class AcquisitionPlanner {
                 return List.of();
             }
             Comparator<ItemId> order = Comparator
-                    .comparingInt((ItemId item) -> availableCount(state, item, consume) >= amount ? 0
-                            : availableCount(state, item, consume) > 0 && !catalog.sourcesFor(item).isEmpty() ? 1
-                            : !catalog.sourcesFor(item).isEmpty() ? 2 : 3)
-                    .thenComparing(Comparator.comparingInt((ItemId item) -> availableCount(state, item, consume)).reversed());
+                    .comparingInt((ItemId item) -> availableWithStored(state, item, consume) >= amount ? 0
+                            : availableWithStored(state, item, consume) > 0 && hasAvailableSource(state, item) ? 1
+                            : hasAvailableSource(state, item) ? 2 : 3)
+                    .thenComparing(Comparator.comparingLong((ItemId item) -> availableWithStored(state, item, consume)).reversed());
             if (usePreferences && !preferences.isEmpty()) {
                 order = order.thenComparingInt(item -> itemPreferenceRank(item, itemPreferenceRanks));
             }
@@ -1205,6 +1450,17 @@ public final class AcquisitionPlanner {
             List<ItemId> ranked = all.stream().sorted(order).limit(limits.maximumCandidatesPerBranch()).toList();
             if (all.size() > ranked.size()) truncated = true;
             return ranked;
+        }
+
+        private long availableWithStored(State state, ItemId item, boolean consume) {
+            long count = availableCount(state, item, consume);
+            for (StoredItemSource source : catalog.storedSourcesFor(item)) count += state.stockRemaining(source);
+            return count;
+        }
+
+        private boolean hasAvailableSource(State state, ItemId item) {
+            return catalog.sourcesFor(item).stream().anyMatch(source ->
+                    !(source instanceof StoredItemSource stored) || state.stockRemaining(stored) > 0);
         }
 
         private static int availableCount(State state, ItemId item, boolean consume) {
@@ -1370,6 +1626,7 @@ public final class AcquisitionPlanner {
 
     private static final class State {
         private final Map<ItemId, Integer> inventory;
+        private final Map<String, Integer> remainingStock;
         private final Map<ItemId, Integer> protectedHeld;
         private final Set<StationId> stations;
         private final Map<ItemId, ToolLots> toolLots;
@@ -1380,6 +1637,10 @@ public final class AcquisitionPlanner {
 
         private State(InventorySnapshot snapshot, CatalogSnapshot catalog) {
             inventory = new HashMap<>(snapshot.counts());
+            remainingStock = new HashMap<>();
+            for (StoredItemSource source : catalog.storedSources()) {
+                remainingStock.put(source.sourceId(), source.availableCount());
+            }
             protectedHeld = new HashMap<>(snapshot.protectedCounts());
             stations = new HashSet<>(snapshot.availableStations());
             toolLots = new HashMap<>();
@@ -1390,6 +1651,7 @@ public final class AcquisitionPlanner {
 
         private State(State source) {
             inventory = new HashMap<>(source.inventory);
+            remainingStock = new HashMap<>(source.remainingStock);
             protectedHeld = new HashMap<>(source.protectedHeld);
             stations = new HashSet<>(source.stations);
             toolLots = new HashMap<>();
@@ -1443,6 +1705,20 @@ public final class AcquisitionPlanner {
             if (lots != null) {
                 lots.removeCopies(amount);
                 if (lots.isEmpty()) toolLots.remove(item);
+            }
+        }
+
+        private int stockRemaining(StoredItemSource source) {
+            return remainingStock.getOrDefault(source.sourceId(), 0);
+        }
+
+        private void addStored(StoredItemSource source, int amount) {
+            int remaining = stockRemaining(source);
+            if (amount < 1 || amount > remaining) throw new IllegalStateException("Planner storage underflow for " + source.sourceId());
+            add(source.output(), amount, 0);
+            remainingStock.put(source.sourceId(), remaining - amount);
+            if (source.toolLot() != null) {
+                toolLots.computeIfAbsent(source.output(), ignored -> new ToolLots()).add(source.toolLot(), amount);
             }
         }
 
@@ -1546,15 +1822,11 @@ public final class AcquisitionPlanner {
             if (remainingOperations != 0) throw new IllegalStateException("Planner could not debit reserved tool wear");
         }
 
-        /** Removes the least durable known stacks first when a recipe consumes this item type. */
+        /** Count protection does not identify stacks. Each known lot may lose the consumed copies. */
         private void removeCopies(int copiesToRemove) {
-            long remaining = copiesToRemove;
             for (Map.Entry<InventoryToolLot, Long> entry : new ArrayList<>(counts.entrySet())) {
-                if (remaining == 0) break;
-                long removed = Math.min(remaining, entry.getValue());
-                long left = entry.getValue() - removed;
+                long left = Math.max(0L, entry.getValue() - copiesToRemove);
                 if (left == 0) counts.remove(entry.getKey()); else counts.put(entry.getKey(), left);
-                remaining -= removed;
             }
         }
     }

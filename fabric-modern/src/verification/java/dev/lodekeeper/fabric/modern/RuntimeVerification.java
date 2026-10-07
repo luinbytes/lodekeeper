@@ -4648,7 +4648,7 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void sendCommand(String command) {
         if (client.getConnection() == null) throw new IllegalStateException("integrated client is not connected");
-        client.gui.getChat().addMessage(net.minecraft.network.chat.Component.literal("[Verifier command] " + command));
+        client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[Verifier command] " + command));
         client.getConnection().sendChat(command);
     }
 

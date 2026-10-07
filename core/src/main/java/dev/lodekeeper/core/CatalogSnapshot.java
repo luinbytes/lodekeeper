@@ -29,6 +29,8 @@ public final class CatalogSnapshot {
     private final Map<TagId, List<ItemId>> tags;
     private final Map<ItemId, List<AcquisitionSource>> sources;
     private final Map<String, AcquisitionSource> sourcesById;
+    private final List<StoredItemSource> baseStoredSources;
+    private final Map<ItemId, List<StoredItemSource>> storedSourcesByOutput;
     private final Map<ItemId, OutputSourceRestriction> sourceRestrictions;
     private final Set<ItemId> gatherOutputs;
     private final List<GatherSource> baseGatherSources;
@@ -41,6 +43,14 @@ public final class CatalogSnapshot {
         this.aliases = immutableLists(builder.aliases);
         this.tags = immutableLists(builder.tags);
         this.sourcesById = Map.copyOf(builder.sources);
+        this.baseStoredSources = builder.sources.values().stream().filter(StoredItemSource.class::isInstance)
+                .map(StoredItemSource.class::cast).toList();
+        var storedByOutput = new TreeMap<ItemId, List<StoredItemSource>>();
+        for (StoredItemSource source : baseStoredSources) {
+            storedByOutput.computeIfAbsent(source.output(), ignored -> new ArrayList<>()).add(source);
+        }
+        storedByOutput.replaceAll((item, values) -> List.copyOf(values));
+        this.storedSourcesByOutput = Map.copyOf(storedByOutput);
         this.sourceRestrictions = Map.of();
         this.baseGatherSources = builder.sources.values().stream()
                 .filter(GatherSource.class::isInstance)
@@ -70,6 +80,8 @@ public final class CatalogSnapshot {
         this.tags = base.tags;
         this.sources = base.sources;
         this.sourcesById = base.sourcesById;
+        this.baseStoredSources = base.baseStoredSources;
+        this.storedSourcesByOutput = base.storedSourcesByOutput;
         this.sourceRestrictions = Map.copyOf(restrictions);
         this.gatherOutputs = base.gatherOutputs;
         this.baseGatherSources = base.baseGatherSources;
@@ -100,6 +112,21 @@ public final class CatalogSnapshot {
 
     /** Gather sources in deterministic source-ID order, cached when this snapshot is built. */
     public List<GatherSource> gatherSources() { return gatherSources; }
+
+    /** Permitted stock in source-ID order, including any output source restrictions. */
+    public List<StoredItemSource> storedSources() {
+        if (sourceRestrictions.isEmpty()) return baseStoredSources;
+        return baseStoredSources.stream().map(source -> sourceById(source.sourceId()))
+                .filter(StoredItemSource.class::isInstance).map(StoredItemSource.class::cast)
+                .toList();
+    }
+
+    List<StoredItemSource> storedSourcesFor(ItemId output) {
+        List<StoredItemSource> base = storedSourcesByOutput.getOrDefault(output, List.of());
+        OutputSourceRestriction restriction = sourceRestrictions.get(output);
+        return restriction == null ? base : base.stream()
+                .filter(source -> restriction.sourcesById.containsKey(source.sourceId())).toList();
+    }
 
     AcquisitionSource sourceById(String sourceId) {
         AcquisitionSource source = sourcesById.get(Objects.requireNonNull(sourceId, "sourceId"));
@@ -159,6 +186,9 @@ public final class CatalogSnapshot {
             AcquisitionSource original = requireOutputSource(output, selected.sourceId());
             if (selected.getClass() != original.getClass()) {
                 throw new IllegalArgumentException("Restricted source type must match its catalog source");
+            }
+            if (selected instanceof StoredItemSource && !selected.equals(original)) {
+                throw new IllegalArgumentException("Restricted storage must preserve its observed stock metadata");
             }
             if (!seen.add(selected.sourceId())) {
                 throw new IllegalArgumentException("Restricted source IDs must be unique");
@@ -348,6 +378,7 @@ public final class CatalogSnapshot {
         private final Map<String, Set<ItemId>> aliases = new TreeMap<>();
         private final Map<TagId, Set<ItemId>> tags = new TreeMap<>();
         private final Map<String, AcquisitionSource> sources = new TreeMap<>();
+        private final Map<String, String> stockReferences = new HashMap<>();
 
         private Builder() { }
 
@@ -379,9 +410,21 @@ public final class CatalogSnapshot {
         public Builder source(AcquisitionSource source) {
             Objects.requireNonNull(source, "source");
             if (!(source instanceof GatherSource) && !(source instanceof CraftingSource)
-                    && !(source instanceof SmeltingSource) && !(source instanceof CustomSource)) {
+                    && !(source instanceof SmeltingSource) && !(source instanceof CustomSource)
+                    && !(source instanceof StoredItemSource)) {
                 source = new CustomSource(source.sourceId(), source.sourceType(), source.output(), source.outputCount(),
                         source.requirements(), source.attributes());
+            }
+            if (source instanceof StoredItemSource stored) {
+                String owner = stockReferences.get(stored.stockReference());
+                if (owner != null && !owner.equals(stored.sourceId())) {
+                    throw new IllegalArgumentException("Duplicate physical stock observation: " + stored.stockReference());
+                }
+                AcquisitionSource previous = sources.get(source.sourceId());
+                if (previous != null && !previous.equals(source)) {
+                    throw new IllegalArgumentException("Conflicting source id: " + source.sourceId());
+                }
+                stockReferences.put(stored.stockReference(), stored.sourceId());
             }
             AcquisitionSource previous = sources.putIfAbsent(source.sourceId(), source);
             if (previous != null && !previous.equals(source)) throw new IllegalArgumentException("Conflicting source id: " + source.sourceId());
@@ -391,6 +434,13 @@ public final class CatalogSnapshot {
         public CatalogSnapshot build() {
             if (items.size() > 100_000 || sources.size() > 100_000 || tags.size() > 100_000) {
                 throw new IllegalStateException("Catalog exceeds safety limits");
+            }
+            for (AcquisitionSource source : sources.values()) {
+                if (!(source instanceof StoredItemSource stored) || stored.toolLot() == null) continue;
+                ItemDefinition definition = items.get(stored.output());
+                if (definition == null || definition.maximumDurability() <= 0) {
+                    throw new IllegalArgumentException("Observed storage tool requires a durable item definition: " + stored.output());
+                }
             }
             var aliasCopy = new TreeMap<String, Collection<ItemId>>();
             aliases.forEach(aliasCopy::put);
