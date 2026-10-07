@@ -11,6 +11,7 @@ public final class OwnedClickReceipts {
         ItemStack lodekeeper$receivedInput();
         default long lodekeeper$slotSequence(int slot) { return 0; }
         default ItemStack lodekeeper$receivedSlot(int slot) { return ItemStack.EMPTY; }
+        default ItemStack lodekeeper$receivedContentsSlot(int slot) { return ItemStack.EMPTY.copy(); }
         default long lodekeeper$cursorSequence() { return 0; }
         default ItemStack lodekeeper$receivedCursor() { return ItemStack.EMPTY; }
         default int lodekeeper$contentsRevision() { return -1; }

@@ -20,6 +20,7 @@ abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt 
     @Unique private ItemStack lodekeeper$receivedCursor = ItemStack.EMPTY;
     @Unique private final java.util.Map<Integer, Long> lodekeeper$slotSequences = new java.util.HashMap<>();
     @Unique private final java.util.Map<Integer, ItemStack> lodekeeper$receivedSlots = new java.util.HashMap<>();
+    @Unique private final java.util.Map<Integer, ItemStack> lodekeeper$receivedContentsSlots = new java.util.HashMap<>();
     @Unique private long lodekeeper$networkSequence;
     @Unique private ItemStack lodekeeper$receivedInput = ItemStack.EMPTY;
     @Inject(method = "setItem", at = @At("TAIL"))
@@ -33,9 +34,12 @@ abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt 
     }
     @Inject(method = "initializeContents", at = @At("TAIL"))
     private void lodekeeper$contentsReceived(int revision, List<ItemStack> stacks, ItemStack cursor, CallbackInfo callback) {
+        lodekeeper$receivedContentsSlots.clear();
         for (int slot = 0; slot < stacks.size(); slot++) {
+            ItemStack received = stacks.get(slot).copy();
             lodekeeper$slotSequences.put(slot, ++lodekeeper$networkSequence);
-            lodekeeper$receivedSlots.put(slot, stacks.get(slot).copy());
+            lodekeeper$receivedSlots.put(slot, received);
+            lodekeeper$receivedContentsSlots.put(slot, received);
         }
         lodekeeper$contentsSequence++;
         lodekeeper$cursorSequence = ++lodekeeper$networkSequence;
@@ -48,6 +52,7 @@ abstract class ContainerInputReceiptMixin implements OwnedClickReceipts.Receipt 
     }
     @Override public long lodekeeper$slotSequence(int slot) { return lodekeeper$slotSequences.getOrDefault(slot, 0L); }
     @Override public ItemStack lodekeeper$receivedSlot(int slot) { return lodekeeper$receivedSlots.getOrDefault(slot, ItemStack.EMPTY).copy(); }
+    @Override public ItemStack lodekeeper$receivedContentsSlot(int slot) { return lodekeeper$receivedContentsSlots.getOrDefault(slot, ItemStack.EMPTY).copy(); }
     @Override public long lodekeeper$cursorSequence() { return lodekeeper$cursorSequence; }
     @Override public ItemStack lodekeeper$receivedCursor() { return lodekeeper$receivedCursor.copy(); }
     @Override public int lodekeeper$contentsRevision() { return lodekeeper$contentsRevision; }
