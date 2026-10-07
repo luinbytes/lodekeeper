@@ -179,11 +179,15 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean worldPolicyTableSetupComplete;
     private boolean worldPolicyBackfillSetupComplete;
     private boolean worldPolicyBackfillSurplusSetupComplete;
+    private boolean worldPolicyBackfillSurplusStartReceiptAdded;
     private boolean worldPolicyOriginalBackfill;
     private boolean worldPolicyOriginalEquivalentStone;
     private boolean worldPolicyOriginalBackfillCaptured;
     private boolean worldPolicyConfigRestored;
     private int worldPolicyNoSurplusObservedAtTick = -1;
+    private int worldPolicyBackfillSurplusStartedAtTick = -1;
+    private int worldPolicyBackfillPlacementStartedAtTick = -1;
+    private String worldPolicyBackfillPlayerPositionBeforeRelocation = "unknown";
     private Map<String, String> worldPolicyPlacementBaseline = Map.of();
     private JsonObject worldPolicyEvidence;
     private final JsonArray worldPolicyServerObservations = new JsonArray();
@@ -203,6 +207,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final BlockPos WORLD_POLICY_PREFERRED_TABLE = new BlockPos(6, 64, 6);
     private static final BlockPos WORLD_POLICY_ORDINARY_TABLE = new BlockPos(1, 64, 2);
     private static final BlockPos WORLD_POLICY_BACKFILL_TARGET = new BlockPos(1, 64, 3);
+    private static final double WORLD_POLICY_BACKFILL_PREPARED_PLAYER_X = 3.5;
+    private static final double WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Y = PLAYER_Y;
+    private static final double WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Z = 3.5;
     private static final List<WorldPolicyFace> WORLD_POLICY_FACES = List.of(
         new WorldPolicyFace("min_x", new BlockPos(3, 65, 4)),
         new WorldPolicyFace("max_x", new BlockPos(8, 65, 4)),
@@ -4256,22 +4263,39 @@ public final class RuntimeVerification implements ClientModInitializer {
         sendCommand("!lk maintain cobblestone 1");
         worldPolicyPhase = WorldPolicyPhase.BACKFILL_SURPLUS;
         worldPolicyPhaseStartedAtTick = clientTicks;
+        worldPolicyBackfillSurplusStartedAtTick = clientTicks;
     }
 
     private void tickWorldPolicyBackfillSurplus() {
-        if (clientTicks - worldPolicyPhaseStartedAtTick > 1_200) throw new IllegalStateException("maintained backfill reservation did not settle");
-        if (!maintainedReservationObserved("minecraft:cobblestone", 1)
-                || requireEngine().diagnosticTaskIdentity() != null) return;
+        if (!maintainedReservationObserved("minecraft:cobblestone", 1)) {
+            if (clientTicks - worldPolicyBackfillSurplusStartedAtTick > 1_200) {
+                throw new IllegalStateException("waiting for maintained cobblestone stock reservation before surplus setup");
+            }
+            return;
+        }
+        if (requireEngine().diagnosticTaskIdentity() != null) {
+            if (clientTicks - worldPolicyBackfillSurplusStartedAtTick > 1_200) {
+                throw new IllegalStateException("waiting for the engine to become idle before surplus setup");
+            }
+            return;
+        }
         if (!worldPolicyBackfillSurplusSetupComplete) {
             if (setupFuture == null) {
                 IntegratedServer server = requireServer();
                 setupFuture = new CompletableFuture<>();
                 CompletableFuture<Long> scheduled = setupFuture;
+                worldPolicyBackfillPlayerPositionBeforeRelocation = latestSnapshot == null ? "unknown"
+                    : latestSnapshot.worldPolicyServerReceipt.getOrDefault("position", "unknown");
                 server.execute(() -> {
                     try {
                         ServerPlayerEntity player = requireServerPlayer(server);
                         if (!player.getInventory().insertStack(new ItemStack(Items.STONE))) {
                             throw new IllegalStateException("could not seed one equivalent surplus stone block");
+                        }
+                        if (!VerificationApi.teleport(player, server.getOverworld(), WORLD_POLICY_BACKFILL_PREPARED_PLAYER_X,
+                                WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Y, WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Z,
+                                player.getYaw(), player.getPitch())) {
+                            throw new IllegalStateException("could not move the verifier clear of its backfill target");
                         }
                         double dx = WORLD_POLICY_BACKFILL_TARGET.getX() + 0.5 - player.getX();
                         double dz = WORLD_POLICY_BACKFILL_TARGET.getZ() + 0.5 - player.getZ();
@@ -4286,16 +4310,51 @@ public final class RuntimeVerification implements ClientModInitializer {
                 });
                 return;
             }
-            if (!setupFuture.isDone()) return;
+            if (!setupFuture.isDone()) {
+                if (clientTicks - worldPolicyBackfillSurplusStartedAtTick > 1_200) {
+                    throw new IllegalStateException("equivalent-stone fixture stock and player relocation setup did not settle");
+                }
+                return;
+            }
             fixtureReadyServerTick = setupFuture.join();
             setupFuture = null;
             worldPolicyBackfillSurplusSetupComplete = true;
-            worldPolicyEvidence.add("backfillSurplusStartReceipt", latestSnapshot == null
-                ? new JsonObject() : worldPolicyReceipt("backfillSurplusStartReceipt", latestSnapshot));
+            worldPolicyBackfillPlacementStartedAtTick = clientTicks;
         }
         if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
-        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
-                || !"minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"))) return;
+        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick) {
+            if (clientTicks - worldPolicyBackfillPlacementStartedAtTick > 1_200) {
+                throw new IllegalStateException("server did not report the prepared backfill player position");
+            }
+            return;
+        }
+        if (!worldPolicyBackfillSurplusStartReceiptAdded) {
+            JsonObject setupReceipt = worldPolicyReceipt("backfillSurplusStartReceipt", latestSnapshot);
+            setupReceipt.addProperty("fixturePlayerRelocationApplied", true);
+            setupReceipt.addProperty("relocationIsNavigationEvidence", false);
+            setupReceipt.addProperty("playerPositionBeforeRelocation", worldPolicyBackfillPlayerPositionBeforeRelocation);
+            setupReceipt.addProperty("preparedPlayerX", WORLD_POLICY_BACKFILL_PREPARED_PLAYER_X);
+            setupReceipt.addProperty("preparedPlayerY", WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Y);
+            setupReceipt.addProperty("preparedPlayerZ", WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Z);
+            setupReceipt.addProperty("playerAtPreparedPosition", Math.abs(latestSnapshot.x - WORLD_POLICY_BACKFILL_PREPARED_PLAYER_X) < 0.25
+                && Math.abs(latestSnapshot.y - WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Y) < 0.25
+                && Math.abs(latestSnapshot.z - WORLD_POLICY_BACKFILL_PREPARED_PLAYER_Z) < 0.25);
+            boolean targetClearOfPlayer = worldPolicyBackfillTargetClearOfPlayer(latestSnapshot);
+            boolean targetWithinPlacementReach = worldPolicyBackfillTargetWithinReach(latestSnapshot);
+            setupReceipt.addProperty("targetClearOfPlayer", targetClearOfPlayer);
+            setupReceipt.addProperty("targetWithinPlacementReach", targetWithinPlacementReach);
+            worldPolicyEvidence.add("backfillSurplusStartReceipt", setupReceipt);
+            worldPolicyBackfillSurplusStartReceiptAdded = true;
+            if (!setupReceipt.get("playerAtPreparedPosition").getAsBoolean() || !targetClearOfPlayer || !targetWithinPlacementReach) {
+                throw new IllegalStateException("prepared backfill player position is not clear of the target or within placement reach");
+            }
+        }
+        if (!"minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"))) {
+            if (clientTicks - worldPolicyBackfillPlacementStartedAtTick > 1_200) {
+                throw new IllegalStateException("equivalent-stone backfill placement did not complete after the fixture moved the player clear of the target");
+            }
+            return;
+        }
         boolean finalInventoryMatches = latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:cobblestone", 1));
         boolean maintainedFloorHeld = maintainedReservationObserved("minecraft:cobblestone", 1);
         boolean requestedFloorHeld = requestedBackfillFloorObserved("minecraft:cobblestone", 1);
@@ -4454,6 +4513,22 @@ public final class RuntimeVerification implements ClientModInitializer {
         return snapshot.x >= WORLD_POLICY_CLAIM_MIN.getX() && snapshot.x < WORLD_POLICY_CLAIM_MAX.getX() + 1.0
             && snapshot.y >= WORLD_POLICY_CLAIM_MIN.getY() && snapshot.y < WORLD_POLICY_CLAIM_MAX.getY() + 1.0
             && snapshot.z >= WORLD_POLICY_CLAIM_MIN.getZ() && snapshot.z < WORLD_POLICY_CLAIM_MAX.getZ() + 1.0;
+    }
+
+    private static boolean worldPolicyBackfillTargetClearOfPlayer(ServerSnapshot snapshot) {
+        double targetX = WORLD_POLICY_BACKFILL_TARGET.getX();
+        double targetY = WORLD_POLICY_BACKFILL_TARGET.getY();
+        double targetZ = WORLD_POLICY_BACKFILL_TARGET.getZ();
+        return snapshot.x + 0.3 <= targetX || snapshot.x - 0.3 >= targetX + 1.0
+            || snapshot.y + 1.8 <= targetY || snapshot.y >= targetY + 1.0
+            || snapshot.z + 0.3 <= targetZ || snapshot.z - 0.3 >= targetZ + 1.0;
+    }
+
+    private static boolean worldPolicyBackfillTargetWithinReach(ServerSnapshot snapshot) {
+        double dx = WORLD_POLICY_BACKFILL_TARGET.getX() - Math.floor(snapshot.x);
+        double dy = WORLD_POLICY_BACKFILL_TARGET.getY() - Math.floor(snapshot.y);
+        double dz = WORLD_POLICY_BACKFILL_TARGET.getZ() - Math.floor(snapshot.z);
+        return dx * dx + dy * dy + dz * dz <= 16.0;
     }
 
     private void sendCommand(String command) {

@@ -12,5 +12,6 @@
     "1.21.2",
     "1.21.3"
   ],
-  "minecraft_mappings": "official Mojang mappings"
+  "minecraft_mappings": "official Mojang mappings",
+  "java_version": 21
 }

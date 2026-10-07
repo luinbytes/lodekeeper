@@ -32,7 +32,7 @@ Route, action, claim, station, and restoration views use bounded snapshots. The 
 
 The current 26.3 candidate build completed one native iron run in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. This is selected iron task evidence, not a fresh world full loadout result.
 
-The 1.20.1 navigation kernel compiles. Its adapter still needs a fix for the host preview API, so no exact Lodekeeper artifact result is claimed for that profile.
+The exact 1.20.1 artifact and verification sources now compile and pass the host packaging checks. Native gameplay on that profile remains unverified.
 
 The current primary version build and native gates remain open. CI across all 24 profiles and fresh world full loadout runs remain pending. Preview 11 remains unreleased. Preview 10 is still available from its [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10).
 

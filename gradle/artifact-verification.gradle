@@ -11,12 +11,8 @@ tasks.register('prepareArtifactVerification') {
     doLast {
         def run = verificationRun.get()
         if (run.hasProperty('useArgFile')) run.useArgFile.set(false)
-        List<String> vmArguments = new ArrayList<>(run.allJvmArgs)
+        List<String> vmArguments = new ArrayList<>(run.jvmArguments.get())
         def configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
-        if (configArgument == null) {
-            run.jvmArgumentProviders.each { vmArguments.addAll(it.asArguments().toList()) }
-            configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
-        }
         if (configArgument == null) throw new GradleException('Loom supplied no development launch configuration')
         File sourceConfig = file(configArgument.substring('-Dfabric.dli.config='.length()))
         if (!sourceConfig.isFile()) throw new GradleException('Loom launch configuration was not generated')
