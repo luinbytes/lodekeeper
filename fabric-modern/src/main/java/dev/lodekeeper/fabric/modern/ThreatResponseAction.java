@@ -380,7 +380,7 @@ final class ThreatResponseAction {
         plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
-        int clearance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 16 : 11;
+        int clearance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 20 : 11;
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
         List<MovementController.RetreatThreat> capturedThreats = threats.stream()
                 .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ())).toList();
@@ -438,8 +438,9 @@ final class ThreatResponseAction {
         }
         return tracked.stream().filter(this::eligible)
                 .filter(mob -> {
-                    double clearance = Math.sqrt(clearanceSquared(mob))
-                            + (phase == Phase.RETREAT || phase == Phase.FINISHING ? 2 : 0);
+                    double clearance = Math.sqrt(clearanceSquared(mob));
+                    if (phase == Phase.RETREAT || phase == Phase.FINISHING)
+                        clearance += creeper(mob) ? 6 : 2;
                     return client.player.distanceToSqr(mob) < clearance * clearance;
                 })
                 .sorted(Comparator.comparingDouble(client.player::distanceToSqr)).toList();
