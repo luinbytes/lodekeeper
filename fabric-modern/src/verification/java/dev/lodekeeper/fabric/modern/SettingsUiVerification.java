@@ -89,7 +89,6 @@ public final class SettingsUiVerification {
     private String activeStep = "begin";
     private Map<String, String> originalNavigation = Map.of();
     private Map<String, String> navigationBaseline = Map.of();
-    private String qaNavigationKey;
     private boolean plotProbeStarted;
     private boolean plotCleanupComplete;
     private int plotPhase;
@@ -218,42 +217,68 @@ public final class SettingsUiVerification {
             clickMessage("Discard");
             access.reloadConfig();
         });
-        add("navigation-map-open-editor-and-capture", () -> {
-            if (!access.engineIdle()) throw new IllegalStateException("engine became active before map editing");
-            qaNavigationKey = "zz-lodekeeper-uiqa-inert";
+        add("navigation-options-open-and-capture", () -> {
+            if (!access.engineIdle()) throw new IllegalStateException("engine became active before navigation editing");
             navigationBaseline = new LinkedHashMap<>(access.navigationPreferences());
-            if (navigationBaseline.containsKey(qaNavigationKey)) throw new IllegalStateException("reserved QA map key already exists");
-            access.openSettingsScreen();
-            search("navigationPreferences");
-            clickMessage("Filter");
-            clickSetting("navigationPreferences");
+            navigationBaseline.remove("jumpPenalty");
+            navigationBaseline.remove("cutoffAtLoadBoundary");
+            access.writeConfig("navigationPreferences", navigationBaseline);
+            access.saveConfig();
+            access.reloadConfig();
+            openNavigationOptions();
             captureHoldTicks = 2;
-            delayedCaptureLabel = "navigation-map-editor";
+            delayedCaptureLabel = "navigation-options";
         });
-        add("navigation-map-add-save-reload-remove", () -> {
-            Widget keyField = fieldContaining("Preference key");
-            Widget valueField = fieldContaining("Preference value");
-            click(keyField);
-            replaceFocusedText(qaNavigationKey);
-            click(valueField);
-            replaceFocusedText("probe-value");
-            clickMessage("Add / update");
-            clickMessage("Back to settings");
-            clickMessage("Save");
-            access.reloadConfig();
-            require("probe-value".equals(access.navigationPreferences().get(qaNavigationKey)),
-                    "navigation map entry did not survive config reload");
-            access.openSettingsScreen();
-            search("navigationPreferences");
+        add("navigation-options-edit-validate-save-reload-reset", () -> {
+            typeField("Search advanced options", "jumpPenalty");
             clickMessage("Filter");
-            clickSetting("navigationPreferences");
-            clickExactVisibleAcrossPages(qaNavigationKey + " = probe-value");
-            clickMessage("Remove");
+            typeField("Jump cost", "3.5");
             clickMessage("Back to settings");
             clickMessage("Save");
             access.reloadConfig();
-            require(!access.navigationPreferences().containsKey(qaNavigationKey), "removed map entry returned after reload");
-            require(access.navigationPreferences().equals(navigationBaseline), "navigation map differs from its pre-probe value");
+            require("3.5".equals(access.navigationPreferences().get("jumpPenalty")),
+                    "named navigation option did not survive config reload");
+
+            openNavigationOptions();
+            typeField("Search advanced options", "jumpPenalty");
+            clickMessage("Filter");
+            Object editor = access.currentScreen();
+            typeField("Jump cost", ".");
+            clickMessage("Back to settings");
+            require(access.currentScreen() == editor, "invalid navigation number allowed leaving the editor");
+            require("3.5".equals(access.navigationPreferences().get("jumpPenalty")),
+                    "invalid navigation number changed saved config");
+            typeField("Jump cost", "3.5");
+            clickMessage("Reset");
+            typeField("Search advanced options", "cutoffAtLoadBoundary");
+            clickMessage("Filter");
+            clickMessage("Off");
+            clickMessage("Back to settings");
+            clickMessage("Save");
+            access.reloadConfig();
+            require("true".equals(access.navigationPreferences().get("cutoffAtLoadBoundary")),
+                    "navigation toggle did not survive config reload");
+            require(!access.navigationPreferences().containsKey("jumpPenalty"),
+                    "navigation row Reset did not remove its override");
+
+            openNavigationOptions();
+            typeField("Search advanced options", "cutoffAtLoadBoundary");
+            clickMessage("Filter");
+            clickMessage("Reset");
+            typeField("Search advanced options", "allowDownward");
+            clickMessage("Filter");
+            List<Widget> toggles = widgets().stream()
+                    .filter(widget -> "On".equals(widget.message()) || "Off".equals(widget.message())).toList();
+            require(toggles.size() == 1, "filtered navigation option did not expose exactly one toggle");
+            Widget child = toggles.get(0);
+            require(!child.active(), "navigation child remained enabled with block breaking disabled");
+            String expected = Boolean.parseBoolean(navigationBaseline.getOrDefault("allowDownward", "true")) ? "On" : "Off";
+            require(expected.equals(child.message()), "disabled navigation child lost its stored value");
+            clickMessage("Back to settings");
+            clickMessage("Save");
+            access.reloadConfig();
+            require(access.navigationPreferences().equals(navigationBaseline),
+                    "navigation options differ from their pre-probe values after Reset");
         });
         addInteractive("protected-plots-native-form-resize-persist-prefer-remove", this::runPlotProbe);
         add("all-original-values-restored", () -> {
@@ -495,7 +520,7 @@ public final class SettingsUiVerification {
 
     private void typeField(String label, String text) throws Exception {
         Widget field = fieldContaining(label);
-        require(field.textField(), "plot input is not a native text field: " + label);
+        require(field.textField(), "input is not a native text field: " + label);
         click(field);
         replaceFocusedText(text);
         require(text.equals(fieldContaining(label).text()), "native input differs after typing: " + label);
@@ -584,18 +609,11 @@ public final class SettingsUiVerification {
         click(widget);
     }
 
-    private void clickExactVisibleAcrossPages(String message) throws Exception {
-        for (int page = 0; page < 32; page++) {
-            Widget row = widgets().stream().filter(widget -> message.equals(widget.message())).findFirst().orElse(null);
-            if (row != null) {
-                click(row);
-                return;
-            }
-            Widget next = widgets().stream().filter(widget -> "Next".equals(widget.message())).findFirst().orElse(null);
-            if (next == null || !next.active()) break;
-            click(next);
-        }
-        throw new IllegalStateException("navigation row was not found on any visible page: " + message);
+    private void openNavigationOptions() throws Exception {
+        access.openSettingsScreen();
+        search("navigationPreferences");
+        clickMessage("Filter");
+        clickSetting("navigationPreferences");
     }
 
     private Widget settingWidget(String key) {

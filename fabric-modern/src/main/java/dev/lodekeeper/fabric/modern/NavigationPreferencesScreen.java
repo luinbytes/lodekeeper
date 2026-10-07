@@ -136,6 +136,7 @@ final class NavigationPreferencesScreen extends Screen implements dev.lodekeeper
 
     @Override
     public void onClose() {
+        if (!syncVisibleEditors()) return;
         parent.returnFromPreferences();
     }
 
@@ -288,7 +289,8 @@ final class NavigationPreferencesScreen extends Screen implements dev.lodekeeper
     }
 
     private boolean isEnabled(NavigationPreferenceCatalog.Preference preference) {
-        return preference.parentKey() == null || draft.enabled(preference.parentKey());
+        return preference.parentKey() == null || draft.enabled(preference.parentKey())
+                && Boolean.TRUE.equals(draft.value(preference.parentKey()));
     }
 
     private void refreshResetStates() {

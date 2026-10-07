@@ -35,8 +35,12 @@ final class NavigationSettingsVerification {
             expected.put(settings.failureTimeoutMS, 900L);
             expected.put(settings.planAheadPrimaryTimeoutMS, 600L);
             expected.put(settings.planAheadFailureTimeoutMS, 1800L);
-            expected.put(settings.strictLiquidCheck, true);
-            expected.put(settings.jumpPenalty, 3.5D);
+            Map<String, String> preferences = ConfigRoundTripVerification.nonDefaultPreferences();
+            for (var entry : dev.lodekeeper.core.NavigationPreferenceCatalog.nativeValues(preferences).entrySet()) {
+                var setting = settings.byLowerName.get(entry.getKey().toLowerCase(java.util.Locale.ROOT));
+                if (setting == null) throw new IOException("native navigation option is missing: " + entry.getKey());
+                expected.put(setting, entry.getValue());
+            }
             expected.forEach((setting, value) -> prior.put(setting, setting.value));
             var actions = new PlayerActions(client);
             movement = new MovementController(client, config, actions, new BotInput(client), new GameTerrain(client, config));
@@ -56,7 +60,7 @@ final class NavigationSettingsVerification {
                 config.pathInitialFailureMillis = 900;
                 config.pathContinuationSearchMillis = 600;
                 config.pathContinuationFailureMillis = 1800;
-                config.navigationPreferences = Map.of("strictLiquidCheck", "true", "jumpPenalty", "3.5");
+                config.navigationPreferences = preferences;
                 movement.start(client.player.getBlockPos().add(20, 0, 0), 0);
                 for (var entry : expected.entrySet()) {
                     if (!entry.getValue().equals(entry.getKey().value))
@@ -88,6 +92,7 @@ final class NavigationSettingsVerification {
             receipt = new JsonObject();
             receipt.addProperty("passed", true);
             receipt.addProperty("settingsChecked", expected.size());
+            receipt.addProperty("advancedOptionsChecked", dev.lodekeeper.core.NavigationPreferenceCatalog.entries().size());
             receipt.addProperty("nativeLeaseRestored", true);
             receipt.addProperty("drainTicks", drainTicks);
             receipt.addProperty("scope", "native launch settings and cancellation lease; no movement or hazard traversal claim");
