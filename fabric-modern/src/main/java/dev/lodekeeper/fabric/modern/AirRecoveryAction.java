@@ -8,6 +8,10 @@ import java.util.Set;
 
 /** Breath recovery owns navigation until the player's eyes and air supply recover. */
 final class AirRecoveryAction {
+    interface DiagnosticInput { String diagnosticState(); }
+    private static final int MAX_DIAGNOSTIC_SAMPLES = 16;
+    private static final int MAX_DIAGNOSTIC_ENTITIES = 32;
+    private static final int MAX_DIAGNOSTIC_HOSTILES = 8;
     private enum Phase { IDLE, DRAINING, STOPPING, SWIMMING, ESCAPING, REFILLING }
     private final Minecraft client;
     private final LodekeeperConfig config;
@@ -22,6 +26,8 @@ final class AirRecoveryAction {
     private List<BlockPos> offeredGoals = List.of();
     private List<BlockPos> swimRoute = List.of();
     private int swimIndex;
+    private int diagnosticSamples;
+    private long diagnosticLastSampleAt;
 
     AirRecoveryAction(Minecraft client, LodekeeperConfig config, MovementController movement, BotInput input) {
         this.client = client; this.config = config; this.movement = movement; this.input = input;
@@ -40,10 +46,16 @@ final class AirRecoveryAction {
         ownerPlayer = client.player; ownerWorld = client.level;
         startedAt = progressAt = System.nanoTime();
         attempts = 0; rejected.clear(); phase = Phase.DRAINING;
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0;
         log("begin");
     }
 
     boolean tick() {
+        try { return tickOwned(); }
+        finally { sampleDiagnostics(); }
+    }
+
+    private boolean tickOwned() {
         if (!active()) return true;
         if (ownerPlayer != client.player || ownerWorld != client.level)
             throw new IllegalStateException("player or world changed during air recovery");
@@ -179,6 +191,7 @@ final class AirRecoveryAction {
     void abandon() {
         input.release(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0;
     }
 
     String status() {
@@ -186,11 +199,86 @@ final class AirRecoveryAction {
                 + " · " + client.player.getAirSupply() + "/" + client.player.getMaxAirSupply();
     }
 
+    private void sampleDiagnostics() {
+        try {
+            if (!config.debugLogging || diagnosticSamples >= MAX_DIAGNOSTIC_SAMPLES) return;
+            if (!client.isSameThread() || !active() || client.player == null || client.level == null
+                    || ownerPlayer != client.player || ownerWorld != client.level) return;
+            long now = System.nanoTime();
+            if (diagnosticSamples != 0 && now - diagnosticLastSampleAt < 1_000_000_000L) return;
+            var logger = org.slf4j.LoggerFactory.getLogger("lodekeeper");
+            if (!logger.isInfoEnabled()) return;
+            diagnosticLastSampleAt = now;
+            diagnosticSamples++;
+            var player = client.player;
+            var velocity = player.getDeltaMovement();
+            var eye = player.getEyePosition();
+            var feetCell = player.blockPosition();
+            var feetFluid = client.level.getFluidState(feetCell);
+            var applied = player.input;
+            boolean inputOwned = applied == input;
+            String ownedInputState = "unowned";
+            if (inputOwned) {
+                try {
+                    ownedInputState = (Object) input instanceof DiagnosticInput diagnostic
+                            ? diagnostic.diagnosticState() : "unavailable-api-family";
+                } catch (Throwable failure) {
+                    ownedInputState = "unavailable-" + failure.getClass().getSimpleName();
+                }
+            }
+            BlockPos currentTarget = swimIndex < swimRoute.size() ? swimRoute.get(swimIndex) : null;
+            BlockPos followingTarget = swimIndex + 1 < swimRoute.size() ? swimRoute.get(swimIndex + 1) : null;
+            int inspected = 0, hostiles = 0;
+            StringBuilder nearby = new StringBuilder();
+            String hostileCapability = "loaded-client-entities";
+            try {
+                var entities = client.level.entitiesForRendering().iterator();
+                while (inspected < MAX_DIAGNOSTIC_ENTITIES && hostiles < MAX_DIAGNOSTIC_HOSTILES && entities.hasNext()) {
+                    var entity = entities.next();
+                    inspected++;
+                    if (!(entity instanceof net.minecraft.world.entity.Mob mob)
+                            || !(entity instanceof net.minecraft.world.entity.monster.Enemy) || !mob.isAlive()
+                            || player.distanceToSqr(mob) > 256.0) continue;
+                    var target = mob.getTarget();
+                    if (hostiles++ != 0) nearby.append(';');
+                    nearby.append("uuid=").append(mob.getUUID()).append("/type=").append(mob.getType())
+                            .append("/xyz=").append(mob.getX()).append(',').append(mob.getY()).append(',').append(mob.getZ())
+                            .append("/health=").append(mob.getHealth()).append("/velocity=").append(mob.getDeltaMovement())
+                            .append("/bbox=").append(mob.getBoundingBox())
+                            .append("/clientTargetUuid=").append(target == null ? "none" : target.getUUID())
+                            .append("/clientTargetsPlayer=").append(target == player);
+                }
+            } catch (Throwable failure) {
+                nearby.setLength(0); hostiles = 0;
+                hostileCapability = "unavailable-" + failure.getClass().getSimpleName();
+            }
+            logger.info(
+                    "[Lodekeeper] AIR_SAMPLE sample={} sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase={} action={} actionStartNanos={} movement={} ownerPlayer={} player={} playerUuid={} ownerWorld={} world={} input={} air={} maxAir={} submerged={} waterContact={} onGround={} pose={} health={} feet={},{},{} feetCell={} feetFluidAtCell={} eye={},{},{} velocity={},{},{} horizontalCollision={} verticalCollision={} bbox={} attempts={} elapsedMs={} swimIndex={} routeSize={} currentTarget={} followingTarget={} nativeTarget=unavailable-read-only-api inputOwned={} inputClass={} ownedInputState={} appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability={} hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected={} inspectedCap=32 hostileCount={} hostileCap=8 coverageCapped={} nearbyHostiles={}",
+                    diagnosticSamples, phase, System.identityHashCode(this), startedAt, System.identityHashCode(movement),
+                    System.identityHashCode(ownerPlayer), System.identityHashCode(player), player.getUUID(),
+                    System.identityHashCode(ownerWorld), System.identityHashCode(client.level), System.identityHashCode(input),
+                    player.getAirSupply(), player.getMaxAirSupply(), player.isUnderWater(), player.isInWater(),
+                    player.onGround(), player.getPose(), player.getHealth(), player.getX(), player.getY(), player.getZ(), feetCell, feetFluid,
+                    eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, player.horizontalCollision,
+                    player.verticalCollision, player.getBoundingBox(), attempts, (now - startedAt) / 1_000_000L,
+                    swimIndex, swimRoute.size(), currentTarget, followingTarget,
+                    inputOwned, applied.getClass().getSimpleName(), ownedInputState, hostileCapability, inspected, hostiles,
+                    inspected == MAX_DIAGNOSTIC_ENTITIES || hostiles == MAX_DIAGNOSTIC_HOSTILES, nearby);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void log(String event) {
-        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+        if (!config.debugLogging) return;
+        try {
+            var logger = org.slf4j.LoggerFactory.getLogger("lodekeeper");
+            if (!logger.isInfoEnabled()) return;
+            logger.info(
                 "[Lodekeeper] AIR event={} phase={} air={} maxAir={} submerged={} attempts={} elapsedMs={} swimIndex={} swimSteps={} feet={},{},{}",
                 event, phase, client.player.getAirSupply(), client.player.getMaxAirSupply(), client.player.isUnderWater(),
                 attempts, (System.nanoTime() - startedAt) / 1_000_000L, swimIndex, swimRoute.size(),
                 client.player.getX(), client.player.getY(), client.player.getZ());
+        } catch (Throwable ignored) {
+        }
     }
 }

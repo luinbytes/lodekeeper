@@ -6,7 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 
 /** Owns input only while automation is active; never changes user's key bindings. */
-final class BotInput extends Input {
+final class BotInput extends Input implements AirRecoveryAction.DiagnosticInput {
     private final MinecraftClient client;
     private ClientPlayerEntity owner;
     private Input previous;
@@ -22,6 +22,11 @@ final class BotInput extends Input {
         this.forward = forward; this.sideways = sideways; this.jump = jump; this.sneak = sneak;
     }
     void idle() { drive(0, 0, false, false); }
+    @Override public String diagnosticState() {
+        return "intendedForward=" + forward + ",intendedSideways=" + sideways + ",intendedJump=" + jump + ",intendedSneak=" + sneak
+                + ",appliedForward=" + movementForward + ",appliedSideways=" + movementSideways
+                + ",appliedJump=" + jumping + ",appliedSneak=" + sneaking;
+    }
     void release() {
         idle();
         if (owner != null && owner.input == this) owner.input = previous != null ? previous : new KeyboardInput(client.options);

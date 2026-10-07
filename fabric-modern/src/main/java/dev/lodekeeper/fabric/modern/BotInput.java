@@ -7,7 +7,7 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 
 /** Temporarily owns the player's vanilla input object while one route is executing. */
-final class BotInput extends ClientInput {
+final class BotInput extends ClientInput implements AirRecoveryAction.DiagnosticInput {
     private LocalPlayer owner;
     private ClientInput previous;
     private float forward, sideways;
@@ -33,6 +33,12 @@ final class BotInput extends ClientInput {
     }
 
     void idle() { drive(0, 0, false, false); }
+
+    @Override public String diagnosticState() {
+        return "intendedForward=" + forward + ",intendedSideways=" + sideways + ",intendedJump=" + jump + ",intendedSneak=" + sneak
+                + ",appliedForward=" + getMoveVector().y + ",appliedSideways=" + getMoveVector().x
+                + ",appliedJump=" + keyPresses.jump() + ",appliedSneak=" + keyPresses.shift();
+    }
 
     void release() {
         idle();
