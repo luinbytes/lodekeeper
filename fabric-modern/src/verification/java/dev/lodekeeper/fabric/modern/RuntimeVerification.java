@@ -93,7 +93,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (!List.of("default", "off", "spare", "queued", "iron_short", "planks_short", "worn", "occupied", "manual").contains(SHIELD_SCENARIO)) return true;
         if (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())) return true;
         for (String property : System.getProperties().stringPropertyNames()) {
-            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone", "lodekeeper.verify.shieldScenario").contains(property)) continue;
+            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone", "lodekeeper.verify.shieldScenario", "lodekeeper.verify.candidateSha256").contains(property)) continue;
             if (!"false".equals(System.getProperty(property))) return true;
         }
         return false;

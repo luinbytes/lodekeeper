@@ -28,6 +28,8 @@ The next [matrix at `42fee35`](https://github.com/luinbytes/lodekeeper/actions/r
 
 Local builds of the recovered source pass 159 core checks, 95 navigation checks, 13 primary adapter checks, and three modern adapter checks. The 1.21.1 and 26.3 production jars and verifier sources compile. Their native shield, drag, GUI, and survival runs remain pending.
 
+The [current matrix at `8d7bb68`](https://github.com/luinbytes/lodekeeper/actions/runs/37603417871) includes the recovered storage foundation. Its initial primary, legacy, and latest Yarn jobs passed. Remaining profiles are pending. The first shield attempt failed before world creation because mode validation rejected the runner's mandatory candidate SHA-256 metadata. Both verifiers now allow that identity field. Native shield behavior and original gameplay recording remain unverified; the first recorder attempt also failed before capture.
+
 The nine shield modes and the repeated inventory benchmark remain pending. Repeat the previous native checks with the exact final jars. Do not treat the fixture source as gameplay evidence.
 
 ## Release status

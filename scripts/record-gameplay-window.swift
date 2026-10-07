@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import CoreGraphics
 import Darwin
@@ -274,6 +275,7 @@ func record(_ options: Options, report: Report) async throws {
 
 @main
 struct Main {
+    @MainActor
     static func main() async {
         let arguments = Array(CommandLine.arguments.dropFirst())
         if arguments == ["--help"] || arguments == ["-h"] {
@@ -288,6 +290,7 @@ struct Main {
             guard #available(macOS 15.0, *) else {
                 throw RecorderError(message: "macOS 15 or later is required")
             }
+            NSApplication.shared.setActivationPolicy(.prohibited)
             let watchdog = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
             watchdog.schedule(deadline: .now() + .seconds(options.seconds + 45))
             watchdog.setEventHandler {
