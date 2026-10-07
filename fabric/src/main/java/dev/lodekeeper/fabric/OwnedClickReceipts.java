@@ -5,6 +5,12 @@ import java.util.function.BooleanSupplier;
 
 /** Requests native server echoes only inside a synchronous bot inventory click. */
 public final class OwnedClickReceipts {
+    public interface FullReceiptObserver {
+        boolean contextCurrent();
+        void fullContentsApplied(Receipt receipt);
+        void slotUpdated(int slot, int revision, long sequence);
+        void clickStarted(boolean owned);
+    }
     public interface Receipt {
         long lodekeeper$inputSequence();
         long lodekeeper$contentsSequence();
@@ -15,12 +21,18 @@ public final class OwnedClickReceipts {
         default long lodekeeper$cursorSequence() { return 0; }
         default ItemStack lodekeeper$receivedCursor() { return ItemStack.EMPTY; }
         default int lodekeeper$contentsRevision() { return -1; }
+        default int lodekeeper$contentsSize() { return -1; }
+        default void lodekeeper$watchClick(FullReceiptObserver observer) {
+            throw new IllegalStateException("Native full inventory receipt observation is unavailable");
+        }
+        default void lodekeeper$unwatchClick(FullReceiptObserver observer) {}
     }
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
     private static final class Scope {
         final int containerId;
         final boolean inputEcho;
         boolean claimed;
+        boolean clicking;
         boolean cursorEcho;
         net.minecraft.client.MinecraftClient client;
         net.minecraft.screen.ScreenHandler menu;
@@ -56,7 +68,10 @@ public final class OwnedClickReceipts {
                 scope.inventory = player.getInventory();
             }
             if (!scope.contextCurrent()) throw new IllegalStateException("Owned inventory click changed context");
-            client.interactionManager.clickSlot(containerId, slot, button, type, player);
+            if (scope.clicking) throw new IllegalStateException("Reentrant owned inventory click");
+            scope.clicking = true;
+            try { client.interactionManager.clickSlot(containerId, slot, button, type, player); }
+            finally { scope.clicking = false; }
         }
         finally { if (existing == null) CURRENT.remove(); }
     }
@@ -90,6 +105,10 @@ public final class OwnedClickReceipts {
     static void outputClick(int containerId, Runnable operation) {
         enter(containerId, true);
         try { operation.run(); } finally { CURRENT.remove(); }
+    }
+    public static boolean isOwnedClick(Object handler) {
+        Scope scope = CURRENT.get();
+        return scope != null && scope.menu == handler && scope.contextCurrent();
     }
     public static boolean reconcileCursorContents(int containerId) {
         Scope scope = CURRENT.get();

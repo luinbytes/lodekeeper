@@ -4,28 +4,33 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.DoubleSupplier;
 
-final class SlotTransfer {
+final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     private enum Phase { PICKUP, PLACE, DRAG, RETURN, COMPLETE }
     private static final int MAX_OBSERVATION_TICKS = 40;
     private final Minecraft client;
     private final AbstractContainerMenu menu;
-    private final Object player, world;
+    private final Object player, world, networkHandler, connection, inventory;
     private final int source, destination;
+    private final int[] receiptSlots;
     private final ItemStack expected;
     private final DoubleSupplier consumptionProgress;
     private final int[] dragDestinations;
     private final Runnable beforePickup, beforeDrag;
     private final int[] craftingGridSlots;
     private final ItemStack[] expectedCraftingGrid;
-    private long[] gridBefore;
     private int remaining, pendingAmount, beforeCursor, beforeDestination, sourceCount;
-    private int receiptSlot, receiptSlotCount, receiptCursorCount, observations, outboundRevision;
-    private long contentsBefore, cursorBefore, sourceBefore, destinationBefore;
+    private int receiptSlotCount, receiptCursorCount, observations, outboundRevision;
+    private long contentsBefore;
     private Phase phase = Phase.PICKUP, pending;
     private double beforeConsumptionProgress;
-    private boolean failed;
+    private boolean failed, sending, pendingSent, operating, laterSlotLogged, returnProofLogged;
+    private int consumptionProofLogs;
+    private String failure;
+    private FullClickReceipt<ItemStack> fullReceipt;
 
     SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int destination, int amount) {
         this(client, menu, source, destination, amount, null);
@@ -50,6 +55,9 @@ final class SlotTransfer {
         this.menu = menu;
         this.player = client.player;
         this.world = client.level;
+        this.networkHandler = client.getConnection();
+        this.connection = client.getConnection() == null ? null : client.getConnection().getConnection();
+        this.inventory = client.player == null ? null : client.player.getInventory();
         this.source = source;
         this.destination = destination;
         this.consumptionProgress = consumptionProgress;
@@ -82,15 +90,32 @@ final class SlotTransfer {
             expectedCraftingGrid = null;
         }
         if (amount < 1 || amount > 99 || source == destination) throw new IllegalArgumentException("invalid transfer");
+        receiptSlots = new int[2 + (craftingGridSlots == null ? 0 : craftingGridSlots.length)];
+        receiptSlots[0] = source;
+        receiptSlots[1] = destination;
+        if (craftingGridSlots != null) System.arraycopy(craftingGridSlots, 0, receiptSlots, 2, craftingGridSlots.length);
         remaining = amount;
         expected = menu.getSlot(source).getItem().copy();
     }
 
     boolean tick() {
-        if (failed) throw new IllegalStateException("Transfer failed; cancel or replan after inventory recovery");
+        if (operating) {
+            reject("Reentrant inventory transfer; leaving the container open");
+            throw new IllegalStateException(failure);
+        }
+        operating = true;
+        try { return tickTransfer(); } finally { operating = false; }
+    }
+
+    private boolean tickTransfer() {
+        if (failed) throw new IllegalStateException(failure);
         requireHandler();
         if (pending != null && !observeClick()) return false;
-        if (phase == Phase.COMPLETE) return true;
+        if (phase == Phase.COMPLETE) {
+            requireAcknowledgedState(true);
+            receipt().lodekeeper$unwatchClick(this);
+            return true;
+        }
         if (phase == Phase.PICKUP) {
             if (beforePickup != null) beforePickup.run();
             requireCraftingGrid();
@@ -123,72 +148,134 @@ final class SlotTransfer {
         } else {
             returnCursor();
         }
+        if (phase == Phase.COMPLETE) receipt().lodekeeper$unwatchClick(this);
         return phase == Phase.COMPLETE;
     }
 
-    private boolean observeClick() {
-        OwnedClickReceipts.Receipt receipt = receipt();
-        boolean gridFresh = true;
-        if (craftingGridSlots != null) {
-            for (int index = 0; index < craftingGridSlots.length; index++) {
-                gridFresh &= receipt.lodekeeper$slotSequence(craftingGridSlots[index]) > gridBefore[index];
+    @Override public void fullContentsApplied(OwnedClickReceipts.Receipt receipt) {
+        if (failed || fullReceipt == null) return;
+        try {
+            requireHandler();
+            boolean alreadyAccepted = fullReceipt.accepted() != null;
+            var snapshot = fullSnapshot(receipt);
+            double progress = consumptionProgress == null ? 0 : consumptionProgress.getAsDouble();
+            fullReceipt.applyFull(snapshot, liveSlots(), menu.getCarried(), menu.getStateId(),
+                    receipt == receipt() && contextCurrent(), !sending && (pending == null || pendingSent), progress);
+            if (fullReceipt.failure() != null) {
+                org.slf4j.LoggerFactory.getLogger("lodekeeper").warn(
+                        "[Lodekeeper] INVENTORY_TRANSFER full_rejected phase={} menu={} source={} destination={} contentsSequence={} contentsRevision={} localRevision={} expectedItem={} expectedSlotCount={} expectedCursorCount={} fullSlots={} fullCursor={} reason={}",
+                        pending, menu.containerId, source, destination, snapshot.sequence(), snapshot.revision(), menu.getStateId(),
+                        expected.getItem(), receiptSlotCount, receiptCursorCount, snapshot.slots(), snapshot.cursor(), fullReceipt.failure());
+                reject(fullReceipt.failure() + "; leaving the container open");
+            } else if (!alreadyAccepted && fullReceipt.accepted() != null) {
+                logAcknowledgement(fullReceipt.consumptionConfirmed() ? "full_ack" : "full_consumption_pending");
             }
+        } catch (RuntimeException exception) {
+            reject("Could not validate the owned inventory receipt; leaving the container open: " + exception.getMessage());
         }
-        if (!gridFresh || receipt.lodekeeper$contentsSequence() <= contentsBefore || receipt.lodekeeper$cursorSequence() <= cursorBefore
-                || receipt.lodekeeper$slotSequence(source) <= sourceBefore
-                || receipt.lodekeeper$slotSequence(destination) <= destinationBefore
-                || receipt.lodekeeper$contentsRevision() == outboundRevision) {
+    }
+
+    private FullClickReceipt.Snapshot<ItemStack> fullSnapshot(OwnedClickReceipts.Receipt receipt) {
+        List<ItemStack> slots = new ArrayList<>();
+        List<Long> sequences = new ArrayList<>();
+        for (int slot : receiptSlots) {
+            slots.add(receipt.lodekeeper$receivedContentsSlot(slot));
+            sequences.add(receipt.lodekeeper$slotSequence(slot));
+        }
+        return new FullClickReceipt.Snapshot<>(receipt.lodekeeper$contentsSequence(), receipt.lodekeeper$contentsRevision(),
+                receipt.lodekeeper$cursorSequence(), sequences, slots, receipt.lodekeeper$receivedCursor(), receipt.lodekeeper$contentsSize());
+    }
+
+    private List<ItemStack> liveSlots() {
+        List<ItemStack> slots = new ArrayList<>();
+        for (int slot : receiptSlots) slots.add(menu.getSlot(slot).getItem());
+        return slots;
+    }
+
+    private boolean debugLogging() {
+        return LodekeeperClient.engine != null && LodekeeperClient.engine.config.debugLogging;
+    }
+
+    private void logAcknowledgement(String event) {
+        if (!debugLogging()) return;
+        if (pending == Phase.RETURN) {
+            if (returnProofLogged) return;
+            returnProofLogged = true;
+        } else {
+            if (!fullReceipt.consumptionRequired() || consumptionProofLogs >= 2) return;
+            consumptionProofLogs++;
+        }
+        var acknowledgement = fullReceipt.accepted();
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] INVENTORY_TRANSFER {} phase={} menu={} source={} destination={} expectedItem={} expectedSlotCount={} expectedCursorCount={} fullSlots={} fullCursor={} contentsBefore={} contentsSequence={} outboundRevision={} contentsRevision={} localRevision={} sourceSequence={} cursorSequence={} consumptionRequired={} consumptionConfirmed={} itemComponentsAndLiveMatched=true",
+                event, pending, menu.containerId, source, destination, expected.getItem(), receiptSlotCount, receiptCursorCount,
+                acknowledgement.slots(), acknowledgement.cursor(), contentsBefore, acknowledgement.sequence(),
+                outboundRevision, acknowledgement.revision(), menu.getStateId(), acknowledgement.slotSequences().get(0),
+                acknowledgement.cursorSequence(), fullReceipt.consumptionRequired(), fullReceipt.consumptionConfirmed());
+    }
+
+    @Override public void slotUpdated(int slot, int revision, long sequence) {
+        if (failed || fullReceipt == null || fullReceipt.accepted() == null) return;
+        if (!contextCurrent()) {
+            reject("Container or session changed after inventory acknowledgement; leaving the container open");
+            return;
+        }
+        if (!debugLogging() || laterSlotLogged || pending != Phase.RETURN) return;
+        var acknowledgement = fullReceipt.accepted();
+        int[] watched = receiptSlots;
+        int index = -1;
+        for (int candidate = 0; candidate < watched.length; candidate++) {
+            if (watched[candidate] == slot) { index = candidate; break; }
+        }
+        if (index < 0 || sameContents(acknowledgement.slots().get(index), receipt().lodekeeper$receivedSlot(slot))) return;
+        laterSlotLogged = true;
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] INVENTORY_TRANSFER slot_after_full phase={} menu={} source={} destination={} ackSequence={} ackRevision={} ackSourceSequence={} ackCursorSequence={} ackSlots={} ackCursor={} updatedSlot={} updatedSequence={} updatedRevision={} liveSlot={} consumptionConfirmed={} itemComponentsAndLiveMatchedAtFull=true",
+                pending, menu.containerId, source, destination, acknowledgement.sequence(), acknowledgement.revision(),
+                acknowledgement.slotSequences().get(0), acknowledgement.cursorSequence(), acknowledgement.slots(),
+                acknowledgement.cursor(), slot, sequence, revision, menu.getSlot(slot).getItem(), fullReceipt.consumptionConfirmed());
+    }
+
+    @Override public void clickStarted(boolean owned) {
+        if (!failed && (!owned || !sending || !contextCurrent())) {
+            reject("Another inventory action took over the owned transfer; leaving the container open");
+            if (owned) throw new IllegalStateException(failure);
+        }
+    }
+
+    private void reject(String reason) {
+        if (failed) return;
+        failed = true;
+        failure = reason;
+        if (fullReceipt != null) fullReceipt.reject(reason);
+        if (menu instanceof OwnedClickReceipts.Receipt receipt) receipt.lodekeeper$unwatchClick(this);
+        var acknowledgement = fullReceipt == null ? null : fullReceipt.accepted();
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").warn(
+                "[Lodekeeper] INVENTORY_TRANSFER invalidated phase={} source={} destination={} ackSequence={} reason={}",
+                pending, source, destination, acknowledgement == null ? 0 : acknowledgement.sequence(), reason);
+    }
+
+    private boolean observeClick() {
+        if (failed) throw new IllegalStateException(failure);
+        boolean confirmedBefore = fullReceipt.consumptionConfirmed();
+        FullClickReceipt.Snapshot<ItemStack> acknowledgement;
+        try {
+            double progress = fullReceipt.consumptionRequired() && !confirmedBefore ? consumptionProgress.getAsDouble() : 0;
+            acknowledgement = fullReceipt.observe(progress);
+        } catch (RuntimeException exception) {
+            reject("Could not confirm the owned inventory receipt; leaving the container open: " + exception.getMessage());
+            throw exception;
+        }
+        if (acknowledgement == null) {
             if (++observations >= MAX_OBSERVATION_TICKS)
                 throw new IllegalStateException("Server has not confirmed the issued inventory click; resume to observe it without clicking again");
             return false;
         }
-        ItemStack received = receipt.lodekeeper$receivedSlot(receiptSlot);
-        ItemStack cursor = receipt.lodekeeper$receivedCursor();
-        boolean exactSlot = matchesCount(received, receiptSlotCount);
-        boolean consumedOne = pending == Phase.PLACE && consumptionProgress != null
-                && matchesCount(received, receiptSlotCount - 1)
-                && consumptionProgress.getAsDouble() > beforeConsumptionProgress;
-        if ((!exactSlot && !consumedOne) || !matchesCount(cursor, receiptCursorCount)
-                || !sameContents(received, menu.getSlot(receiptSlot).getItem())
-                || !sameContents(cursor, menu.getCarried())) {
-            failed = true;
-            ItemStack localSlot = menu.getSlot(receiptSlot).getItem();
-            ItemStack localCursor = menu.getCarried();
-            ItemStack contentsSource = receipt.lodekeeper$receivedContentsSlot(receiptSlot);
-            org.slf4j.LoggerFactory.getLogger("lodekeeper").warn(
-                    "[Lodekeeper] INVENTORY_TRANSFER mismatch phase={} source={} destination={} receiptSlot={} expectedItem={} expectedSlotCount={} expectedCursorCount={} receivedItem={} receivedSlotCount={} receivedCursorItem={} receivedCursorCount={} localItem={} localSlotCount={} localCursorItem={} localCursorCount={} outboundRevision={} contentsRevision={} localRevision={} contentsBefore={} contentsSequence={} contentsSourceItem={} contentsSourceCount={} sourceSequence={} cursorSequence={}",
-                    pending, source, destination, receiptSlot, expected.getItem(), receiptSlotCount, receiptCursorCount,
-                    received.getItem(), received.getCount(), cursor.getItem(), cursor.getCount(),
-                    localSlot.getItem(), localSlot.getCount(), localCursor.getItem(), localCursor.getCount(),
-                    outboundRevision, receipt.lodekeeper$contentsRevision(), menu.getStateId(),
-                    contentsBefore, receipt.lodekeeper$contentsSequence(), contentsSource.getItem(), contentsSource.getCount(),
-                    receipt.lodekeeper$slotSequence(source), receipt.lodekeeper$cursorSequence());
-            throw new IllegalStateException("Server rejected or modified the inventory transfer; leaving the container open");
-        }
-        if (craftingGridSlots != null) {
-            for (int index = 0; index < craftingGridSlots.length; index++) {
-                int slot = craftingGridSlots[index];
-                ItemStack receivedGrid = receipt.lodekeeper$receivedSlot(slot);
-                if (!sameContents(receivedGrid, expectedCraftingGrid[index])
-                        || !sameContents(receivedGrid, menu.getSlot(slot).getItem())) {
-                    failed = true;
-                    throw new IllegalStateException("Server rejected or modified the crafting grid; leaving the container open");
-                }
-            }
-            if (!matchesCount(receipt.lodekeeper$receivedSlot(source), pending == Phase.RETURN ? receiptSlotCount : sourceCount)
-                    || !sameContents(receipt.lodekeeper$receivedSlot(source), menu.getSlot(source).getItem())) {
-                failed = true;
-                throw new IllegalStateException("Original inventory slot changed during crafting drag; leaving the container open");
-            }
-        }
+        if (!confirmedBefore && fullReceipt.consumptionConfirmed()) logAcknowledgement("full_ack_consumption_confirmed");
         if (pending == Phase.DRAG) {
             remaining = 0;
             phase = Phase.RETURN;
         } else if (pending == Phase.PLACE) {
-            if (!matchesCount(receipt.lodekeeper$receivedSlot(source), sourceCount)) {
-                failed = true;
-                throw new IllegalStateException("Original inventory slot changed during transfer; leaving the container open");
-            }
             remaining -= pendingAmount;
             pendingAmount = 0;
             phase = remaining == 0 ? Phase.RETURN : Phase.PLACE;
@@ -214,30 +301,41 @@ final class SlotTransfer {
             if (!target.getItem().isEmpty() || !target.mayPlace(cursor) || target.getMaxStackSize(cursor) < 1)
                 throw new IllegalStateException("Crafting drag destination changed; leaving the container open");
         }
-        prepareReceipt(source, sourceCount, cursor.getCount() - dragDestinations.length);
         for (int index = 0; index < craftingGridSlots.length; index++) {
             for (int slot : dragDestinations) {
                 if (craftingGridSlots[index] == slot) expectedCraftingGrid[index] = expected.copyWithCount(1);
             }
         }
-        OwnedClickReceipts.craftingDrag(client, menu.containerId, dragDestinations, client.player);
+        prepareReceipt(sourceCount, cursor.getCount() - dragDestinations.length);
+        sendClick(() -> OwnedClickReceipts.craftingDrag(client, menu.containerId, dragDestinations, client.player));
     }
 
     void recover() {
+        if (operating) {
+            reject("Reentrant inventory recovery; leaving the container open");
+            throw new IllegalStateException(failure);
+        }
+        operating = true;
+        try { recoverTransfer(); } finally { operating = false; }
+    }
+
+    private void recoverTransfer() {
         requireHandler();
         if (pending != null && !observeClick())
             throw new IllegalStateException("Inventory click is still awaiting its server receipt; resume to observe it before returning the cursor");
-        if (failed) throw new IllegalStateException("Inventory transfer changed; inspect the held stack before recovery");
+        if (failed) throw new IllegalStateException(failure);
         phase = Phase.RETURN;
         returnCursor();
         if (pending != null)
             throw new IllegalStateException("Inventory remainder return was issued; resume to observe its server receipt");
+        receipt().lodekeeper$unwatchClick(this);
     }
 
     private void returnCursor() {
         requireCraftingGrid();
         ItemStack cursor = menu.getCarried();
         if (cursor.isEmpty()) {
+            requireAcknowledgedState(remaining == 0);
             phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
             return;
         }
@@ -272,37 +370,88 @@ final class SlotTransfer {
                 && ItemStack.isSameItemSameComponents(left, right);
     }
 
+    private static boolean sameSourceIncrease(ItemStack left, ItemStack right) {
+        return !left.isEmpty() && !right.isEmpty() && right.getCount() > left.getCount() && ItemStack.isSameItemSameComponents(left, right);
+    }
+
     private OwnedClickReceipts.Receipt receipt() {
         if (!(menu instanceof OwnedClickReceipts.Receipt receipt))
             throw new IllegalStateException("Native inventory synchronization is unavailable; nothing further was clicked");
         return receipt;
     }
 
+    @Override public boolean contextCurrent() {
+        return !failed && client.isSameThread() && client.player != null && client.gameMode != null
+                && client.player == player && client.level == world && world != null
+                && client.getConnection() == networkHandler && networkHandler != null
+                && client.getConnection().getConnection() == connection && connection != null
+                && client.player.getInventory() == inventory && client.player.containerMenu == menu;
+    }
+
     private void requireHandler() {
-        if (client.player == null || client.gameMode == null || client.player != player || client.level != world
-                || client.player.containerMenu != menu)
-            throw new IllegalStateException("Container or world changed during transfer");
+        if (!contextCurrent()) {
+            reject("Container, player or world session changed during transfer; leaving the container open");
+            throw new IllegalStateException(failure);
+        }
+    }
+
+    private void requireAcknowledgedState(boolean completing) {
+        requireHandler();
+        if (fullReceipt == null) return;
+        try {
+            double progress = consumptionProgress == null ? 0 : consumptionProgress.getAsDouble();
+            fullReceipt.requireLive(liveSlots(), menu.getCarried(), contextCurrent(), progress, completing);
+        } catch (RuntimeException exception) {
+            reject("Acknowledged inventory changed outside the permitted transfer state; leaving the container open");
+            throw exception;
+        }
+    }
+
+    private void sendClick(Runnable operation) {
+        sending = true;
+        try {
+            operation.run();
+            requireHandler();
+            pendingSent = true;
+        } catch (RuntimeException exception) {
+            reject("Owned inventory click send failed or was interrupted; leaving the container open: " + exception.getMessage());
+            throw exception;
+        } finally { sending = false; }
     }
 
     private void click(int slot, int button, int expectedSlotCount, int expectedCursorCount) {
-        prepareReceipt(slot, expectedSlotCount, expectedCursorCount);
-        OwnedClickReceipts.cursorClick(client, menu.containerId, slot, button, client.player);
+        prepareReceipt(expectedSlotCount, expectedCursorCount);
+        sendClick(() -> OwnedClickReceipts.cursorClick(client, menu.containerId, slot, button, client.player));
     }
 
-    private void prepareReceipt(int slot, int expectedSlotCount, int expectedCursorCount) {
+    private void prepareReceipt(int expectedSlotCount, int expectedCursorCount) {
         if (pending != null) throw new IllegalStateException("An inventory click is already awaiting its receipt");
+        requireAcknowledgedState(false);
         OwnedClickReceipts.Receipt receipt = receipt();
+        receipt.lodekeeper$watchClick(this);
+        pendingSent = false;
         contentsBefore = receipt.lodekeeper$contentsSequence();
-        cursorBefore = receipt.lodekeeper$cursorSequence();
-        sourceBefore = receipt.lodekeeper$slotSequence(source);
-        destinationBefore = receipt.lodekeeper$slotSequence(destination);
+        List<Long> sequences = new ArrayList<>();
+        for (int watched : receiptSlots) sequences.add(receipt.lodekeeper$slotSequence(watched));
+        List<ItemStack> planned = new ArrayList<>();
+        planned.add(expected.copyWithCount(phase == Phase.RETURN ? expectedSlotCount : sourceCount));
+        planned.add(phase == Phase.PLACE ? expected.copyWithCount(expectedSlotCount)
+                : phase == Phase.DRAG ? expected.copyWithCount(1) : menu.getSlot(destination).getItem().copy());
         if (craftingGridSlots != null) {
-            gridBefore = new long[craftingGridSlots.length];
-            for (int index = 0; index < craftingGridSlots.length; index++)
-                gridBefore[index] = receipt.lodekeeper$slotSequence(craftingGridSlots[index]);
+            for (ItemStack stack : expectedCraftingGrid) planned.add(stack.copy());
         }
+        List<ItemStack> consumed = null;
+        if (phase == Phase.PLACE && consumptionProgress != null && expectedSlotCount > 0) {
+            consumed = new ArrayList<>(planned);
+            consumed.set(1, expected.copyWithCount(expectedSlotCount - 1));
+        }
+        var expectation = new FullClickReceipt.Snapshot<>(contentsBefore, menu.getStateId(),
+                receipt.lodekeeper$cursorSequence(), sequences, planned, expected.copyWithCount(expectedCursorCount), menu.slots.size());
+        fullReceipt = phase == Phase.RETURN && fullReceipt != null
+                ? new FullClickReceipt<>(expectation, fullReceipt.carryConsumption(), SlotTransfer::sameContents,
+                        remaining == 0 && expectedCursorCount == 0 ? SlotTransfer::sameSourceIncrease : null)
+                : new FullClickReceipt<>(expectation, consumed, beforeConsumptionProgress, SlotTransfer::sameContents, null);
         outboundRevision = menu.getStateId();
-        receiptSlot = slot;
         receiptSlotCount = expectedSlotCount;
         receiptCursorCount = expectedCursorCount;
         observations = 0;

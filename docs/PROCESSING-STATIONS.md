@@ -14,6 +14,12 @@ The synchronized recipe provider is capped at 4,096 entries, native display expa
 
 Owned stonecutter input deposit and output clicks omit only input slot 0 from the client prediction map. Native servers execute the ordinary click, then reconcile the omitted prediction by sending the authoritative input state. A client-thread, container-ID-matched, single-use scope limits this behavior to those owned clicks; packet maps are copied, and ordinary furnace, drain and user clicks retain their native prediction behavior. Per-menu receipts retain one copied input stack and a sequence; local click prediction cannot generate them. A custom server may implement different reconciliation and still requires acceptance.
 
+## Owned inventory acknowledgements
+
+Main development code captures a full server reply when the native handler applies it. The reply must match the expected source, destination, cursor, watched crafting grid, item components, counts, and current handler revision. It must arrive after the owned click finishes sending, in the same player, world, connection, inventory, and menu. Packet callbacks record evidence and issue no clicks. Later partial updates cannot overwrite the accepted reply.
+
+After an exact final cursor return, same-item, same-component growth in the source slot may complete the transfer. Another click still requires the exact live source and cursor. A cooking destination may lose one planned item only when independent cooking progress proves consumption. An unused allowance carries from placement into cursor return with its original progress baseline. An item already consumed before return spends that allowance. Other changed slots, an unexplained loss, manual takeover, or a replaced session stop the transfer for recovery. Current build and native status are recorded in the [checkpoint](OWNED-PREVIEW-CHECKPOINT.md); these changes are not in Preview 11.
+
 ## Cooking
 
 Lodekeeper maps native smelting, smoking and blasting recipes to their exact furnace, smoker or blast-furnace station. The same station identity travels through recipe capture, planning, placement, opening and execution. Controlled [1.21.1 smoker](evidence/1.21.1-smoker/run.json) and [26.3 blast-furnace](evidence/26.3-blast-furnace/run.json) batches passed; other exact-version runtime checks remain pending. Compilation and source review do not establish gameplay support. Campfires still need a separate executor.

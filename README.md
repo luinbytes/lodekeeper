@@ -121,6 +121,8 @@ The [main matrix at `96e017a`](https://github.com/luinbytes/lodekeeper/actions/r
 
 The [main matrix at `1bd4f5a`](https://github.com/luinbytes/lodekeeper/actions/runs/37692154343) passes all 24 profiles. That source bounds repeated movement credit to 8,192 distinct directed cell edges per logical action. The three approved regressions and 95 existing navigation checks pass. Fresh gameplay verification remains pending, and the physical retreat failure remains unresolved.
 
+Subsequent inventory code validates full server replies when they reach the native handler, before later slot updates can overwrite their evidence. Both primary adapters compile locally and pass 297 checks, including 24 approved inventory receipt regressions. Those tests exercise the production validator and consumption carry; fresh crafting, cooking, interruption, and natural-world verification remain pending. No new gameplay or speed result is claimed.
+
 New verification uses screenshots. The [work-in-progress evidence release](https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence) receives labelled screenshots between previews. Its results apply to the named main commits, separately from Preview 11.
 
 - [Navigation and survival rebuild](docs/NAVIGATION-REBUILD.md)
