@@ -9,34 +9,44 @@ pluginManagement {
 rootProject.name = 'lodekeeper'
 include 'core', 'nav'
 def adapterProfile = providers.gradleProperty('adapter').getOrElse('legacy')
-def ownedKernelPrimary1211 = providers.gradleProperty('owned_kernel_primary_1211').getOrElse('false') == 'true'
-def ownedKernelModern263 = providers.gradleProperty('owned_kernel_modern_263').getOrElse('false') == 'true'
+def minecraftProfile = providers.gradleProperty('minecraft_version').getOrElse('1.20.1')
 def modernApiFamily = providers.gradleProperty('modern_api_family').getOrElse('26.3')
-def minecraftProfile = providers.gradleProperty('minecraft_version').getOrElse('')
-if (ownedKernelPrimary1211 && !(adapterProfile == '1211' && minecraftProfile == '1.21.1')) {
-    throw new GradleException('owned_kernel_primary_1211 is limited to adapter 1211 / Minecraft 1.21.1')
+def primary = adapterProfile == '1211' && ['1.21', '1.21.1'].contains(minecraftProfile)
+def modern = adapterProfile == 'modern'
+def ownedMode = modern ? 'modern' : primary ? 'primary' : 'yarn'
+for (flag in ['owned_kernel_primary_1211', 'owned_kernel_modern', 'owned_kernel_modern_263', 'owned_kernel_yarn']) {
+    def requested = providers.gradleProperty(flag).orNull
+    if (requested == 'false') throw new GradleException('Lodekeeper requires its source-owned navigation kernel')
+    if (requested != null && requested != 'true') throw new GradleException("${flag} must be true when supplied")
 }
-if (ownedKernelModern263 && !(adapterProfile == 'modern' && minecraftProfile == '26.3' && modernApiFamily == '26.3')) {
-    throw new GradleException('owned_kernel_modern_263 is limited to adapter modern / Minecraft 26.3')
+def hostModules = [modern: 'fabric-modern', '1212': 'fabric-1212', '1211': 'fabric-1211',
+                   '1202': 'fabric-1202', legacy: 'fabric']
+def host = hostModules[adapterProfile]
+if (host == null) throw new GradleException('Unknown adapter profile; use scripts/build-version.sh')
+include host
+if (modern) {
+    if (!['26.1', '26.1.1', '26.1.2', '26.2', '26.3'].contains(minecraftProfile)) {
+        throw new GradleException('The modern adapter requires an exact implemented Minecraft profile')
+    }
+    def expectedFamily = minecraftProfile.startsWith('26.1') ? '26.1' : minecraftProfile
+    if (modernApiFamily != expectedFamily) throw new GradleException("Minecraft ${minecraftProfile} requires modern_api_family=${expectedFamily}")
+    include 'owned-kernel-modern'
+    project(':owned-kernel-modern').projectDir = file('owned-kernel/modern' + modernApiFamily)
+} else if (primary) {
+    include 'owned-kernel-primary-1211', 'owned-kernel-primary-1211-hostremap'
+    project(':owned-kernel-primary-1211').projectDir = file('owned-kernel/primary1.21.1')
+    project(':owned-kernel-primary-1211-hostremap').projectDir = file('owned-kernel/primary1.21.1-hostremap')
+} else {
+    def table = new groovy.json.JsonSlurper().parse(file('gradle/owned-kernel-yarn-profiles.json'))
+    def profile = table.profiles[minecraftProfile]
+    if (profile == null || profile.adapter != adapterProfile || profile.host_project_path != ':' + host) {
+        throw new GradleException("No source-owned kernel profile for ${adapterProfile} / Minecraft ${minecraftProfile}")
+    }
+    if (providers.gradleProperty('yarn_mappings').getOrElse('') != profile.yarn_mappings) {
+        throw new GradleException("Minecraft ${minecraftProfile} requires exact Yarn ${profile.yarn_mappings}")
+    }
+    include profile.kernel_project, profile.remap_project
+    project(profile.kernel_project).projectDir = file(profile.kernel_directory)
+    project(profile.remap_project).projectDir = file(profile.remap_directory)
 }
-switch (adapterProfile) {
-    case 'modern':
-        include 'fabric-modern'
-        if (ownedKernelModern263) {
-            include 'owned-kernel-modern-263'
-            project(':owned-kernel-modern-263').projectDir = file('owned-kernel/modern26.3')
-        }
-        break
-    case '1212': include 'fabric-1212'; break
-    case '1211':
-        include 'fabric-1211'
-        if (ownedKernelPrimary1211) {
-            include 'owned-kernel-primary-1211', 'owned-kernel-primary-1211-hostremap'
-            project(':owned-kernel-primary-1211').projectDir = file('owned-kernel/primary1.21.1')
-            project(':owned-kernel-primary-1211-hostremap').projectDir = file('owned-kernel/primary1.21.1-hostremap')
-        }
-        break
-    case '1202': include 'fabric-1202'; break
-    case 'legacy': include 'fabric'; break
-    default: throw new GradleException('Unknown adapter profile; use scripts/build-version.sh')
-}
+gradle.ext.ownedKernelMode = ownedMode

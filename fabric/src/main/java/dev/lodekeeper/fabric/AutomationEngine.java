@@ -218,6 +218,8 @@ final class AutomationEngine {
         final Deque<OwnedStationLedger.StationRecord> remaining;
         final long startedNanos;
         OwnedStationLedger.StationRecord current;
+        boolean incomplete;
+        String incompleteReason;
         CleanupRun(Request request, OwnedStationLedger.Session session,
                    List<OwnedStationLedger.StationRecord> records, long startedNanos) {
             this.startedNanos = startedNanos;
@@ -229,7 +231,11 @@ final class AutomationEngine {
     private record CleanupBudget(long jobToken, OwnedStationLedger.Session session, long startedNanos) { }
     private CleanupBudget cleanupBudget;
     private CleanupRun cleanupRun;
+    private OwnedStationLedger.StationRecord pendingStationPickup;
+    private final Deque<OwnedStationLedger.StationRecord> deferredStationCleanup = new ArrayDeque<>();
     private long cleanedJobToken;
+    private long stationCleanupIncompleteJobToken = -1;
+    private String stationCleanupIncompleteReason;
     final GameTerrain terrain;
     private final MovementController movement;
     private final ExecutorService plannerWorker = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "lodekeeper-planner"); t.setDaemon(true); return t; });
@@ -319,6 +325,7 @@ final class AutomationEngine {
     private int stationPlacementFailures;
     private boolean stationDiscoveryDone;
     private int actionTicks, baseline, verifyTicks, lastObservedCount;
+    private int stationOpenTicks;
     private int inventorySampleTicks, foodCooldown;
     private boolean foodReplanPending, foodAcquisitionPending;
     private Boolean loggedFoodPreparationDeferred;
@@ -356,7 +363,8 @@ final class AutomationEngine {
                         ? placementProvenance.confirmedStationRemovalSequence(cleanupRun.current)
                         : java.util.OptionalLong.empty(),
                 item -> placementProvenance.confirmedInventoryReceipt(
-                        ItemId.parse(Registries.ITEM.getId(item).toString())));
+                        ItemId.parse(Registries.ITEM.getId(item).toString())),
+                placementProvenance::session);
     }
     boolean prepareAutomatedBreak(BlockPos position) { return movement.prepareAutomatedBreak(position); }
     private long allocateJobToken() {
@@ -452,7 +460,7 @@ final class AutomationEngine {
             if (active == null || paused) {
                 stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
                 movement.suspend(); input.release();
-                if (!paused && queue.isEmpty() && maintenanceQueue.isEmpty() && projects.isEmpty()
+                if (config.backfill && !paused && queue.isEmpty() && maintenanceQueue.isEmpty() && projects.isEmpty()
                         && step == null && pendingPlan == null && !openingStation && !transactionInProgress()
                         && !airRecovery.active() && healthRecovery == null && !threats.ready()
                         && movement.backfillIdle() && catalog != null && catalog.ready()
@@ -623,6 +631,16 @@ final class AutomationEngine {
                 }
             }
             if (step == null) return;
+            if (openingStation && ++stationOpenTicks >= 80 && !stationReady()) {
+                if (stationAccessFailures++ >= 3)
+                    throw new IllegalStateException("Required station did not acknowledge opening after repeated attempts");
+                BlockPos unavailable = knownStations.remove(step.station());
+                if (unavailable != null) unreachableStations.add(unavailable);
+                message("Station did not open; trying another station or placement");
+                resetAction();
+                requestPlan();
+                return;
+            }
             if (isFoodPreparation(step) && !config.autoEat) {
                 if (transactionInProgress()) requestActiveTransactionDrain();
                 else {
@@ -1148,7 +1166,7 @@ final class AutomationEngine {
 
     private Map<ItemId, Integer> protectedCounts(Map<ItemId, Integer> counts, ItemId activeTarget) {
         Map<ItemId, Integer> protectedCounts = new TreeMap<>();
-        maintained.reservedCountsFor(activeTarget).forEach((item, count) -> {
+        (activeTarget == null ? maintained.reservedCounts() : maintained.reservedCountsFor(activeTarget)).forEach((item, count) -> {
             int outsideStorage = Math.max(0, actions.heldCount(GameCatalog.item(item)) - actions.count(GameCatalog.item(item)));
             int held = Math.min(counts.getOrDefault(item, 0), Math.max(0, count - outsideStorage));
             if (held > 0) protectedCounts.merge(item, held, Math::max);
@@ -2832,6 +2850,7 @@ final class AutomationEngine {
             if (correct) {
                 if (handler != stationOpeningFrom) ownedStationHandler = handler;
                 openingStation = false;
+                stationOpenTicks = 0;
                 stationOpeningFrom = null;
                 return true;
             }
@@ -2851,6 +2870,7 @@ final class AutomationEngine {
         if (actions.hit(station) == null) { refreshNavigationProtection(); movement.startInteraction(station); moving = true; return false; }
         stationOpeningFrom = handler;
         openingStation = actions.use(station);
+        stationOpenTicks = 0;
         if (!openingStation) stationOpeningFrom = null;
         return false;
     }
@@ -2998,10 +3018,22 @@ final class AutomationEngine {
         if (!config.recoverPlacedStations) { cleanedJobToken = request.jobToken(); return false; }
         var session = placementProvenance.session();
         if (session.isEmpty()) return false;
-        List<OwnedStationLedger.StationRecord> records = placementProvenance.records().stream()
+        List<OwnedStationLedger.StationRecord> records = new ArrayList<>(placementProvenance.records().stream()
                 .filter(record -> record.jobToken() == request.jobToken()
-                        && record.session().equals(session.get())).toList();
+                        && record.session().equals(session.get())).toList());
+        if (pendingStationPickup != null && pendingStationPickup.session().equals(session.get())
+                && stationRecovery.pickupRetained()
+                && placementProvenance.confirmedStationRemoved(pendingStationPickup)
+                && !records.contains(pendingStationPickup)) records.add(0, pendingStationPickup);
+        deferredStationCleanup.removeIf(record -> !record.session().equals(session.get())
+                || !placementProvenance.records().contains(record));
+        for (var record : deferredStationCleanup) if (!records.contains(record)) records.add(record);
+        deferredStationCleanup.clear();
         if (records.isEmpty()) { cleanedJobToken = request.jobToken(); return false; }
+        if (stationCleanupIncompleteJobToken != request.jobToken()) {
+            stationCleanupIncompleteJobToken = -1;
+            stationCleanupIncompleteReason = null;
+        }
         resetAction();
         pendingPlan = null;
         if (cleanupBudget == null || cleanupBudget.jobToken() != request.jobToken()
@@ -3017,14 +3049,27 @@ final class AutomationEngine {
         CleanupRun cleanup = cleanupRun;
         if (cleanup == null || cleanup.current == null || active != cleanup.request
                 || !position.equals(stationPosition(cleanup.current))
-                || cleanup.current.jobToken() != cleanup.request.jobToken()
                 || !placementProvenance.session().filter(cleanup.session::equals).isPresent()
-                || !placementProvenance.records().contains(cleanup.current)) return false;
+                || !(placementProvenance.records().contains(cleanup.current)
+                        || cleanup.current.equals(pendingStationPickup) && stationRecovery.pickupRetained()
+                        && placementProvenance.confirmedStationRemoved(cleanup.current))) return false;
         return protection.mayBreak(position);
     }
 
     private void stopStationCleanup() {
         stationRecovery.stop();
+        if (stationRecovery.pickupRetained() && cleanupRun != null && cleanupRun.current != null)
+            pendingStationPickup = cleanupRun.current;
+        else if (cleanupRun != null && cleanupRun.current != null
+                && cleanupRun.current.equals(pendingStationPickup)) pendingStationPickup = null;
+        if (cleanupRun != null) {
+            if (cleanupRun.current != null && placementProvenance.records().contains(cleanupRun.current)
+                    && !deferredStationCleanup.contains(cleanupRun.current))
+                deferredStationCleanup.addLast(cleanupRun.current);
+            for (var record : cleanupRun.remaining)
+                if (placementProvenance.records().contains(record) && !deferredStationCleanup.contains(record))
+                    deferredStationCleanup.addLast(record);
+        }
         cleanupRun = null;
     }
 
@@ -3037,12 +3082,20 @@ final class AutomationEngine {
         }
         if (!config.recoverPlacedStations) {
             message("Owned station recovery was disabled; remaining stations were left in place");
+            cleanup.incomplete = true;
+            cleanup.incompleteReason = "station recovery was disabled";
             completeStationCleanup(cleanup);
             return;
         }
         if (System.nanoTime() - cleanup.startedNanos >= 60_000_000_000L) {
             message("Owned station cleanup reached its 60 second limit; remaining stations were left in place");
+            cleanup.incomplete = true;
+            cleanup.incompleteReason = "the 60 second cleanup limit was reached";
             completeStationCleanup(cleanup);
+            return;
+        }
+        if (stationRecovery.pickupIncomplete() && cleanup.current != null) {
+            skipCleanupStation(cleanup, stationRecovery.status());
             return;
         }
         if (stationRecovery.active()) {
@@ -3051,6 +3104,7 @@ final class AutomationEngine {
                 if (stationRecovery.tick()) {
                     var recovered = cleanup.current;
                     placementProvenance.recovered(recovered);
+                    if (recovered.equals(pendingStationPickup)) pendingStationPickup = null;
                     org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                             "[Lodekeeper] OWNED_STATION_RECOVERED job={} position={}",
                             cleanup.request.jobToken(), stationPosition(recovered));
@@ -3104,16 +3158,32 @@ final class AutomationEngine {
     }
 
     private void skipCleanupStation(CleanupRun cleanup, String reason) {
+        cleanup.incomplete = true;
+        cleanup.incompleteReason = reason.length() > 180 ? reason.substring(0, 180) : reason;
+        if (stationRecovery.pickupRetained()) pendingStationPickup = cleanup.current;
+        else {
+            if (cleanup.current.equals(pendingStationPickup)) pendingStationPickup = null;
+            if (placementProvenance.records().contains(cleanup.current)
+                    && !deferredStationCleanup.contains(cleanup.current)) deferredStationCleanup.addLast(cleanup.current);
+        }
         message("Owned station left at " + stationPosition(cleanup.current) + ": " + reason);
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] OWNED_STATION_LEFT job={} position={} reason={}",
                 cleanup.request.jobToken(), stationPosition(cleanup.current), reason);
+        if (stationRecovery.pickupRetained()) {
+            completeStationCleanup(cleanup);
+            return;
+        }
         stationRecovery.stop();
         cleanup.current = null;
     }
 
     private void completeStationCleanup(CleanupRun cleanup) {
         cleanedJobToken = cleanup.request.jobToken();
+        if (cleanup.incomplete) {
+            stationCleanupIncompleteJobToken = cleanup.request.jobToken();
+            stationCleanupIncompleteReason = cleanup.incompleteReason;
+        }
         stopStationCleanup();
         observeInventory();
         finishGoal();
@@ -3130,19 +3200,30 @@ final class AutomationEngine {
         observeInventory();
         if (wholeJobSatisfied(finished) && beginStationCleanup(finished)) return;
         active = null; pendingPlan = null; resetAction(); status = "idle";
+        String cleanupWarning = stationCleanupWarning(finished);
         if (finished.maintained()) {
             scheduleMaintenanceRequests(maintained.complete(finished.maintenanceTaskId(), observedInventory));
-            message("Maintained target reached: " + finished.item() + " " + observedInventory.getOrDefault(finished.item(), 0) + "/" + finished.count());
+            message("Maintained target reached: " + finished.item() + " "
+                    + observedInventory.getOrDefault(finished.item(), 0) + "/" + finished.count()
+                    + cleanupWarning);
         } else if (finished.project() != null && !finished.project().aborted) {
-            completeProjectGoal(finished.project(), finished.item());
+            completeProjectGoal(finished.project(), finished.item(), cleanupWarning);
         } else if (finished.project() != null) {
-            message("Completed project item target: " + finished.item() + " " + finished.count());
+            message("Completed project item target: " + finished.item() + " " + finished.count()
+                    + cleanupWarning);
         } else {
-            message("Complete: " + finished.count() + " × " + finished.name());
+            message((cleanupWarning.isEmpty() ? "Complete: " : "Inventory target reached: ")
+                    + finished.count() + " × " + finished.name() + cleanupWarning);
         }
     }
 
-    private void completeProjectGoal(ProjectRun run, ItemId completedItem) {
+    private String stationCleanupWarning(Request request) {
+        if (stationCleanupIncompleteJobToken != request.jobToken()) return "";
+        return "; owned station cleanup incomplete: " + stationCleanupIncompleteReason
+                + ". Retry owned station cleanup in a later job within this server session";
+    }
+
+    private void completeProjectGoal(ProjectRun run, ItemId completedItem, String cleanupWarning) {
         if (run.aborted || !projects.contains(run)) return;
         run.pending.remove(completedItem);
         if (!run.pending.isEmpty()) return;
@@ -3151,7 +3232,8 @@ final class AutomationEngine {
                 .filter(goal -> observedInventory.getOrDefault(goal.getKey(), 0) < goal.getValue()).toList();
         if (missing.isEmpty()) {
             projects.remove(run);
-            message("Project complete: " + run.spec.name() + " (all " + run.spec.goals().size() + " inventory targets are present)");
+            message((cleanupWarning.isEmpty() ? "Project complete: " : "Project inventory targets reached: ") + run.spec.name() + " (all " + run.spec.goals().size()
+                    + " inventory targets are present)" + cleanupWarning);
             return;
         }
         if (run.reconciliationPasses >= MAX_PROJECT_RECONCILIATIONS
@@ -3171,7 +3253,7 @@ final class AutomationEngine {
                     goal.getValue(), false, null, run));
         }
         message("Rechecking project " + run.spec.name() + " after inventory changed (pass "
-                + run.reconciliationPasses + "/" + MAX_PROJECT_RECONCILIATIONS + ")");
+                + run.reconciliationPasses + "/" + MAX_PROJECT_RECONCILIATIONS + ")" + cleanupWarning);
     }
 
     private void abortProject(ProjectRun run) {
@@ -3260,7 +3342,7 @@ final class AutomationEngine {
         try { movement.stop(); }
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
-            crafting = null; stonecutting = null; smelting = null; openingStation = false; moving = false; movingPickup = false;
+            crafting = null; stonecutting = null; smelting = null; openingStation = false; stationOpenTicks = 0; moving = false; movingPickup = false;
             step = null; stepAuxiliaryInvestment = false; scan = null; localGatherReachScan = null;
             target = null; stationApproachTarget = null; verifyTicks = 0;
             clearGatherAttempt();

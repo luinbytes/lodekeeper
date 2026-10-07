@@ -359,7 +359,7 @@ public final class AutomationSettingsScreen extends Screen implements dev.lodeke
 
     private String helpText(SettingSpec spec) {
         String help = spec.key().equals("navigationPreferences")
-                ? "Add or remove profile key/value entries. The editor limits the list to 128 entries, keys to 64 characters, and values to 128 characters."
+                ? "Choose from the bounded catalog of native movement and pathing options. Each override uses its listed type and range, applies only during navigation, and restores the native value when the task ends. Unsupported saved entries are ignored and removed when settings are saved."
                 : spec.help();
         if (spec.parentKey() == null) return help;
         String parentLabel = draft.specs().stream().filter(candidate -> candidate.key().equals(spec.parentKey()))

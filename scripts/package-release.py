@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect exact CI artifacts and stage a release package."""
+"""Validate receipt-bound Lodekeeper jars and stage a release directory."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import argparse
 import hashlib
 import io
 import json
+import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -22,25 +24,23 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_NAME = "Build and regression checks"
 REPOSITORY = "luinbytes/lodekeeper"
+WORKFLOW_PATH = ".github/workflows/build.yml"
+PROFILE_TABLE_PATH = "gradle/owned-kernel-yarn-profiles.json"
 PROFILE_MODULES = {"fabric", "fabric-1202", "fabric-1211", "fabric-1212", "fabric-modern"}
-SOURCE_FILES = (
-    "third-party/baritone/dependencies.json",
-    "third-party/baritone/mining-bridge.json",
+PRIMARY_VERSIONS = {"1.21", "1.21.1"}
+MODERN_FAMILIES = {
+    "26.1": ("26.1", {"26.1", "26.1.1", "26.1.2"}),
+    "26.2": ("26.2", {"26.2"}),
+    "26.3": ("26.3", {"26.3"}),
+}
+LICENSE_FILES = (
     "third-party/baritone/NOTICE.md",
     "third-party/baritone/licenses/COPYING",
     "third-party/baritone/licenses/COPYING.LESSER",
-    "gradle/baritone.gradle",
-    "scripts/fetch-baritone.py",
-    "scripts/inspect-baritone-mining.py",
+    "third-party/baritone/dependencies.json",
 )
-EMBEDDED_FILES = {
-    "third-party/baritone/dependencies.json": "META-INF/licenses/baritone/dependencies.json",
-    "third-party/baritone/mining-bridge.json": "META-INF/lodekeeper/baritone/mining-bridge.json",
-    "third-party/baritone/NOTICE.md": "META-INF/licenses/baritone/NOTICE.md",
-    "third-party/baritone/licenses/COPYING": "META-INF/licenses/baritone/COPYING",
-    "third-party/baritone/licenses/COPYING.LESSER": "META-INF/licenses/baritone/COPYING.LESSER",
-    "scripts/inspect-baritone-mining.py": "META-INF/lodekeeper/baritone/inspect-baritone-mining.py",
-}
+PROVENANCE_ROOT = "META-INF/lodekeeper/owned-kernel/"
+LICENSE_ROOT = "META-INF/licenses/baritone/"
 PROFILE_PATTERN = re.compile(
     r"(?m)^\s*- minecraft: '([^']+)'\s*\n"
     r"\s+java: '([0-9]+)'\s*\n"
@@ -50,6 +50,22 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 CI_ARTIFACT_DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 SOURCE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 JAVA_CLASS_MAJOR = {17: 61, 21: 65, 25: 69}
+EXPECTED_SOURCE_FAMILIES = 14
+EXPECTED_PROFILE_TARGETS = {
+    "1.20": (17, "fabric"), "1.20.1": (17, "fabric"),
+    "1.20.2": (17, "fabric-1202"), "1.20.3": (17, "fabric-1202"),
+    "1.20.4": (17, "fabric-1202"),
+    "1.20.5": (21, "fabric-1211"), "1.20.6": (21, "fabric-1211"),
+    "1.21": (21, "fabric-1211"), "1.21.1": (21, "fabric-1211"),
+    "1.21.2": (21, "fabric-1212"), "1.21.3": (21, "fabric-1212"),
+    "1.21.4": (21, "fabric-1212"), "1.21.5": (21, "fabric-1212"),
+    "1.21.6": (21, "fabric-1212"), "1.21.7": (21, "fabric-1212"),
+    "1.21.8": (21, "fabric-1212"), "1.21.9": (21, "fabric-1212"),
+    "1.21.10": (21, "fabric-1212"), "1.21.11": (21, "fabric-1212"),
+    "26.1": (25, "fabric-modern"), "26.1.1": (25, "fabric-modern"),
+    "26.1.2": (25, "fabric-modern"), "26.2": (25, "fabric-modern"),
+    "26.3": (25, "fabric-modern"),
+}
 
 
 class PackageError(Exception):
@@ -64,35 +80,53 @@ class Profile:
 
 
 @dataclass(frozen=True)
+class KernelFamily:
+    key: str
+    project_path: str
+    project_dir: str
+    lock_path: str
+    override_manifest: str
+    override_dir: str
+    java_release: int | None
+
+
+@dataclass(frozen=True)
+class KernelPin:
+    family: KernelFamily
+    lock: dict[str, Any]
+    lock_bytes: bytes
+    override_bytes: bytes
+    override_sha256: str
+    override_entries: dict[str, str]
+
+
+@dataclass(frozen=True)
 class SourceSnapshot:
     commit: str
     mod_version: str
     profiles: tuple[Profile, ...]
+    families: dict[str, KernelPin]
+    profile_families: dict[str, str]
     source_files: dict[str, bytes]
     module_manifests: dict[str, dict[str, Any]]
-    dependencies: dict[str, Any]
-    bridge: dict[str, Any]
-    gradle_sha256: str
-    fetch_script_sha256: str
+    table: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class ArtifactInspection:
     profile: Profile
+    family: KernelPin
     source_path: Path
     jar_name: str
     sha256: str
     archive_sha: str
-    digest_matches_ci_receipt: bool
     adapter_class_major: int
     core_class_major: int
     navigation_class_major: int
     refmaps: tuple[str, ...]
-    baritone_version: str
-    baritone_sha256: str
-    baritone_class_majors: tuple[int, ...]
-    baritone_nested_libraries: tuple[str, ...]
-    bridge_sha256: str
+    source_manifest_sha256: str
+    generated_source_count: int
+    mixin_class_count: int
 
 
 def require(condition: bool, message: str) -> None:
@@ -113,7 +147,7 @@ def git_bytes(*args: str) -> bytes:
         detail = getattr(error, "stderr", b"")
         if isinstance(detail, bytes):
             detail = detail.decode("utf-8", errors="replace").strip()
-        raise PackageError(f"Cannot read source commit with git {args[0]}: {detail or error}") from error
+        raise PackageError(f"Cannot read exact source snapshot with git {args[0]}: {detail or error}") from error
     return result.stdout
 
 
@@ -141,215 +175,410 @@ def parse_profiles(workflow: bytes) -> tuple[Profile, ...]:
     profiles = tuple(Profile(mc, int(java), module) for mc, java, module in PROFILE_PATTERN.findall(text))
     require(len(profiles) == 24, f"Source workflow defines {len(profiles)} adapter profiles, expected 24")
     require(len({profile.minecraft for profile in profiles}) == 24, "Source workflow has duplicate Minecraft profiles")
-    unknown = sorted({profile.module for profile in profiles} - PROFILE_MODULES)
-    require(not unknown, f"Source workflow names unexpected Fabric modules: {unknown}")
-    require({profile.module for profile in profiles} == PROFILE_MODULES, "Source workflow does not cover all five production modules")
+    require({profile.minecraft: (profile.java, profile.module) for profile in profiles}
+            == EXPECTED_PROFILE_TARGETS,
+            "Source workflow does not match the exact 24-profile release matrix")
+    require({profile.module for profile in profiles} == PROFILE_MODULES,
+            "Source workflow does not cover the exact five production modules")
     for profile in profiles:
         require(profile.java in JAVA_CLASS_MAJOR, f"Unsupported Java {profile.java} in profile {profile.minecraft}")
     return profiles
 
 
-def require_source_packaging_policy(source_files: dict[str, bytes]) -> None:
-    gradle = source_files["gradle/baritone.gradle"].decode("utf-8")
-    gradle_requirements = (
-        "rootProject.file('third-party/baritone/dependencies.json')",
-        "dependencies.add('include', baritoneCoordinate)",
-        "matches = metadata.supported.findAll { it.jarSha256 == jarSha }",
-        "rootProject.file('third-party/baritone/NOTICE.md')",
-        "rootProject.file('third-party/baritone/licenses')",
-        "from(baritoneMetadataFile)",
-        "from(bridgeMetadataFile)",
-        "rename { 'mining-bridge.json' }",
-    )
-    for fragment in gradle_requirements:
-        require(fragment in gradle, f"Source Gradle packaging policy is missing {fragment!r}")
+def safe_git_path(path: str, label: str) -> None:
+    value = PurePosixPath(path)
+    require(path and not re.match(r"^[A-Za-z]:", path) and "\\" not in path
+            and value.as_posix() == path and not value.is_absolute()
+            and all(part not in {"", ".", ".."} for part in value.parts),
+            f"Unsafe {label} path {path!r}")
 
-    fetcher = source_files["scripts/fetch-baritone.py"].decode("utf-8")
-    for fragment in ('"sha256"', 'actual_digest != release["sha256"]', 'metadata.get("minecraft_profiles")'):
-        require(fragment in fetcher, f"Source Baritone fetcher is missing pin check {fragment!r}")
+
+def list_source_files(commit: str, path: str) -> set[str]:
+    if path != ".":
+        safe_git_path(path, "Git source")
+    output = git_bytes("ls-tree", "-r", "-z", "--name-only", commit, "--", path)
+    result = set()
+    for raw in output.split(b"\0"):
+        if not raw:
+            continue
+        name = raw.decode("utf-8")
+        safe_git_path(name, "Git source")
+        result.add(name)
+    return result
+
+
+def parse_override_manifest(data: bytes, label: str) -> dict[str, str]:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise PackageError(f"{label} is not UTF-8: {error}") from error
+    entries: dict[str, str] = {}
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if not line:
+            continue
+        match = re.fullmatch(r"([0-9a-f]{64})  (.+)", line)
+        require(match is not None, f"{label}:{line_number} has an invalid SHA-256 entry")
+        digest, path = match.groups()
+        safe_git_path(path, label)
+        require(path not in entries, f"{label} has duplicate path {path}")
+        entries[path] = digest
+    require(bool(entries), f"{label} is empty")
+    return entries
+
+
+def parse_lock(commit: str, family: KernelFamily) -> KernelPin:
+    lock_path = f"{family.project_dir}/{family.lock_path}"
+    override_path = f"{family.project_dir}/{family.override_manifest}"
+    lock_bytes = source_file(commit, lock_path)
+    lock = parse_json(lock_bytes, f"{family.key} source-lock.json")
+    override_bytes = source_file(commit, override_path)
+    entries = parse_override_manifest(override_bytes, override_path)
+    override_hash = sha256(override_bytes)
+
+    source_commit = str(lock.get("source_commit", ""))
+    archive_hash = str(lock.get("archive_sha256", ""))
+    source_root = str(lock.get("source_root", ""))
+    archive_filename = str(lock.get("archive_filename", ""))
+    archive_url = str(lock.get("archive_url", ""))
+    repository = str(lock.get("repository", ""))
+    require(SOURCE_COMMIT_PATTERN.fullmatch(source_commit) is not None,
+            f"{family.key} has no full upstream source commit")
+    require(SHA256_PATTERN.fullmatch(archive_hash) is not None,
+            f"{family.key} has an invalid upstream archive SHA-256")
+    require(repository == "https://github.com/cabaletta/baritone",
+            f"{family.key} has an unexpected upstream repository {repository!r}")
+    require(source_root == f"baritone-{source_commit}",
+            f"{family.key} upstream source root does not match its exact source commit")
+    require(archive_filename == f"baritone-{lock.get('baritone_version')}-{source_commit}.tar.gz",
+            f"{family.key} archive filename does not identify its pinned source")
+    require(archive_url.endswith(f"/{source_commit}.tar.gz"),
+            f"{family.key} archive URL does not identify its pinned source")
+    dependency_metadata = lock.get("dependency_metadata")
+    if dependency_metadata is not None:
+        metadata_path = posixpath.normpath(posixpath.join(family.project_dir, str(dependency_metadata)))
+        require(metadata_path == "third-party/baritone/dependencies.json",
+                f"{family.key} dependency metadata path is unexpected")
+        metadata_hash = lock.get("dependency_metadata_sha256")
+        require(SHA256_PATTERN.fullmatch(str(metadata_hash or "")) is not None
+                and sha256(source_file(commit, metadata_path)) == metadata_hash,
+                f"{family.key} dependency metadata SHA-256 does not match its source lock")
+    require(entries and all(SHA256_PATTERN.fullmatch(value) for value in entries.values()),
+            f"{family.key} has invalid override hashes")
+
+    expected_manifest_hash = (
+        lock.get("override_manifest_sha256")
+        or (lock.get("effective_lifecycle_overrides") or {}).get("manifest_sha256")
+    )
+    if expected_manifest_hash is not None:
+        require(expected_manifest_hash == override_hash,
+                f"{family.key} source-lock override manifest SHA-256 does not match")
+
+    override_tree_path = f"{family.project_dir}/{family.override_dir}"
+    tracked_override_files = list_source_files(commit, override_tree_path)
+    expected_override_files = {f"{override_tree_path}/{path}" for path in entries}
+    require(tracked_override_files == expected_override_files,
+            f"{family.key} override manifest file set does not match its exact source tree")
+    for path, expected_hash in entries.items():
+        content = source_file(commit, f"{override_tree_path}/{path}")
+        require(sha256(content) == expected_hash,
+                f"{family.key} override hash mismatch for {path}")
+
+    return KernelPin(family, lock, lock_bytes, override_bytes, override_hash, entries)
+
+
+def load_families(commit: str, table: dict[str, Any]) -> dict[str, KernelPin]:
+    family_table = table.get("families")
+    require(isinstance(family_table, dict) and len(family_table) == 10,
+            "Yarn profile table must contain exactly ten owned source families")
+    families: dict[str, KernelFamily] = {}
+    for key, row in family_table.items():
+        require(isinstance(row, dict), f"Invalid Yarn family record {key}")
+        families[key] = KernelFamily(
+            key=key,
+            project_path=str(row.get("project_path", "")),
+            project_dir=str(row.get("project_dir", "")),
+            lock_path=str(row.get("lock_path", "")),
+            override_manifest=str(row.get("override_manifest", "")),
+            override_dir=str(row.get("override_dir", "")),
+            java_release=int(row.get("java_release", 0)),
+        )
+        for field in (families[key].project_dir, families[key].lock_path,
+                      families[key].override_manifest, families[key].override_dir):
+            safe_git_path(field, f"{key} family")
+    families["primary1.21.1"] = KernelFamily(
+        "primary1.21.1", ":owned-kernel-primary-1211", "owned-kernel/primary1.21.1",
+        "source-lock.json", "lifecycle-overrides.sha256", "lifecycle-overrides", 21
+    )
+    for key, (directory, _) in MODERN_FAMILIES.items():
+        project = f"owned-kernel/modern{directory}"
+        families[f"modern{directory}"] = KernelFamily(
+            f"modern{directory}", f":owned-kernel-modern{directory.replace('.', '')}", project,
+            "source-lock.json", "overrides/lifecycle-overrides.sha256",
+            "overrides/lifecycle-overrides", 25
+        )
+
+    require(len(families) == EXPECTED_SOURCE_FAMILIES,
+            f"Expected {EXPECTED_SOURCE_FAMILIES} owned source families, found {len(families)}")
+    return {key: parse_lock(commit, family) for key, family in families.items()}
+
+
+def profile_family(profile: Profile, table: dict[str, Any], families: dict[str, KernelPin]) -> str:
+    if profile.minecraft in table.get("profiles", {}):
+        row = table["profiles"][profile.minecraft]
+        key = row.get("source_family")
+        require(key in table["families"], f"No Yarn source family for {profile.minecraft}")
+        require(row.get("host_project_path") == f":{profile.module}",
+                f"{profile.minecraft} workflow adapter differs from the owned Yarn profile table")
+        family = table["families"][key]
+        require(row.get("kernel_project") == family.get("project_path")
+                and row.get("kernel_directory") == family.get("project_dir"),
+                f"{profile.minecraft} Yarn family project does not match the owned profile table")
+        require(int(family.get("java_release", -1)) == profile.java,
+                f"{profile.minecraft} workflow Java differs from its owned Yarn family")
+        pin = families[str(key)]
+        supported = pin.lock.get("minecraft_versions", [pin.lock.get("minecraft_version")])
+        require(profile.minecraft in supported,
+                f"{profile.minecraft} is absent from its exact upstream source lock")
+        return str(key)
+    if profile.minecraft in PRIMARY_VERSIONS:
+        require(profile.module == "fabric-1211" and profile.java == 21,
+                f"{profile.minecraft} is not assigned to the primary 1.21 kernel")
+        return "primary1.21.1"
+    for family_key, (_, versions) in MODERN_FAMILIES.items():
+        if profile.minecraft in versions:
+            require(profile.module == "fabric-modern" and profile.java == 25,
+                    f"{profile.minecraft} is not assigned to its modern owned kernel")
+            key = f"modern{family_key}"
+            pin = families[key]
+            supported = pin.lock.get("minecraft_versions", [pin.lock.get("minecraft_version")])
+            require(profile.minecraft in supported,
+                    f"{profile.minecraft} is absent from its exact upstream source lock")
+            return key
+    raise PackageError(f"No owned source family supports workflow profile {profile.minecraft}")
 
 
 def load_source_snapshot(commit: str, requested_version: str) -> SourceSnapshot:
-    require(SOURCE_COMMIT_PATTERN.fullmatch(commit) is not None, "source40 must be a full lowercase 40-character commit SHA")
+    require(SOURCE_COMMIT_PATTERN.fullmatch(commit) is not None,
+            "source40 must be a full lowercase 40-character commit SHA")
     git_bytes("cat-file", "-e", f"{commit}^{{commit}}")
-    workflow = source_file(commit, ".github/workflows/build.yml")
-    profiles = parse_profiles(workflow)
+    profiles = parse_profiles(source_file(commit, WORKFLOW_PATH))
+    table = parse_json(source_file(commit, PROFILE_TABLE_PATH), "owned-kernel Yarn profile table")
+    require(table.get("schema_version") == 1, "Unsupported owned-kernel profile table schema")
+    families = load_families(commit, table)
+    profile_families = {
+        profile.minecraft: profile_family(profile, table, families) for profile in profiles
+    }
+    require(len(profiles) == 24, "Source profile table must preserve all 24 CI profiles")
+    require(len({profile_families[p.minecraft] for p in profiles}) == 14,
+            "The exact CI profile set must cover all fourteen source families")
 
-    source_files = {path: source_file(commit, path) for path in SOURCE_FILES}
-    require_source_packaging_policy(source_files)
-    dependencies = parse_json(source_files["third-party/baritone/dependencies.json"], "Baritone dependency ledger")
-    bridge = parse_json(source_files["third-party/baritone/mining-bridge.json"], "Baritone bridge metadata")
-    require(dependencies.get("schema_version") == 1, "Unsupported Baritone dependency ledger schema")
-    require(bridge.get("schema_version") == 1, "Unsupported Baritone bridge metadata schema")
-    releases = dependencies.get("releases")
-    require(isinstance(releases, list) and all(isinstance(item, dict) for item in releases),
-            "Baritone dependency ledger releases must be a list of objects")
+    source_files = {path: source_file(commit, path) for path in LICENSE_FILES}
+    for path in LICENSE_FILES:
+        require(bool(source_files[path]), f"Required upstream notice/license file is empty: {path}")
+    dependencies = parse_json(source_files["third-party/baritone/dependencies.json"],
+                              "Baritone dependency metadata")
+    require(dependencies.get("schema_version") == 1, "Unsupported Baritone dependency metadata schema")
 
     properties = source_file(commit, "gradle.properties").decode("utf-8")
-    version_matches = re.findall(r"(?m)^mod_version=([^\s#]+)\s*$", properties)
-    require(len(version_matches) == 1, "Source gradle.properties must define one mod_version")
-    require(version_matches[0] == requested_version, f"Requested mod version {requested_version} differs from source {version_matches[0]}")
+    versions = re.findall(r"(?m)^mod_version=([^\s#]+)\s*$", properties)
+    require(len(versions) == 1 and versions[0] == requested_version,
+            f"Requested mod version {requested_version} does not match source snapshot")
 
-    module_manifests = {}
+    module_manifests: dict[str, dict[str, Any]] = {}
     for module in sorted(PROFILE_MODULES):
         path = f"{module}/src/main/resources/fabric.mod.json"
         module_manifests[module] = parse_json(source_file(commit, path), path)
-    descriptions = [manifest.get("description") for manifest in module_manifests.values()]
-    require(all(isinstance(value, str) and value.strip() for value in descriptions)
-            and len(set(descriptions)) == 1,
-            "Production Fabric descriptors must share one nonempty description")
-
-    profile_pins = dependencies.get("minecraft_profiles")
-    require(isinstance(profile_pins, dict), "Baritone dependency ledger has no Minecraft profile map")
-    for profile in profiles:
-        require(profile.minecraft in profile_pins, f"No pinned Baritone release for Minecraft {profile.minecraft}")
-        release_version = profile_pins[profile.minecraft]
-        releases = [item for item in dependencies.get("releases", []) if item.get("version") == release_version]
-        require(len(releases) == 1, f"Expected one Baritone ledger entry for {release_version}")
-        release = releases[0]
-        require(profile.minecraft in release.get("minecraft_versions", []),
-                f"Baritone {release_version} does not list Minecraft {profile.minecraft}")
-        require(SHA256_PATTERN.fullmatch(str(release.get("sha256", ""))) is not None,
-                f"Invalid pinned Baritone SHA-256 for Minecraft {profile.minecraft}")
-        expected_major = JAVA_CLASS_MAJOR.get(release.get("java_version"))
-        require(expected_major == release.get("class_major"), f"Invalid class-major pin for Baritone {release_version}")
-
-    return SourceSnapshot(
-        commit=commit,
-        mod_version=requested_version,
-        profiles=profiles,
-        source_files=source_files,
-        module_manifests=module_manifests,
-        dependencies=dependencies,
-        bridge=bridge,
-        gradle_sha256=sha256(source_files["gradle/baritone.gradle"]),
-        fetch_script_sha256=sha256(source_files["scripts/fetch-baritone.py"]),
-    )
+    return SourceSnapshot(commit, requested_version, profiles, families, profile_families,
+                          source_files, module_manifests, table)
 
 
 def check_receipt(receipt_path: Path, commit: str, ci_run: str,
-                  profiles: tuple[Profile, ...]) -> tuple[dict[str, Any], dict[str, Any], dict[str, dict[str, Any]]]:
+                  profiles: tuple[Profile, ...]) -> dict[str, dict[str, Any]]:
     try:
         receipt = parse_json(receipt_path.read_bytes(), f"CI receipt {receipt_path}")
     except OSError as error:
         raise PackageError(f"Cannot read CI receipt {receipt_path}: {error}") from error
     require(ci_run.isdigit(), "ci-run must be a numeric GitHub Actions run ID")
     require(str(receipt.get("databaseId")) == ci_run, "CI receipt run ID does not match ci-run")
-    require(receipt.get("url") == f"https://github.com/{REPOSITORY}/actions/runs/{ci_run}", "CI receipt URL does not match this repository and run")
-    require(receipt.get("workflowName") == WORKFLOW_NAME, f"CI receipt is not for {WORKFLOW_NAME!r}")
+    require(receipt.get("url") == f"https://github.com/{REPOSITORY}/actions/runs/{ci_run}",
+            "CI receipt URL does not match this repository and run")
+    require(receipt.get("workflowName") == WORKFLOW_NAME,
+            f"CI receipt is not for {WORKFLOW_NAME!r}")
     require(receipt.get("headSha") == commit, "CI receipt head SHA does not match source40")
-    require(receipt.get("status") == "completed" and receipt.get("conclusion") == "success", "CI run has not completed successfully")
+    require(receipt.get("status") == "completed" and receipt.get("conclusion") == "success",
+            "CI run has not completed successfully")
 
-    expected_job_names = {f"adapters ({p.minecraft}, {p.java}, {p.module})" for p in profiles}
+    expected_jobs = {f"adapters ({p.minecraft}, {p.java}, {p.module})" for p in profiles}
     jobs = receipt.get("jobs")
     require(isinstance(jobs, list) and len(jobs) == 24, "CI receipt must contain exactly 24 adapter jobs")
-    actual_job_names = {job.get("name") for job in jobs if isinstance(job, dict)}
-    require(actual_job_names == expected_job_names, "CI receipt job names do not match the exact source matrix")
+    actual_jobs = {job.get("name") for job in jobs if isinstance(job, dict)}
+    require(actual_jobs == expected_jobs, "CI receipt job names do not match the exact source matrix")
     for job in jobs:
-        require(isinstance(job, dict) and job.get("status") == "completed" and job.get("conclusion") == "success",
+        require(isinstance(job, dict) and job.get("status") == "completed"
+                and job.get("conclusion") == "success",
                 f"CI job did not pass: {job.get('name') if isinstance(job, dict) else job}")
 
     expected_artifacts = {f"lodekeeper-{p.minecraft}-development" for p in profiles}
     artifacts = receipt.get("artifacts")
-    require(isinstance(artifacts, list), "CI receipt has no artifact list")
-    artifact_names = {artifact.get("name") for artifact in artifacts if isinstance(artifact, dict)}
-    require(artifact_names == expected_artifacts and len(artifacts) == 24, "CI receipt artifacts do not match the exact source matrix")
-    artifact_ids = set()
+    require(isinstance(artifacts, list) and len(artifacts) == 24,
+            "CI receipt must contain exactly 24 artifacts")
+    require({artifact.get("name") for artifact in artifacts if isinstance(artifact, dict)} == expected_artifacts,
+            "CI receipt artifacts do not match the exact source matrix")
+    ids: set[str] = set()
     for artifact in artifacts:
         require(isinstance(artifact, dict) and artifact.get("expired") is False,
-                f"CI artifact is expired or malformed: {artifact.get('name') if isinstance(artifact, dict) else artifact}")
+                f"CI artifact is expired or malformed: {artifact}")
         workflow_run = artifact.get("workflow_run")
-        require(isinstance(workflow_run, dict)
-                and str(workflow_run.get("id")) == ci_run
+        require(isinstance(workflow_run, dict) and str(workflow_run.get("id")) == ci_run
                 and workflow_run.get("head_sha") == commit,
-                f"CI artifact {artifact['name']} is not bound to run {ci_run} at source40")
+                f"CI artifact {artifact.get('name')} is not bound to the exact run and source")
         require(CI_ARTIFACT_DIGEST_PATTERN.fullmatch(str(artifact.get("digest", ""))) is not None,
-                f"CI artifact {artifact['name']} has no SHA-256 archive digest")
-        require(artifact.get("id") is not None and str(artifact["id"]) not in artifact_ids,
-                f"CI artifact {artifact['name']} has a missing or duplicate artifact ID")
-        artifact_ids.add(str(artifact["id"]))
-    return receipt, {job["name"]: job for job in jobs}, {artifact["name"]: artifact for artifact in artifacts}
+                f"CI artifact {artifact.get('name')} has no SHA-256 ZIP digest")
+        identifier = str(artifact.get("id", ""))
+        require(identifier and identifier not in ids, f"Missing or duplicate artifact ID for {artifact.get('name')}")
+        ids.add(identifier)
+    return {artifact["name"]: artifact for artifact in artifacts}
 
 
-def release_for(profile: Profile, snapshot: SourceSnapshot) -> dict[str, Any]:
-    version = snapshot.dependencies["minecraft_profiles"][profile.minecraft]
-    return next(item for item in snapshot.dependencies["releases"] if item["version"] == version)
-
-
-def bridge_mapping_for(release: dict[str, Any], bridge: dict[str, Any]) -> dict[str, Any]:
-    supported = bridge.get("supported")
-    require(isinstance(supported, list) and all(isinstance(entry, dict) for entry in supported),
-            "Baritone bridge metadata has no valid supported mapping list")
-    matches = [entry for entry in supported if entry.get("jarSha256") == release["sha256"]]
-    require(len(matches) == 1, f"Bridge metadata must map pinned Baritone SHA-256 {release['sha256']} exactly once")
-    mapping = matches[0]
-    identifier = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
-    class_name = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$")
-    require(mapping.get("version") == release["version"], "Bridge mapping version does not match the pinned Baritone release")
-    require(mapping.get("class_major") == release["class_major"], "Bridge mapping class major does not match the pinned Baritone release")
-    require(isinstance(mapping.get("targetClass"), str) and class_name.fullmatch(mapping["targetClass"]), "Invalid bridge target class")
-    require(isinstance(mapping.get("knownField"), str) and identifier.fullmatch(mapping["knownField"]), "Invalid bridge known field")
-    require(isinstance(mapping.get("blacklistField"), str) and identifier.fullmatch(mapping["blacklistField"]), "Invalid bridge blacklist field")
-    require(mapping["knownField"] != mapping["blacklistField"], "Bridge fields must be distinct")
-    require(mapping.get("field_descriptor") == "Ljava/util/List;", "Bridge field descriptor is not a List")
-    return mapping
-
-
-def read_class_major(archive: zipfile.ZipFile, names: list[str], suffix: str, label: str) -> int:
-    matches = [name for name in names if name.endswith(suffix)]
-    require(len(matches) == 1, f"{label} class {suffix} must occur once, found {matches}")
-    data = archive.read(matches[0])
-    require(len(data) >= 8 and data[:4] == b"\xca\xfe\xba\xbe", f"Invalid Java class header in {matches[0]}")
+def read_class_major(archive: zipfile.ZipFile, names: list[str], exact_name: str, label: str) -> int:
+    require(exact_name in names, f"{label} class is missing: {exact_name}")
+    data = archive.read(exact_name)
+    require(len(data) >= 8 and data[:4] == b"\xca\xfe\xba\xbe", f"Invalid Java class header in {exact_name}")
     return int.from_bytes(data[6:8], "big")
 
 
-def inspect_nested_baritone(data: bytes, release: dict[str, Any], profile: Profile) -> tuple[tuple[int, ...], tuple[str, ...]]:
-    try:
-        with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            names = archive.namelist()
-            require(len(names) == len(set(names)), "Nested Baritone jar has duplicate ZIP entries")
-            manifest = parse_json(archive.read("fabric.mod.json"), "Nested Baritone fabric.mod.json")
-            require(manifest.get("id") == "baritone", "Nested dependency is not the Baritone Fabric mod")
-            require(manifest.get("version") == release["version"], "Nested Baritone manifest version differs from the exact source pin")
-            require(profile.minecraft in release["minecraft_versions"], "Pinned Baritone release does not support this Minecraft profile")
+def validate_source_manifest(manifest: dict[str, Any], family: KernelPin,
+                             profile: Profile, names: list[str], archive: zipfile.ZipFile) -> tuple[int, tuple[str, ...], tuple[str, ...]]:
+    compile_target = manifest.get("compile_target")
+    require(isinstance(compile_target, dict)
+            and compile_target.get("minecraft_version") == profile.minecraft
+            and compile_target.get("java_release") == profile.java,
+            f"Embedded source manifest compile target does not match {profile.minecraft}/Java {profile.java}")
+    require(isinstance(compile_target.get("mappings"), str) and compile_target["mappings"],
+            "Embedded source manifest has no compile-target mappings")
 
-            class_majors = set()
-            class_count = 0
-            for name in names:
-                if name.endswith(".class"):
-                    header = archive.read(name)[:8]
-                    require(len(header) == 8 and header[:4] == b"\xca\xfe\xba\xbe", f"Invalid class header in nested Baritone entry {name}")
-                    class_count += 1
-                    class_majors.add(int.from_bytes(header[6:8], "big"))
-            expected_major = release["class_major"]
-            require(class_count > 0 and expected_major in class_majors and max(class_majors) <= expected_major,
-                    f"Nested Baritone class majors {sorted(class_majors)} do not match pinned major {expected_major}")
+    lock = family.lock
+    if "upstream" in manifest:
+        upstream = manifest["upstream"]
+        require(isinstance(upstream, dict), "Embedded source manifest has an invalid upstream record")
+        upstream_commit = upstream.get("commit")
+        upstream_hash = upstream.get("archive_sha256")
+    else:
+        pins = manifest.get("source_pins")
+        upstream_commit = manifest.get("baritone_source_commit")
+        upstream_hash = pins.get("archive_sha256") if isinstance(pins, dict) else None
+    require(upstream_commit == lock.get("source_commit")
+            and upstream_hash == lock.get("archive_sha256"),
+            f"Embedded source manifest upstream pin differs from {family.family.key}")
 
-            jars = manifest.get("jars", [])
-            require(isinstance(jars, list), "Nested Baritone manifest jars field must be a list")
-            nested_paths = []
-            for nested in jars:
-                nested_path = nested.get("file") if isinstance(nested, dict) else None
-                require(isinstance(nested_path, str) and nested_path in names,
-                        f"Nested Baritone manifest refers to missing jar {nested_path!r}")
-                nested_data = archive.read(nested_path)
-                with zipfile.ZipFile(io.BytesIO(nested_data)):
-                    pass
-                nested_paths.append(nested_path)
-            expected_nested = set(release.get("nested_libraries", []))
-            actual_nested = {PurePosixPath(path).name.removesuffix(".jar") for path in nested_paths}
-            require(actual_nested == expected_nested,
-                    f"Nested Baritone libraries are {sorted(actual_nested)}, expected {sorted(expected_nested)}")
-            return tuple(sorted(class_majors)), tuple(sorted(actual_nested))
-    except (OSError, KeyError, zipfile.BadZipFile) as error:
-        raise PackageError(f"Cannot inspect pinned nested Baritone jar: {error}") from error
+    if isinstance(manifest.get("override_manifest_sha256"), str):
+        require(manifest["override_manifest_sha256"] == family.override_sha256,
+                f"Embedded source manifest override hash differs from {family.family.key}")
+    lifecycle = manifest.get("lifecycle_overrides")
+    if isinstance(lifecycle, dict):
+        effective = lifecycle.get("effective", lifecycle)
+        if isinstance(effective, dict):
+            require(effective == family.override_entries,
+                    f"Embedded source manifest lifecycle hashes differ from {family.family.key}")
+
+    generated = manifest.get("generated_files")
+    require(isinstance(generated, dict) and bool(generated),
+            "Embedded source manifest has no generated source inventory")
+    for path, digest in generated.items():
+        safe_git_path(path, "generated source manifest")
+        require(SHA256_PATTERN.fullmatch(str(digest)) is not None,
+                f"Invalid generated-source hash for {path}")
+        parts = PurePosixPath(path).parts
+        if path.endswith(".java"):
+            require(len(parts) >= 3 and parts[1] == "java",
+                    f"Generated Java source has an unexpected source root: {path}")
+            compiled_class = PurePosixPath(*parts[2:]).with_suffix(".class").as_posix()
+            require(compiled_class in names,
+                    f"Generated owned-kernel class is missing: {compiled_class}")
+
+    mixin_config_path = manifest.get("mixin_config")
+    if not isinstance(mixin_config_path, str):
+        candidates = [name for name in names if PurePosixPath(name).name == "mixins.lodekeeper-kernel.json"]
+        require(len(candidates) == 1, "Owned-kernel mixin config must occur exactly once")
+        mixin_config_entry = candidates[0]
+    else:
+        candidates = [name for name in names if PurePosixPath(name).name == PurePosixPath(mixin_config_path).name]
+        require(len(candidates) == 1, "Owned-kernel mixin config named by source manifest must occur once")
+        mixin_config_entry = candidates[0]
+    mixin_config = parse_json(archive.read(mixin_config_entry), "owned-kernel mixin configuration")
+    mixin_package = mixin_config.get("package")
+    client_mixins = mixin_config.get("client")
+    require(mixin_config.get("required") is True
+            and isinstance(mixin_package, str)
+            and mixin_package == "dev.lodekeeper.navigation.kernel.launch.mixins"
+            and isinstance(client_mixins, list) and bool(client_mixins),
+            "Owned-kernel mixin configuration is not required or has no client mixins")
+    mixin_classes: list[str] = []
+    for mixin in client_mixins:
+        require(isinstance(mixin, str) and mixin and "/" not in mixin,
+                f"Invalid owned-kernel client mixin name {mixin!r}")
+        class_path = mixin_package.replace(".", "/") + "/" + mixin.replace(".", "$") + ".class"
+        require(class_path in names, f"Owned-kernel mixin class is missing: {class_path}")
+        class_bytes = archive.read(class_path)
+        require(len(class_bytes) >= 8 and class_bytes[:4] == b"\xca\xfe\xba\xbe"
+                and int.from_bytes(class_bytes[6:8], "big") == profile.java + 44,
+                f"Owned-kernel mixin class does not match Java {profile.java}: {class_path}")
+        mixin_classes.append(class_path)
+
+    refmaps = tuple(sorted(name for name in names if name.endswith("refmap.json")))
+    configured_refmap = mixin_config.get("refmap")
+    if profile.module == "fabric-modern":
+        require(not refmaps and not configured_refmap and not manifest.get("refmap"),
+                f"Modern official-mapping artifact unexpectedly contains a Yarn refmap: {refmaps}")
+    else:
+        require(bool(refmaps), f"{profile.minecraft} Yarn artifact has no refmap")
+        require(isinstance(configured_refmap, str)
+                and any(PurePosixPath(name).name == PurePosixPath(configured_refmap).name for name in refmaps),
+                f"{profile.minecraft} source manifest mixin config does not name an embedded refmap")
+        for refmap in refmaps:
+            content = parse_json(archive.read(refmap), f"{profile.minecraft} {refmap}")
+            require(isinstance(content.get("mappings"), dict) and bool(content["mappings"]),
+                    f"{profile.minecraft} Yarn refmap {refmap} has no mappings")
+    return len(generated), refmaps, tuple(mixin_classes)
 
 
-def is_verification_content(name: str) -> bool:
-    return "verification" in name.lower()
+def verify_owned_runtime(names: list[str], archive: zipfile.ZipFile) -> None:
+    require(not any(name.endswith(".jar") for name in names),
+            "Final artifact contains a nested jar")
+    class_names = [name for name in names if name.endswith(".class")]
+    require(bool(class_names), "Final artifact contains no classes")
+    require(any(name.startswith("dev/lodekeeper/navigation/kernel/") for name in class_names),
+            "Final artifact has no flattened owned-kernel classes")
+    forbidden_prefixes = (
+        "baritone/",
+        "com/github/cabaletta/baritone/",
+        "dev/lodekeeper/baritone/",
+    )
+    forbidden_names = [
+        name for name in names
+        if name.startswith(forbidden_prefixes)
+        or (name.endswith(".class") and "baritone" in PurePosixPath(name).parts)
+        or name in {
+            "META-INF/lodekeeper/baritone/mining-bridge.json",
+            "lodekeeper-baritone.mixins.json",
+        }
+        or any(token in name for token in (
+            "BaritoneMiningAccess", "BaritoneMiningAccessor", "inspect-baritone-mining",
+            "mining-bridge.json",
+        ))
+    ]
+    require(not forbidden_names, f"Final artifact contains forbidden legacy Baritone runtime entries: {forbidden_names[:5]}")
+    for name in names:
+        if name.startswith("META-INF/services/"):
+            require("baritone" not in name.lower(),
+                    f"Final artifact contains a Baritone service provider descriptor: {name}")
+            service_data = archive.read(name).decode("utf-8", errors="replace")
+            providers = [line.split("#", 1)[0].strip() for line in service_data.splitlines()]
+            require(not any("baritone" in provider.lower() for provider in providers),
+                    f"Final artifact registers a Baritone service provider: {name}")
 
 
-def inspect_jar(jar: Path, profile: Profile, snapshot: SourceSnapshot,
+def inspect_jar(jar: Path, profile: Profile, family: KernelPin, snapshot: SourceSnapshot,
                 archive_sha: str) -> ArtifactInspection:
     expected_name = f"lodekeeper-{profile.minecraft}-{snapshot.mod_version}.jar"
     require(jar.name == expected_name, f"Artifact filename is {jar.name}, expected {expected_name}")
@@ -358,11 +587,11 @@ def inspect_jar(jar: Path, profile: Profile, snapshot: SourceSnapshot,
     except OSError as error:
         raise PackageError(f"Cannot read artifact {jar}: {error}") from error
     digest = sha256(data)
-    release = release_for(profile, snapshot)
-    mapping = bridge_mapping_for(release, snapshot.bridge)
-    embedded_baritone_path = f"META-INF/jars/baritone-api-fabric-{release['version']}.jar"
-    module_source = snapshot.module_manifests[profile.module]
-
+    source_module = snapshot.module_manifests[profile.module]
+    provenance = PROVENANCE_ROOT
+    lock_path = provenance + "source-lock.json"
+    override_path = provenance + "lifecycle-overrides.sha256"
+    manifest_path = provenance + "source-manifest.json"
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             names = archive.namelist()
@@ -371,91 +600,90 @@ def inspect_jar(jar: Path, profile: Profile, snapshot: SourceSnapshot,
             manifest = parse_json(archive.read("fabric.mod.json"), f"{jar.name} fabric.mod.json")
             require(manifest.get("id") == "lodekeeper", f"{jar.name} has mod id {manifest.get('id')!r}")
             require(manifest.get("version") == snapshot.mod_version, f"{jar.name} has the wrong mod version")
-            require(manifest.get("description") == module_source.get("description"),
-                    f"{jar.name} description differs from the exact source descriptor")
+            for field in ("schemaVersion", "name", "description", "environment", "entrypoints", "license"):
+                require(manifest.get(field) == source_module.get(field),
+                        f"{jar.name} {field} differs from the exact source descriptor")
             depends = manifest.get("depends")
-            require(isinstance(depends, dict), f"{jar.name} has no Fabric dependency map")
-            require(depends.get("minecraft") == profile.minecraft, f"{jar.name} does not declare exact Minecraft {profile.minecraft}")
-            require(depends.get("java") == f">={profile.java}", f"{jar.name} does not declare Java >= {profile.java}")
-
-            verification_entries = [name for name in names if is_verification_content(name)]
-            require(not verification_entries, f"{jar.name} contains verification content: {verification_entries[:5]}")
+            require(isinstance(depends, dict)
+                    and depends.get("minecraft") == profile.minecraft
+                    and depends.get("java") == f">={profile.java}",
+                    f"{jar.name} Fabric metadata does not declare exact Minecraft and Java requirements")
+            source_depends = source_module.get("depends")
+            require(isinstance(source_depends, dict)
+                    and all(depends.get(key) == value for key, value in source_depends.items()
+                            if key not in {"minecraft", "java"}),
+                    f"{jar.name} Fabric dependencies differ from the exact source descriptor")
+            verification = [name for name in names if "verification" in name.lower()]
+            require(not verification, f"{jar.name} contains verification fixtures: {verification[:5]}")
+            verify_owned_runtime(names, archive)
 
             adapter_suffix = "/modern/AutomationEngine.class" if profile.module == "fabric-modern" else "/AutomationEngine.class"
-            adapter_major = read_class_major(archive, names, adapter_suffix, "Adapter")
-            if profile.module != "fabric-modern":
-                adapter_matches = [name for name in names if name.endswith("/AutomationEngine.class")]
-                require(len(adapter_matches) == 1, f"{jar.name} must have one adapter AutomationEngine class")
-            core_major = read_class_major(archive, names, "/AcquisitionPlanner.class", "Core")
-            navigation_major = read_class_major(archive, names, "/Goal.class", "Navigation")
+            adapters = [name for name in names if name.endswith(adapter_suffix)]
+            require(len(adapters) == 1, f"{jar.name} must contain exactly one adapter AutomationEngine class")
+            adapter_major = read_class_major(archive, names, adapters[0], "Adapter")
+            core_major = read_class_major(archive, names, "dev/lodekeeper/core/AcquisitionPlanner.class", "Core")
+            navigation_major = read_class_major(archive, names, "dev/lodekeeper/nav/Goal.class", "Navigation")
             require(adapter_major == profile.java + 44,
                     f"{jar.name} adapter class major {adapter_major} does not match Java {profile.java}")
-            require(core_major == 61 and navigation_major == 61,
-                    f"{jar.name} core/navigation class majors are {core_major}/{navigation_major}, expected Java 17 major 61")
+            require(core_major == JAVA_CLASS_MAJOR[17] and navigation_major == JAVA_CLASS_MAJOR[17],
+                    f"{jar.name} core/navigation class majors are {core_major}/{navigation_major}, expected Java 17")
 
-            refmaps = tuple(sorted(name for name in names if name.endswith("refmap.json")))
-            if profile.module == "fabric-modern":
-                require(not refmaps, f"{jar.name} unexpectedly contains Yarn refmaps: {refmaps}")
-            else:
-                require(bool(refmaps), f"{jar.name} has no Yarn refmap")
-                for refmap in refmaps:
-                    content = parse_json(archive.read(refmap), f"{jar.name} {refmap}")
-                    require(isinstance(content.get("mappings"), dict) and bool(content["mappings"]),
-                            f"{jar.name} has an empty Yarn refmap {refmap}")
+            require(lock_path in names and archive.read(lock_path) == family.lock_bytes,
+                    f"{jar.name} embedded source lock differs from exact source commit")
+            require(override_path in names and archive.read(override_path) == family.override_bytes,
+                    f"{jar.name} embedded lifecycle override manifest differs from exact source commit")
+            require(manifest_path in names, f"{jar.name} has no owned-kernel source manifest")
+            source_manifest_bytes = archive.read(manifest_path)
+            source_manifest = parse_json(source_manifest_bytes, f"{jar.name} owned-kernel source manifest")
+            generated_count, refmaps, mixin_classes = validate_source_manifest(
+                source_manifest, family, profile, names, archive
+            )
+            fabric_mixins = manifest.get("mixins")
+            require(isinstance(fabric_mixins, list), f"{jar.name} has no Fabric mixin configuration list")
+            mixin_config_path = source_manifest.get("mixin_config")
+            expected_mixin_config = (
+                PurePosixPath(mixin_config_path).name
+                if isinstance(mixin_config_path, str) else "mixins.lodekeeper-kernel.json"
+            )
+            configured_mixins = [
+                entry if isinstance(entry, str) else entry.get("config") if isinstance(entry, dict) else None
+                for entry in fabric_mixins
+            ]
+            source_mixins = source_module.get("mixins")
+            require(isinstance(source_mixins, list),
+                    f"{jar.name} source descriptor has no mixin configuration list")
+            for module_mixin in source_mixins:
+                require(module_mixin in configured_mixins,
+                        f"{jar.name} omits module mixin config {module_mixin}")
+            require(any(isinstance(entry, str) and PurePosixPath(entry).name == expected_mixin_config
+                        for entry in configured_mixins),
+                    f"{jar.name} does not enable owned-kernel mixin config {expected_mixin_config}")
+            require(any(name.startswith("dev/lodekeeper/navigation/kernel/") for name in names if name.endswith(".class")),
+                    f"{jar.name} has no owned-kernel class files")
+            require(mixin_classes, f"{jar.name} has no packaged owned-kernel mixin classes")
 
-            nested_paths = [name for name in names if name.startswith("META-INF/jars/") and name.endswith(".jar")]
-            require(nested_paths == [embedded_baritone_path],
-                    f"{jar.name} must contain exactly the pinned Baritone jar {embedded_baritone_path}, found {nested_paths}")
-            baritone_bytes = archive.read(embedded_baritone_path)
-            baritone_digest = sha256(baritone_bytes)
-            require(baritone_digest == release["sha256"],
-                    f"{jar.name} nested Baritone SHA-256 {baritone_digest} differs from source pin {release['sha256']}")
-            baritone_class_majors, baritone_nested = inspect_nested_baritone(baritone_bytes, release, profile)
+            require("META-INF/MANIFEST.MF" in names, f"{jar.name} has no Loom mapping namespace manifest")
+            jar_manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8", errors="replace")
+            mapping_namespaces = re.findall(r"(?m)^Fabric-Mapping-Namespace: ([^\r\n]+)", jar_manifest)
+            minecraft_versions = re.findall(r"(?m)^Fabric-Minecraft-Version: ([^\r\n]+)", jar_manifest)
+            expected_namespace = "official" if profile.module == "fabric-modern" else "intermediary"
+            require(mapping_namespaces == [expected_namespace],
+                    f"{jar.name} mapping namespace is {mapping_namespaces}, expected {expected_namespace}")
+            require(minecraft_versions == [profile.minecraft],
+                    f"{jar.name} Loom Minecraft metadata is {minecraft_versions}, expected {profile.minecraft}")
 
-            for source_path, embedded_path in EMBEDDED_FILES.items():
-                require(embedded_path in names, f"{jar.name} is missing {embedded_path}")
-                require(archive.read(embedded_path) == snapshot.source_files[source_path],
-                        f"{jar.name} {embedded_path} differs from exact source {source_path}")
-
-            bridge_digest = sha256(snapshot.source_files["third-party/baritone/mining-bridge.json"])
-            bridge_in_jar = parse_json(archive.read(EMBEDDED_FILES["third-party/baritone/mining-bridge.json"]),
-                                      f"{jar.name} embedded Baritone bridge metadata")
-            embedded_mapping = bridge_mapping_for(release, bridge_in_jar)
-            require(embedded_mapping == mapping, f"{jar.name} bridge mapping differs from the exact source pin")
-            mixins = manifest.get("mixins", [])
-            require(isinstance(mixins, list), f"{jar.name} has an invalid mixins list")
-            require(any(
-                entry == "lodekeeper-baritone.mixins.json"
-                or (isinstance(entry, dict) and entry.get("config") == "lodekeeper-baritone.mixins.json")
-                for entry in mixins
-            ), f"{jar.name} does not load the pinned Baritone accessor mixin")
-            bridge_config = parse_json(archive.read("lodekeeper-baritone.mixins.json"),
-                                       f"{jar.name} Baritone mixin configuration")
-            client_mixins = bridge_config.get("client")
-            require(bridge_config.get("required") is True and isinstance(client_mixins, list)
-                    and "BaritoneMiningAccessor" in client_mixins,
-                    f"{jar.name} Baritone accessor mixin is not required")
-            accessors = [name for name in names if name.endswith("/mixin/BaritoneMiningAccessor.class")]
-            require(len(accessors) == 1, f"{jar.name} must contain one generated Baritone mining accessor")
+            for source_path, content in snapshot.source_files.items():
+                embedded = LICENSE_ROOT + PurePosixPath(source_path).name
+                require(embedded in names and archive.read(embedded) == content,
+                        f"{jar.name} is missing exact licensed source file {source_path}")
+    except PackageError:
+        raise
     except (OSError, KeyError, zipfile.BadZipFile) as error:
         raise PackageError(f"Cannot inspect {jar}: {error}") from error
 
     return ArtifactInspection(
-        profile=profile,
-        source_path=jar,
-        jar_name=jar.name,
-        sha256=digest,
-        archive_sha=archive_sha,
-        digest_matches_ci_receipt=True,
-        adapter_class_major=adapter_major,
-        core_class_major=core_major,
-        navigation_class_major=navigation_major,
-        refmaps=refmaps,
-        baritone_version=release["version"],
-        baritone_sha256=baritone_digest,
-        baritone_class_majors=baritone_class_majors,
-        baritone_nested_libraries=baritone_nested,
-        bridge_sha256=bridge_digest,
+        profile, family, jar, jar.name, digest, archive_sha, adapter_major, core_major,
+        navigation_major, refmaps, sha256(source_manifest_bytes), generated_count, len(mixin_classes)
     )
 
 
@@ -469,34 +697,29 @@ def check_checksum_file(artifact_dir: Path, jar: Path) -> None:
     fields = lines[0].split(maxsplit=1)
     require(len(fields) == 2 and SHA256_PATTERN.fullmatch(fields[0]) is not None,
             f"Malformed checksum line in {checksum_path}")
-    require(PurePosixPath(fields[1].lstrip("* ")).name == jar.name, f"{checksum_path} names a different artifact")
-    try:
-        actual = sha256(jar.read_bytes())
-    except OSError as error:
-        raise PackageError(f"Cannot read artifact {jar}: {error}") from error
-    require(fields[0] == actual, f"Checksum mismatch for {jar}")
+    require(PurePosixPath(fields[1].lstrip("* ")).name == jar.name,
+            f"{checksum_path} names a different artifact")
+    require(fields[0] == sha256(jar.read_bytes()), f"Checksum mismatch for {jar}")
+
+
+def hash_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def verify_ci_artifact_zip(archive_path: Path, artifact: dict[str, Any], artifact_name: str,
                            artifact_dir: Path, jar_name: str) -> str:
     try:
-        archive_bytes = archive_path.read_bytes()
-    except OSError as error:
-        raise PackageError(f"Cannot read original CI artifact archive {archive_path}: {error}") from error
-    archive_sha = f"sha256:{sha256(archive_bytes)}"
-    require(archive_sha == artifact["digest"],
-            f"Original CI artifact archive digest differs from receipt for {artifact_name}")
-
-    try:
-        with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
+        archive_sha = "sha256:" + hash_file(archive_path)
+        with zipfile.ZipFile(archive_path) as archive:
             entries = archive.infolist()
             names = [entry.filename for entry in entries]
             require(len(names) == len(set(names)), f"Original CI archive has duplicate entries: {artifact_name}")
             for name in names:
-                path = PurePosixPath(name)
-                require(name == path.name and not path.is_absolute() and "\\" not in name
-                        and all(part not in {".", ".."} for part in path.parts),
-                        f"Original CI archive has an unsafe or nested path: {name!r}")
+                safe_git_path(name, f"{artifact_name} ZIP")
             require(all(not entry.is_dir() for entry in entries),
                     f"Original CI archive contains unexpected directories: {artifact_name}")
             require(len(entries) == 2 and set(names) == {jar_name, "SHA256SUMS"},
@@ -506,21 +729,18 @@ def verify_ci_artifact_zip(archive_path: Path, artifact: dict[str, Any], artifac
         raise
     except (OSError, KeyError, zipfile.BadZipFile) as error:
         raise PackageError(f"Cannot inspect original CI artifact archive {archive_path}: {error}") from error
+    require(archive_sha == artifact["digest"],
+            f"Original CI artifact ZIP digest differs from receipt for {artifact_name}")
 
-    extracted_entries = list(artifact_dir.iterdir())
-    require({path.name for path in extracted_entries} == {jar_name, "SHA256SUMS"}
-            and len(extracted_entries) == 2,
+    extracted = list(artifact_dir.iterdir())
+    require({path.name for path in extracted} == {jar_name, "SHA256SUMS"} and len(extracted) == 2,
             f"Extracted artifact directory must contain only {jar_name} and SHA256SUMS")
     for name, archived_content in contents.items():
-        extracted_path = artifact_dir / name
-        require(not extracted_path.is_symlink() and extracted_path.is_file(),
-                f"Extracted artifact entry is not a regular file: {extracted_path}")
-        try:
-            extracted_content = extracted_path.read_bytes()
-        except OSError as error:
-            raise PackageError(f"Cannot read extracted artifact entry {extracted_path}: {error}") from error
-        require(archived_content == extracted_content,
-                f"Extracted artifact entry differs from receipt-bound archive: {extracted_path}")
+        path = artifact_dir / name
+        require(not path.is_symlink() and path.is_file(),
+                f"Extracted artifact entry is not a regular file: {path}")
+        require(path.read_bytes() == archived_content,
+                f"Extracted artifact entry differs from receipt-bound ZIP: {path}")
     return archive_sha
 
 
@@ -533,76 +753,76 @@ def inspect_artifacts(artifact_root: Path, snapshot: SourceSnapshot,
         artifact_dir = artifact_root / artifact_name
         require(artifact_dir.is_dir(), f"Missing CI artifact directory {artifact_dir}")
         jars = sorted(artifact_dir.glob("*.jar"))
-        require(len(jars) == 1, f"{artifact_name} must contain exactly one jar, found {[jar.name for jar in jars]}")
-        archive_path = artifact_root / f"{artifact_name}.zip"
-        archive_sha = verify_ci_artifact_zip(archive_path, receipt_artifacts[artifact_name],
-                                             artifact_name, artifact_dir, jars[0].name)
+        require(len(jars) == 1,
+                f"{artifact_name} must contain exactly one jar, found {[jar.name for jar in jars]}")
+        archive_sha = verify_ci_artifact_zip(
+            artifact_root / f"{artifact_name}.zip", receipt_artifacts[artifact_name],
+            artifact_name, artifact_dir, jars[0].name
+        )
         check_checksum_file(artifact_dir, jars[0])
-        inspections.append(inspect_jar(jars[0], profile, snapshot, archive_sha))
+        family = snapshot.families[snapshot.profile_families[profile.minecraft]]
+        inspections.append(inspect_jar(jars[0], profile, family, snapshot, archive_sha))
     return inspections
 
 
 def check_source_zip(source_zip: Path, commit: str) -> dict[str, Any]:
     try:
-        zip_bytes = source_zip.read_bytes()
-    except OSError as error:
-        raise PackageError(f"Cannot read source zip {source_zip}: {error}") from error
-    try:
-        expected_tar = git_bytes("archive", "--format=tar", commit)
-        with tarfile.open(fileobj=io.BytesIO(expected_tar), mode="r:") as archive:
-            expected = {member.name: archive.extractfile(member).read() for member in archive.getmembers() if member.isfile()}
-        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
-            members = [item for item in archive.infolist() if not item.is_dir()]
-            roots = {PurePosixPath(item.filename).parts[0] for item in members}
-            require(len(roots) == 1, "Source zip must have one top-level directory")
+        zip_digest = hash_file(source_zip)
+        with zipfile.ZipFile(source_zip) as archive:
+            entries = archive.infolist()
+            names = [entry.filename for entry in entries]
+            require(len(names) == len(set(names)), "Source ZIP has duplicate entries")
+            files = [entry for entry in entries if not entry.is_dir()]
+            roots = {PurePosixPath(entry.filename).parts[0] for entry in files}
+            require(len(roots) == 1, "Source ZIP must have one top-level directory")
             root_name = next(iter(roots))
-            actual = {}
-            for item in members:
-                parts = PurePosixPath(item.filename).parts
-                require(len(parts) > 1 and parts[0] == root_name and ".." not in parts,
-                        f"Unsafe or unexpected source zip path {item.filename!r}")
-                relative = PurePosixPath(*parts[1:]).as_posix()
-                require(relative not in actual, f"Duplicate source zip entry {relative}")
-                actual[relative] = archive.read(item)
+            actual: dict[str, str] = {}
+            for entry in files:
+                path = PurePosixPath(entry.filename)
+                safe_git_path(entry.filename, "source ZIP")
+                require(len(path.parts) > 1 and path.parts[0] == root_name,
+                        f"Source ZIP has an unexpected path {entry.filename!r}")
+                relative = PurePosixPath(*path.parts[1:]).as_posix()
+                require(relative not in actual, f"Source ZIP has duplicate path {relative}")
+                actual[relative] = sha256(archive.read(entry))
     except PackageError:
         raise
-    except (OSError, KeyError, tarfile.TarError, zipfile.BadZipFile) as error:
-        raise PackageError(f"Cannot inspect source zip {source_zip}: {error}") from error
-    require(actual.keys() == expected.keys(), "Source zip file set does not match the exact source commit")
-    for name, content in expected.items():
-        require(actual[name] == content, f"Source zip file differs from exact source commit: {name}")
-    return {"sha256": sha256(zip_bytes), "fileCount": len(actual), "contentMatchesSourceCommit": True}
+    except (OSError, zipfile.BadZipFile) as error:
+        raise PackageError(f"Cannot inspect source ZIP {source_zip}: {error}") from error
+
+    expected_files = list_source_files(commit, ".")
+    require(set(actual) == expected_files, "Source ZIP file set does not match the exact source commit")
+    for path in sorted(expected_files):
+        require(actual[path] == sha256(source_file(commit, path)),
+                f"Source ZIP differs from exact source commit at {path}")
+    return {"sha256": zip_digest, "fileCount": len(actual), "contentMatchesSourceCommit": True}
 
 
-def job_report(inspection: ArtifactInspection) -> dict[str, Any]:
-    profile = inspection.profile
+def job_report(row: ArtifactInspection) -> dict[str, Any]:
     return {
-        "minecraft": profile.minecraft,
-        "module": profile.module,
-        "java": profile.java,
-        "artifact": inspection.jar_name,
-        "sha256": inspection.sha256,
-        "archiveSHA": inspection.archive_sha,
-        "digestMatchesCiReceipt": inspection.digest_matches_ci_receipt,
-        "adapterClassMajor": inspection.adapter_class_major,
-        "coreClassMajor": inspection.core_class_major,
-        "navigationClassMajor": inspection.navigation_class_major,
-        "exactMinecraftMetadataVerified": True,
-        "modVersionVerified": True,
+        "minecraft": row.profile.minecraft,
+        "module": row.profile.module,
+        "java": row.profile.java,
+        "artifact": row.jar_name,
+        "sha256": row.sha256,
+        "artifactZipSha256": row.archive_sha,
+        "digestMatchesCiReceipt": True,
+        "adapterClassMajor": row.adapter_class_major,
+        "coreClassMajor": row.core_class_major,
+        "navigationClassMajor": row.navigation_class_major,
+        "exactMinecraftAndJavaMetadataVerified": True,
         "verificationFixturesExcluded": True,
-        "yarnRefmaps": list(inspection.refmaps),
-        "baritone": {
-            "version": inspection.baritone_version,
-            "sha256": inspection.baritone_sha256,
-            "sha256MatchesSourcePin": True,
-            "classMajors": list(inspection.baritone_class_majors),
-            "nestedLibraries": list(inspection.baritone_nested_libraries),
-            "dependencyLedgerEmbeddedFromSource": True,
-            "bridgeMetadataEmbeddedFromSource": True,
-            "bridgeMetadataSha256": inspection.bridge_sha256,
-            "licensesAndNoticeEmbeddedFromSource": True,
-            "accessorMixinConfigured": True,
-        },
+        "sourceFamily": row.family.family.key,
+        "sourceCommit": row.family.lock["source_commit"],
+        "upstreamArchiveSha256": row.family.lock["archive_sha256"],
+        "sourceLockSha256": sha256(row.family.lock_bytes),
+        "lifecycleOverridesSha256": row.family.override_sha256,
+        "sourceManifestSha256": row.source_manifest_sha256,
+        "generatedSourceFiles": row.generated_source_count,
+        "ownedKernelMixinClasses": row.mixin_class_count,
+        "flattenedOwnedKernel": True,
+        "baritoneRuntimeAbsent": True,
+        "yarnRefmaps": list(row.refmaps),
     }
 
 
@@ -611,28 +831,27 @@ def stage_package(output: Path, inspections: list[ArtifactInspection], snapshot:
     require(len(inspections) == 24, f"Cannot package {len(inspections)} artifacts, expected 24")
     require(not output.exists(), f"Output path already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    evidence = {
+    evidence: dict[str, Any] = {
         "ciHeadShaConfirmed": True,
         "all24JobsPassed": True,
         "sourceCommit": snapshot.commit,
         "ciRun": f"https://github.com/{REPOSITORY}/actions/runs/{ci_run}",
         "checkedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "modVersion": snapshot.mod_version,
-        "sourcePackaging": {
-            "baritoneGradleSha256": snapshot.gradle_sha256,
-            "baritoneFetcherSha256": snapshot.fetch_script_sha256,
-            "dependencyLedgerSha256": sha256(snapshot.source_files["third-party/baritone/dependencies.json"]),
-            "bridgeMetadataSha256": sha256(snapshot.source_files["third-party/baritone/mining-bridge.json"]),
-            "noticeAndLicenseSha256": {
-                path: sha256(snapshot.source_files[path])
-                for path in (
-                    "third-party/baritone/NOTICE.md",
-                    "third-party/baritone/licenses/COPYING",
-                    "third-party/baritone/licenses/COPYING.LESSER",
-                )
-            },
+        "ownedKernelSourceFamilies": EXPECTED_SOURCE_FAMILIES,
+        "sourceFamilies": {
+            key: {
+                "sourceCommit": pin.lock["source_commit"],
+                "archiveSha256": pin.lock["archive_sha256"],
+                "sourceLockSha256": sha256(pin.lock_bytes),
+                "lifecycleOverridesSha256": pin.override_sha256,
+            }
+            for key, pin in sorted(snapshot.families.items())
         },
-        "scope": "Successful CI for all 24 adapter profiles and exact JAR packaging checks. This record does not establish survival acceptance or multiplayer behavior.",
+        "upstreamNoticesAndLicensesSha256": {
+            path: sha256(content) for path, content in snapshot.source_files.items()
+        },
+        "scope": "All 24 exact CI artifacts passed receipt, metadata, Java 17 core/navigation, owned-kernel provenance, and runtime exclusion checks. This does not establish in-game survival acceptance or multiplayer behavior.",
         "artifacts": [job_report(item) for item in inspections],
     }
     if source_zip_info is not None:
@@ -641,17 +860,18 @@ def stage_package(output: Path, inspections: list[ArtifactInspection], snapshot:
     stage = Path(tempfile.mkdtemp(prefix=f".{output.name}.", dir=output.parent))
     try:
         for item in inspections:
-            packaged_jar = stage / item.jar_name
-            shutil.copyfile(item.source_path, packaged_jar)
-            require(sha256(packaged_jar.read_bytes()) == item.sha256,
+            destination = stage / item.jar_name
+            shutil.copyfile(item.source_path, destination)
+            require(hash_file(destination) == item.sha256,
                     f"Artifact changed while packaging: {item.source_path}")
-        (stage / "SHA256SUMS").write_text(
-            "".join(f"{item.sha256}  {item.jar_name}\n" for item in sorted(inspections, key=lambda row: row.jar_name)),
-            encoding="utf-8",
+        checksum_lines = "".join(
+            f"{item.sha256}  {item.jar_name}\n"
+            for item in sorted(inspections, key=lambda row: row.jar_name)
         )
+        (stage / "SHA256SUMS").write_text(checksum_lines, encoding="utf-8")
         (stage / "build-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-        require(len(list(stage.iterdir())) == 26, "Staged release package must contain 24 jars and two evidence files")
-        require(len(list(stage.glob("*.jar"))) == 24, "Staged release package must contain exactly 24 jars")
+        require(len(list(stage.iterdir())) == 26, "Release package must contain 24 jars and two evidence files")
+        require(len(list(stage.glob("*.jar"))) == 24, "Release package must contain exactly 24 jars")
         require(not output.exists(), f"Output path appeared during packaging: {output}")
         stage.rename(output)
     finally:
@@ -660,25 +880,24 @@ def stage_package(output: Path, inspections: list[ArtifactInspection], snapshot:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Inspect exact Lodekeeper CI jars and stage a release package")
-    parser.add_argument("artifact_root", type=Path, help="Directory containing the downloaded CI artifact folders")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("artifact_root", type=Path,
+                        help="Directory containing the downloaded CI artifact folders and ZIP files")
     parser.add_argument("source40", help="Full source commit SHA used by the CI run")
     parser.add_argument("ci_run", help="Successful GitHub Actions run ID")
     parser.add_argument("output", type=Path, help="New output directory for 24 jars and release evidence")
     parser.add_argument("receipt_path", type=Path, help="JSON receipt for the exact successful CI run")
-    parser.add_argument("modversion", help="Expected mod version, such as 0.1.0-preview.8")
+    parser.add_argument("modversion", help="Expected mod version, such as 0.1.0-preview.11")
     parser.add_argument("--lodekeeper-source-zip", type=Path,
-                        help="Optional Lodekeeper source zip to compare byte-for-byte with source40")
+                        help="Optional exact source ZIP checked against source40")
     args = parser.parse_args()
-
     try:
         snapshot = load_source_snapshot(args.source40, args.modversion)
-        _, _, receipt_artifacts = check_receipt(args.receipt_path, args.source40, args.ci_run, snapshot.profiles)
+        receipt_artifacts = check_receipt(args.receipt_path, args.source40, args.ci_run, snapshot.profiles)
         inspections = inspect_artifacts(args.artifact_root, snapshot, receipt_artifacts)
-        require(len(inspections) == 24, f"Inspected {len(inspections)} jars, expected 24")
         source_zip_info = check_source_zip(args.lodekeeper_source_zip, args.source40) if args.lodekeeper_source_zip else None
         stage_package(args.output, inspections, snapshot, args.ci_run, source_zip_info)
-    except (PackageError, OSError) as error:
+    except (PackageError, OSError, ValueError) as error:
         parser.exit(2, f"error: {error}\n")
     print(f"Inspected and staged 24 exact CI artifacts for {args.source40}.")
     return 0

@@ -2,16 +2,12 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 def enabled = rootProject.findProperty('owned_kernel_modern_263')?.toString() == 'true'
-if (!enabled) {
-    throw new GradleException('Apply this integration only with -Powned_kernel_modern_263=true')
-}
-if (project.path != ':fabric-modern'
-        || rootProject.minecraft_version.toString() != '26.3'
-        || (rootProject.findProperty('modern_api_family')?.toString() ?: '26.3') != '26.3') {
-    throw new GradleException('Owned modern kernel integration requires adapter modern / Minecraft 26.3')
+        || rootProject.findProperty('owned_kernel_modern')?.toString() == 'true'
+if (!enabled || project.path != ':fabric-modern') {
+    throw new GradleException('Owned modern kernel integration requires its explicit modern profile flag')
 }
 
-def kernelProjectPath = ':owned-kernel-modern-263'
+def kernelProjectPath = ':owned-kernel-modern'
 evaluationDependsOn(kernelProjectPath)
 def kernelProject = project(kernelProjectPath)
 def compileOwnedKernel = kernelProject.tasks.named('compileOwnedKernel')

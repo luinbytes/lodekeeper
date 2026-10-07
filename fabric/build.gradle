@@ -56,4 +56,8 @@ loom {
     }
 }
 
-apply from: rootProject.file('gradle/baritone.gradle')
+apply from: rootProject.file('gradle/owned-kernel-yarn-host-integration.gradle')
+
+apply from: rootProject.file('gradle/artifact-verification.gradle')
+
+apply from: rootProject.file('gradle/owned-kernel-notices.gradle')

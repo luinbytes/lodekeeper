@@ -61,7 +61,7 @@ public final class AutomationSettings {
             new SettingSpec("showBackfill", "Show restoration progress", "Display", "Draw pending and completed restoration actions.", SettingSpec.Type.BOOLEAN, 0, 1, false, "backfill"),
             new SettingSpec("visualizationDistance", "Visualization distance", "Display", "Maximum distance in blocks for automation overlays.", SettingSpec.Type.INTEGER, 8, 128, 64, null),
             new SettingSpec("debugLogging", "Detailed logging", "General", "Write detailed local automation diagnostics.", SettingSpec.Type.BOOLEAN, 0, 1, true, null),
-            new SettingSpec("navigationPreferences", "Advanced navigation preferences", "Advanced", "Per-profile native settings. At most 128 entries with keys up to 64 characters and values up to 128.", SettingSpec.Type.STRING_MAP, 0, 128, Map.of(), null)
+            new SettingSpec("navigationPreferences", "Advanced navigation preferences", "Advanced", "Catalogued native movement and pathing options. Values are type-checked and range-limited. Unsupported saved entries are ignored and removed when settings are saved.", SettingSpec.Type.STRING_MAP, 0, 128, Map.of(), null)
     );
     private static final Map<String, SettingSpec> BY_KEY = index();
     private static final Map<Class<?>, Codec<?>> CODECS = new ConcurrentHashMap<>();

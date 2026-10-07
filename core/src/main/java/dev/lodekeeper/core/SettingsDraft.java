@@ -1,6 +1,7 @@
 package dev.lodekeeper.core;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -15,14 +16,24 @@ public final class SettingsDraft {
     private final Map<String, SettingSpec> byKey;
     private final Map<String, Object> values = new LinkedHashMap<>();
     private final Map<String, Object> original = new LinkedHashMap<>();
+    private int ignoredNavigationPreferenceCount;
 
     public SettingsDraft(List<SettingSpec> specs, Function<String, Object> reader) {
         this.specs = List.copyOf(specs);
         this.byKey = index(this.specs);
         for (SettingSpec spec : this.specs) {
-            Object value = spec.normalize(reader.apply(spec.key()));
+            Object persisted = reader.apply(spec.key());
+            Object value = spec.normalize(persisted);
+            Object originalValue = value;
+            if (spec.key().equals("navigationPreferences")) {
+                Map<String, String> safe = NavigationPreferenceCatalog.sanitizeStored(value);
+                ignoredNavigationPreferenceCount = Math.max(ignoredNavigationPreferenceCount,
+                        mapSize(persisted) - safe.size());
+                value = safe;
+                originalValue = snapshot(persisted);
+            }
             values.put(spec.key(), value);
-            original.put(spec.key(), value);
+            original.put(spec.key(), originalValue);
         }
     }
 
@@ -32,7 +43,10 @@ public final class SettingsDraft {
 
     public void setValue(String key, Object value) {
         SettingSpec spec = requireSpec(key);
-        values.put(key, spec.validate(value));
+        Object validated = spec.validate(value);
+        if (spec.key().equals("navigationPreferences"))
+            validated = NavigationPreferenceCatalog.validateOverrides(validated);
+        values.put(spec.key(), validated);
     }
 
     public List<SettingSpec> matching(String category, String query) {
@@ -70,31 +84,52 @@ public final class SettingsDraft {
         return Map.copyOf(result);
     }
 
-    public void putNavigationPreference(String key, String value) {
-        SettingSpec spec = requireSpec("navigationPreferences");
-        if (key == null || key.isBlank() || key.length() > 64)
-            throw new IllegalArgumentException("Preference keys must contain 1 to 64 characters.");
-        if (value == null || value.isBlank() || value.length() > 128)
-            throw new IllegalArgumentException("Preference values must contain 1 to 128 characters.");
+    public Object navigationPreferenceValue(String key) {
+        NavigationPreferenceCatalog.Preference preference = NavigationPreferenceCatalog.require(key);
+        String value = navigationPreferences().get(key);
+        return value == null ? preference.defaultValue() : preference.parse(value);
+    }
+
+    public boolean hasNavigationPreferenceOverride(String key) {
+        NavigationPreferenceCatalog.Preference preference = NavigationPreferenceCatalog.require(key);
+        String value = navigationPreferences().get(key);
+        return value != null && !preference.isDefault(preference.parse(value));
+    }
+
+    public void setNavigationPreferenceValue(String key, Object value) {
+        NavigationPreferenceCatalog.Preference preference = NavigationPreferenceCatalog.require(key);
+        String formatted = preference.format(value);
         Map<String, String> preferences = new LinkedHashMap<>(navigationPreferences());
-        if (!preferences.containsKey(key) && preferences.size() >= (int) spec.maximum())
-            throw new IllegalArgumentException("Navigation preferences are limited to " + (int) spec.maximum() + " entries.");
-        preferences.put(key, value);
-        setValue(spec.key(), preferences);
+        if (preference.isDefault(preference.parse(formatted))) preferences.remove(key);
+        else preferences.put(key, formatted);
+        setValue("navigationPreferences", preferences);
+    }
+
+    public void putNavigationPreference(String key, String value) {
+        NavigationPreferenceCatalog.Preference preference = NavigationPreferenceCatalog.require(key);
+        setNavigationPreferenceValue(key, preference.parse(value));
     }
 
     public boolean removeNavigationPreference(String key) {
+        NavigationPreferenceCatalog.require(key);
         Map<String, String> preferences = new LinkedHashMap<>(navigationPreferences());
         if (preferences.remove(key) == null) return false;
         setValue("navigationPreferences", preferences);
         return true;
     }
 
+    public int ignoredNavigationPreferenceCount() { return ignoredNavigationPreferenceCount; }
+
     public boolean isDirty() { return !values.equals(original); }
 
     public Map<String, Object> validatedValues() {
         Map<String, Object> validated = new LinkedHashMap<>();
-        for (SettingSpec spec : specs) validated.put(spec.key(), spec.validate(values.get(spec.key())));
+        for (SettingSpec spec : specs) {
+            Object value = spec.validate(values.get(spec.key()));
+            if (spec.key().equals("navigationPreferences"))
+                value = NavigationPreferenceCatalog.validateOverrides(value);
+            validated.put(spec.key(), value);
+        }
         return Map.copyOf(validated);
     }
 
@@ -117,6 +152,7 @@ public final class SettingsDraft {
 
         original.clear();
         original.putAll(validated);
+        ignoredNavigationPreferenceCount = 0;
     }
 
     @FunctionalInterface
@@ -137,7 +173,19 @@ public final class SettingsDraft {
         for (SettingSpec spec : specs)
             if (spec.parentKey() != null && !indexed.containsKey(spec.parentKey()))
                 throw new IllegalArgumentException("Unknown parent setting: " + spec.parentKey());
+        for (NavigationPreferenceCatalog.Preference preference : NavigationPreferenceCatalog.entries())
+            if (indexed.containsKey(preference.key()))
+                throw new IllegalArgumentException("Advanced navigation option shadows an automation setting: " + preference.key());
         return Map.copyOf(indexed);
+    }
+
+    private static int mapSize(Object value) {
+        return value instanceof Map<?, ?> map ? map.size() : value == null ? 0 : 1;
+    }
+
+    private static Object snapshot(Object value) {
+        if (!(value instanceof Map<?, ?> map)) return value;
+        return Collections.unmodifiableMap(new LinkedHashMap<>(map));
     }
 
     private static boolean contains(String value, String needle) {

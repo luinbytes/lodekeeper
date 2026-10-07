@@ -129,5 +129,9 @@ tasks.configureEach {
 if (rootProject.findProperty('owned_kernel_primary_1211')?.toString() == 'true') {
     apply from: rootProject.file('gradle/primary1211-host-integration.gradle')
 } else {
-    apply from: rootProject.file('gradle/baritone.gradle')
+    apply from: rootProject.file('gradle/owned-kernel-yarn-host-integration.gradle')
 }
+
+apply from: rootProject.file('gradle/artifact-verification.gradle')
+
+apply from: rootProject.file('gradle/owned-kernel-notices.gradle')

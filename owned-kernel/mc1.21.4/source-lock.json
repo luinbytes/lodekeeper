@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/cabaletta/baritone",
+  "archive_url": "https://github.com/cabaletta/baritone/archive/a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3.tar.gz",
+  "archive_filename": "baritone-1.13.1-a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3.tar.gz",
+  "archive_sha256": "55af700899e145335d1719908c2d6a222db7e00ae49e940ceb53ad4cd4872dcf",
+  "source_root": "baritone-a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3",
+  "source_commit": "a99e25eb8dc2f5b18229c74ba77ae9e5b682dbb3",
+  "baritone_version": "1.13.1",
+  "minecraft_version": "1.21.4",
+  "minecraft_versions": [
+    "1.21.4"
+  ],
+  "minecraft_mappings": "official Mojang mappings"
+}

@@ -313,21 +313,22 @@ final class PlayerActions {
     boolean use(BlockPos position) {
         if (client.player == null || client.interactionManager == null || client.player.isSneaking()
                 || client.currentScreen instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;
-        Hand hand;
-        if (client.player.getMainHandStack().isEmpty()) hand = Hand.MAIN_HAND;
-        else if (client.player.getOffHandStack().isEmpty()) hand = Hand.OFF_HAND;
-        else {
+        if (client.world == null || !client.world.isChunkLoaded(position)) return false;
+        var state = client.world.getBlockState(position);
+        boolean defaultVanillaStation = state.isOf(Blocks.CRAFTING_TABLE) || state.isOf(Blocks.FURNACE)
+                || state.isOf(Blocks.SMOKER) || state.isOf(Blocks.BLAST_FURNACE) || state.isOf(Blocks.STONECUTTER);
+        if (!defaultVanillaStation && !client.player.getMainHandStack().isEmpty()) {
             int empty = -1;
-            for (int slot = 0; slot < 9; slot++) {
+            for (int slot = 0; slot < 36; slot++) {
                 if (client.player.getInventory().getStack(slot).isEmpty()) { empty = slot; break; }
             }
-            if (empty < 0 || !selectSlot(empty) || !client.player.getMainHandStack().isEmpty()) return false;
-            hand = Hand.MAIN_HAND;
+            if (empty < 0) throw new IllegalStateException("Station interaction needs an empty inventory slot");
+            if (!selectSlot(empty) || !client.player.getMainHandStack().isEmpty()) return false;
         }
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getPos());
-        return client.interactionManager.interactBlock(client.player, hand, hit).isAccepted();
+        return client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit).isAccepted();
     }
     boolean safePlacementSupport(BlockPos position) {
         var state = client.world.getBlockState(position);

@@ -17,7 +17,6 @@
 
 package dev.lodekeeper.navigation.kernel.launch.mixins;
 
-import dev.lodekeeper.navigation.kernel.Baritone;
 import dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI;
 import dev.lodekeeper.navigation.kernel.api.IBaritone;
 import dev.lodekeeper.navigation.kernel.api.event.events.BlockChangeEvent;
@@ -25,7 +24,6 @@ import dev.lodekeeper.navigation.kernel.api.event.events.ChatEvent;
 import dev.lodekeeper.navigation.kernel.api.event.events.ChunkEvent;
 import dev.lodekeeper.navigation.kernel.api.event.events.type.EventState;
 import dev.lodekeeper.navigation.kernel.api.utils.Pair;
-import dev.lodekeeper.navigation.kernel.cache.CachedChunk;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -51,7 +49,7 @@ import java.util.List;
 @Mixin(ClientPacketListener.class)
 public abstract class MixinClientPlayNetHandler extends ClientCommonPacketListenerImpl {
 
-    
+
 
     protected MixinClientPlayNetHandler(final Minecraft arg, final Connection arg2, final CommonListenerCookie arg3) {
         super(arg, arg2, arg3);
@@ -134,25 +132,18 @@ public abstract class MixinClientPlayNetHandler extends ClientCommonPacketListen
     )
     private void postHandleBlockChange(ClientboundBlockUpdatePacket packetIn, CallbackInfo ci) {
         if (!this.minecraft.isSameThread()) return;
-        if (!Baritone.settings().repackOnAnyBlockChange.value) {
+        IBaritone baritone = OwnedKernelAPI.getProvider().getBaritoneForConnection((ClientPacketListener) (Object) this);
+        if (baritone == null) {
             return;
         }
-        if (!CachedChunk.BLOCKS_TO_KEEP_TRACK_OF.contains(packetIn.getBlockState().getBlock())) {
-            return;
-        }
-        for (IBaritone ibaritone : OwnedKernelAPI.getProvider().getAllBaritones()) {
-            LocalPlayer player = ibaritone.getPlayerContext().player();
-            if (player != null && player.connection == (ClientPacketListener) (Object) this) {
-                ibaritone.getGameEventHandler().onChunkEvent(
-                        new ChunkEvent(
-                                EventState.POST,
-                                ChunkEvent.Type.POPULATE_FULL,
-                                packetIn.getPos().getX() >> 4,
-                                packetIn.getPos().getZ() >> 4
-                        )
-                );
-            }
-        }
+
+        BlockPos pos = packetIn.getPos().immutable();
+        List<Pair<BlockPos, BlockState>> changes = new ArrayList<>(1);
+        changes.add(new Pair<>(pos, packetIn.getBlockState()));
+        baritone.getGameEventHandler().onBlockChange(new BlockChangeEvent(
+                ChunkPos.containing(pos),
+                changes
+        ));
     }
 
     @Inject(
@@ -196,5 +187,5 @@ public abstract class MixinClientPlayNetHandler extends ClientCommonPacketListen
         }
     }
 
-    
+
 }

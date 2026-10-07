@@ -1,34 +1,27 @@
 # Preview 11 development checkpoint
 
-This branch contains an unfinished source-owned navigation migration. It is not a release candidate. The published preview 10 remains the user-test baseline.
+Preview 11 is an unreleased development candidate. Preview 10 remains downloadable. This checkpoint records source and selected runtime evidence. It does not declare Minecraft version support or release readiness.
 
-The 1.21.1 and 26.3 integrations flatten relocated kernel classes into Lodekeeper. Artifact inspection rejects a separate Baritone manifest, nested jars, upstream package paths, and the old bridge. Upstream LGPL notices and pinned source hashes remain packaged.
+## Source state
 
-The 1.21.1 and 26.3 nearby-wood fixtures passed in isolated clients with production development outputs removed from the classpath. Those results cover one prepared fixture on each version. They do not establish a fresh-world diamond-kit pass, general performance superiority, or complete mechanic coverage.
+The owned navigation kernel is flattened into Lodekeeper under `dev.lodekeeper.navigation.kernel`. The source map routes 24 exact Minecraft profiles through 14 owned families. It keeps the upstream LGPL notices, source locks, exact archive hashes, and corresponding source access. It does not load a separate Baritone runtime.
 
-| Frozen working-tree artifact | SHA-256 | Result |
-| --- | --- | --- |
-| 1.21.1 target retention | `9906be741e1b01333e1737c3f27169460a8578a41b727555a82a3d07db0bb2d7` | Nearby wood passed |
-| 26.3 target retention | `c2eae420c4a669408e12120f535393e3c6c2609f437ce1959dbac14ce0f674d5` | Nearby wood passed |
-| 1.21.1 owned inventory echo | `8e856c093bf8db58149c7a78eb4baea0df2f74f73a2afc6cd27f806813ab2714` | Table placed and confirmed, wooden pickaxe crafted, then stone-pickaxe crafting timed out |
-| 1.21.1 search preview and execution diagnostics | `c3a92656e5b72c418e1a1ec3bd1c7412d02971476438f469d8ffc3491c78b213` | Stone route repeatedly discarded before movement; native test failed |
+The shared core and navigation modules target Java 17. Each Fabric adapter targets its exact Minecraft and Fabric APIs. Every version still needs a successful exact artifact build before it can be declared supported.
 
-These artifacts predate this checkpoint commit. Their source-tree fingerprints were frozen locally; they are not claimed to be commit-built release artifacts.
+Current source includes 23 advanced navigation options in the settings GUI and 3D protected claims. It prefers usable stations in marked claims and recovers bot-owned stations with bounded pickup that checks item UUIDs. It also has surplus stone and cobblestone backfill, plus bounded route and action views.
 
-Current source includes persistent claims, preferred-station discovery, server-receipt station ownership and cleanup, optional surplus-only backfill, and bounded search, movement, action, and ownership overlays. Unit checks pass for the pure models. Several native feature gates remain pending.
+Unsupported mechanics report a blocker. Missing world or claim state pauses automated block edits.
 
-Build the current 1.21.1 prototype with JDK 21:
+## Selected evidence
 
-```sh
-bash scripts/build-version.sh 1.21.1 -Powned_kernel_primary_1211=true :fabric-1211:compileVerificationJava --no-daemon --max-workers=1
-```
+The current 26.3 candidate build completed one native iron run in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. These results do not cover a fresh world diamond loadout.
 
-Build the 26.3 prototype with JDK 25:
+The exact 1.20.1 artifact, owned kernel, host inspections, existing checks, and verification sources now compile. Native gameplay on that profile remains unverified.
 
-```sh
-bash scripts/build-version.sh 26.3 -Powned_kernel_modern_263=true :fabric-modern:compileVerificationJava --no-daemon --max-workers=1
-```
+The current primary version build and native checks remain open. CI across all 24 exact profiles and fresh world full loadout runs remain pending.
 
-Other profiles are still being ported. Their old build path cannot compile the newly owned imports. Do not treat those profiles as supported by this development branch until each exact artifact passes its build. The normal release build and all 24 profile checks must pass before publication.
+## Release status
 
-The next release remains blocked on executor cancellation, complete table and furnace recovery, preferred-station and claim enforcement fixtures, native backfill conservation, current GUI and overlay checks, independent review, and the full version matrix. The requested ntfy message will follow the published, verified tag.
+Preview 11 is not released or ready for download. Preview 10 remains available from the [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Its historical full loadout timings are 11:59 on 1.21.1 and 9:33 on 26.3. Those figures do not describe Preview 11.
+
+Release readiness requires exact artifact builds, the pending primary native checks, CI for all profiles, and fresh world full loadout evidence. Runtime checks and compiled-version support remain separate claims.

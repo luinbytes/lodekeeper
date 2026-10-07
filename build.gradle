@@ -1,3 +1,7 @@
+ext.owned_kernel_primary_1211 = (gradle.ext.ownedKernelMode == 'primary').toString()
+ext.owned_kernel_modern = (gradle.ext.ownedKernelMode == 'modern').toString()
+ext.owned_kernel_yarn = (gradle.ext.ownedKernelMode == 'yarn').toString()
+
 allprojects {
     group = 'dev.lodekeeper'
     version = rootProject.mod_version

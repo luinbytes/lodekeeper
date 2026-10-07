@@ -834,17 +834,16 @@ public final class AcquisitionPlanner {
                             "Fuel is not usable for this source or station: " + fuel, pathWith(path, fuel));
                 }
             }
-            Map<ItemId, Integer> fuelPreferenceRanks = preferences.isEmpty() || availableFuels.isEmpty()
-                    ? Map.of() : freezeItemPreferenceRanks(List.copyOf(availableFuels), path);
-            if (!preferences.isEmpty() && !availableFuels.isEmpty() && clock.getAsLong() >= deadline) {
-                setLimit(BlockedReason.Code.TIME_LIMIT, source.output(), path);
-                return List.of();
-            }
             var next = new ArrayList<Prepared>();
             int[] conversionWork = {0};
             for (Prepared candidate : prepared) {
                 FuelConversions conversions = heldFuelConversions(availableFuels, source, totalTicks,
                         candidate.state, conversionWork);
+                boolean sufficientHeldFuel = firstFeasible && availableFuels.stream().anyMatch(fuel ->
+                        candidate.state.spendableCount(fuel)
+                                >= ceilDivLong(totalTicks, source.effectiveFuelTicks(catalog, fuel)));
+                Map<ItemId, Integer> fuelPreferenceRanks = preferences.isEmpty() || sufficientHeldFuel
+                        ? Map.of() : freezeItemPreferenceRanks(List.copyOf(availableFuels), path);
                 Comparator<ItemId> order;
                 if (preferences.isEmpty()) {
                     // Advisory-free ordering remains the fallback for unproved conversions.

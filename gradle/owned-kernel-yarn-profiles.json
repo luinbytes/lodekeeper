@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "remap_tracks": {
+    "legacy": {
+      "project_path": ":owned-kernel-yarn-hostremap-legacy",
+      "project_dir": "owned-kernel/yarn-hostremap-legacy",
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.6.12"
+    },
+    "1211": {
+      "project_path": ":owned-kernel-yarn-hostremap-1211",
+      "project_dir": "owned-kernel/yarn-hostremap-1211",
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.8.13"
+    },
+    "1212": {
+      "project_path": ":owned-kernel-yarn-hostremap-1212",
+      "project_dir": "owned-kernel/yarn-hostremap-1212",
+      "loom_plugin": "net.fabricmc.fabric-loom-remap",
+      "loom_version": "1.17.21"
+    }
+  },
+  "families": {
+    "mc1.20": {
+      "project_path": ":owned-kernel-yarn-120",
+      "project_dir": "owned-kernel/yarn-legacy/groups/mc1.20",
+      "source_mode": "legacy-group",
+      "generator_profile": "mc1.20",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "legacy",
+      "java_release": 17,
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.6.12"
+    },
+    "mc1.20.2": {
+      "project_path": ":owned-kernel-yarn-1202",
+      "project_dir": "owned-kernel/yarn-legacy/groups/mc1.20.2",
+      "source_mode": "legacy-group",
+      "generator_profile": "mc1.20.2",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "legacy",
+      "java_release": 17,
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.6.12"
+    },
+    "mc1.20.3": {
+      "project_path": ":owned-kernel-yarn-1203",
+      "project_dir": "owned-kernel/yarn-legacy/groups/mc1.20.3",
+      "source_mode": "legacy-group",
+      "generator_profile": "mc1.20.3",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "legacy",
+      "java_release": 17,
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.6.12"
+    },
+    "mc1.20.5": {
+      "project_path": ":owned-kernel-yarn-1205",
+      "project_dir": "owned-kernel/yarn-legacy/groups/mc1.20.5",
+      "source_mode": "legacy-group",
+      "generator_profile": "mc1.20.5",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "1211",
+      "java_release": 21,
+      "loom_plugin": "fabric-loom",
+      "loom_version": "1.8.13"
+    },
+    "mc1.21.2": {
+      "project_path": ":owned-kernel-yarn-1212",
+      "project_dir": "owned-kernel/mc1.21.2",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    },
+    "mc1.21.4": {
+      "project_path": ":owned-kernel-yarn-1214",
+      "project_dir": "owned-kernel/mc1.21.4",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    },
+    "mc1.21.5": {
+      "project_path": ":owned-kernel-yarn-1215",
+      "project_dir": "owned-kernel/mc1.21.5",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "lifecycle-overrides",
+      "override_manifest": "lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    },
+    "mc1.21.6": {
+      "project_path": ":owned-kernel-yarn-1216",
+      "project_dir": "owned-kernel/mc1.21.6",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "overrides/lifecycle-overrides",
+      "override_manifest": "overrides/lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    },
+    "mc1.21.9": {
+      "project_path": ":owned-kernel-yarn-1219",
+      "project_dir": "owned-kernel/mc1.21.9",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "overrides/lifecycle-overrides",
+      "override_manifest": "overrides/lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    },
+    "mc1.21.11": {
+      "project_path": ":owned-kernel-yarn-12111",
+      "project_dir": "owned-kernel/mc1.21.11",
+      "source_mode": "family",
+      "lock_path": "source-lock.json",
+      "override_dir": "overrides/lifecycle-overrides",
+      "override_manifest": "overrides/lifecycle-overrides.sha256",
+      "remap_track": "1212",
+      "java_release": 21,
+      "loom_plugin": "net.fabricmc.fabric-loom",
+      "loom_version": "1.17.21"
+    }
+  },
+  "profiles": {
+    "1.20": {
+      "adapter": "legacy",
+      "kernel_project": ":owned-kernel-yarn-120",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20",
+      "remap_project": ":owned-kernel-yarn-hostremap-legacy",
+      "remap_directory": "owned-kernel/yarn-hostremap-legacy",
+      "yarn_mappings": "1.20+build.1",
+      "source_family": "mc1.20",
+      "host_project_path": ":fabric"
+    },
+    "1.20.1": {
+      "adapter": "legacy",
+      "kernel_project": ":owned-kernel-yarn-120",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20",
+      "remap_project": ":owned-kernel-yarn-hostremap-legacy",
+      "remap_directory": "owned-kernel/yarn-hostremap-legacy",
+      "yarn_mappings": "1.20.1+build.10",
+      "source_family": "mc1.20",
+      "host_project_path": ":fabric"
+    },
+    "1.20.2": {
+      "adapter": "1202",
+      "kernel_project": ":owned-kernel-yarn-1202",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20.2",
+      "remap_project": ":owned-kernel-yarn-hostremap-legacy",
+      "remap_directory": "owned-kernel/yarn-hostremap-legacy",
+      "yarn_mappings": "1.20.2+build.4",
+      "source_family": "mc1.20.2",
+      "host_project_path": ":fabric-1202"
+    },
+    "1.20.3": {
+      "adapter": "1202",
+      "kernel_project": ":owned-kernel-yarn-1203",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20.3",
+      "remap_project": ":owned-kernel-yarn-hostremap-legacy",
+      "remap_directory": "owned-kernel/yarn-hostremap-legacy",
+      "yarn_mappings": "1.20.3+build.1",
+      "source_family": "mc1.20.3",
+      "host_project_path": ":fabric-1202"
+    },
+    "1.20.4": {
+      "adapter": "1202",
+      "kernel_project": ":owned-kernel-yarn-1203",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20.3",
+      "remap_project": ":owned-kernel-yarn-hostremap-legacy",
+      "remap_directory": "owned-kernel/yarn-hostremap-legacy",
+      "yarn_mappings": "1.20.4+build.3",
+      "source_family": "mc1.20.3",
+      "host_project_path": ":fabric-1202"
+    },
+    "1.20.5": {
+      "adapter": "1211",
+      "kernel_project": ":owned-kernel-yarn-1205",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20.5",
+      "remap_project": ":owned-kernel-yarn-hostremap-1211",
+      "remap_directory": "owned-kernel/yarn-hostremap-1211",
+      "yarn_mappings": "1.20.5+build.1",
+      "source_family": "mc1.20.5",
+      "host_project_path": ":fabric-1211"
+    },
+    "1.20.6": {
+      "adapter": "1211",
+      "kernel_project": ":owned-kernel-yarn-1205",
+      "kernel_directory": "owned-kernel/yarn-legacy/groups/mc1.20.5",
+      "remap_project": ":owned-kernel-yarn-hostremap-1211",
+      "remap_directory": "owned-kernel/yarn-hostremap-1211",
+      "yarn_mappings": "1.20.6+build.3",
+      "source_family": "mc1.20.5",
+      "host_project_path": ":fabric-1211"
+    },
+    "1.21.2": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1212",
+      "kernel_directory": "owned-kernel/mc1.21.2",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.2+build.1",
+      "source_family": "mc1.21.2",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.3": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1212",
+      "kernel_directory": "owned-kernel/mc1.21.2",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.3+build.2",
+      "source_family": "mc1.21.2",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.4": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1214",
+      "kernel_directory": "owned-kernel/mc1.21.4",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.4+build.8",
+      "source_family": "mc1.21.4",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.5": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1215",
+      "kernel_directory": "owned-kernel/mc1.21.5",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.5+build.1",
+      "source_family": "mc1.21.5",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.6": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1216",
+      "kernel_directory": "owned-kernel/mc1.21.6",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.6+build.1",
+      "source_family": "mc1.21.6",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.7": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1216",
+      "kernel_directory": "owned-kernel/mc1.21.6",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.7+build.8",
+      "source_family": "mc1.21.6",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.8": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1216",
+      "kernel_directory": "owned-kernel/mc1.21.6",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.8+build.1",
+      "source_family": "mc1.21.6",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.9": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1219",
+      "kernel_directory": "owned-kernel/mc1.21.9",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.9+build.1",
+      "source_family": "mc1.21.9",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.10": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-1219",
+      "kernel_directory": "owned-kernel/mc1.21.9",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.10+build.3",
+      "source_family": "mc1.21.9",
+      "host_project_path": ":fabric-1212"
+    },
+    "1.21.11": {
+      "adapter": "1212",
+      "kernel_project": ":owned-kernel-yarn-12111",
+      "kernel_directory": "owned-kernel/mc1.21.11",
+      "remap_project": ":owned-kernel-yarn-hostremap-1212",
+      "remap_directory": "owned-kernel/yarn-hostremap-1212",
+      "yarn_mappings": "1.21.11+build.6",
+      "source_family": "mc1.21.11",
+      "host_project_path": ":fabric-1212"
+    }
+  }
+}

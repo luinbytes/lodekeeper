@@ -1,0 +1,58 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.21'
+}
+
+group = 'dev.lodekeeper.navigation'
+version = rootProject.minecraft_version.toString() + '-source-owned'
+
+base {
+    archivesName = 'lodekeeper-owned-navigation-kernel-yarn'
+}
+
+repositories {
+    maven { url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+}
+
+loom {
+    mixin {
+        useLegacyMixinAp = false
+    }
+}
+
+def profilesFile = rootProject.file('gradle/owned-kernel-yarn-profiles.json')
+def profileTable = new groovy.json.JsonSlurper().parse(profilesFile) as Map
+def selectedProfile = profileTable.profiles[rootProject.minecraft_version.toString()]
+if (rootProject.findProperty('owned_kernel_yarn')?.toString() != 'true'
+        || selectedProfile == null
+        || selectedProfile.remap_project.toString() != project.path
+        || selectedProfile.yarn_mappings.toString() != rootProject.yarn_mappings.toString()
+        || selectedProfile.adapter.toString() != rootProject.findProperty('adapter')?.toString()) {
+    throw new GradleException("Yarn host remapper ${project.path} is not selected by the exact profile table")
+}
+
+def kernelProjectPath = selectedProfile.kernel_project.toString()
+evaluationDependsOn(kernelProjectPath)
+def kernelProject = project(kernelProjectPath)
+def intermediaryKernelJar = kernelProject.tasks.named('remapJar')
+def remapTaskType = tasks.named('remapJar').get().class.superclass
+
+tasks.register('remapOwnedKernelForHost', remapTaskType) {
+    group = 'build'
+    description = 'Remaps the selected owned kernel from intermediary to the host Yarn names.'
+    inputFile.set(intermediaryKernelJar.flatMap { it.archiveFile })
+    archiveBaseName.set('lodekeeper-owned-navigation-kernel-yarn')
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set('host-named')
+    destinationDirectory.set(layout.buildDirectory.dir('owned-kernel'))
+    sourceNamespace.set('intermediary')
+    targetNamespace.set('named')
+    classpath.setFrom([])
+    addNestedDependencies.set(false)
+}

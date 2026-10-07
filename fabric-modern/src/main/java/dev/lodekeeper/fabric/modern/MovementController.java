@@ -129,6 +129,8 @@ final class MovementController {
     }
 
     private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
+    private record OwnedPickupTarget(ItemEntity entity, UUID entityId, Item item, int startingCount,
+                                     Object ownerWorld, Object ownerPlayer, Object ownerSession) { }
     private final Minecraft client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
@@ -154,6 +156,7 @@ final class MovementController {
     private UUID followTargetId;
     private Object followOwnerWorld, followOwnerPlayer;
     private Predicate<Entity> followFilter;
+    private OwnedPickupTarget pickupTarget;
     private long progressToken, startedNanos, lastDefenseCancellationLog;
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
@@ -641,6 +644,31 @@ final class MovementController {
         mode = Mode.PICKUP; launch();
     }
 
+    void startOwnedPickup(ItemEntity item, Object ownerSession) {
+        if (item == null || !item.isAlive() || ownerSession == null)
+            throw new NavigationFailure("Owned pickup requires a live item and recovery session");
+        prepare();
+        Item itemType = item.getItem().getItem();
+        pickupTarget = new OwnedPickupTarget(item, item.getUUID(), itemType, item.getItem().getCount(),
+                client.level, client.player, ownerSession);
+        output = itemType;
+        targetCount = 0;
+        followTargetId = pickupTarget.entityId();
+        followOwnerWorld = pickupTarget.ownerWorld();
+        followOwnerPlayer = pickupTarget.ownerPlayer();
+        OwnedPickupTarget target = pickupTarget;
+        followFilter = entity -> mode == Mode.PICKUP && pickupTarget == target
+                && target.ownerSession() == ownerSession
+                && client.level == target.ownerWorld() && client.player == target.ownerPlayer()
+                && entity == target.entity() && entity instanceof ItemEntity candidate
+                && candidate.getUUID().equals(target.entityId()) && candidate.isAlive()
+                && candidate.getItem().getItem() == target.item();
+        BlockPos position = item.blockPosition();
+        diagnosticGoal = dev.lodekeeper.nav.Goal.near16(position.getX(), position.getY() * 16, position.getZ(), 32);
+        mode = Mode.PICKUP;
+        launch();
+    }
+
     void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool,
                      Set<BlockPos> priorRejectedPositions) {
         if (blocks.length == 0) throw new NavigationFailure("No supported mining blocks for " + output);
@@ -693,7 +721,7 @@ final class MovementController {
         scannedMiningChunks.clear(); rejectedMiningTargets.clear(); miningDiscovery = null;
         discoveredMiningTargets.clear(); pendingMiningTargets.clear();
         requestX = client.player.getX(); requestZ = client.player.getZ();
-        routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null;
+        routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null; pickupTarget = null;
         airRecoveryGoal = null; lastAirRecoveryDestination = null; airRecoveryCancellationPending = false;
         observation = NavigationSnapshot.EMPTY; positionObserved = false; pendingBreakFailure = null;
         lastLoggedBreakPosition = miningTarget = null; lastLoggedBreakTool = null;
@@ -757,11 +785,48 @@ final class MovementController {
         lease.set(settings.failureTimeoutMS, (long) Math.max(config.pathInitialSearchMillis, config.pathInitialFailureMillis));
         lease.set(settings.planAheadPrimaryTimeoutMS, (long) config.pathContinuationSearchMillis);
         lease.set(settings.planAheadFailureTimeoutMS, (long) Math.max(config.pathContinuationSearchMillis, config.pathContinuationFailureMillis));
+        for (var preference : dev.lodekeeper.core.NavigationPreferenceCatalog
+                .nativeValues(config.navigationPreferences).entrySet()) {
+            switch (preference.getKey()) {
+                case "allowPlaceInFluidsSource" -> lease.set(settings.allowPlaceInFluidsSource, (Boolean) preference.getValue());
+                case "allowPlaceInFluidsFlow" -> lease.set(settings.allowPlaceInFluidsFlow, (Boolean) preference.getValue());
+                case "allowDownward" -> lease.set(settings.allowDownward, (Boolean) preference.getValue());
+                case "allowWalkOnBottomSlab" -> lease.set(settings.allowWalkOnBottomSlab, (Boolean) preference.getValue());
+                case "allowParkourAscend" -> lease.set(settings.allowParkourAscend, (Boolean) preference.getValue());
+                case "allowJumpAtBuildLimit" -> lease.set(settings.allowJumpAtBuildLimit, (Boolean) preference.getValue());
+                case "sprintAscends" -> lease.set(settings.sprintAscends, (Boolean) preference.getValue());
+                case "sprintInWater" -> lease.set(settings.sprintInWater, (Boolean) preference.getValue());
+                case "overshootTraverse" -> lease.set(settings.overshootTraverse, (Boolean) preference.getValue());
+                case "strictLiquidCheck" -> lease.set(settings.strictLiquidCheck, (Boolean) preference.getValue());
+                case "avoidUpdatingFallingBlocks" -> lease.set(settings.avoidUpdatingFallingBlocks, (Boolean) preference.getValue());
+                case "pauseMiningForFallingBlocks" -> lease.set(settings.pauseMiningForFallingBlocks, (Boolean) preference.getValue());
+                case "cutoffAtLoadBoundary" -> lease.set(settings.cutoffAtLoadBoundary, (Boolean) preference.getValue());
+                case "costVerificationLookahead" -> lease.set(settings.costVerificationLookahead, (Integer) preference.getValue());
+                case "maxCostIncrease" -> lease.set(settings.maxCostIncrease, (Double) preference.getValue());
+                case "splicePath" -> lease.set(settings.splicePath, (Boolean) preference.getValue());
+                case "blacklistClosestOnFailure" -> lease.set(settings.blacklistClosestOnFailure, (Boolean) preference.getValue());
+                case "considerPotionEffects" -> lease.set(settings.considerPotionEffects, (Boolean) preference.getValue());
+                case "blockPlacementPenalty" -> lease.set(settings.blockPlacementPenalty, (Double) preference.getValue());
+                case "blockBreakAdditionalPenalty" -> lease.set(settings.blockBreakAdditionalPenalty, (Double) preference.getValue());
+                case "jumpPenalty" -> lease.set(settings.jumpPenalty, (Double) preference.getValue());
+                case "mobAvoidanceCoefficient" -> lease.set(settings.mobAvoidanceCoefficient, (Double) preference.getValue());
+                case "mobSpawnerAvoidanceCoefficient" -> lease.set(settings.mobSpawnerAvoidanceCoefficient, (Double) preference.getValue());
+                default -> throw new IllegalStateException("Unmapped advanced navigation option: " + preference.getKey());
+            }
+        }
         applyProtection();
         if (!airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
             case MOVE, AIR -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
-            case PICKUP -> bot.getFollowProcess().pickup(stack -> stack.is(output));
+            case PICKUP -> {
+                if (pickupTarget == null) bot.getFollowProcess().pickup(stack -> stack.is(output));
+                else {
+                    lease.set(settings.followRadius, 1);
+                    lease.set(settings.followOffsetDistance, 0.0);
+                    lease.set(settings.followTargetMaxDistance, 64);
+                    bot.getFollowProcess().follow(followFilter);
+                }
+            }
             case FOLLOW -> {
                 lease.set(settings.followRadius, 1);
                 lease.set(settings.followOffsetDistance, 0.0);
@@ -810,10 +875,10 @@ final class MovementController {
         if (mode == Mode.IDLE && !cancelling) return true;
         observeAirRecoveryDestination();
         if (client.player == null || client.level == null) { stop(); return false; }
-        if ((mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW)
+        if ((mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW || mode == Mode.PICKUP && pickupTarget != null)
                 && (client.level != followOwnerWorld || client.player != followOwnerPlayer)) {
-            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                    "Follow owner player or world changed");
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST,
+                    "Owned follow target player or world changed");
         }
         if (mode != Mode.IDLE || resumeMode != Mode.IDLE) requestTicks++;
         boolean miningRequest = mode == Mode.MINE || mode == Mode.DESCEND
@@ -873,7 +938,10 @@ final class MovementController {
         if (mode != Mode.AIR && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         boolean satisfied = mode == Mode.MOVE || mode == Mode.AIR
                 ? routeGoal.isInGoal(client.player.blockPosition())
-                : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
+                : mode == Mode.PICKUP && pickupTarget != null
+                        ? !pickupTarget.entity().isAlive()
+                                || pickupTarget.entity().getItem().getCount() < pickupTarget.startingCount()
+                        : mode != Mode.FOLLOW && actions.count(output) >= targetCount;
         if (mode == Mode.MOVE && satisfied && routeGoal instanceof PlacementGoal placement) {
             satisfied = actions.canPlaceAt(placement.destination);
             if (satisfied && config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
@@ -891,6 +959,10 @@ final class MovementController {
             case PICKUP, FOLLOW -> bot.getFollowProcess().isActive();
             default -> false;
         };
+        if (mode == Mode.PICKUP && pickupTarget != null && failedCalculations >= 2) {
+            stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
+                    "Owned station pickup route exhausted two native path calculations");
+        }
         if (mode == Mode.FOLLOW && failedCalculations >= 4) {
             stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
                     "Follow route exhausted four native path calculations");
@@ -1309,12 +1381,15 @@ final class MovementController {
         else checkFollowOwnership();
         if (bot != null && cancellationProcess == null) cancellationProcess = expectedProcessForMode(bot, mode);
         if (stoppingAirRecovery) airRecoveryCancellationPending = true;
-        followCancellationPending |= mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW;
+        followCancellationPending |= mode == Mode.FOLLOW || resumeMode == Mode.FOLLOW
+                || mode == Mode.PICKUP && pickupTarget != null
+                || resumeMode == Mode.PICKUP && pickupTarget != null;
         if (bot != null && followFilter != null && bot.getFollowProcess().currentFilter() == followFilter)
             bot.getFollowProcess().cancel();
         followFilter = null;
         followTargetId = null;
         followOwnerWorld = followOwnerPlayer = null;
+        pickupTarget = null;
         resumeMode = Mode.IDLE;
         if (bot != null && (mode != Mode.IDLE || cancelling || lease != null)) {
             mode = Mode.IDLE;
@@ -1405,7 +1480,9 @@ final class MovementController {
     }
 
     private boolean foreignFollowOwnsProcess() {
-        if (bot == null || mode != Mode.FOLLOW && resumeMode != Mode.FOLLOW && !followCancellationPending)
+        if (bot == null || mode != Mode.FOLLOW && resumeMode != Mode.FOLLOW
+                && !(mode == Mode.PICKUP && pickupTarget != null)
+                && !(resumeMode == Mode.PICKUP && pickupTarget != null) && !followCancellationPending)
             return false;
         Predicate<Entity> current = bot.getFollowProcess().currentFilter();
         return current != null && current != followFilter;
@@ -1414,10 +1491,11 @@ final class MovementController {
     private NavigationFailure releaseLostFollowOwnership() {
         stopDefenseHop();
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] FOOD_PURSUIT event=ownership-lost target={}", followTargetId);
+                "[Lodekeeper] FOLLOW event=ownership-lost mode={} target={}", mode, followTargetId);
         followFilter = null;
         followTargetId = null;
         followOwnerWorld = followOwnerPlayer = null;
+        pickupTarget = null;
         mode = resumeMode = Mode.IDLE;
         cancelling = followCancellationPending = false;
         input.release();

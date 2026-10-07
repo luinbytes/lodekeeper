@@ -1,0 +1,479 @@
+{
+  "baseline": {
+    "archive_sha256": "b3ddbf081f5a0483dfb1cfc25fddcf787218b05d63c8c78c59bc4de8fdcbd9b7",
+    "baritone_version": "1.20.0",
+    "override_manifest_sha256": "fc07495b3b0567e7230cd289d5a9d8ae9038a16ec659fa5d233dbf157697b173",
+    "source_commit": "25111daedf1d59e6a8dfb5a3e61885cdb8d953df"
+  },
+  "family": {
+    "api_family": "26.2",
+    "archive_sha256": "57bf30cb266b150d8366ff441ed2251feb35d1c136d30c48d967643267190c61",
+    "baritone_version": "1.19.0",
+    "minecraft_versions": [
+      "26.2"
+    ],
+    "source_commit": "9fadf7cf95293d7f6678981e77a939b4a7978373"
+  },
+  "files": [
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "ff0d0b65aee5addd7548c01bdf087878806e3bc6239c0aba532042f1eb495132",
+      "family_override_sha256": "ff0d0b65aee5addd7548c01bdf087878806e3bc6239c0aba532042f1eb495132",
+      "family_upstream_sha256": null,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/WorldEditPolicy.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "59d3055dce5ca845ffb2894ca271b61610a56fc769f9199288c2ccdf79f15d50",
+      "family_override_sha256": "59d3055dce5ca845ffb2894ca271b61610a56fc769f9199288c2ccdf79f15d50",
+      "family_upstream_sha256": null,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/WorldEditPolicySnapshot.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "aa6cee46188dc3bf9fac1af602a3aeffcf1d36c15b177f25a05d7b2f1632b3a2",
+      "family_override_sha256": "aa6cee46188dc3bf9fac1af602a3aeffcf1d36c15b177f25a05d7b2f1632b3a2",
+      "family_upstream_sha256": null,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/AutomationInputBarrier.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "469e17c7e1abf3629d5416e3e2a4b0de08848692bca2c818d72b95f3197f522b",
+      "family_override_sha256": "469e17c7e1abf3629d5416e3e2a4b0de08848692bca2c818d72b95f3197f522b",
+      "family_upstream_sha256": null,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/process/OwnedMiningTargets.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "dfe46a21e55b27e66c47ff13295a279f8a4bb5be763d4da061eedf22df9a0a9d",
+      "canonical_26_3_override_sha256": "5cda64b94925715b6e707dc55bf4638ca828595791a3e811bbf39b21145e060c",
+      "family_override_sha256": "5cda64b94925715b6e707dc55bf4638ca828595791a3e811bbf39b21145e060c",
+      "family_upstream_sha256": "dfe46a21e55b27e66c47ff13295a279f8a4bb5be763d4da061eedf22df9a0a9d",
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/utils/BlockOptionalMetaLookup.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "365c5af747a3687d1bb7bf3e239639a70bdf9117b4b62ffde8dfa3b758187e02",
+      "canonical_26_3_override_sha256": "89482d9d062c4d735ed420026067a31d26c6b4917927a2efa2456c070eef9215",
+      "family_override_sha256": "919055f7bffb18ef3072caa6013f814f2c04f1c66bf5380447bc87f1c35f3473",
+      "family_upstream_sha256": "8898b9dc4b054eaed5afed7cec4b02efd3f12713d8ecae08edcb2966985addb0",
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinClientPlayNetHandler.java",
+      "port_resolution": "three-way merge retained the family API delta and the owned source changes",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "13b0e0424a7d4e5c02d1883056079e5fa712b16864374cb99ce3d82af7d84684",
+      "canonical_26_3_override_sha256": "1a1d67b95c305cac04190c9a98d2a22d3e32058f21c43142c95ab024c7be0420",
+      "family_override_sha256": "1a1d67b95c305cac04190c9a98d2a22d3e32058f21c43142c95ab024c7be0420",
+      "family_upstream_sha256": "13b0e0424a7d4e5c02d1883056079e5fa712b16864374cb99ce3d82af7d84684",
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinLivingEntity.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "73d389e0e08343a7500ee1c6f556ed1c709b7ee84666b88314ef257c3ce16555",
+      "canonical_26_3_override_sha256": "4f656e8550c2c09d7139d254e326ce4e8b8027d0c0d6a7ac3e59783bee116940",
+      "family_override_sha256": "bc92046830af9b57a0b715134cafdaa6d19c6bb5583993530f3dddce0187ced8",
+      "family_upstream_sha256": "b73daca21c1040cc5f54125dfef037625dce0ba7adca6760dbba982d34438f98",
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinMinecraft.java",
+      "port_resolution": "three-way merge retained the family API delta and the owned source changes",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "5bdd1e114cc0b474c78d86a3f000a5f55b23bfabd33dbe4e9b105852c38ca039",
+      "canonical_26_3_override_sha256": "d09b9a5e29cfc61c432ae963c1c8785310f895ead9c8da4a43d76768d1ce0077",
+      "family_override_sha256": "d09b9a5e29cfc61c432ae963c1c8785310f895ead9c8da4a43d76768d1ce0077",
+      "family_upstream_sha256": "5bdd1e114cc0b474c78d86a3f000a5f55b23bfabd33dbe4e9b105852c38ca039",
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinNetworkManager.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "ddf35e843e43147ef97db16e3cbce23443bdf12fb70f5533d37ba6b01c588da6",
+      "canonical_26_3_override_sha256": "a9f01b805d03f48e9388c9425453928c166cb7ef90602607d16d881260d26d60",
+      "family_override_sha256": "a9f01b805d03f48e9388c9425453928c166cb7ef90602607d16d881260d26d60",
+      "family_upstream_sha256": "ddf35e843e43147ef97db16e3cbce23443bdf12fb70f5533d37ba6b01c588da6",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/Baritone.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "e8b0819dbb492a9f8ebf67123023d7d725dbcd631738cf2d10e27f02eca71bef",
+      "family_override_sha256": "e8b0819dbb492a9f8ebf67123023d7d725dbcd631738cf2d10e27f02eca71bef",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/BoundWorldEditPolicy.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "61dadc50fe4e09bcb805e27e966b7d564b60f326d384b32d33c9d7d7e57e2eed",
+      "family_override_sha256": "61dadc50fe4e09bcb805e27e966b7d564b60f326d384b32d33c9d7d7e57e2eed",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedCoalescedJob.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "b3337a40644307870fabc95ded44ea2a0784503c676e44f52e0e315eb3f0c00d",
+      "family_override_sha256": "b3337a40644307870fabc95ded44ea2a0784503c676e44f52e0e315eb3f0c00d",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedFinalFlush.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "79945bb8e3a37c27affe5907bcd8304c7960ce6e53622b9953f9215253379d22",
+      "family_override_sha256": "79945bb8e3a37c27affe5907bcd8304c7960ce6e53622b9953f9215253379d22",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedKernelRuntime.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "be9483ca621cf4c39489701f96525bcd4f48c77d4fb5f33e050f827ce0e6ec46",
+      "family_override_sha256": "be9483ca621cf4c39489701f96525bcd4f48c77d4fb5f33e050f827ce0e6ec46",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedMutationGuard.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "e3888b0c3cbc72d5c82cfcef8bd241d88c456b64c909994b7f755610e548d516",
+      "family_override_sha256": "e3888b0c3cbc72d5c82cfcef8bd241d88c456b64c909994b7f755610e548d516",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedResultMailbox.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "4aa922735d839271aebc9ab21e2fc176b8d757a783201f8b8b20514f4f3799fd",
+      "family_override_sha256": "4aa922735d839271aebc9ab21e2fc176b8d757a783201f8b8b20514f4f3799fd",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedWorkScheduler.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "132f13bf820fd928f86caf325f17715afd03652cd9239b3c5306bf4c85f4121e",
+      "canonical_26_3_override_sha256": "79e9dc3be26a2733dba6c57293bed58b9c17d9ac1dd4c9fa87aa3c4ab7aa439f",
+      "family_override_sha256": "79e9dc3be26a2733dba6c57293bed58b9c17d9ac1dd4c9fa87aa3c4ab7aa439f",
+      "family_upstream_sha256": "132f13bf820fd928f86caf325f17715afd03652cd9239b3c5306bf4c85f4121e",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/behavior/InventoryBehavior.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "0d244399760440c21e2b864b95fce8b0b51fa0c4565f6fa50d42ba8113c50a54",
+      "canonical_26_3_override_sha256": "36c8822df5c0d6f50617c9ea86cfeb3d92386d6d30e05c2ed667ef1184666143",
+      "family_override_sha256": "36c8822df5c0d6f50617c9ea86cfeb3d92386d6d30e05c2ed667ef1184666143",
+      "family_upstream_sha256": "0d244399760440c21e2b864b95fce8b0b51fa0c4565f6fa50d42ba8113c50a54",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/behavior/PathingBehavior.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "20523352a54c611331611810fe6b1f476599266df7c121fdc0927d9a51355967",
+      "canonical_26_3_override_sha256": "96c95a59fd19d863087a9c83039bacdefc1e13d9bfa851b24835e4c97d4a7d5d",
+      "family_override_sha256": "96c95a59fd19d863087a9c83039bacdefc1e13d9bfa851b24835e4c97d4a7d5d",
+      "family_upstream_sha256": "20523352a54c611331611810fe6b1f476599266df7c121fdc0927d9a51355967",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedChunk.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "cd51caf603d3f5d1fd046ea21e5c8a4c83810d776e9b588446dc1b3077e2bfb0",
+      "canonical_26_3_override_sha256": "52b866dbcf1a2e8dbde0eec662aa78bfc6f484050cd702554c3d144b433db172",
+      "family_override_sha256": "52b866dbcf1a2e8dbde0eec662aa78bfc6f484050cd702554c3d144b433db172",
+      "family_upstream_sha256": "cd51caf603d3f5d1fd046ea21e5c8a4c83810d776e9b588446dc1b3077e2bfb0",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedRegion.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "efe9976ed1c2421977276bab63e857cd72b6490ba7dd009f91c670c844295307",
+      "canonical_26_3_override_sha256": "31965bfaafe41436be5d3d51d9150e27cd2b85e68beef82b25fe6ae863d1e2a6",
+      "family_override_sha256": "31965bfaafe41436be5d3d51d9150e27cd2b85e68beef82b25fe6ae863d1e2a6",
+      "family_upstream_sha256": "efe9976ed1c2421977276bab63e857cd72b6490ba7dd009f91c670c844295307",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedWorld.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "3640bb2a37239b3154ed736d7e82dcd4ba4fa727262381ba3028107234550c29",
+      "canonical_26_3_override_sha256": "a449a99b4306a5ebac5c32243d61f0ffb9cb5ea7dfce72806179d8bacaa81659",
+      "family_override_sha256": "a449a99b4306a5ebac5c32243d61f0ffb9cb5ea7dfce72806179d8bacaa81659",
+      "family_upstream_sha256": "3640bb2a37239b3154ed736d7e82dcd4ba4fa727262381ba3028107234550c29",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/ChunkPacker.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "e053fbc96ef22797bf61e75cbc6e96fa0bcc1e1c2a05b2e89bcf8aa93265dd12",
+      "canonical_26_3_override_sha256": "42af21314620c5df2277cc92c42d278c51ab67a98768b44a3b82f30db39c1ff9",
+      "family_override_sha256": "42af21314620c5df2277cc92c42d278c51ab67a98768b44a3b82f30db39c1ff9",
+      "family_upstream_sha256": "e053fbc96ef22797bf61e75cbc6e96fa0bcc1e1c2a05b2e89bcf8aa93265dd12",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/FasterWorldScanner.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "6a6c501c62a4a4c122228a18850b3d71c4c97206a46bccb8c965c834757d9bc0",
+      "canonical_26_3_override_sha256": "e55d22a6d87efde7bffdc6fb19d85440d769ffc56cfeaaf6196247a4cf15c972",
+      "family_override_sha256": "e55d22a6d87efde7bffdc6fb19d85440d769ffc56cfeaaf6196247a4cf15c972",
+      "family_upstream_sha256": "6a6c501c62a4a4c122228a18850b3d71c4c97206a46bccb8c965c834757d9bc0",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/WorldData.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "964bc8a63c8b5709464164256851ee720549aaa899563c43d56059bd70bba1d8",
+      "canonical_26_3_override_sha256": "725ec5b5e989301cee3960dd8427dd4fb69e22a036c38bbb15524d179400eafb",
+      "family_override_sha256": "725ec5b5e989301cee3960dd8427dd4fb69e22a036c38bbb15524d179400eafb",
+      "family_upstream_sha256": "964bc8a63c8b5709464164256851ee720549aaa899563c43d56059bd70bba1d8",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/WorldProvider.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "17de0d95b69400f7ec145fd8dac2e7416f07dd9273789cc178508326a0087016",
+      "canonical_26_3_override_sha256": "ef2d4156e7ee70fd3aed5873964b15fbdd8c080d383ddee0070a2229473d6fb8",
+      "family_override_sha256": "ef2d4156e7ee70fd3aed5873964b15fbdd8c080d383ddee0070a2229473d6fb8",
+      "family_upstream_sha256": "17de0d95b69400f7ec145fd8dac2e7416f07dd9273789cc178508326a0087016",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/event/GameEventHandler.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "81dc9b1d96b1d9a1484994225c5508cd34c8713c7e0a6b8d27b1e67ae1d621f2",
+      "canonical_26_3_override_sha256": "d67d3d431fd0cb5bc85af7820f6f23ea504cbfcdcd74bfff548828f3079ae98d",
+      "family_override_sha256": "d67d3d431fd0cb5bc85af7820f6f23ea504cbfcdcd74bfff548828f3079ae98d",
+      "family_upstream_sha256": "81dc9b1d96b1d9a1484994225c5508cd34c8713c7e0a6b8d27b1e67ae1d621f2",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AStarPathFinder.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "b4f08953a070c04c14cc6f897c388642e24808fb92a53ecb50e2fc6ac216f971",
+      "canonical_26_3_override_sha256": "120797f789148f9e884d014bfa84fc994df3f3a58e1ab311e0648026695fee7b",
+      "family_override_sha256": "120797f789148f9e884d014bfa84fc994df3f3a58e1ab311e0648026695fee7b",
+      "family_upstream_sha256": "b4f08953a070c04c14cc6f897c388642e24808fb92a53ecb50e2fc6ac216f971",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AbstractNodeCostSearch.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "7043adf6404c5f9da7f3341e1178d8e0a10c15b70255dab41becb27b03286a75",
+      "canonical_26_3_override_sha256": "435b61443f8b30be9a5860ec366dc56df598818531509ece6c463d384cd500da",
+      "family_override_sha256": "435b61443f8b30be9a5860ec366dc56df598818531509ece6c463d384cd500da",
+      "family_upstream_sha256": "7043adf6404c5f9da7f3341e1178d8e0a10c15b70255dab41becb27b03286a75",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/Path.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "883c440e82aa0dee9b096a7d8dcf777e5134d9a1537eab15b218873843768863",
+      "canonical_26_3_override_sha256": "b5918bf8e21cb15a0f774475ddf16807c43153e4b55abb73db5f98f237ed5a62",
+      "family_override_sha256": "b5918bf8e21cb15a0f774475ddf16807c43153e4b55abb73db5f98f237ed5a62",
+      "family_upstream_sha256": "883c440e82aa0dee9b096a7d8dcf777e5134d9a1537eab15b218873843768863",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/CalculationContext.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "ae82acf7c52acb4124576102b306b2d7ab7ce7552fa60f5327b1c1439f714988",
+      "canonical_26_3_override_sha256": "19482936862bff602e2986dd94522c2d34c0ea308194670d03f208480fa9c4b6",
+      "family_override_sha256": "19482936862bff602e2986dd94522c2d34c0ea308194670d03f208480fa9c4b6",
+      "family_upstream_sha256": "ae82acf7c52acb4124576102b306b2d7ab7ce7552fa60f5327b1c1439f714988",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/MovementHelper.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "936d8ab5ef741621fa7a22286fbb058bc1cec4825a6b8aab1086868c33ed8a91",
+      "canonical_26_3_override_sha256": "226e74d445723f52449d153cb2f6cfbb1f41282a59b44d6b7672f4b69c7c1b8b",
+      "family_override_sha256": "226e74d445723f52449d153cb2f6cfbb1f41282a59b44d6b7672f4b69c7c1b8b",
+      "family_upstream_sha256": "936d8ab5ef741621fa7a22286fbb058bc1cec4825a6b8aab1086868c33ed8a91",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/movements/MovementDescend.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "9bd33d1c19478bf19bb0b747c8e15949816af0677fe47a47f7930a3f26cbd0c5",
+      "canonical_26_3_override_sha256": "2a0c73553b31390102a02d769c70dadd2add16d11e8d9b11ebfc85cf3bb5164e",
+      "family_override_sha256": "2a0c73553b31390102a02d769c70dadd2add16d11e8d9b11ebfc85cf3bb5164e",
+      "family_upstream_sha256": "9bd33d1c19478bf19bb0b747c8e15949816af0677fe47a47f7930a3f26cbd0c5",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/movements/MovementParkour.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "99dd0e06b462792bb5b5785ed5f2392f2e24acb4d0115aa02ba56f955943eaba",
+      "canonical_26_3_override_sha256": "bac7ac526c1a093adf9dcf1923193dc7d8841dbddbd929664818b505ca3febb1",
+      "family_override_sha256": "373d1aaf0ded4ad68f7a2399884a393e38ee951cc7efec039fd6dc3480f38cc6",
+      "family_upstream_sha256": "7c5ee7df070056b63af21c44621d12edca9344a938f4dce01c90dd4a49db35eb",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/BuilderProcess.java",
+      "port_resolution": "three-way merge retained the family API delta and the owned source changes",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "468b069e1976cf9c7024be8200d4e9f8a344a24f62475699554a1429638a09c3",
+      "canonical_26_3_override_sha256": "5d7568b1de3d3950b73784536eda639ac7ad9c527de7003e079d57507c69d637",
+      "family_override_sha256": "5d7568b1de3d3950b73784536eda639ac7ad9c527de7003e079d57507c69d637",
+      "family_upstream_sha256": "468b069e1976cf9c7024be8200d4e9f8a344a24f62475699554a1429638a09c3",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/ExploreProcess.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "a70746fd2d74ec37428fc957cb1235444b354e638560cdf5e89378cd904cad3b",
+      "canonical_26_3_override_sha256": "3acb3a687c4e0f2305c4f20967c7fa410db822ce1156793fce47ee5cf4039a99",
+      "family_override_sha256": "4a8426688ac53f37c9eaaf2a58f56f76a354afc41895bf3f07486b2115792dce",
+      "family_upstream_sha256": "893100829a8900292ccc58c001787007c2ddd3754e94d80412e055440ea53106",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/FarmProcess.java",
+      "port_resolution": "kept the 26.2 two-argument bonemeal API with owned farm guards and snapshots",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "c60fd728a1f05ce3bc0b5c773297637f7329608d34fa57041d9cddd65c0a33d5",
+      "canonical_26_3_override_sha256": "91cffca7d460aaef9ba43ed1e8257ceb4d20ecb5eb9b1b5a91fe5edfbaf07ff9",
+      "family_override_sha256": "91cffca7d460aaef9ba43ed1e8257ceb4d20ecb5eb9b1b5a91fe5edfbaf07ff9",
+      "family_upstream_sha256": "c60fd728a1f05ce3bc0b5c773297637f7329608d34fa57041d9cddd65c0a33d5",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/GetToBlockProcess.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "5894d64e9c3de23004c1c6cab4d5f821e12b155737358ce22b9e4899b9af676d",
+      "canonical_26_3_override_sha256": "3150aa1fc67cf45310564fa944f6c004816a6bfa3664fe032184a92c16512654",
+      "family_override_sha256": "3150aa1fc67cf45310564fa944f6c004816a6bfa3664fe032184a92c16512654",
+      "family_upstream_sha256": "5894d64e9c3de23004c1c6cab4d5f821e12b155737358ce22b9e4899b9af676d",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/MineProcess.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "01831a88bd032d9fdd70f16a9fd028116be4b77e37205a59080e889b95b95d98",
+      "family_override_sha256": "01831a88bd032d9fdd70f16a9fd028116be4b77e37205a59080e889b95b95d98",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/OwnedMiningAdmission.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "deaf34e1500d427ff5aae8bb9e6057e98983fb073410bb7dafdac5ed148f6e0f",
+      "family_override_sha256": "deaf34e1500d427ff5aae8bb9e6057e98983fb073410bb7dafdac5ed148f6e0f",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/ChunkSnapshot.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "239670a6069aca3a263ee31c35d141a0690b38f8e52d2e25517338a3b82c9a0c",
+      "family_override_sha256": "239670a6069aca3a263ee31c35d141a0690b38f8e52d2e25517338a3b82c9a0c",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/ImmutableWorldView.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": null,
+      "canonical_26_3_override_sha256": "475ff41f0de2f3d7186bf347edb06dcc78face7149f78a7c039d94b50fdbf80c",
+      "family_override_sha256": "475ff41f0de2f3d7186bf347edb06dcc78face7149f78a7c039d94b50fdbf80c",
+      "family_upstream_sha256": null,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/OwnedWorldSnapshots.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "932731002aed82648db8a73aa838a040a46a528237c95d07a8b393a56078ec1b",
+      "canonical_26_3_override_sha256": "6ca0034c1a29b0034ee5cd62aaedbd13dec338a92e58b8156c77af06a15601c0",
+      "family_override_sha256": "fcc59d3e18522c2c46982e3c724b3cf404ca5b2a653632214e10bd87e952f6b9",
+      "family_upstream_sha256": "eb2098a2519fa354851b38749ba067a329e771a025c13eae2e7edc93b7b3afcd",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockBreakHelper.java",
+      "port_resolution": "three-way merge retained the family API delta and the owned source changes",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "d80cadf0207e290ff4663e6c8adc3884554e31e661059f27292d11f6e3e1df38",
+      "canonical_26_3_override_sha256": "acade4b5b76434a7712dc88fe89eb7d769a151d21eb4232a249e607fd5ffe15a",
+      "family_override_sha256": "5991c635ed29f4b3eeec73f23f432a03910dac3b09dcca4ada87faddd7a2373a",
+      "family_upstream_sha256": "e2fce162311ef7850bea8156c5dab671fe330b4629998b13c1df12f1682e5a63",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockPlaceHelper.java",
+      "port_resolution": "three-way merge retained the family API delta and the owned source changes",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_26_3_upstream_sha256": "d4f5ac40552319cf69a3e7041ad5383c25f1a5ef222494a4cb5c7ec115b28e47",
+      "canonical_26_3_override_sha256": "30813265a8983d65240b520e2974029ce6f9df7c3bfcdeb26a9ee9abf547464d",
+      "family_override_sha256": "30813265a8983d65240b520e2974029ce6f9df7c3bfcdeb26a9ee9abf547464d",
+      "family_upstream_sha256": "d4f5ac40552319cf69a3e7041ad5383c25f1a5ef222494a4cb5c7ec115b28e47",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockStateInterface.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "69e49623f5fd2096eab740114c6b4f734ab1034991308e18181c7a6815402781",
+      "canonical_26_3_override_sha256": "5c188ef0bc4abc63b5c4fe613dc327fc2a8cc1660c0b1b7f76bbb1328cf05b6b",
+      "family_override_sha256": "5c188ef0bc4abc63b5c4fe613dc327fc2a8cc1660c0b1b7f76bbb1328cf05b6b",
+      "family_upstream_sha256": "69e49623f5fd2096eab740114c6b4f734ab1034991308e18181c7a6815402781",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockStateInterfaceAccessWrapper.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "a49ca82f92013eaae7c1bacaede58384749ac62eacc6af4ff3902425f7d044fb",
+      "canonical_26_3_override_sha256": "4c7de3986e284dafeba9ff32f1dc26a18b0cd930347c00b425aa014379eb2539",
+      "family_override_sha256": "4c7de3986e284dafeba9ff32f1dc26a18b0cd930347c00b425aa014379eb2539",
+      "family_upstream_sha256": "a49ca82f92013eaae7c1bacaede58384749ac62eacc6af4ff3902425f7d044fb",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "0e47cf6952f03bec2a6d88e49d7f18b8369f93ae2d67d61691bc2e0bfd04daaf",
+      "canonical_26_3_override_sha256": "345c2126e6331b94e159f6bc9af57caa96b4de131ae044e7bc9c1b445c2783a5",
+      "family_override_sha256": "345c2126e6331b94e159f6bc9af57caa96b4de131ae044e7bc9c1b445c2783a5",
+      "family_upstream_sha256": "0e47cf6952f03bec2a6d88e49d7f18b8369f93ae2d67d61691bc2e0bfd04daaf",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/ToolSet.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "a1a57c4aa25a113e6aa7ce6c948bdf8ab5dbadc74510f9cae442fab6baccf759",
+      "canonical_26_3_override_sha256": "bd33f886ddaf04aac9a84614d92797b0b5298ae5b996d95149de01dca4987003",
+      "family_override_sha256": "bd33f886ddaf04aac9a84614d92797b0b5298ae5b996d95149de01dca4987003",
+      "family_upstream_sha256": "a1a57c4aa25a113e6aa7ce6c948bdf8ab5dbadc74510f9cae442fab6baccf759",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/player/BaritonePlayerContext.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "c376904128e62f8a2e21336cd8ded635742125a79e910925356247d16ceab030",
+      "canonical_26_3_override_sha256": "17b3dbce7d63df9af425117047bc7a3dafdee0e44e0dc9bd3cdd50a3de0120da",
+      "family_override_sha256": "17b3dbce7d63df9af425117047bc7a3dafdee0e44e0dc9bd3cdd50a3de0120da",
+      "family_upstream_sha256": "c376904128e62f8a2e21336cd8ded635742125a79e910925356247d16ceab030",
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/player/BaritonePlayerController.java",
+      "port_resolution": "owned source changes applied over identical upstream source",
+      "upstream_source_changed": false
+    }
+  ],
+  "schema_version": 1
+}

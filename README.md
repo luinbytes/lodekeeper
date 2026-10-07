@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/lodekeeper-banner.svg" alt="Lodekeeper — Give it a goal. Let it find the way." width="100%"></p>
+<p align="center"><img src="docs/assets/lodekeeper-banner.svg" alt="Lodekeeper - Give it a goal. Let it find the way." width="100%"></p>
 
 <p align="center">
   <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-abf49b?style=flat-square&amp;labelColor=192922"></a>
@@ -6,11 +6,13 @@
   <img alt="Status: in development" src="https://img.shields.io/badge/status-in_development-eac97a?style=flat-square&amp;labelColor=192922">
 </p>
 
-**Give it a goal. Let it do the work.** Lodekeeper is a Minecraft Fabric client mod that gathers resources and works through survival crafting chains using ordinary player actions. It uses version-matched Baritone navigation with Lodekeeper's inventory planner, station handling, and live task panel.
+# Lodekeeper
 
-> **Preview 10 completes the full diamond loadout in fresh survival worlds.** The exact jars made all five tools and equipped all four armor pieces in **11:59 on 1.21.1** and **9:33 on 26.3**, from an empty inventory with one command. [Download the jar for your version](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). [Server-verified runs](docs/NAVIGATION-REBUILD.md#exact-preview-10-263) record both results. Timing on other seeds and full mechanic coverage remain open.
+**Give it a goal. Let it do the work.** Lodekeeper is a Minecraft Fabric client mod for survival resource gathering and crafting. It uses ordinary player actions to collect resources and complete crafting chains. Preview 10 remains downloadable. Preview 11 is an unreleased development candidate with an owned navigation kernel.
 
-### Tell it what you need
+> **Preview 10 full loadout record.** Its exact jars made all five tools and equipped all four armor pieces in fresh survival worlds. The runs took 11:59 on 1.21.1 and 9:33 on 26.3. These timings belong to Preview 10 only. [Download Preview 10](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). [Verified server runs](docs/NAVIGATION-REBUILD.md#exact-preview-10-263) record both results.
+
+## Tell Preview 10 what you need
 
 ```text
 !lk help
@@ -23,27 +25,27 @@
 !lk stop
 ```
 
-Lodekeeper makes prerequisite tools, places and uses crafting tables, and cooks through matching furnace, smoker or blast-furnace recipes. It also handles ordinary stonecutting. [Station limits](docs/PROCESSING-STATIONS.md) describe unsupported recipes and interactions.
+Preview 10 makes prerequisite tools, places and uses crafting tables, and cooks through matching furnace, smoker, or blast furnace recipes. It also handles ordinary stonecutting. [Station limits](docs/PROCESSING-STATIONS.md) describe unsupported recipes and interactions.
 
-Baritone handles movement, terrain breaking, scaffold placement and item collection. Mining runs in batches. Compatible ore variants share a request; bulk diamond jobs work in the deep band. Lodekeeper can carry its own crafting table between work sites and skip a blocked optional recovery. Lodekeeper checks the items that actually reach your inventory before advancing to crafting. Enable parkour with `!lk config allowParkour true`.
+Preview 10 uses its bundled Baritone runtime for movement, terrain breaking, scaffold placement, and item collection. Mining runs in batches. Compatible ore variants share a request, and bulk diamond jobs work in the deep band. Lodekeeper can carry its own crafting table between work sites and skip a blocked optional recovery. It checks the items that reach your inventory before advancing to crafting. Enable parkour with `!lk config allowParkour true`.
 
-Watch the planned path and target while it works. The compact panel shows the current task, elapsed time and route progress. The timer counts from the start of each goal or full project, including pauses. Use `!lk config showPath false` or `!lk config showHud false` to hide them. The Baritone backend displays the executing route and whether it is calculating the next segment. Expanded search nodes are not exposed by that backend.
+The compact status panel shows the current task, elapsed time, and route progress. The timer counts from the start of each goal or full project, including pauses. Use `!lk config showPath false` or `!lk config showHud false` to hide the path or panel. Preview 10 displays the executing route and whether it is calculating the next segment. It does not expose expanded search nodes.
 
-Lodekeeper also writes a short progress trace to the launcher console and your instance's `logs/latest.log`. If a task stalls, copy the `[Lodekeeper]` lines from `BEGIN` through the latest `PROGRESS` or `task_end`. They include the task, elapsed time, navigation phase, route events, and retries. Logging is enabled by default; use `!lk config debugLogging false` to turn it off.
+Lodekeeper writes a short progress trace to the launcher console and your instance `logs/latest.log`. If a task stalls, copy the `[Lodekeeper]` lines from `BEGIN` through the latest `PROGRESS` or `task_end`. They include the task, elapsed time, navigation phase, route events, and retries. Logging is enabled by default. Use `!lk config debugLogging false` to turn it off.
 
-For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option can make axes when estimated savings cover the entire setup cost; New installations default it to on; saved configurations retain their previous value. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
+For large wood requests, try `!lk config optimizeWoodTools true`. This experimental option makes axes when estimated savings cover the full setup cost. New installations default it to on. Saved configurations retain their previous value. See [how tool investment works and its measured limits](docs/HARVEST-INVESTMENT.md).
 
 `wood` means logs. Exact items use their registry names, including `minecraft:diamond_boots` and modded names such as `example:ruby`. Change the prefix with `!lk config prefix "your-prefix "`. Commands stay on your client.
 
-### From an empty inventory to a finished goal
+## From an empty inventory to a finished goal
 
-Lodekeeper works backward from what you ask for: identify ingredients, gather supplies, make tools, place and use crafting tables and cooking stations, then check the finished item in your inventory. Baritone calculates later path segments during movement. Lodekeeper waits for safe movement cancellation before taking control of inventory screens.
+Lodekeeper works backward from what you ask for. It identifies ingredients, gathers supplies, makes tools, uses crafting and cooking stations, then checks the finished item in your inventory. Preview 10 uses Baritone to calculate later path segments during movement. Lodekeeper waits for safe movement cancellation before taking control of inventory screens.
 
-`!lk project gear_diamond` requests five diamond tools and four armor pieces. Armor equips automatically. This preset passed one fresh-world run on each primary version: 11:59 on 1.21.1 and 9:33 on 26.3. It remains experimental; terrain and resource availability affect completion time.
+`!lk project gear_diamond` requests five diamond tools and four armor pieces. Armor equips automatically. The Preview 10 preset passed one fresh world run on each primary version. Terrain and resource availability affect completion time.
 
-Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue; `!lk plan` shows the current plan and `!lk plan diamond_boots` previews a goal before starting it.
+Counts are inventory targets. If you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue. Use `!lk plan` to show the current plan or `!lk plan diamond_boots` to preview a goal before starting it.
 
-`get` starts automatically. Close chat or other screens to let it run; `!lk status` shows discovery, planning, and movement progress. Bare `!lk` and `!lk help` show command guidance.
+`get` starts automatically. Close chat or other screens to let it run. Use `!lk status` to see discovery, planning, and movement progress. Bare `!lk` and `!lk help` show command guidance.
 
 | Command | Use it to |
 | --- | --- |
@@ -55,34 +57,63 @@ Counts are inventory targets: if you already have 20 logs, `!lk get wood 64` ask
 | `!lk maintained` / `!lk unmaintain all` | Inspect or remove stock targets |
 | `!lk projects` / `!lk project <name>` | List or queue experimental inventory loadouts |
 
-Stock maintenance yields to foreground goals. Projects collect inventory targets; supply projects do not build structures or farms. Some presets include mechanics still in development and can report a blocker. Their gameplay acceptance is pending.
+Stock maintenance yields to foreground goals. Projects collect inventory targets. Supply projects do not build structures or farms. Some presets include mechanics still in development and can report a blocker. Their gameplay acceptance is pending.
 
-Unknown recipes or unsupported mechanics report a blocker. Modded items using ordinary recipes and interactions are a design target; special machines need providers.
+Unknown recipes and unsupported mechanics report a blocker. Modded items using ordinary recipes and interactions are a design target. Special machines need providers.
 
-### Installation and compatibility
+## Preview 11 source candidate
 
-Download [Development Preview 10](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Baritone is bundled, so you do not need a separate installation. Replace your previous Lodekeeper jar before launching.
+Preview 11 is not released. Its source builds the licensed navigation kernel into Lodekeeper under `dev.lodekeeper.navigation.kernel`. It does not load a separate Baritone runtime.
+
+The source map routes 24 exact Minecraft profiles through 14 navigation source families. The shared core and navigation modules target Java 17. Each Fabric adapter targets the APIs for its exact profile. The source map does not prove support. An exact artifact must compile before we declare that version supported.
+
+The 23 advanced navigation options are available in the settings GUI. Open it with Right Shift or `!lk config`. The settings screen suspends automation while it is open. Save applies the draft; Escape discards it. The `Protected plots` button opens the claim editor.
+
+Claims are 3D boxes scoped to the current world and dimension. The GUI accepts a name and two XYZ corners. These client commands select corners and create or list a claim.
+
+Each `pos` command records the block under your crosshair. If you are not targeting a block, it records your block position.
+
+```text
+!lk claim pos1
+!lk claim pos2
+!lk claim add home preferred
+!lk claim list
+```
+
+Use `!lk claim prefer home false` to turn off station preference. Use `!lk claim remove home` to remove a claim. `!lk claim clear` clears the pending corner selection. It does not remove saved claims.
+
+Protected claims block automated breaking and placing. Placement checks include the target and adjacent support blocks, including the six possible faces for torch placement. If world identity or claim data cannot be checked, automated block edits pause. The candidate prefers usable stations that are already loaded in claims marked for stations. Station pickup checks the exact drop UUID and server receipts. Cleanup has a limit of 60 seconds. It reports skipped stations or incomplete pickups.
+
+Optional backfill uses only surplus stone or cobblestone after other goals and reserves. It does not gather blocks just to restore the route.
+
+The current 26.3 candidate build completed one native iron run in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. The 1.20.1 navigation kernel compiles, but its adapter still needs a fix for the host preview API. Current primary version build and native gates remain open. CI for all 24 profiles and fresh world full loadout runs remain pending.
+
+## Installation and compatibility
+
+Preview 10 remains the downloadable version. Its jars include a bundled Baritone mod. Replace your previous Lodekeeper jar before launching.
 
 1. [Install Fabric](https://docs.fabricmc.net/players/installing-fabric/) for your exact Minecraft Java version.
-2. Place `lodekeeper-<minecraft-version>-0.1.0-preview.10.jar` and the matching Fabric API jar in your instance's `mods` folder. Keep one Lodekeeper jar. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
-3. Launch that Fabric profile, enter a world and try `!lk get wood 8`.
+2. Place `lodekeeper-<minecraft-version>-0.1.0-preview.10.jar` and the matching Fabric API jar in your instance `mods` folder. Keep one Lodekeeper jar. [Fabric's mod-installation guide](https://docs.fabricmc.net/players/installing-mods) explains the folder locations.
+3. Launch that Fabric profile, enter a world, and try `!lk get wood 8`.
 
-Each jar targets one exact release. Preview 10 includes all 24 stable Java releases from 1.20 through 26.3, including 1.21.1. Every jar passed compilation and packaging checks. Gameplay checks cover selected cases on 1.21.1 and 26.3; [compatibility evidence](docs/COMPATIBILITY.md) separates those results from untested gameplay. Use server automation where the server permits it.
+Each Preview 10 jar targets one exact release. The release includes all 24 declared profiles from 1.20 through 26.3. Every jar passed compilation and packaging checks. Gameplay checks cover selected cases on 1.21.1 and 26.3. [Compatibility evidence](docs/COMPATIBILITY.md) separates those results from untested gameplay. Use server automation where the server permits it.
 
 ---
 
 <details>
-<summary><strong>Development, architecture and verification</strong></summary>
+<summary><strong>Development, architecture, and verification</strong></summary>
 
-Source lives in `core` for acquisition and commands, `nav` for route views and the earlier navigation tests, and the Fabric adapters for Minecraft integration. The current default movement and mining backend is Baritone. The shared core targets Java 17. Builds run with one worker and no persistent daemon. Exact build profiles are selected with `./scripts/build-version.sh 1.20.1`, `1.21.1`, or `26.3`; set `JAVA_HOME` to a JDK 17, 21, or 25 respectively. These development artifacts still require gameplay verification.
+Source lives in `core` for acquisition and commands, `nav` for route views and earlier navigation models, and the Fabric adapters for Minecraft integration. Preview 11 uses the owned navigation kernel described above. Builds run with one worker and no persistent daemon. Set `JAVA_HOME` to the JDK required by the exact game profile. Development artifacts still need their exact build and native checks.
 
-Preview 10 binaries come from source `852b72f177befc1b55771cee86076544f39c9f9b` and [its successful 24-profile CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017). The exact [1.21.1](docs/evidence/navigation-rebuild/checkpoint-14.json) and [26.3 fresh-world receipts](docs/evidence/navigation-rebuild/checkpoint-15.json) confirm the complete loadout. Prepared workbench checks on both primary versions use the earlier `7ba8d375` source; their supplies and geometry are declared in the evidence. Earlier failures remain in the [rebuild record](docs/NAVIGATION-REBUILD.md).
+Preview 10 binaries come from source `852b72f177befc1b55771cee86076544f39c9f9b` and [its successful CI run across 24 profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017). The exact [1.21.1](docs/evidence/navigation-rebuild/checkpoint-14.json) and [26.3 fresh world receipts](docs/evidence/navigation-rebuild/checkpoint-15.json) confirm the complete loadout. Prepared workbench checks on both primary versions use the earlier `7ba8d375` source. Their supplies and geometry are declared in the evidence. Earlier failures remain in the [rebuild record](docs/NAVIGATION-REBUILD.md).
 
-The release includes SHA-256 checksums, packaging evidence and corresponding upstream source archives. Lodekeeper's code uses the MIT licence. Bundled Baritone retains its LGPL licence and upstream notices. [Dependency notices](third-party/baritone/NOTICE.md) include pinned versions and replacement instructions.
+The release includes SHA-256 checksums, packaging evidence, and corresponding upstream source archives. Lodekeeper code uses the MIT licence. The included Baritone source retains LGPL-3.0-or-later notices. [Dependency notices and source access](third-party/baritone/NOTICE.md) list the pinned source locks and rebuild details.
 
 - [Navigation and survival rebuild](docs/NAVIGATION-REBUILD.md)
-- [Baritone dependency notices and replacement instructions](third-party/baritone/NOTICE.md)
+- [Dependency notices and source access](third-party/baritone/NOTICE.md)
 - [Stack and delivery plan](docs/STACK.md)
+- [Owned automation plan](docs/OWNED-AUTOMATION-PLAN.md)
+- [Preview 11 development checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Version and gameplay evidence](docs/COMPATIBILITY.md)
 - [Isolated gameplay verifier](docs/GAME-VERIFICATION.md)
@@ -96,6 +127,6 @@ The release includes SHA-256 checksums, packaging evidence and corresponding ups
 - [Bootstrap planning and safe approaches](docs/BOOTSTRAP-PLANNER.md)
 - [Repository instructions](AGENTS.md)
 
-Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks; this project makes no superiority claim before those measurements exist.
+Performance comparisons with AltoClef or Baritone require equivalent gameplay benchmarks. This project makes no superiority claim before those measurements exist.
 
 </details>

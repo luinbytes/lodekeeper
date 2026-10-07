@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/cabaletta/baritone",
+  "baritone_version": "1.11.3",
+  "source_commit": "10e65932e597ee5f11a654030f17798646f563f2",
+  "source_root": "baritone-10e65932e597ee5f11a654030f17798646f563f2",
+  "archive_filename": "baritone-1.11.3-10e65932e597ee5f11a654030f17798646f563f2.tar.gz",
+  "archive_url": "https://github.com/cabaletta/baritone/archive/10e65932e597ee5f11a654030f17798646f563f2.tar.gz",
+  "archive_sha256": "4678f9540bb457d167171cfdb1dc982f8446b36f7f8e847414bfec7bdbe78a46",
+  "dependency_artifact_sha256": "f9a9b17a41d7d7ad22c759058b14fd01e3319663282e66f99e18153237fa6767",
+  "minecraft_versions": [
+    "1.21.1"
+  ],
+  "java_version": 21,
+  "minecraft_mappings": "official Mojang mappings",
+  "purpose": "Normalized source ancestor used only to derive per-pin lifecycle overrides."
+}

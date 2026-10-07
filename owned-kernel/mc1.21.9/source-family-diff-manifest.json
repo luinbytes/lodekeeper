@@ -1,0 +1,588 @@
+{
+  "baseline": {
+    "archive_sha256": "4678f9540bb457d167171cfdb1dc982f8446b36f7f8e847414bfec7bdbe78a46",
+    "baritone_version": "1.11.3",
+    "override_manifest_sha256": "778f261b3ccf2bb0a1dbd2c6ea1c5a9038f4c5de24b1d5e9d176369fdc773887",
+    "reviewed_baseline_sha256": "18f056204e77ccc4cd24701c52e2578bb94720e356cb2de5bfcfe7d28cec70f1",
+    "source_commit": "10e65932e597ee5f11a654030f17798646f563f2"
+  },
+  "excluded_overrides": [
+    {
+      "baseline_source_sha256": "3ab442688eca7c757de183e0b70318c7f1bc491600f4d90044bf1fd853f2cb9b",
+      "canonical_override_sha256": "2ff5e585a7b737f71126582394098bcf2a29d94592288ff916bc82702f57b1b3",
+      "family_source_sha256": "69d09c6da45a0e6480f55592c4f3e6d627dfbff54a6df9e8041959f9df9941cb",
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/utils/BlockOptionalMeta.java",
+      "resolution": "Pinned source uses a different ReloadableServerRegistries.reload overload and has no common-pool executor call, so the older full-file override does not apply.",
+      "source_path": "src/api/java/baritone/api/utils/BlockOptionalMeta.java"
+    }
+  ],
+  "family": {
+    "api_family": "1.21.9",
+    "archive_sha256": "23fd24a2bd403161182a15ab9ee5f65e5110c60683ed331e43dd4853657e6602",
+    "baritone_version": "1.16.0",
+    "java_version": 21,
+    "minecraft_mappings": "official Mojang mappings",
+    "minecraft_versions": [
+      "1.21.9",
+      "1.21.10"
+    ],
+    "source_commit": "5bf45429eeb17020e90c1ae316f8bac4c62477d8"
+  },
+  "files": [
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "ff0d0b65aee5addd7548c01bdf087878806e3bc6239c0aba532042f1eb495132",
+      "family_override_sha256": "ff0d0b65aee5addd7548c01bdf087878806e3bc6239c0aba532042f1eb495132",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/WorldEditPolicy.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "59d3055dce5ca845ffb2894ca271b61610a56fc769f9199288c2ccdf79f15d50",
+      "family_override_sha256": "59d3055dce5ca845ffb2894ca271b61610a56fc769f9199288c2ccdf79f15d50",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/WorldEditPolicySnapshot.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "aa6cee46188dc3bf9fac1af602a3aeffcf1d36c15b177f25a05d7b2f1632b3a2",
+      "family_override_sha256": "aa6cee46188dc3bf9fac1af602a3aeffcf1d36c15b177f25a05d7b2f1632b3a2",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/AutomationInputBarrier.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "387293d5b5ed4988e0fd8aeca094021fdd685a7c5b7ec39308a147694a782506",
+      "canonical_override_sha256": "058221690fbbe737d02b30f3a1c3eccf819f2e996c44d9c8e20b3eb4c8ea56c4",
+      "family_override_sha256": "058221690fbbe737d02b30f3a1c3eccf819f2e996c44d9c8e20b3eb4c8ea56c4",
+      "family_source_sha256": "387293d5b5ed4988e0fd8aeca094021fdd685a7c5b7ec39308a147694a782506",
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/pathing/calc/IPathFinder.java",
+      "port_resolution": "Pinned upstream source hash matches the 1.21.1 baseline; carried the current primary SearchPreview API and publication cadence unchanged.",
+      "source_path": "src/api/java/baritone/api/pathing/calc/IPathFinder.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "469e17c7e1abf3629d5416e3e2a4b0de08848692bca2c818d72b95f3197f522b",
+      "family_override_sha256": "469e17c7e1abf3629d5416e3e2a4b0de08848692bca2c818d72b95f3197f522b",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/process/OwnedMiningTargets.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "10c3b5227ff4723b9ef839dfac084a09d91a90181ff5f564ec91b344b2279049",
+      "canonical_override_sha256": "5cda64b94925715b6e707dc55bf4638ca828595791a3e811bbf39b21145e060c",
+      "family_override_sha256": "5cda64b94925715b6e707dc55bf4638ca828595791a3e811bbf39b21145e060c",
+      "family_source_sha256": "10c3b5227ff4723b9ef839dfac084a09d91a90181ff5f564ec91b344b2279049",
+      "merge_conflict_hunks": 0,
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/utils/BlockOptionalMetaLookup.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/api/java/baritone/api/utils/BlockOptionalMetaLookup.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "e5e3fa4252f92a48993f2de54e8d237d506f30249c981b9db1275bbdc7bd496b",
+      "canonical_override_sha256": "2da17d369c4360b9679e925cb74243b0e2556f09222cab88ca81215493b0f8ef",
+      "family_override_sha256": "2da17d369c4360b9679e925cb74243b0e2556f09222cab88ca81215493b0f8ef",
+      "family_source_sha256": "e5e3fa4252f92a48993f2de54e8d237d506f30249c981b9db1275bbdc7bd496b",
+      "merge_conflict_hunks": 0,
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinClientPlayNetHandler.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/launch/java/baritone/launch/mixins/MixinClientPlayNetHandler.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "5079308e292136e96d4848333e227efa49f9fa8817b89fe56bcc3d0ac9b1361f",
+      "canonical_override_sha256": "79c03a727f1e099bb63e3a7f81c9336a7e2bd5de53b3c80974b407640c7e37aa",
+      "family_override_sha256": "c48bac864ecb2c7ead8fa77d49e2cabc2af723669753e405161a7bd07d881d65",
+      "family_source_sha256": "ea51f1d3c4107c68dc9be44647c5a6133f2fce921666a11cd9c88f035db67cfa",
+      "merge_conflict_hunks": 0,
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinMinecraft.java",
+      "port_resolution": "three-way merge retained pinned upstream changes and the canonical owned source",
+      "source_path": "src/launch/java/baritone/launch/mixins/MixinMinecraft.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "115116089284cacba86fa3a5688c356e274f5ac8183e554cd06964d1daae530b",
+      "canonical_override_sha256": "2554610a20863ac6b91194c6d7f2cb96b716e2a33b134546e4531abee5ecfa93",
+      "family_override_sha256": "a1d51392b1254326df53067a328fe49659fb92a352ef015e6a386cf9333a1b0d",
+      "family_source_sha256": "1166975dfbd0f374bc63a3187a727893dcbd3a419a3630c9058563a51e1fb5d9",
+      "merge_conflict_hunks": 2,
+      "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinNetworkManager.java",
+      "port_resolution": "Adapted the owned outbound movement hook to the pinned Connection.sendPacket(Packet, ChannelFutureListener, boolean) API while keeping the main-thread and connection guards.",
+      "source_path": "src/launch/java/baritone/launch/mixins/MixinNetworkManager.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "ff76ddf4e1084efe15e63aa917dbad83d00862a38067d19d6c469d4c9c20e202",
+      "canonical_override_sha256": "a9f01b805d03f48e9388c9425453928c166cb7ef90602607d16d881260d26d60",
+      "family_override_sha256": "a9f01b805d03f48e9388c9425453928c166cb7ef90602607d16d881260d26d60",
+      "family_source_sha256": "ff76ddf4e1084efe15e63aa917dbad83d00862a38067d19d6c469d4c9c20e202",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/Baritone.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/Baritone.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "e8b0819dbb492a9f8ebf67123023d7d725dbcd631738cf2d10e27f02eca71bef",
+      "family_override_sha256": "e8b0819dbb492a9f8ebf67123023d7d725dbcd631738cf2d10e27f02eca71bef",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/BoundWorldEditPolicy.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "61dadc50fe4e09bcb805e27e966b7d564b60f326d384b32d33c9d7d7e57e2eed",
+      "family_override_sha256": "61dadc50fe4e09bcb805e27e966b7d564b60f326d384b32d33c9d7d7e57e2eed",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedCoalescedJob.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "b3337a40644307870fabc95ded44ea2a0784503c676e44f52e0e315eb3f0c00d",
+      "family_override_sha256": "b3337a40644307870fabc95ded44ea2a0784503c676e44f52e0e315eb3f0c00d",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedFinalFlush.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "82af985dab61b3c328e8f6a5bc7fc5021ea26feb3c5f4895ee425282f8b46bb9",
+      "family_override_sha256": "82af985dab61b3c328e8f6a5bc7fc5021ea26feb3c5f4895ee425282f8b46bb9",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedKernelRuntime.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "1ad28c852725c2316bcf64e7515f55224c29693f2cb57a2d14fd519c640708ef",
+      "family_override_sha256": "c5037836e976b2914114415c47138f65cb1fdafe21bc8eacc48c4f5adf47f10a",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedMutationGuard.java",
+      "port_resolution": "Adapted height checks and tool admission to the target world and item-tag APIs.",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "e3888b0c3cbc72d5c82cfcef8bd241d88c456b64c909994b7f755610e548d516",
+      "family_override_sha256": "e3888b0c3cbc72d5c82cfcef8bd241d88c456b64c909994b7f755610e548d516",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedResultMailbox.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "4aa922735d839271aebc9ab21e2fc176b8d757a783201f8b8b20514f4f3799fd",
+      "family_override_sha256": "4aa922735d839271aebc9ab21e2fc176b8d757a783201f8b8b20514f4f3799fd",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedWorkScheduler.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "6412a87a45543e0176aaf54b77e5f64813584e473b438b5aa4c69ae9f353e50c",
+      "canonical_override_sha256": "0c885a28e0dc1e68d136ee9ed9c0cc771dcbc59d2cc1d007ab6cf8fce5f5d6ca",
+      "family_override_sha256": "c81a641b81df43c11553bb6943b76f679db7dee3336e52d09860fc35b9389ba2",
+      "family_source_sha256": "2fa0f40b673c6d83a547554f89b528183a47aaca55522f7c61673f81059cdb18",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/behavior/InventoryBehavior.java",
+      "port_resolution": "three-way merge retained pinned upstream changes and the canonical owned source",
+      "source_path": "src/main/java/baritone/behavior/InventoryBehavior.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "c21d6b5319995e786d0d709195881f69c25fa45f66a9dea0e39de732c2cff737",
+      "canonical_override_sha256": "0c5b1f1f733d63fd47f80e606e5e300564e72a3f49550b0848fea6cfb29a8b47",
+      "family_override_sha256": "9203ce022012175ffe5af8597a407aaeb677c26ba3aec769266a559232fb60c7",
+      "family_source_sha256": "38682a0cc1dee387ecad35bdfc90fe59a528e9043f9566181c0869365ade6047",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/behavior/PathingBehavior.java",
+      "port_resolution": "Kept the owned failure guard for cancellation and exceptions; preserved the pinned next-segment success path and the preTick completion drain.",
+      "source_path": "src/main/java/baritone/behavior/PathingBehavior.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "45e425c67a52d9f9feff2324eec1bebc37be4f12d0f131e282ab47b11088a922",
+      "canonical_override_sha256": "a49fd459010ee986c5546cc400281fe39aa5dd983756760fc1c1eb29e50573e3",
+      "family_override_sha256": "a49fd459010ee986c5546cc400281fe39aa5dd983756760fc1c1eb29e50573e3",
+      "family_source_sha256": "45e425c67a52d9f9feff2324eec1bebc37be4f12d0f131e282ab47b11088a922",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedChunk.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/cache/CachedChunk.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "319f13c84e9559870c03c90554664d95491ead75dd77d7398571d8e38093a65d",
+      "canonical_override_sha256": "660573aa8ca186e90999da8ee21137ccce9ab2c02cfda27f10c3fb8b10d5c138",
+      "family_override_sha256": "660573aa8ca186e90999da8ee21137ccce9ab2c02cfda27f10c3fb8b10d5c138",
+      "family_source_sha256": "319f13c84e9559870c03c90554664d95491ead75dd77d7398571d8e38093a65d",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedRegion.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/cache/CachedRegion.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "63327813a7c44f060eb3a42a24e16f5cf2817dda4f0d1a823d8c9ead11fb4c31",
+      "canonical_override_sha256": "456979b391c6f6d253185faf5355149c786aed9b83c9c5ff9d24e76e284f083a",
+      "family_override_sha256": "456979b391c6f6d253185faf5355149c786aed9b83c9c5ff9d24e76e284f083a",
+      "family_source_sha256": "63327813a7c44f060eb3a42a24e16f5cf2817dda4f0d1a823d8c9ead11fb4c31",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/CachedWorld.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/cache/CachedWorld.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "0ee69959c53e798db68cb3ee83f31930cf7bd48e35c685e47286f686ed1f3299",
+      "canonical_override_sha256": "872d6bfab6993a8c4cfe35004c81a91148f543652d083caa5c582b97750dd38a",
+      "family_override_sha256": "872d6bfab6993a8c4cfe35004c81a91148f543652d083caa5c582b97750dd38a",
+      "family_source_sha256": "bfb7e59e09ffde1c4f3dcdbf4ed4633a66ed535a029e07b99de103c2094d79db",
+      "merge_conflict_hunks": 2,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/ChunkPacker.java",
+      "port_resolution": "Kept the immutable ChunkSnapshot worker input rather than the pinned upstream live LevelChunk pack path.",
+      "source_path": "src/main/java/baritone/cache/ChunkPacker.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "2c9923454a93f207c54b17f2f7931e5d12567121f2e2fb9b6e363b9874506816",
+      "canonical_override_sha256": "4118c0608dae74df830ea2bc403fb3a8c3a33569c9d451711f41d58dc75b0206",
+      "family_override_sha256": "9085e229647d7fde6c78b880e1cf015c22af8161dba1f98d9114e0b7df6ab752",
+      "family_source_sha256": "2a6c123dc931869cec5ee58aad54e13ff2e6d81dc4e185e539c7681ead565ef8",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/FasterWorldScanner.java",
+      "port_resolution": "three-way merge retained pinned upstream changes and the canonical owned source",
+      "source_path": "src/main/java/baritone/cache/FasterWorldScanner.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "8842ed93a7ee9645f6644ffe576d780c13cc85817ba7a883fdede8744492eb73",
+      "canonical_override_sha256": "a7036deb3277f57a170c477d33cee1428be55329ec72ed2d2784bf774db0c6fa",
+      "family_override_sha256": "a7036deb3277f57a170c477d33cee1428be55329ec72ed2d2784bf774db0c6fa",
+      "family_source_sha256": "8842ed93a7ee9645f6644ffe576d780c13cc85817ba7a883fdede8744492eb73",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/WorldData.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/cache/WorldData.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "b4a585f5fcfbe1340f6f13ed8de68eee1fe614a5de853738dee310d7530a30e5",
+      "canonical_override_sha256": "ebfd5f4d7ccb04cd7cd5fe85a0b76ee88245ad6cd9c15e1f887202427596869d",
+      "family_override_sha256": "ebfd5f4d7ccb04cd7cd5fe85a0b76ee88245ad6cd9c15e1f887202427596869d",
+      "family_source_sha256": "b4a585f5fcfbe1340f6f13ed8de68eee1fe614a5de853738dee310d7530a30e5",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/cache/WorldProvider.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/cache/WorldProvider.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "c3e51e05c5e53317cf7b7031029facc9d52ad435e8f1cd9747bb6b5eecc7c52c",
+      "canonical_override_sha256": "979ecbc5b337e2e6141e7742a8038b1547005a9d8d05b7fe3e5a830872c5a1ef",
+      "family_override_sha256": "979ecbc5b337e2e6141e7742a8038b1547005a9d8d05b7fe3e5a830872c5a1ef",
+      "family_source_sha256": "c3e51e05c5e53317cf7b7031029facc9d52ad435e8f1cd9747bb6b5eecc7c52c",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/event/GameEventHandler.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/event/GameEventHandler.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "2ef2c57e191a3ba2ac459f4b32fd06d5a0ecdd7a3d5519307aff67eac6a85665",
+      "canonical_override_sha256": "ce3bc560d28666dea6cb275c33f51d250c9f05879aad5390136f920120f355e3",
+      "family_override_sha256": "ce3bc560d28666dea6cb275c33f51d250c9f05879aad5390136f920120f355e3",
+      "family_source_sha256": "2ef2c57e191a3ba2ac459f4b32fd06d5a0ecdd7a3d5519307aff67eac6a85665",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AStarPathFinder.java",
+      "port_resolution": "Pinned upstream source hash matches the 1.21.1 baseline; carried the current primary SearchPreview API and publication cadence unchanged.",
+      "source_path": "src/main/java/baritone/pathing/calc/AStarPathFinder.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "c9e4116da6ac948370714fdc22ceeae3b767359d7fb0490549e28091639750c2",
+      "canonical_override_sha256": "4f054bb5af5f42b1b25c68b5a9f447d54e0d6013e459012db0551704474460ec",
+      "family_override_sha256": "4f054bb5af5f42b1b25c68b5a9f447d54e0d6013e459012db0551704474460ec",
+      "family_source_sha256": "c9e4116da6ac948370714fdc22ceeae3b767359d7fb0490549e28091639750c2",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AbstractNodeCostSearch.java",
+      "port_resolution": "Pinned upstream source hash matches the 1.21.1 baseline; carried the current primary SearchPreview API and publication cadence unchanged.",
+      "source_path": "src/main/java/baritone/pathing/calc/AbstractNodeCostSearch.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "fccdc719fb6afa3cba2232c2436fda6dc1359b4800a68468ec19a57fd23f0cc8",
+      "canonical_override_sha256": "435b61443f8b30be9a5860ec366dc56df598818531509ece6c463d384cd500da",
+      "family_override_sha256": "435b61443f8b30be9a5860ec366dc56df598818531509ece6c463d384cd500da",
+      "family_source_sha256": "fccdc719fb6afa3cba2232c2436fda6dc1359b4800a68468ec19a57fd23f0cc8",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/Path.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/pathing/calc/Path.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "e68298beacc522615fe67308bc5ec82b2abf004e1138a1d9651f8ea3b48c2e44",
+      "canonical_override_sha256": "af35d2f5914896414dcb9fa5633f4182679e1b3c0b68044cc41598158578632f",
+      "family_override_sha256": "02ff47943787afe7c08f36891291775656f635dc413299243b9693e933bc51ff",
+      "family_source_sha256": "e68298beacc522615fe67308bc5ec82b2abf004e1138a1d9651f8ea3b48c2e44",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/CalculationContext.java",
+      "port_resolution": "Adapted captured world bounds to getMinY/getMaxY for the pinned target APIs.",
+      "source_path": "src/main/java/baritone/pathing/movement/CalculationContext.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "9f248aedf03fef95538f2df3054b8e892b3b9792f01e5219505e97df036ab05c",
+      "canonical_override_sha256": "226e74d445723f52449d153cb2f6cfbb1f41282a59b44d6b7672f4b69c7c1b8b",
+      "family_override_sha256": "b68ea9456eab93d711273daa8842fbb5161ba7d61ca55667f94cacb3f56f0f0f",
+      "family_source_sha256": "478de8d9462082d629b2d18a7f1718748cc16c4f110a68b32d5ac422ac5a7cd0",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/movements/MovementDescend.java",
+      "port_resolution": "Kept the captured CalculationContext minY bound and adapted it to the target world-height API.",
+      "source_path": "src/main/java/baritone/pathing/movement/movements/MovementDescend.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "9c2b0b520deb879fd201873b4f6ec55638a0dea5ced44f6ce5969e5cac99ff0b",
+      "canonical_override_sha256": "2a0c73553b31390102a02d769c70dadd2add16d11e8d9b11ebfc85cf3bb5164e",
+      "family_override_sha256": "ff25169c9d57bbd1d77499b56f67d821bee8f0b575e5c6ee7bbe1fed39e5ecb9",
+      "family_source_sha256": "50648dafcf59ddec2afd965ffde064ab36d908b8df69825795b4a559fdd9ce12",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/movements/MovementParkour.java",
+      "port_resolution": "Kept the captured CalculationContext maxY bound and adapted it to the target world-height API.",
+      "source_path": "src/main/java/baritone/pathing/movement/movements/MovementParkour.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "9f30b481d6332cf374eb886767e733fbc3608cf270cbaa2b605711b05e5b397e",
+      "canonical_override_sha256": "cd6e624efc452cf409923ce506fab57d78a7d14d10f3262628659be83fc62770",
+      "family_override_sha256": "54a61b871a16aa772f0212206338f3a292d8c55732537b51be5d73e7aeb54949",
+      "family_source_sha256": "bcca046eadb24ef600a022d3f253e43c664106d85f7f038e4b56b567862c2497",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/BuilderProcess.java",
+      "port_resolution": "three-way merge retained pinned upstream changes and the canonical owned source",
+      "source_path": "src/main/java/baritone/process/BuilderProcess.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "ade197d839f17f67a5929c25730fa8853afcc4d368e8efa04c6b08a8e567812c",
+      "canonical_override_sha256": "cbb5e14b200a435076d9328f8a7da463df7084b047ad9df23e698d9ccd082c7c",
+      "family_override_sha256": "cbb5e14b200a435076d9328f8a7da463df7084b047ad9df23e698d9ccd082c7c",
+      "family_source_sha256": "ade197d839f17f67a5929c25730fa8853afcc4d368e8efa04c6b08a8e567812c",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/ExploreProcess.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/process/ExploreProcess.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "80c422b6452f673919c7d5fb33d7f7a07786cafc88990b99ded1c743fea573d6",
+      "canonical_override_sha256": "7740af6ce015dd19ef93d6a70e4c4da155ec7ad12202b3fd6ffbdd4d38c69208",
+      "family_override_sha256": "2148893e5c8897846e038dc946c0c3b4d695e948f337830a7552694e1d03f232",
+      "family_source_sha256": "2d8d56a915566d0bb7c3122444852d028334b347119266081db3a50f2105e5db",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/FarmProcess.java",
+      "port_resolution": "Kept owned snapshot scanning and edit guards; used the pinned BonemealableBlock interface for bone-meal admission.",
+      "source_path": "src/main/java/baritone/process/FarmProcess.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "054f588cd699352585c69c338f38dc1cd50e7099059ab635f38ecbf010c32547",
+      "canonical_override_sha256": "91cffca7d460aaef9ba43ed1e8257ceb4d20ecb5eb9b1b5a91fe5edfbaf07ff9",
+      "family_override_sha256": "91cffca7d460aaef9ba43ed1e8257ceb4d20ecb5eb9b1b5a91fe5edfbaf07ff9",
+      "family_source_sha256": "054f588cd699352585c69c338f38dc1cd50e7099059ab635f38ecbf010c32547",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/GetToBlockProcess.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/process/GetToBlockProcess.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "890a3ed79818f92796641496b109c7f53f5bb79f0192ef9613e65380b06ec95d",
+      "canonical_override_sha256": "d7dc4f5cbf0005f95a3da3523d9d819663a24d7e26d9a492efd897e7db896ae3",
+      "family_override_sha256": "71a031e162c2f07cccef847f41885b405bad8ace6391d8ab3c43ed524b582436",
+      "family_source_sha256": "cc41a82ccf041617def21bcf0d243540ad0edce2900747cc05deffecbc13dac5",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/MineProcess.java",
+      "port_resolution": "three-way merge retained pinned upstream changes and the canonical owned source",
+      "source_path": "src/main/java/baritone/process/MineProcess.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "01831a88bd032d9fdd70f16a9fd028116be4b77e37205a59080e889b95b95d98",
+      "family_override_sha256": "01831a88bd032d9fdd70f16a9fd028116be4b77e37205a59080e889b95b95d98",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/process/OwnedMiningAdmission.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "deaf34e1500d427ff5aae8bb9e6057e98983fb073410bb7dafdac5ed148f6e0f",
+      "family_override_sha256": "deaf34e1500d427ff5aae8bb9e6057e98983fb073410bb7dafdac5ed148f6e0f",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/ChunkSnapshot.java",
+      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "8b46d8748e4cd21494e805ffc6ecde3ac246c5aaef450949ae946f5a925bd948",
+      "family_override_sha256": "b72555ddaddf69096a59e2821eaf976ef2b90e39f251cf8ee7187e0f4e1c6634",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/ImmutableWorldView.java",
+      "port_resolution": "Adapted BlockGetter minY and, for 1.21.11, carried ResourceKey<Level> through cached reads.",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": null,
+      "canonical_override_sha256": "8858c5fd5870832b8bb55b893170dc61cc07b2087563b17e7d1692ef2e019b20",
+      "family_override_sha256": "f054260151d280d46e34ec63d57313c748b6de207353bc63018fc679ef61829b",
+      "family_source_sha256": null,
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/snapshot/OwnedWorldSnapshots.java",
+      "port_resolution": "Adapted LevelChunk minimum height access to getMinY while keeping 64-entry, radius-three immutable snapshots.",
+      "source_path": null,
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "cb1613dacb6c8efb00cd5e42de86c8875b16bf31ab1925fddebbec1d2e2cfeaa",
+      "canonical_override_sha256": "fcc59d3e18522c2c46982e3c724b3cf404ca5b2a653632214e10bd87e952f6b9",
+      "family_override_sha256": "fcc59d3e18522c2c46982e3c724b3cf404ca5b2a653632214e10bd87e952f6b9",
+      "family_source_sha256": "cb1613dacb6c8efb00cd5e42de86c8875b16bf31ab1925fddebbec1d2e2cfeaa",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockBreakHelper.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/utils/BlockBreakHelper.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "3310def438e849c8d121bb333c951bfb673e8cb9a0bc96e6e57ad8744295e66a",
+      "canonical_override_sha256": "5991c635ed29f4b3eeec73f23f432a03910dac3b09dcca4ada87faddd7a2373a",
+      "family_override_sha256": "5991c635ed29f4b3eeec73f23f432a03910dac3b09dcca4ada87faddd7a2373a",
+      "family_source_sha256": "3310def438e849c8d121bb333c951bfb673e8cb9a0bc96e6e57ad8744295e66a",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockPlaceHelper.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/utils/BlockPlaceHelper.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "cd364cb9c8c195ce8daf474a36e0dc124ae47807a00c2d8c5f6bf96a2630d416",
+      "canonical_override_sha256": "90c9f438649d0e18b9dddf7998e992bb382425939ace637d07fa992964b74b06",
+      "family_override_sha256": "a63d98ff481f971714bbd3533075756f5c44eff119af52272ba0bb90a16fc672",
+      "family_source_sha256": "cd364cb9c8c195ce8daf474a36e0dc124ae47807a00c2d8c5f6bf96a2630d416",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockStateInterface.java",
+      "port_resolution": "Adapted world minimum-height access to getMinY.",
+      "source_path": "src/main/java/baritone/utils/BlockStateInterface.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "10533b5c4378716f30e6bd1db20505d3ad5bde1c0423c73b236839a36672c2ec",
+      "canonical_override_sha256": "f10b58aa614d629e87a68fc1e6b68244708d3872fde0335b38b18b29c575cf57",
+      "family_override_sha256": "5c188ef0bc4abc63b5c4fe613dc327fc2a8cc1660c0b1b7f76bbb1328cf05b6b",
+      "family_source_sha256": "1137038fbb751248f78b85519c32dec9639daf97d0a88cf9f81d7cbf3c94c7b9",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/BlockStateInterfaceAccessWrapper.java",
+      "port_resolution": "Adapted BlockGetter to getMinY and returned the captured minimum height.",
+      "source_path": "src/main/java/baritone/utils/BlockStateInterfaceAccessWrapper.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "dd0732a9781b47003ce5dbc7b7a42e870768af59f89559463ad6865d7117db05",
+      "canonical_override_sha256": "77e68616f0f065c7efbf7b25e224a6cac98f784f133b2919247140390123acb5",
+      "family_override_sha256": "77e68616f0f065c7efbf7b25e224a6cac98f784f133b2919247140390123acb5",
+      "family_source_sha256": "dd0732a9781b47003ce5dbc7b7a42e870768af59f89559463ad6865d7117db05",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/utils/InputOverrideHandler.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "9e8515568ed4f6eb618c372e87e101f912fc089e18ac4efcd95559bf6c94243c",
+      "canonical_override_sha256": "f34c95bdfa3081029e95fb0b2e651f50c893aa2f38f73a0bd4352daf5eeee3ef",
+      "family_override_sha256": "778984c8dad8c0308e13e9fa108d174f180bd01d48b91805b41a14b4f1e49051",
+      "family_source_sha256": "f03464b180b91a7e0e602b02c1ef35b8c49efa423485ef8dadc6a7bef0482626",
+      "merge_conflict_hunks": 1,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/ToolSet.java",
+      "port_resolution": "Kept copied hotbar/settings values for worker calculations while adapting material tags and item component checks from the pinned source.",
+      "source_path": "src/main/java/baritone/utils/ToolSet.java",
+      "upstream_source_changed": true
+    },
+    {
+      "baseline_source_sha256": "6f8a2bb6442c11e24dbb788cdbda575bedcedf0810c2f28cff9fc72b243b41e8",
+      "canonical_override_sha256": "bd33f886ddaf04aac9a84614d92797b0b5298ae5b996d95149de01dca4987003",
+      "family_override_sha256": "bd33f886ddaf04aac9a84614d92797b0b5298ae5b996d95149de01dca4987003",
+      "family_source_sha256": "6f8a2bb6442c11e24dbb788cdbda575bedcedf0810c2f28cff9fc72b243b41e8",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/player/BaritonePlayerContext.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/utils/player/BaritonePlayerContext.java",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_source_sha256": "84bd905be2f053ebac78a33b1a2fc16721ba156d957e18ae911cad697dcb32f8",
+      "canonical_override_sha256": "437a20dfcbca888ed74968adf5859fd5ac8c10a222b148ec51253dc21c7b6766",
+      "family_override_sha256": "437a20dfcbca888ed74968adf5859fd5ac8c10a222b148ec51253dc21c7b6766",
+      "family_source_sha256": "84bd905be2f053ebac78a33b1a2fc16721ba156d957e18ae911cad697dcb32f8",
+      "merge_conflict_hunks": 0,
+      "path": "main/java/dev/lodekeeper/navigation/kernel/utils/player/BaritonePlayerController.java",
+      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "source_path": "src/main/java/baritone/utils/player/BaritonePlayerController.java",
+      "upstream_source_changed": false
+    }
+  ],
+  "generator_transforms": {
+    "src/api/java/baritone/api/utils/BlockOptionalMeta.java": "keep pinned native reload overload; source has no ForkJoinPool call",
+    "src/launch/java/baritone/launch/mixins/MixinLivingEntity.java": "remove only the unsupported Elytra movement hooks and retain jump rotation"
+  },
+  "schema_version": 1
+}

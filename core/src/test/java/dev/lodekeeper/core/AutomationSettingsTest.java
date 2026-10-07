@@ -95,22 +95,47 @@ class AutomationSettingsTest {
         Map<String, Object> active = new LinkedHashMap<>();
         for (SettingSpec spec : AutomationSettings.specs()) active.put(spec.key(), spec.defaultValue());
         active.put("allowBreaking", false);
-        active.put("navigationPreferences", Map.of("route-profile", "safe"));
+        Map<String, String> legacyPreferences = Map.of(
+                "strictLiquidCheck", "false",
+                "assumeWalkOnWater", "true",
+                "jumpPenalty", "NaN");
+        active.put("navigationPreferences", legacyPreferences);
         SettingsDraft draft = new SettingsDraft(AutomationSettings.specs(), active::get);
+        assertEquals(Map.of(), draft.navigationPreferences());
+        assertEquals(3, draft.ignoredNavigationPreferenceCount());
+        assertTrue(draft.isDirty());
+        assertEquals(Map.of(), NavigationPreferenceCatalog.nativeValues(legacyPreferences));
         draft.setValue("allowBreaking", true);
-        draft.putNavigationPreference("route-profile", "quick");
+        draft.putNavigationPreference("strictLiquidCheck", "true");
+        draft.putNavigationPreference("jumpPenalty", "3.5");
+        draft.setNavigationPreferenceValue("jumpPenalty", 2.0D);
+        assertEquals(Map.of("strictLiquidCheck", "true"), draft.navigationPreferences());
+
+        IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class,
+                () -> draft.putNavigationPreference("assumeWalkOnWater", "true"));
+        assertEquals("Unsupported advanced navigation option: assumeWalkOnWater", unknown.getMessage());
+        IllegalArgumentException invalid = assertThrows(IllegalArgumentException.class,
+                () -> draft.putNavigationPreference("strictLiquidCheck", "yes"));
+        assertEquals("Invalid value for Protect blocks beside liquids, use true or false.", invalid.getMessage());
+        IllegalArgumentException outOfRange = assertThrows(IllegalArgumentException.class,
+                () -> draft.putNavigationPreference("jumpPenalty", "1.9"));
+        assertEquals("Invalid value for Jump cost, use a value from 2.0 to 10.0.", outOfRange.getMessage());
+        IllegalArgumentException unknownMap = assertThrows(IllegalArgumentException.class,
+                () -> draft.setValue("navigationPreferences", Map.of("unknownNativeOption", "true")));
+        assertEquals("Unsupported advanced navigation option: unknownNativeOption", unknownMap.getMessage());
 
         assertEquals(false, active.get("allowBreaking"));
-        assertEquals(Map.of("route-profile", "safe"), active.get("navigationPreferences"));
+        assertEquals(legacyPreferences, active.get("navigationPreferences"));
         assertThrows(java.io.IOException.class,
                 () -> draft.saveTo(active::get, active::put, () -> { throw new java.io.IOException("unwritable config"); }));
         assertEquals(false, active.get("allowBreaking"));
-        assertEquals(Map.of("route-profile", "safe"), active.get("navigationPreferences"));
+        assertEquals(legacyPreferences, active.get("navigationPreferences"));
         assertTrue(draft.isDirty());
 
         assertDoesNotThrow(() -> draft.saveTo(active::get, active::put, () -> {}));
         assertEquals(true, active.get("allowBreaking"));
-        assertEquals(Map.of("route-profile", "quick"), active.get("navigationPreferences"));
+        assertEquals(Map.of("strictLiquidCheck", "true"), active.get("navigationPreferences"));
+        assertEquals(0, draft.ignoredNavigationPreferenceCount());
         assertFalse(draft.isDirty());
     }
 

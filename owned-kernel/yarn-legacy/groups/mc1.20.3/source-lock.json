@@ -1,0 +1,30 @@
+{
+  "archive_filename": "baritone-1.10.7-e8379d711f4b397f4c6e682df2a513c3cc76338c.tar.gz",
+  "archive_sha256": "451ec3abcf68165c118803ec7b8b83ca888bc7a455a43083c3a48384e6814be2",
+  "archive_url": "https://github.com/cabaletta/baritone/archive/e8379d711f4b397f4c6e682df2a513c3cc76338c.tar.gz",
+  "baritone_version": "1.10.7",
+  "dependency_artifact_sha256": "8844b852b71688431d38bfa95530c888f59b68ce7eb1ed7e3e0a05bc158b7c13",
+  "effective_lifecycle_overrides": {
+    "directory": "lifecycle-overrides",
+    "file_count": 51,
+    "manifest": "lifecycle-overrides.sha256",
+    "manifest_sha256": "b61188f81d4ff982e89f5bc5c0c65473232daaec15be11e723fd7b8cd0c7d3a1"
+  },
+  "java_version": 17,
+  "minecraft_mappings": "official Mojang mappings",
+  "minecraft_versions": [
+    "1.20.3",
+    "1.20.4"
+  ],
+  "repository": "https://github.com/cabaletta/baritone",
+  "schema_version": 1,
+  "shared_source_baseline_file": "locks/1.11.3-normalized-source-hashes.json",
+  "shared_source_baseline_sha256": "d878864ef531edf18b1e1452e2d4bcf85f482cc080fdd3f23beaac5118a43006",
+  "source_adapters": {
+    "main/java/dev/lodekeeper/navigation/kernel/OwnedMutationGuard.java": "413dcc80f49e2ff37f479195be9b75433c06b3a403dea85e3397ef9910aeaf7f"
+  },
+  "source_commit": "e8379d711f4b397f4c6e682df2a513c3cc76338c",
+  "source_inputs_file": "locks/mc1.20.3.source-inputs.json",
+  "source_inputs_sha256": "5dda787d6f91cc1b900dbb918d081dba9b81443733db08f1bce94c37932df6a8",
+  "source_root": "baritone-e8379d711f4b397f4c6e682df2a513c3cc76338c"
+}

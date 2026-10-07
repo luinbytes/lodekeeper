@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'dev.lodekeeper.navigation'
-version = '1.21.1-source-owned'
+version = rootProject.minecraft_version.toString() + '-source-owned'
 
 base {
     archivesName = 'lodekeeper-owned-navigation-kernel-primary-1211'
@@ -48,7 +48,15 @@ def generateOwnedKernelSources = tasks.register('generateOwnedKernelSources', Ex
     inputs.dir(layout.projectDirectory.dir('lifecycle-overrides'))
     inputs.file(layout.projectDirectory.file('lifecycle-overrides.sha256'))
     inputs.file(sourceLockFile)
+    inputs.property('compileMinecraftVersion', rootProject.minecraft_version)
     outputs.dir(generatedRoot)
+    doLast {
+        File manifestFile = generatedRoot.get().file('source-manifest.json').asFile
+        Map manifest = new groovy.json.JsonSlurper().parse(manifestFile) as Map
+        manifest.compile_target = [minecraft_version: rootProject.minecraft_version.toString(),
+                mappings: 'official Mojang mappings', java_release: 21]
+        manifestFile.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
     commandLine 'python3',
             layout.projectDirectory.file('prepare_sources.py').asFile.absolutePath,
             '--source-root', sourceDirectory.get().asFile.absolutePath
@@ -91,7 +99,7 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${sourceLock.minecraft_version}"
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"

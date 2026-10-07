@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'dev.lodekeeper.navigation'
-version = '1.21.1-source-owned'
+version = rootProject.minecraft_version.toString() + '-source-owned'
 
 base {
     archivesName = 'lodekeeper-owned-navigation-kernel-primary-1211'

@@ -13,7 +13,10 @@ import dev.lodekeeper.core.ItemId;
 import dev.lodekeeper.core.PlanResult;
 import dev.lodekeeper.core.PlanStep;
 import dev.lodekeeper.nav.LaunchApproach;
+import dev.lodekeeper.navigation.kernel.OwnedKernelRuntime;
+import dev.lodekeeper.navigation.kernel.OwnedMutationGuard;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.util.Util;
@@ -28,6 +31,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.FurnaceMenu;
 import net.minecraft.world.inventory.SmokerMenu;
@@ -36,6 +40,7 @@ import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.SlabBlock;
@@ -45,6 +50,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.storage.LevelStorageSource;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -53,6 +60,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -126,11 +134,13 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final double FORCED_PREPHYSICS_HANDOFF_SPEED = .015;
     private static final Field ENGINE_MOVEMENT_FIELD = findField(AutomationEngine.class, "movement");
     private static final Field MAINTAINED_DEMAND_FIELD = findField(AutomationEngine.class, "maintained");
+    private static final Field REQUESTED_BACKFILL_STOCK_FIELD = findField(AutomationEngine.class, "requestedBackfillStock");
     private static final Field MOVEMENT_PATH_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "path");
     private static final Field MOVEMENT_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "pathIndex");
     private static final Field MOVEMENT_VALIDATED_PATH_INDEX_FIELD = findField("dev.lodekeeper.fabric.modern.MovementController", "validatedPathIndex");
     private static final boolean CONFIG_ROUND_TRIP_MODE = Boolean.getBoolean("lodekeeper.verify.configRoundTrip");
     private static final boolean SETTINGS_UI_MODE = Boolean.getBoolean("lodekeeper.verify.settingsUi");
+    private static final boolean WORLD_POLICY_MODE = Boolean.getBoolean("lodekeeper.verify.worldPolicy");
     private JsonObject configRoundTripReceipt;
     private NavigationSettingsVerification navigationSettings;
     private JsonObject navigationSettingsReceipt;
@@ -141,9 +151,57 @@ public final class RuntimeVerification implements ClientModInitializer {
     private String settingsUiFinalScreenshot;
     private int settingsUiFinalCaptureTick = -1;
     private final JsonObject settingsUiScreenshots = new JsonObject();
+    private WorldPolicyPhase worldPolicyPhase = WorldPolicyPhase.NONE;
+    private int worldPolicyPhaseStartedAtTick;
+    private int worldPolicyFurnaceOpeningsAtStart;
+    private int worldPolicyTableOpeningsAtStart;
+    private int worldPolicyLastRecordedServerTick = -1;
+    private Path worldPolicyClaimsPath;
+    private byte[] worldPolicyOriginalClaims;
+    private boolean worldPolicyOriginalClaimsExisted;
+    private boolean worldPolicyClaimsBackupTaken;
+    private boolean worldPolicyClaimsRestored;
+    private boolean worldPolicyStationSetupComplete;
+    private boolean worldPolicyTableSetupComplete;
+    private boolean worldPolicyBackfillSetupComplete;
+    private boolean worldPolicyBackfillSurplusSetupComplete;
+    private boolean worldPolicyOriginalBackfill;
+    private boolean worldPolicyOriginalEquivalentStone;
+    private boolean worldPolicyOriginalBackfillCaptured;
+    private boolean worldPolicyConfigRestored;
+    private int worldPolicyNoSurplusObservedAtTick = -1;
+    private Map<String, String> worldPolicyPlacementBaseline = Map.of();
+    private JsonObject worldPolicyEvidence;
+    private final JsonArray worldPolicyServerObservations = new JsonArray();
     private boolean resourceInitiallyLoaded;
     private static final int FLOOR_Y = 63;
     private static final int PLAYER_Y = FLOOR_Y + 1;
+    private static final BlockPos WORLD_POLICY_CLAIM_MIN = new BlockPos(3, 64, 1);
+    private static final BlockPos WORLD_POLICY_CLAIM_MAX = new BlockPos(8, 66, 7);
+    private static final BlockPos WORLD_POLICY_TORCH = new BlockPos(6, 64, 4);
+    private static final BlockPos WORLD_POLICY_SUPPORT = WORLD_POLICY_TORCH.below();
+    private static final BlockPos WORLD_POLICY_PREFERRED_FURNACE = new BlockPos(4, 64, 5);
+    private static final BlockPos WORLD_POLICY_ORDINARY_FURNACE = new BlockPos(1, 64, 1);
+    private static final BlockPos WORLD_POLICY_PREFERRED_TABLE = new BlockPos(6, 64, 6);
+    private static final BlockPos WORLD_POLICY_ORDINARY_TABLE = new BlockPos(1, 64, 2);
+    private static final BlockPos WORLD_POLICY_BACKFILL_TARGET = new BlockPos(1, 64, 3);
+    private static final List<WorldPolicyFace> WORLD_POLICY_FACES = List.of(
+        new WorldPolicyFace("min_x", new BlockPos(3, 65, 4)),
+        new WorldPolicyFace("max_x", new BlockPos(8, 65, 4)),
+        new WorldPolicyFace("min_y", new BlockPos(5, 64, 4)),
+        new WorldPolicyFace("max_y", new BlockPos(5, 66, 4)),
+        new WorldPolicyFace("min_z", new BlockPos(5, 65, 1)),
+        new WorldPolicyFace("max_z", new BlockPos(5, 65, 7)));
+    private static final List<WorldPolicyPlacementProbe> WORLD_POLICY_PLACEMENT_PROBES = List.of(
+        new WorldPolicyPlacementProbe("min_x", new BlockPos(2, 65, 4), Direction.EAST, new BlockPos(3, 65, 4)),
+        new WorldPolicyPlacementProbe("max_x", new BlockPos(9, 65, 4), Direction.WEST, new BlockPos(8, 65, 4)),
+        new WorldPolicyPlacementProbe("min_y", new BlockPos(5, 63, 4), Direction.UP, new BlockPos(5, 64, 4)),
+        new WorldPolicyPlacementProbe("max_y", new BlockPos(5, 67, 4), Direction.DOWN, new BlockPos(5, 66, 4)),
+        new WorldPolicyPlacementProbe("min_z", new BlockPos(5, 65, 0), Direction.SOUTH, new BlockPos(5, 65, 1)),
+        new WorldPolicyPlacementProbe("max_z", new BlockPos(5, 65, 8), Direction.NORTH, new BlockPos(5, 65, 7)),
+        new WorldPolicyPlacementProbe("inside", new BlockPos(5, 64, 5), Direction.UP, new BlockPos(5, 65, 5)));
+    private static final WorldPolicyPlacementProbe WORLD_POLICY_OUTSIDE_PLACEMENT_PROBE =
+        new WorldPolicyPlacementProbe("outside_control", new BlockPos(1, 63, 3), Direction.UP, WORLD_POLICY_BACKFILL_TARGET);
     private static final BlockPos COAL_RECOVERY_ENCASED_ORE = new BlockPos(6, PLAYER_Y, 2);
     private static final BlockPos COAL_RECOVERY_ACCESSIBLE_ORE = new BlockPos(16, PLAYER_Y, 2);
     private static final List<CoalNavigationCheckpoint> COAL_NAVIGATION_CHECKPOINTS = List.of(
@@ -157,13 +215,18 @@ public final class RuntimeVerification implements ClientModInitializer {
         new CoalNavigationCheckpoint(16, 68 * 16));
 
     private enum State {
-        DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT,
+        DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT, WORLD_POLICY,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK,
         CRAFTING_FURNACE, SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE,
         GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED
     }
 
     private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY, HELD_FUEL_SMELTING, HELD_FUEL_STICKS }
+    private enum WorldPolicyPhase { NONE, ADD_CLAIM, CLAIM_BREAK, STOP_CLAIM_BREAK, PREPARE_TABLE,
+        TABLE_REQUEST, PREPARE_STATION, STATION_REQUEST, PREPARE_BACKFILL, BACKFILL_BREAK,
+        BACKFILL_SURPLUS, COMPLETE }
+    private record WorldPolicyFace(String name, BlockPos position) { }
+    private record WorldPolicyPlacementProbe(String name, BlockPos clicked, Direction face, BlockPos target) { }
 
     private Minecraft client;
     private State state = State.DISABLED;
@@ -311,6 +374,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private volatile boolean serverFurnaceOpened;
     private volatile int serverTableOpenings;
     private volatile int serverFurnaceOpenings;
+    private volatile double serverTableOpenX = Double.NaN;
+    private volatile double serverTableOpenZ = Double.NaN;
     private volatile boolean serverSmokerOpened;
     private volatile boolean serverBlastFurnaceOpened;
     private volatile int serverSmokerOpenings;
@@ -320,7 +385,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
-        if (!SETTINGS_UI_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
+        if (!SETTINGS_UI_MODE && !WORLD_POLICY_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
@@ -492,7 +557,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (selectedFixtureModes() > 1) {
                 state = State.FAILED;
-                failure = "lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.nearbyWood, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, lodekeeper.verify.stonecutting, and lodekeeper.verify.preparedSafety are mutually exclusive; nearbyWoodGoal, nearbyWoodTerrain, ironPickaxeEmptyDistantWood, and stonecuttingDrain are submodes";
+                failure = "lodekeeper.verify.worldPolicy, lodekeeper.verify.exploration, lodekeeper.verify.diamondBoots, lodekeeper.verify.nearbyWood, lodekeeper.verify.ironPickaxe, lodekeeper.verify.coalRecovery, lodekeeper.verify.bulkWood, lodekeeper.verify.cookingStation, lodekeeper.verify.stonecutting, and lodekeeper.verify.preparedSafety are mutually exclusive; nearbyWoodGoal, nearbyWoodTerrain, ironPickaxeEmptyDistantWood, and stonecuttingDrain are submodes";
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
                 client.stop();
@@ -682,6 +747,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (WORLD_POLICY_MODE) {
+                    tickWorldPolicyFixture();
+                    return;
+                }
                 if (PREPARED_SAFETY_MODE != null) {
                     if (THREAT_CONTACT_MODE) {
                         client.player.setYRot(-90.0F);
@@ -808,6 +877,12 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestObservationRequestSequence < stonecuttingDrainRequiredObservationSequence)) {
                 requestObservation();
             }
+            if (state == State.WORLD_POLICY) {
+                tickWorldPolicyScenario();
+                if (state == State.CAPTURING && screenshotWritesPending == 0 && clientTicks - captureStartedAtTick >= 20) finishRun();
+                else if (state == State.CAPTURING && clientTicks - captureStartedAtTick >= 100) finishRun();
+                return;
+            }
             evaluateCurrentCase();
             if (state == State.CAPTURING && screenshotWritesPending == 0 && clientTicks - captureStartedAtTick >= 20) finishRun();
             else if (state == State.CAPTURING && clientTicks - captureStartedAtTick >= 100) finishRun();
@@ -836,6 +911,11 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void configureAutomation() throws IOException {
         AutomationEngine engine = requireEngine();
         engine.stop();
+        if (WORLD_POLICY_MODE && !worldPolicyOriginalBackfillCaptured) {
+            worldPolicyOriginalBackfill = engine.config.backfill;
+            worldPolicyOriginalEquivalentStone = engine.config.backfillEquivalentStone;
+            worldPolicyOriginalBackfillCaptured = true;
+        }
         if (CONFIG_ROUND_TRIP_MODE) {
             configRoundTripReceipt = ConfigRoundTripVerification.verify(engine.config);
             configRoundTripReceipt.add("nativeNavigationBindings", navigationSettingsReceipt);
@@ -858,6 +938,11 @@ public final class RuntimeVerification implements ClientModInitializer {
             engine.config.allowExploration = true;
             engine.config.debugLogging = true;
             if (MINING_ZERO_YIELD_MODE) engine.config.explorationDistance = 1;
+        }
+        if (WORLD_POLICY_MODE) {
+            engine.config.allowBreaking = true;
+            engine.config.allowBuilding = true;
+            engine.config.backfill = false;
         }
     }
 
@@ -883,7 +968,22 @@ public final class RuntimeVerification implements ClientModInitializer {
                         : DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || NEARBY_WOOD_MODE ? 30 : 18); x++) {
                     for (int z = -6; z <= 6; z++) world.setBlockAndUpdate(new BlockPos(x, FLOOR_Y, z), Blocks.BEDROCK.defaultBlockState());
                 }
-                if (MEADOW_BENCHMARK) {
+                if (WORLD_POLICY_MODE) {
+                    for (WorldPolicyFace face : WORLD_POLICY_FACES) {
+                        world.setBlockAndUpdate(face.position(), Blocks.STONE.defaultBlockState());
+                    }
+                    for (WorldPolicyPlacementProbe probe : WORLD_POLICY_PLACEMENT_PROBES) {
+                        if (probe.clicked().getY() != FLOOR_Y) {
+                            world.setBlockAndUpdate(probe.clicked(), Blocks.BEDROCK.defaultBlockState());
+                        }
+                    }
+                    world.setBlockAndUpdate(WORLD_POLICY_SUPPORT, Blocks.STONE.defaultBlockState());
+                    world.setBlockAndUpdate(WORLD_POLICY_TORCH, Blocks.TORCH.defaultBlockState());
+                    world.setBlockAndUpdate(WORLD_POLICY_PREFERRED_FURNACE, Blocks.FURNACE.defaultBlockState());
+                    world.setBlockAndUpdate(WORLD_POLICY_ORDINARY_FURNACE, Blocks.FURNACE.defaultBlockState());
+                    world.setBlockAndUpdate(WORLD_POLICY_PREFERRED_TABLE, Blocks.CRAFTING_TABLE.defaultBlockState());
+                    world.setBlockAndUpdate(WORLD_POLICY_ORDINARY_TABLE, Blocks.CRAFTING_TABLE.defaultBlockState());
+                } else if (MEADOW_BENCHMARK) {
                     for (int x = -12; x <= 30; x++) for (int z = -6; z <= 6; z++) {
                         int rise = Math.max(0, Math.min(3, x / 6));
                         for (int y = FLOOR_Y; y < FLOOR_Y + rise; y++) {
@@ -926,7 +1026,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     world.setBlockAndUpdate(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.defaultBlockState());
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
-                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null) {
+                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE) {
                     int oakLogStartX = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
                         ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
                         : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
@@ -973,6 +1073,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 clearInventory(player);
                 if (PROCESSING_MODE) seedCookingInventory(player);
+                if (WORLD_POLICY_MODE && (!player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))
+                        || !player.getInventory().add(new ItemStack(Items.FURNACE)))) {
+                    throw new IllegalStateException("could not seed the world-policy verifier stock");
+                }
                 if (COAL_RECOVERY_MODE && !player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))) {
                     throw new IllegalStateException("could not seed the single coal-recovery verifier stone pickaxe");
                 }
@@ -1425,6 +1529,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (menu instanceof CraftingMenu) {
                 serverTableOpened = true;
                 serverTableOpenings++;
+                serverTableOpenX = player.getX();
+                serverTableOpenZ = player.getZ();
             }
             if (menu instanceof FurnaceMenu) {
                 serverFurnaceOpened = true;
@@ -3382,6 +3488,724 @@ public final class RuntimeVerification implements ClientModInitializer {
             && latestSnapshot.count("minecraft:stonecutter") == 0;
     }
 
+    private void tickWorldPolicyFixture() throws IOException {
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick) return;
+        if (!latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:furnace", 1))
+                || latestSnapshot.health != 20.0F || !latestSnapshot.serverCursorEmpty
+                || !"minecraft:torch".equals(latestSnapshot.worldPolicyServerReceipt.get("torch"))
+                || !"minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("support"))
+                || !"minecraft:crafting_table".equals(latestSnapshot.worldPolicyServerReceipt.get("preferred_table"))
+                || !"minecraft:crafting_table".equals(latestSnapshot.worldPolicyServerReceipt.get("ordinary_table"))
+                || !"2".equals(latestSnapshot.worldPolicyServerReceipt.get("crafting_table_count"))) {
+            fail("world-policy fixture did not match its server inventory, torch-support, and station setup receipt");
+            return;
+        }
+        backupWorldPolicyClaims();
+        worldPolicyEvidence = new JsonObject();
+        worldPolicyEvidence.addProperty("mode", "claims_preferred_stations_and_backfill");
+        worldPolicyEvidence.addProperty("evidenceAuthority", "integrated_server_inventory_and_block_states");
+        worldPolicyEvidence.addProperty("claimAddCommand", "!lk claim add native_world_policy preferred");
+        worldPolicyEvidence.addProperty("breakCommand", "!lk get cobblestone 7");
+        worldPolicyEvidence.addProperty("preferredTableCommand", "!lk get iron_pickaxe 1");
+        worldPolicyEvidence.addProperty("preferredStationCommand", "!lk get iron_ingot 1");
+        worldPolicyEvidence.addProperty("backfillBreakCommand", "!lk get cobblestone 1");
+        worldPolicyEvidence.addProperty("backfillMaintainedFloorCommand", "!lk maintain cobblestone 1");
+        worldPolicyEvidence.addProperty("manualInputInjectedByVerifier", false);
+        worldPolicyEvidence.addProperty("normalConfigPersistedByVerifier", false);
+        JsonObject fixture = new JsonObject();
+        fixture.add("claimMin", blockPositionJson(WORLD_POLICY_CLAIM_MIN));
+        fixture.add("claimMax", blockPositionJson(WORLD_POLICY_CLAIM_MAX));
+        JsonArray faces = new JsonArray();
+        for (WorldPolicyFace face : WORLD_POLICY_FACES) {
+            JsonObject item = new JsonObject();
+            item.addProperty("face", face.name());
+            item.add("position", blockPositionJson(face.position()));
+            faces.add(item);
+        }
+        fixture.add("protectedFaces", faces);
+        fixture.add("torch", blockPositionJson(WORLD_POLICY_TORCH));
+        fixture.add("unclaimedSupport", blockPositionJson(WORLD_POLICY_SUPPORT));
+        fixture.add("preferredFurnace", blockPositionJson(WORLD_POLICY_PREFERRED_FURNACE));
+        fixture.add("ordinaryFurnace", blockPositionJson(WORLD_POLICY_ORDINARY_FURNACE));
+        fixture.add("preferredCraftingTable", blockPositionJson(WORLD_POLICY_PREFERRED_TABLE));
+        fixture.add("ordinaryCraftingTable", blockPositionJson(WORLD_POLICY_ORDINARY_TABLE));
+        fixture.add("backfillTarget", blockPositionJson(WORLD_POLICY_BACKFILL_TARGET));
+        worldPolicyEvidence.add("fixture", fixture);
+        WorldProtection protection = requireEngine().protection;
+        protection.setCorner(true, WORLD_POLICY_CLAIM_MIN.getX(), WORLD_POLICY_CLAIM_MIN.getY(), WORLD_POLICY_CLAIM_MIN.getZ());
+        protection.setCorner(false, WORLD_POLICY_CLAIM_MAX.getX(), WORLD_POLICY_CLAIM_MAX.getY(), WORLD_POLICY_CLAIM_MAX.getZ());
+        sendCommand("!lk claim add native_world_policy preferred");
+        worldPolicyPhase = WorldPolicyPhase.ADD_CLAIM;
+        worldPolicyPhaseStartedAtTick = clientTicks;
+        state = State.WORLD_POLICY;
+    }
+
+    private JsonObject verifyWorldPolicyPlacementBoundary() {
+        if (latestSnapshot == null || client.player == null || GameApi.screen(client) != null) {
+            throw new IllegalStateException("placement boundary probe requires a live player and no screen");
+        }
+        OwnedKernelRuntime owner = OwnedKernelRuntime.current();
+        if (owner == null || !owner.isCurrent(owner.captureSession()) || owner.captureSession().world() != client.level) {
+            throw new IllegalStateException("placement boundary probe has no current owned world session");
+        }
+        var inventory = client.player.getInventory();
+        Field selectedSlot = selectedInventorySlotField(inventory);
+        if (selectedSlot == null) throw new IllegalStateException("could not locate the selected hotbar slot for the placement probe");
+        int originalSlot = -1;
+        int furnaceSlot = -1;
+        try {
+            originalSlot = selectedSlot.getInt(inventory);
+            for (int slot = 0; slot < 9; slot++) {
+                if (inventory.getItem(slot).is(Items.FURNACE)) {
+                    furnaceSlot = slot;
+                    break;
+                }
+            }
+            if (furnaceSlot < 0) throw new IllegalStateException("the placement probe has no supplied block item in the hotbar");
+            selectedSlot.setInt(inventory, furnaceSlot);
+            if (!client.player.getMainHandItem().is(Items.FURNACE)) {
+                throw new IllegalStateException("the server-supplied furnace stack was not selected for the placement probe");
+            }
+            JsonObject evidence = new JsonObject();
+            evidence.addProperty("probeKind", "OwnedMutationGuard.executePlace_direct_boundary_probe");
+            evidence.addProperty("userFacingBuildCommand", false);
+            evidence.addProperty("serverMutationAttemptedByProbe", false);
+            evidence.addProperty("heldItem", "minecraft:furnace");
+            evidence.addProperty("serverInventoryBefore", latestSnapshot.worldPolicyServerReceipt.get("inventory"));
+            JsonArray probes = new JsonArray();
+            for (WorldPolicyPlacementProbe probe : WORLD_POLICY_PLACEMENT_PROBES) {
+                boolean permitted = executeWorldPolicyPlacementProbe(owner, probe);
+                probes.add(worldPolicyPlacementProbeJson(probe, permitted, false));
+                if (permitted) throw new IllegalStateException("claim placement boundary permitted target " + probe.name());
+            }
+            boolean outsidePermitted = executeWorldPolicyPlacementProbe(owner, WORLD_POLICY_OUTSIDE_PLACEMENT_PROBE);
+            probes.add(worldPolicyPlacementProbeJson(WORLD_POLICY_OUTSIDE_PLACEMENT_PROBE, outsidePermitted, true));
+            if (!outsidePermitted) throw new IllegalStateException("unclaimed outside control was denied by the placement boundary");
+            evidence.add("probes", probes);
+            worldPolicyPlacementBaseline = worldPolicyPlacementServerStates(latestSnapshot.worldPolicyServerReceipt);
+            evidence.addProperty("serverTargetAndSupportStatesCaptured", !worldPolicyPlacementBaseline.isEmpty());
+            evidence.addProperty("serverInventoryAtProbe", latestSnapshot.worldPolicyServerReceipt.get("inventory"));
+            return evidence;
+        } catch (IllegalAccessException exception) {
+            throw new IllegalStateException("could not select or restore the verifier block item", exception);
+        } finally {
+            if (originalSlot >= 0) {
+                try { selectedSlot.setInt(inventory, originalSlot); }
+                catch (IllegalAccessException ignored) { }
+            }
+        }
+    }
+
+    private static Field selectedInventorySlotField(Object inventory) {
+        for (Class<?> type = inventory.getClass(); type != null; type = type.getSuperclass()) {
+            Field field = findField(type, "selected");
+            if (field == null) field = findField(type, "selectedSlot");
+            if (field != null) return field;
+        }
+        return null;
+    }
+
+    private static boolean executeWorldPolicyPlacementProbe(OwnedKernelRuntime owner, WorldPolicyPlacementProbe probe) {
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(probe.clicked()), probe.face(), probe.clicked(), false);
+        return OwnedMutationGuard.executePlace(owner, hit, InteractionHand.MAIN_HAND);
+    }
+
+    private JsonObject worldPolicyPlacementProbeJson(WorldPolicyPlacementProbe probe, boolean permitted, boolean expectedPermitted) {
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("name", probe.name());
+        evidence.add("clickedBlock", blockPositionJson(probe.clicked()));
+        evidence.addProperty("face", probe.face().getName());
+        evidence.add("intendedTarget", blockPositionJson(probe.target()));
+        evidence.addProperty("expectedPermitted", expectedPermitted);
+        evidence.addProperty("actualPermitted", permitted);
+        evidence.addProperty("serverClickedBlockBefore", latestSnapshot.worldPolicyServerReceipt.get("placement_clicked_" + probe.name()));
+        evidence.addProperty("serverTargetBlockBefore", latestSnapshot.worldPolicyServerReceipt.get("placement_target_" + probe.name()));
+        return evidence;
+    }
+
+    private static Map<String, String> worldPolicyPlacementServerStates(Map<String, String> receipt) {
+        Map<String, String> states = new LinkedHashMap<>();
+        for (WorldPolicyPlacementProbe probe : WORLD_POLICY_PLACEMENT_PROBES) {
+            String clicked = receipt.get("placement_clicked_" + probe.name());
+            String target = receipt.get("placement_target_" + probe.name());
+            if (clicked != null) states.put("clicked_" + probe.name(), clicked);
+            if (target != null) states.put("target_" + probe.name(), target);
+        }
+        String outsideClick = receipt.get("placement_clicked_outside_control");
+        String outsideTarget = receipt.get("placement_target_outside_control");
+        if (outsideClick != null) states.put("clicked_outside_control", outsideClick);
+        if (outsideTarget != null) states.put("target_outside_control", outsideTarget);
+        if (receipt.get("inventory") != null) states.put("inventory", receipt.get("inventory"));
+        return Map.copyOf(states);
+    }
+
+    private boolean worldPolicyPlacementServerStatesUnchanged(Map<String, String> receipt) {
+        return !worldPolicyPlacementBaseline.isEmpty()
+            && worldPolicyPlacementBaseline.equals(worldPolicyPlacementServerStates(receipt));
+    }
+
+    private void tickWorldPolicyScenario() throws IOException {
+        recordWorldPolicySnapshot(latestSnapshot);
+        switch (worldPolicyPhase) {
+            case NONE -> throw new IllegalStateException("world-policy phase was not initialized");
+            case ADD_CLAIM -> {
+                WorldProtection.PolicySnapshot policy = requireEngine().protection.capture();
+                var claim = policy.scope() == null ? null : policy.claims().forScope(policy.scope()).stream()
+                    .filter(candidate -> candidate.name().equals("native_world_policy"))
+                    .findFirst().orElse(null);
+                if (claim == null) {
+                    if (clientTicks - worldPolicyPhaseStartedAtTick > 100) {
+                        throw new IllegalStateException("ordinary claim command did not persist the fixture claim");
+                    }
+                    return;
+                }
+                boolean exact = claim.minX() == WORLD_POLICY_CLAIM_MIN.getX()
+                    && claim.minY() == WORLD_POLICY_CLAIM_MIN.getY() && claim.minZ() == WORLD_POLICY_CLAIM_MIN.getZ()
+                    && claim.maxX() == WORLD_POLICY_CLAIM_MAX.getX() && claim.maxY() == WORLD_POLICY_CLAIM_MAX.getY()
+                    && claim.maxZ() == WORLD_POLICY_CLAIM_MAX.getZ() && claim.preferredStations();
+                if (!exact || policy.scope() == null) throw new IllegalStateException("saved claim bounds or preferred-station flag did not match the fixture");
+                JsonObject savedClaim = new JsonObject();
+                savedClaim.addProperty("id", claim.id());
+                savedClaim.addProperty("name", claim.name());
+                savedClaim.addProperty("minX", claim.minX());
+                savedClaim.addProperty("minY", claim.minY());
+                savedClaim.addProperty("minZ", claim.minZ());
+                savedClaim.addProperty("maxX", claim.maxX());
+                savedClaim.addProperty("maxY", claim.maxY());
+                savedClaim.addProperty("maxZ", claim.maxZ());
+                savedClaim.addProperty("preferredStations", claim.preferredStations());
+                savedClaim.addProperty("worldId", policy.scope().worldId());
+                savedClaim.addProperty("dimension", policy.scope().dimension());
+                worldPolicyEvidence.add("savedClaim", savedClaim);
+                worldPolicyEvidence.add("placementBoundaryProbe", verifyWorldPolicyPlacementBoundary());
+                activeCase = "native_claim_boundary_and_torch_support";
+                activeItem = "minecraft:cobblestone";
+                activeCount = 7;
+                activeRequiresEmpty = false;
+                activeStartedEmpty = false;
+                activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+                beginCaseClock();
+                sendCommand("!lk get cobblestone 7");
+                worldPolicyPhase = WorldPolicyPhase.CLAIM_BREAK;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+                worldPolicyEvidence.addProperty("claimBreakSubmitted", true);
+            }
+            case CLAIM_BREAK -> {
+                if (clientTicks - worldPolicyPhaseStartedAtTick < 120) return;
+                JsonObject receipt = worldPolicyReceipt("claimBreakFinalReceipt", latestSnapshot);
+                boolean blocksIntact = worldPolicyBlocksIntact(latestSnapshot.worldPolicyServerReceipt);
+                boolean placementStatesUnchanged = worldPolicyPlacementServerStatesUnchanged(latestSnapshot.worldPolicyServerReceipt);
+                boolean inventoryConserved = latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:furnace", 1));
+                boolean remainedOutside = !worldPolicyPositionInside(latestSnapshot);
+                receipt.addProperty("allSixFaceBlocksRemainStone", blocksIntact);
+                receipt.addProperty("placementProbeBlocksAndInventoryUnchanged", placementStatesUnchanged);
+                receipt.addProperty("torchRemainsAboveUnclaimedSupport", "minecraft:torch".equals(latestSnapshot.worldPolicyServerReceipt.get("torch"))
+                    && "minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("support")));
+                receipt.addProperty("inventoryConserved", inventoryConserved);
+                receipt.addProperty("playerRemainedOutsideClaim", remainedOutside);
+                receipt.addProperty("serverCursorEmpty", latestSnapshot.serverCursorEmpty);
+                receipt.addProperty("playerAlive", latestSnapshot.health > 0.0F);
+                receipt.addProperty("manualInputInterventionDetected", GameApi.screen(client) != null);
+                worldPolicyEvidence.add("claimBreak", receipt);
+                if (!blocksIntact || !placementStatesUnchanged || !inventoryConserved || !remainedOutside || !latestSnapshot.serverCursorEmpty
+                        || latestSnapshot.health <= 0.0F || GameApi.screen(client) != null) {
+                    throw new IllegalStateException("claim break request changed a protected face/support fixture, inventory, or player boundary state");
+                }
+                sendCommand("!lk stop");
+                worldPolicyPhase = WorldPolicyPhase.STOP_CLAIM_BREAK;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+            }
+            case STOP_CLAIM_BREAK -> {
+                if (requireEngine().diagnosticTaskIdentity() != null) {
+                    if (clientTicks - worldPolicyPhaseStartedAtTick > 100) throw new IllegalStateException("claim-break request did not stop cleanly");
+                    return;
+                }
+                worldPolicyPhase = WorldPolicyPhase.PREPARE_TABLE;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+            }
+            case PREPARE_TABLE -> {
+                if (!worldPolicyTableSetupComplete) {
+                    if (setupFuture == null) {
+                        MinecraftServer server = requireServer();
+                        setupFuture = new CompletableFuture<>();
+                        CompletableFuture<Long> scheduled = setupFuture;
+                        server.execute(() -> {
+                            try {
+                                ServerPlayer player = requireServerPlayer(server);
+                                clearInventory(player);
+                                if (!player.getInventory().add(new ItemStack(Items.IRON_INGOT, 3))
+                                        || !player.getInventory().add(new ItemStack(Items.STICK, 2))) {
+                                    throw new IllegalStateException("could not seed the preferred-table request stock");
+                                }
+                                player.containerMenu.broadcastChanges();
+                                scheduled.complete((long) server.getTickCount());
+                            } catch (Throwable throwable) {
+                                scheduled.completeExceptionally(throwable);
+                            }
+                        });
+                        return;
+                    }
+                    if (!setupFuture.isDone()) return;
+                    fixtureReadyServerTick = setupFuture.join();
+                    setupFuture = null;
+                    worldPolicyTableSetupComplete = true;
+                }
+                if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                        || !latestSnapshot.inventory.equals(Map.of("minecraft:iron_ingot", 3, "minecraft:stick", 2))) return;
+                worldPolicyTableOpeningsAtStart = serverTableOpenings;
+                serverTableOpenX = Double.NaN;
+                serverTableOpenZ = Double.NaN;
+                activeCase = "native_preferred_claim_crafting_table_reuse";
+                activeItem = "minecraft:iron_pickaxe";
+                activeCount = 1;
+                activeRequiresEmpty = false;
+                activeStartedEmpty = false;
+                activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+                beginCaseClock();
+                sendCommand("!lk get iron_pickaxe 1");
+                worldPolicyPhase = WorldPolicyPhase.TABLE_REQUEST;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+                worldPolicyEvidence.add("tableStartReceipt", worldPolicyReceipt("tableStartReceipt", latestSnapshot));
+            }
+            case TABLE_REQUEST -> {
+                if (clientTicks - worldPolicyPhaseStartedAtTick > 1_200) throw new IllegalStateException("preferred-table request timed out");
+                if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                        || latestSnapshot.count("minecraft:iron_pickaxe") < 1) return;
+                JsonObject receipt = worldPolicyReceipt("tableFinalReceipt", latestSnapshot);
+                double preferredDistance = Math.hypot(serverTableOpenX - (WORLD_POLICY_PREFERRED_TABLE.getX() + 0.5),
+                    serverTableOpenZ - (WORLD_POLICY_PREFERRED_TABLE.getZ() + 0.5));
+                double ordinaryDistance = Math.hypot(serverTableOpenX - (WORLD_POLICY_ORDINARY_TABLE.getX() + 0.5),
+                    serverTableOpenZ - (WORLD_POLICY_ORDINARY_TABLE.getZ() + 0.5));
+                boolean openedNearPreferred = serverTableOpenings > worldPolicyTableOpeningsAtStart
+                    && Double.isFinite(preferredDistance) && preferredDistance <= 4.5 && ordinaryDistance > 4.5;
+                boolean noDuplicate = "2".equals(latestSnapshot.worldPolicyServerReceipt.get("crafting_table_count"))
+                    && "minecraft:crafting_table".equals(latestSnapshot.worldPolicyServerReceipt.get("preferred_table"))
+                    && "minecraft:crafting_table".equals(latestSnapshot.worldPolicyServerReceipt.get("ordinary_table"))
+                    && latestSnapshot.count("minecraft:crafting_table") == 0;
+                boolean finalInventoryMatches = latestSnapshot.inventory.equals(Map.of("minecraft:iron_pickaxe", 1));
+                receipt.addProperty("serverCraftingTableOpened", serverTableOpenings > worldPolicyTableOpeningsAtStart);
+                receipt.addProperty("serverPlayerOpenedNearPreferredTable", openedNearPreferred);
+                receipt.addProperty("serverTableOpenX", serverTableOpenX);
+                receipt.addProperty("serverTableOpenZ", serverTableOpenZ);
+                receipt.addProperty("distanceToPreferredTable", preferredDistance);
+                receipt.addProperty("distanceToOrdinaryTable", ordinaryDistance);
+                receipt.addProperty("noDuplicateTablePlaced", noDuplicate);
+                receipt.addProperty("expectedFinalInventory", finalInventoryMatches);
+                worldPolicyEvidence.add("preferredTable", receipt);
+                if (!openedNearPreferred || !noDuplicate || !finalInventoryMatches || !latestSnapshot.serverCursorEmpty
+                        || latestSnapshot.health <= 0.0F || GameApi.screen(client) != null) {
+                    throw new IllegalStateException("preferred crafting-table reuse or server inventory receipt did not match the fixture");
+                }
+                worldPolicyPhase = WorldPolicyPhase.PREPARE_STATION;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+            }
+            case PREPARE_STATION -> {
+                if (!worldPolicyStationSetupComplete) {
+                    if (setupFuture == null) {
+                        MinecraftServer server = requireServer();
+                        setupFuture = new CompletableFuture<>();
+                        CompletableFuture<Long> scheduled = setupFuture;
+                        server.execute(() -> {
+                            try {
+                                ServerPlayer player = requireServerPlayer(server);
+                                clearInventory(player);
+                                if (!player.getInventory().add(new ItemStack(Items.RAW_IRON, 1))
+                                        || !player.getInventory().add(new ItemStack(Items.COAL, 1))
+                                        || !player.getInventory().add(new ItemStack(Items.FURNACE, 1))) {
+                                    throw new IllegalStateException("could not seed the preferred-furnace request stock");
+                                }
+                                player.containerMenu.broadcastChanges();
+                                scheduled.complete((long) server.getTickCount());
+                            } catch (Throwable throwable) {
+                                scheduled.completeExceptionally(throwable);
+                            }
+                        });
+                        return;
+                    }
+                    if (!setupFuture.isDone()) return;
+                    fixtureReadyServerTick = setupFuture.join();
+                    setupFuture = null;
+                    worldPolicyStationSetupComplete = true;
+                }
+                if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                        || !latestSnapshot.inventory.equals(Map.of("minecraft:raw_iron", 1, "minecraft:coal", 1, "minecraft:furnace", 1))) return;
+                worldPolicyFurnaceOpeningsAtStart = serverFurnaceOpenings;
+                activeCase = "native_preferred_claim_furnace_reuse";
+                activeItem = IRON_INGOT_ID;
+                activeCount = 1;
+                activeRequiresEmpty = false;
+                activeStartedEmpty = false;
+                activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+                beginCaseClock();
+                sendCommand("!lk get iron_ingot 1");
+                worldPolicyPhase = WorldPolicyPhase.STATION_REQUEST;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+                worldPolicyEvidence.add("stationStartReceipt", worldPolicyReceipt("stationStartReceipt", latestSnapshot));
+            }
+            case STATION_REQUEST -> {
+                if (clientTicks - worldPolicyPhaseStartedAtTick > 1_200) throw new IllegalStateException("preferred-furnace request timed out");
+                if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                        || latestSnapshot.count(IRON_INGOT_ID) < 1) return;
+                JsonObject receipt = worldPolicyReceipt("stationFinalReceipt", latestSnapshot);
+                boolean preferredUsed = "true".equals(latestSnapshot.worldPolicyServerReceipt.get("preferred_furnace_lit"))
+                    && "false".equals(latestSnapshot.worldPolicyServerReceipt.get("ordinary_furnace_lit"))
+                    && "minecraft:furnace".equals(latestSnapshot.worldPolicyServerReceipt.get("preferred_furnace"))
+                    && "minecraft:furnace".equals(latestSnapshot.worldPolicyServerReceipt.get("ordinary_furnace"));
+                boolean noDuplicate = "2".equals(latestSnapshot.worldPolicyServerReceipt.get("furnace_count"))
+                    && latestSnapshot.count("minecraft:furnace") == 1;
+                boolean finalInventoryMatches = latestSnapshot.inventory.equals(Map.of("minecraft:iron_ingot", 1, "minecraft:furnace", 1));
+                boolean opened = serverFurnaceOpenings > worldPolicyFurnaceOpeningsAtStart;
+                receipt.addProperty("serverFurnaceOpened", opened);
+                receipt.addProperty("preferredFurnaceWasUsed", preferredUsed);
+                receipt.addProperty("noDuplicateFurnacePlaced", noDuplicate);
+                receipt.addProperty("expectedFinalInventory", finalInventoryMatches);
+                worldPolicyEvidence.add("preferredStation", receipt);
+                if (!preferredUsed || !noDuplicate || !opened || latestSnapshot.count(IRON_INGOT_ID) != 1
+                        || !finalInventoryMatches || !latestSnapshot.serverCursorEmpty || latestSnapshot.health <= 0.0F) {
+                    throw new IllegalStateException("preferred furnace reuse or server inventory receipt did not match the fixture");
+                }
+                worldPolicyPhase = WorldPolicyPhase.PREPARE_BACKFILL;
+                worldPolicyPhaseStartedAtTick = clientTicks;
+            }
+            case PREPARE_BACKFILL -> tickWorldPolicyBackfillSetup();
+            case BACKFILL_BREAK -> tickWorldPolicyBackfillBreak();
+            case BACKFILL_SURPLUS -> tickWorldPolicyBackfillSurplus();
+            case COMPLETE -> { }
+        }
+    }
+
+    private void tickWorldPolicyBackfillSetup() {
+        AutomationEngine engine = requireEngine();
+        engine.config.backfill = true;
+        engine.config.backfillEquivalentStone = true;
+        if (!worldPolicyBackfillSetupComplete) {
+            if (setupFuture == null) {
+                MinecraftServer server = requireServer();
+                setupFuture = new CompletableFuture<>();
+                CompletableFuture<Long> scheduled = setupFuture;
+                server.execute(() -> {
+                    try {
+                        ServerPlayer player = requireServerPlayer(server);
+                        clearInventory(player);
+                        if (!player.getInventory().add(new ItemStack(Items.STONE_PICKAXE))) {
+                            throw new IllegalStateException("could not seed the backfill verifier pickaxe");
+                        }
+                        ServerLevel world = server.overworld();
+                        if (!world.getBlockState(WORLD_POLICY_BACKFILL_TARGET).isAir()) {
+                            throw new IllegalStateException("backfill target is occupied before setup");
+                        }
+                        world.setBlockAndUpdate(WORLD_POLICY_BACKFILL_TARGET, Blocks.COBBLESTONE.defaultBlockState());
+                        player.containerMenu.broadcastChanges();
+                        scheduled.complete((long) server.getTickCount());
+                    } catch (Throwable throwable) {
+                        scheduled.completeExceptionally(throwable);
+                    }
+                });
+                return;
+            }
+            if (!setupFuture.isDone()) return;
+            fixtureReadyServerTick = setupFuture.join();
+            setupFuture = null;
+            worldPolicyBackfillSetupComplete = true;
+        }
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                || !latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1))
+                || !"minecraft:cobblestone".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"))) return;
+        activeCase = "native_backfill_requested_and_maintained_stock_conservation";
+        activeItem = "minecraft:cobblestone";
+        activeCount = 1;
+        activeRequiresEmpty = false;
+        activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        beginCaseClock();
+        sendCommand("!lk get cobblestone 1");
+        worldPolicyPhase = WorldPolicyPhase.BACKFILL_BREAK;
+        worldPolicyPhaseStartedAtTick = clientTicks;
+        worldPolicyEvidence.add("backfillBreakStartReceipt", worldPolicyReceipt("backfillBreakStartReceipt", latestSnapshot));
+    }
+
+    private void tickWorldPolicyBackfillBreak() {
+        if (clientTicks - worldPolicyPhaseStartedAtTick > 1_200) throw new IllegalStateException("backfill source-break request timed out");
+        if (worldPolicyNoSurplusObservedAtTick < 0) {
+            if (latestSnapshot == null || latestSnapshot.count("minecraft:cobblestone") != 1
+                    || !"minecraft:air".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"))
+                    || requireEngine().diagnosticTaskIdentity() != null) return;
+            worldPolicyNoSurplusObservedAtTick = clientTicks;
+            worldPolicyEvidence.add("backfillNoSurplusStartReceipt", worldPolicyReceipt("backfillNoSurplusStartReceipt", latestSnapshot));
+            return;
+        }
+        if (clientTicks - worldPolicyNoSurplusObservedAtTick < 120) return;
+        boolean targetRemainedAir = latestSnapshot != null
+            && "minecraft:air".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"));
+        boolean inventoryConserved = latestSnapshot != null
+            && latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:cobblestone", 1));
+        boolean requestedFloorHeld = requestedBackfillFloorObserved("minecraft:cobblestone", 1);
+        JsonObject noSurplus = worldPolicyReceipt("backfillNoSurplusFinalReceipt", latestSnapshot);
+        noSurplus.addProperty("noSurplusStoneAvailable", latestSnapshot != null && latestSnapshot.count("minecraft:stone") == 0);
+        noSurplus.addProperty("requestedCobblestoneGoalCount", requestedBackfillGoalCount("minecraft:cobblestone"));
+        noSurplus.addProperty("effectiveRequestedCobblestoneFloor", requestedBackfillFloorCount("minecraft:cobblestone"));
+        noSurplus.addProperty("requestedCobblestoneFloorRetained", requestedFloorHeld);
+        noSurplus.addProperty("targetRemainedAir", targetRemainedAir);
+        noSurplus.addProperty("inventoryConserved", inventoryConserved);
+        noSurplus.addProperty("serverCursorEmpty", latestSnapshot != null && latestSnapshot.serverCursorEmpty);
+        noSurplus.addProperty("playerAlive", latestSnapshot != null && latestSnapshot.health > 0.0F);
+        worldPolicyEvidence.add("backfillNoSurplus", noSurplus);
+        if (!targetRemainedAir || !inventoryConserved || !requestedFloorHeld || !latestSnapshot.serverCursorEmpty
+                || latestSnapshot.health <= 0.0F || GameApi.screen(client) != null) {
+            throw new IllegalStateException("backfill spent requested cobblestone or did not defer without surplus stock");
+        }
+        sendCommand("!lk maintain cobblestone 1");
+        worldPolicyPhase = WorldPolicyPhase.BACKFILL_SURPLUS;
+        worldPolicyPhaseStartedAtTick = clientTicks;
+    }
+
+    private void tickWorldPolicyBackfillSurplus() {
+        if (clientTicks - worldPolicyPhaseStartedAtTick > 1_200) throw new IllegalStateException("maintained backfill reservation did not settle");
+        if (!maintainedReservationObserved("minecraft:cobblestone", 1)
+                || requireEngine().diagnosticTaskIdentity() != null) return;
+        if (!worldPolicyBackfillSurplusSetupComplete) {
+            if (setupFuture == null) {
+                MinecraftServer server = requireServer();
+                setupFuture = new CompletableFuture<>();
+                CompletableFuture<Long> scheduled = setupFuture;
+                server.execute(() -> {
+                    try {
+                        ServerPlayer player = requireServerPlayer(server);
+                        if (!player.getInventory().add(new ItemStack(Items.STONE))) {
+                            throw new IllegalStateException("could not seed one equivalent surplus stone block");
+                        }
+                        double dx = WORLD_POLICY_BACKFILL_TARGET.getX() + 0.5 - player.getX();
+                        double dz = WORLD_POLICY_BACKFILL_TARGET.getZ() + 0.5 - player.getZ();
+                        float towardTarget = (float) Math.toDegrees(Math.atan2(-dx, dz));
+                        player.setYRot(towardTarget + 180.0F);
+                        player.setXRot(0.0F);
+                        player.containerMenu.broadcastChanges();
+                        scheduled.complete((long) server.getTickCount());
+                    } catch (Throwable throwable) {
+                        scheduled.completeExceptionally(throwable);
+                    }
+                });
+                return;
+            }
+            if (!setupFuture.isDone()) return;
+            fixtureReadyServerTick = setupFuture.join();
+            setupFuture = null;
+            worldPolicyBackfillSurplusSetupComplete = true;
+            worldPolicyEvidence.add("backfillSurplusStartReceipt", latestSnapshot == null
+                ? new JsonObject() : worldPolicyReceipt("backfillSurplusStartReceipt", latestSnapshot));
+        }
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (latestSnapshot == null || latestSnapshot.serverTick < fixtureReadyServerTick
+                || !"minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target"))) return;
+        boolean finalInventoryMatches = latestSnapshot.inventory.equals(Map.of("minecraft:stone_pickaxe", 1, "minecraft:cobblestone", 1));
+        boolean maintainedFloorHeld = maintainedReservationObserved("minecraft:cobblestone", 1);
+        boolean requestedFloorHeld = requestedBackfillFloorObserved("minecraft:cobblestone", 1);
+        JsonObject restoration = worldPolicyReceipt("backfillEquivalentStoneFinalReceipt", latestSnapshot);
+        restoration.addProperty("restoredWithEquivalentStone", "minecraft:stone".equals(latestSnapshot.worldPolicyServerReceipt.get("backfill_target")));
+        restoration.addProperty("requestedCobblestoneGoalCount", requestedBackfillGoalCount("minecraft:cobblestone"));
+        restoration.addProperty("effectiveRequestedCobblestoneFloor", requestedBackfillFloorCount("minecraft:cobblestone"));
+        restoration.addProperty("requestedCobblestoneFloorRetained", requestedFloorHeld);
+        restoration.addProperty("maintainedCobblestoneFloorRetained", maintainedFloorHeld);
+        restoration.addProperty("surplusStoneConsumed", latestSnapshot.count("minecraft:stone") == 0);
+        restoration.addProperty("inventoryConserved", finalInventoryMatches);
+        restoration.addProperty("serverCursorEmpty", latestSnapshot.serverCursorEmpty);
+        restoration.addProperty("playerAlive", latestSnapshot.health > 0.0F);
+        worldPolicyEvidence.add("backfillEquivalentStone", restoration);
+        if (!finalInventoryMatches || !requestedFloorHeld || !maintainedFloorHeld
+                || !latestSnapshot.serverCursorEmpty || latestSnapshot.health <= 0.0F || GameApi.screen(client) != null) {
+            throw new IllegalStateException("equivalent-stone backfill did not preserve requested and maintained cobblestone floors");
+        }
+        requireEngine().stop();
+        boolean configRestored = restoreWorldPolicyConfig();
+        boolean claimsRestored = restoreWorldPolicyClaims();
+        worldPolicyEvidence.addProperty("backfillConfigRestored", configRestored);
+        worldPolicyEvidence.addProperty("claimConfigRestored", claimsRestored);
+        if (!configRestored || !claimsRestored) throw new IllegalStateException("world-policy verifier did not restore isolated configuration");
+        worldPolicyEvidence.add("serverObservations", worldPolicyServerObservations);
+        addResult(true, latestSnapshot.count("minecraft:cobblestone"),
+            "claim break and placement boundaries stayed unchanged; preferred stations were reused; backfill deferred without surplus and used surplus stone while retaining requested and maintained cobblestone");
+        worldPolicyPhase = WorldPolicyPhase.COMPLETE;
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
+    private boolean requestedBackfillFloorObserved(String item, int expectedCount) {
+        return requestedBackfillFloorCount(item) == expectedCount;
+    }
+
+    private int requestedBackfillFloorCount(String item) {
+        if (latestSnapshot == null) return 0;
+        return Math.min(requestedBackfillGoalCount(item), latestSnapshot.count(item));
+    }
+
+    private int requestedBackfillGoalCount(String item) {
+        if (REQUESTED_BACKFILL_STOCK_FIELD == null) throw new IllegalStateException("requested backfill stock field is unavailable");
+        try {
+            Object value = REQUESTED_BACKFILL_STOCK_FIELD.get(requireEngine());
+            if (!(value instanceof Map<?, ?> floors)) return 0;
+            Object goalCount = floors.get(ItemId.parse(item));
+            return goalCount instanceof Integer count ? count : 0;
+        } catch (IllegalAccessException exception) {
+            throw new IllegalStateException("could not inspect requested backfill stock floors", exception);
+        }
+    }
+
+    private boolean restoreWorldPolicyConfig() {
+        if (!worldPolicyOriginalBackfillCaptured) return true;
+        AutomationEngine engine = LodekeeperClient.engine;
+        if (engine == null) return false;
+        engine.config.backfill = worldPolicyOriginalBackfill;
+        engine.config.backfillEquivalentStone = worldPolicyOriginalEquivalentStone;
+        worldPolicyConfigRestored = engine.config.backfill == worldPolicyOriginalBackfill
+            && engine.config.backfillEquivalentStone == worldPolicyOriginalEquivalentStone;
+        return worldPolicyConfigRestored;
+    }
+
+    private void backupWorldPolicyClaims() throws IOException {
+        Path runDirectory = client.gameDirectory.toPath().toRealPath();
+        Path configDirectory = FabricLoader.getInstance().getConfigDir().toAbsolutePath().normalize();
+        if (!configDirectory.equals(runDirectory.resolve("config").normalize())) {
+            throw new IOException("world-policy verification requires an isolated run-directory config folder");
+        }
+        Files.createDirectories(configDirectory);
+        if (!configDirectory.toRealPath().equals(configDirectory)) throw new IOException("world-policy config folder resolves through a symlink");
+        worldPolicyClaimsPath = configDirectory.resolve("lodekeeper-claims.json");
+        if (Files.isSymbolicLink(worldPolicyClaimsPath)) throw new IOException("world-policy claims file must not be a symlink");
+        worldPolicyOriginalClaimsExisted = Files.exists(worldPolicyClaimsPath);
+        if (worldPolicyOriginalClaimsExisted) {
+            if (!Files.isRegularFile(worldPolicyClaimsPath) || Files.size(worldPolicyClaimsPath) > 256 * 1024) {
+                throw new IOException("world-policy claims file is not a bounded regular file");
+            }
+            worldPolicyOriginalClaims = Files.readAllBytes(worldPolicyClaimsPath);
+        }
+        worldPolicyClaimsBackupTaken = true;
+    }
+
+    private boolean restoreWorldPolicyClaims() {
+        if (!worldPolicyClaimsBackupTaken || worldPolicyClaimsRestored) return true;
+        try {
+            if (Files.isSymbolicLink(worldPolicyClaimsPath)) throw new IOException("claims file became a symlink during verification");
+            if (worldPolicyOriginalClaimsExisted) {
+                Path temporary = Files.createTempFile(worldPolicyClaimsPath.getParent(), "lodekeeper-claims-restore-", ".tmp");
+                try {
+                    Files.write(temporary, worldPolicyOriginalClaims);
+                    try {
+                        Files.move(temporary, worldPolicyClaimsPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                        Files.move(temporary, worldPolicyClaimsPath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } finally {
+                    Files.deleteIfExists(temporary);
+                }
+            } else {
+                Files.deleteIfExists(worldPolicyClaimsPath);
+            }
+            worldPolicyClaimsRestored = worldPolicyOriginalClaimsExisted
+                ? java.util.Arrays.equals(worldPolicyOriginalClaims, Files.readAllBytes(worldPolicyClaimsPath))
+                : !Files.exists(worldPolicyClaimsPath);
+            return worldPolicyClaimsRestored;
+        } catch (IOException | RuntimeException failure) {
+            if (worldPolicyEvidence != null) worldPolicyEvidence.addProperty("claimConfigRestorationError", failure.toString());
+            return false;
+        }
+    }
+
+    private void recordWorldPolicySnapshot(ServerSnapshot snapshot) {
+        if (worldPolicyEvidence == null || snapshot == null || snapshot.serverTick == worldPolicyLastRecordedServerTick) return;
+        worldPolicyLastRecordedServerTick = snapshot.serverTick;
+        JsonObject observation = worldPolicyReceipt("serverObservation", snapshot);
+        observation.addProperty("phase", worldPolicyPhase.name().toLowerCase(java.util.Locale.ROOT));
+        observation.addProperty("playerInsideClaim", worldPolicyPositionInside(snapshot));
+        observation.addProperty("clientScreenOpen", GameApi.screen(client) != null);
+        observation.addProperty("engineStatus", requireEngine().status());
+        worldPolicyServerObservations.add(observation);
+    }
+
+    private JsonObject worldPolicyReceipt(String name, ServerSnapshot snapshot) {
+        JsonObject receipt = new JsonObject();
+        receipt.addProperty("name", name);
+        receipt.addProperty("serverTick", snapshot.serverTick);
+        JsonObject inventory = new JsonObject();
+        snapshot.inventory.forEach(inventory::addProperty);
+        receipt.add("inventory", inventory);
+        receipt.addProperty("cursorEmpty", snapshot.serverCursorEmpty);
+        receipt.addProperty("health", snapshot.health);
+        receipt.addProperty("playerAlive", snapshot.health > 0.0F);
+        JsonObject server = new JsonObject();
+        snapshot.worldPolicyServerReceipt.forEach(server::addProperty);
+        receipt.add("integratedServer", server);
+        return receipt;
+    }
+
+    private static JsonArray blockPositionJson(BlockPos position) {
+        JsonArray result = new JsonArray();
+        result.add(position.getX());
+        result.add(position.getY());
+        result.add(position.getZ());
+        return result;
+    }
+
+    private static Map<String, String> worldPolicyServerReceipt(ServerLevel world, ServerPlayer player,
+                                                                 Map<String, Integer> inventory) {
+        Map<String, String> receipt = new LinkedHashMap<>();
+        for (WorldPolicyFace face : WORLD_POLICY_FACES) {
+            receipt.put("face_" + face.name(), BuiltInRegistries.BLOCK.getKey(world.getBlockState(face.position()).getBlock()).toString());
+        }
+        receipt.put("torch", BuiltInRegistries.BLOCK.getKey(world.getBlockState(WORLD_POLICY_TORCH).getBlock()).toString());
+        receipt.put("support", BuiltInRegistries.BLOCK.getKey(world.getBlockState(WORLD_POLICY_SUPPORT).getBlock()).toString());
+        BlockState preferred = world.getBlockState(WORLD_POLICY_PREFERRED_FURNACE);
+        BlockState ordinary = world.getBlockState(WORLD_POLICY_ORDINARY_FURNACE);
+        receipt.put("preferred_furnace", BuiltInRegistries.BLOCK.getKey(preferred.getBlock()).toString());
+        receipt.put("ordinary_furnace", BuiltInRegistries.BLOCK.getKey(ordinary.getBlock()).toString());
+        receipt.put("preferred_furnace_lit", Boolean.toString(preferred.hasProperty(AbstractFurnaceBlock.LIT)
+            && preferred.getValue(AbstractFurnaceBlock.LIT)));
+        receipt.put("ordinary_furnace_lit", Boolean.toString(ordinary.hasProperty(AbstractFurnaceBlock.LIT)
+            && ordinary.getValue(AbstractFurnaceBlock.LIT)));
+        receipt.put("preferred_table", BuiltInRegistries.BLOCK.getKey(world.getBlockState(WORLD_POLICY_PREFERRED_TABLE).getBlock()).toString());
+        receipt.put("ordinary_table", BuiltInRegistries.BLOCK.getKey(world.getBlockState(WORLD_POLICY_ORDINARY_TABLE).getBlock()).toString());
+        int furnaces = 0;
+        for (int x = -12; x <= 18; x++) for (int y = FLOOR_Y; y <= 67; y++) for (int z = -6; z <= 6; z++) {
+            if (world.getBlockState(new BlockPos(x, y, z)).is(Blocks.FURNACE)) furnaces++;
+        }
+        int craftingTables = 0;
+        for (int x = -12; x <= 18; x++) for (int y = FLOOR_Y; y <= 67; y++) for (int z = -6; z <= 8; z++) {
+            if (world.getBlockState(new BlockPos(x, y, z)).is(Blocks.CRAFTING_TABLE)) craftingTables++;
+        }
+        receipt.put("furnace_count", Integer.toString(furnaces));
+        receipt.put("crafting_table_count", Integer.toString(craftingTables));
+        receipt.put("backfill_target", BuiltInRegistries.BLOCK.getKey(world.getBlockState(WORLD_POLICY_BACKFILL_TARGET).getBlock()).toString());
+        for (WorldPolicyPlacementProbe probe : WORLD_POLICY_PLACEMENT_PROBES) {
+            receipt.put("placement_clicked_" + probe.name(), BuiltInRegistries.BLOCK.getKey(world.getBlockState(probe.clicked()).getBlock()).toString());
+            receipt.put("placement_target_" + probe.name(), BuiltInRegistries.BLOCK.getKey(world.getBlockState(probe.target()).getBlock()).toString());
+        }
+        receipt.put("placement_clicked_outside_control", BuiltInRegistries.BLOCK.getKey(
+            world.getBlockState(WORLD_POLICY_OUTSIDE_PLACEMENT_PROBE.clicked()).getBlock()).toString());
+        receipt.put("placement_target_outside_control", BuiltInRegistries.BLOCK.getKey(
+            world.getBlockState(WORLD_POLICY_OUTSIDE_PLACEMENT_PROBE.target()).getBlock()).toString());
+        receipt.put("inventory", inventory.entrySet().stream().sorted(Map.Entry.comparingByKey())
+            .map(entry -> entry.getKey() + "=" + entry.getValue()).collect(java.util.stream.Collectors.joining(",")));
+        receipt.put("cursor_empty", Boolean.toString(VerificationApi.serverCursorEmpty(player)));
+        receipt.put("alive", Boolean.toString(player.isAlive()));
+        receipt.put("health", Float.toString(player.getHealth()));
+        receipt.put("position", player.getX() + "," + player.getY() + "," + player.getZ());
+        return receipt;
+    }
+
+    private static boolean worldPolicyBlocksIntact(Map<String, String> receipt) {
+        return WORLD_POLICY_FACES.stream().allMatch(face -> "minecraft:stone".equals(receipt.get("face_" + face.name())))
+            && "minecraft:stone".equals(receipt.get("support")) && "minecraft:torch".equals(receipt.get("torch"));
+    }
+
+    private static boolean worldPolicyPositionInside(ServerSnapshot snapshot) {
+        return snapshot.x >= WORLD_POLICY_CLAIM_MIN.getX() && snapshot.x < WORLD_POLICY_CLAIM_MAX.getX() + 1.0
+            && snapshot.y >= WORLD_POLICY_CLAIM_MIN.getY() && snapshot.y < WORLD_POLICY_CLAIM_MAX.getY() + 1.0
+            && snapshot.z >= WORLD_POLICY_CLAIM_MIN.getZ() && snapshot.z < WORLD_POLICY_CLAIM_MAX.getZ() + 1.0;
+    }
+
     private void sendCommand(String command) {
         if (client.getConnection() == null) throw new IllegalStateException("integrated client is not connected");
         client.getConnection().sendChat(command);
@@ -3420,6 +4244,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     preparedSafetyWorkbenchFixture == null ? Map.of()
                         : VerificationApi.preparedSafetyWorkbenchReceipt(player, world, preparedSafetyWorkbenchFixture),
                     HELD_FUEL_MODE ? VerificationApi.preparedSafetyHeldFuelReceipt(world) : Map.of(),
+                    WORLD_POLICY_MODE ? worldPolicyServerReceipt(world, player, inventory.counts()) : Map.of(),
                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
                     player.getX(), player.getY(), player.getZ()));
             } catch (Throwable throwable) {
@@ -3435,6 +4260,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             latestSnapshot = snapshot;
             latestObservationRequestSequence = requestSequence;
+            if (WORLD_POLICY_MODE) recordWorldPolicySnapshot(snapshot);
         }));
     }
 
@@ -3660,7 +4486,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
+        int expectedCases = WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || NEARBY_WOOD_MODE
                 || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
@@ -3690,6 +4516,12 @@ public final class RuntimeVerification implements ClientModInitializer {
 
     private void fail(String reason) {
         if (state == State.FAILED || state == State.COMPLETE) return;
+        if (WORLD_POLICY_MODE) {
+            boolean restored = restoreWorldPolicyClaims();
+            if (worldPolicyEvidence != null) worldPolicyEvidence.addProperty("claimConfigRestored", restored);
+            boolean configRestored = restoreWorldPolicyConfig();
+            if (worldPolicyEvidence != null) worldPolicyEvidence.addProperty("backfillConfigRestored", configRestored);
+        }
         if (settingsUiVerification != null) {
             settingsUiVerification.restore();
             settingsUiReceipt = settingsUiVerification.receipt();
@@ -3820,6 +4652,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                             ? "integrated_server_air_health_hunger_position_and_inventory"
                         : "integrated_server_inventory_menu_and_hunger");
             root.addProperty("verificationMode", verificationMode());
+            if (WORLD_POLICY_MODE) root.add("worldPolicy", worldPolicyEvidence == null
+                ? com.google.gson.JsonNull.INSTANCE : worldPolicyEvidence.deepCopy());
             if (SETTINGS_UI_MODE) {
                 root.addProperty("settingsUiReceipt", settingsUiReceipt);
                 root.addProperty("settingsUiChatEntryConfirmed", settingsUiChatEntryConfirmed);
@@ -4291,6 +5125,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (WORLD_POLICY_MODE) return "native_world_policy";
         if (SETTINGS_UI_MODE) return "native_settings_ui";
         if (invalidStationRoomTunnelMode()) return "invalid_station_room_tunnel";
         if (WORKBENCH_MODE && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
@@ -4347,7 +5182,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static int selectedFixtureModes() {
-        return (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+        return (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
             + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0)
             + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
             + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0) + (PREPARED_SAFETY_MODE != null ? 1 : 0);
@@ -4378,6 +5213,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                                   Map<String, String> preparedSafetyAirReceipt,
                                   Map<String, String> preparedSafetyWorkbenchReceipt,
                                   Map<String, String> preparedSafetyHeldFuelReceipt,
+                                  Map<String, String> worldPolicyServerReceipt,
                                   float health, int foodLevel,
                                   String difficulty, double x, double y, double z) {
         private ServerSnapshot {
@@ -4390,6 +5226,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             preparedSafetyAirReceipt = Map.copyOf(preparedSafetyAirReceipt);
             preparedSafetyWorkbenchReceipt = Map.copyOf(preparedSafetyWorkbenchReceipt);
             preparedSafetyHeldFuelReceipt = Map.copyOf(preparedSafetyHeldFuelReceipt);
+            worldPolicyServerReceipt = Map.copyOf(worldPolicyServerReceipt);
             woodenAxeRemainingDurability = List.copyOf(woodenAxeRemainingDurability);
             coalNavigationCourseCheckpointServerTicks = List.copyOf(coalNavigationCourseCheckpointServerTicks);
         }

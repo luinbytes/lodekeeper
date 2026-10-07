@@ -1,0 +1,257 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def profilesFile = rootProject.file('gradle/owned-kernel-yarn-profiles.json')
+def profileTable = new JsonSlurper().parse(profilesFile) as Map
+if (profileTable.schema_version != 1) {
+    throw new GradleException('Unsupported owned-kernel Yarn profile table schema')
+}
+
+def minecraftVersion = rootProject.minecraft_version.toString()
+def selectedProfile = profileTable.profiles[minecraftVersion]
+def selectedAdapter = rootProject.findProperty('adapter')?.toString()
+def yarnMappings = rootProject.findProperty('yarn_mappings')?.toString()
+if (rootProject.findProperty('owned_kernel_yarn')?.toString() != 'true'
+        || selectedProfile == null
+        || selectedAdapter != selectedProfile.adapter.toString()
+        || yarnMappings != selectedProfile.yarn_mappings.toString()
+        || project.path != selectedProfile.kernel_project.toString()
+        || project.projectDir.canonicalFile != rootProject.file(selectedProfile.kernel_directory).canonicalFile) {
+    throw new GradleException("Owned Yarn kernel ${project.path} is not selected by the exact profile table for ${minecraftVersion}")
+}
+
+def family = profileTable.families[selectedProfile.source_family]
+def remapTrack = family == null ? null : profileTable.remap_tracks[family.remap_track]
+if (family == null || family.project_path.toString() != project.path
+        || remapTrack == null
+        || selectedProfile.remap_project.toString() != remapTrack.project_path.toString()
+        || selectedProfile.remap_directory.toString() != remapTrack.project_dir.toString()) {
+    throw new GradleException("Owned Yarn family mapping is inconsistent for ${minecraftVersion}")
+}
+
+group = 'dev.lodekeeper.navigation'
+version = minecraftVersion + '-source-owned'
+def artifactFamilyName = family.generator_profile?.toString() ?: selectedProfile.source_family.toString()
+base {
+    archivesName = 'lodekeeper-owned-navigation-kernel-' + artifactFamilyName.replace('.', '')
+}
+
+def sourceLockFile = layout.projectDirectory.file(family.lock_path.toString()).asFile
+def sourceLock = new JsonSlurper().parse(sourceLockFile) as Map
+def supportedVersions = sourceLock.minecraft_versions ?: [sourceLock.minecraft_version]
+if (!supportedVersions.collect { it.toString() }.contains(minecraftVersion)
+        || sourceLock.java_version.toString() != family.java_release.toString()) {
+    throw new GradleException("Pinned source family ${selectedProfile.source_family} does not match ${minecraftVersion}/Java ${family.java_release}")
+}
+
+def javaRelease = family.java_release as int
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaRelease)
+    }
+    sourceCompatibility = JavaVersion.toVersion(javaRelease)
+    targetCompatibility = JavaVersion.toVersion(javaRelease)
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaRelease
+}
+
+def sourceMode = family.source_mode.toString()
+def supportRoot = rootProject.file('owned-kernel/yarn-support')
+def sourceArchive = layout.buildDirectory.file("sources/${sourceLock.archive_filename}")
+def sourceDirectory = layout.buildDirectory.dir("upstream/${sourceLock.source_root}")
+def generatedRoot = layout.buildDirectory.dir('generated/owned-kernel')
+def generatedSourceRoot = generatedRoot.map { it.dir('src') }
+def sourceManifest = generatedRoot.map { it.file('source-manifest.json') }
+def overrideDirectory = layout.projectDirectory.dir(family.override_dir.toString())
+def overrideManifestFile = layout.projectDirectory.file(family.override_manifest.toString())
+def fetchScript = sourceMode == 'legacy-group'
+        ? rootProject.file('owned-kernel/yarn-legacy/generator/fetch_pinned_source.py')
+        : layout.projectDirectory.file('scripts/fetch_pinned_source.py').asFile
+def generatorScript = sourceMode == 'legacy-group'
+        ? rootProject.file('owned-kernel/yarn-legacy/generator/prepare_sources.py')
+        : layout.projectDirectory.file('prepare_sources.py').asFile
+
+if (!(sourceMode in ['legacy-group', 'family'])) {
+    throw new GradleException("Unknown owned Yarn source mode ${sourceMode}")
+}
+
+sourceSets {
+    api {
+        java.srcDir(generatedSourceRoot.map { it.dir('api/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('api/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    schematica_api {
+        java.srcDir(generatedSourceRoot.map { it.dir('schematica_api/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('schematica_api/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    main {
+        java.setSrcDirs([generatedSourceRoot.map { it.dir('main/java') }])
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('main/resources') }])
+        compileClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+    }
+    launch {
+        java.srcDir(generatedSourceRoot.map { it.dir('launch/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('launch/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        compileClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraftVersion}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
+    compileOnly 'net.fabricmc:sponge-mixin:0.17.4+mixin.0.8.7'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    compileOnly 'org.ow2.asm:asm:9.7'
+}
+
+loom {
+    mixin {
+        defaultRefmapName = 'lodekeeper-owned-kernel-refmap.json'
+    }
+    mods {
+        ownedKernelBuildSources {
+            sourceSet sourceSets.api
+            sourceSet sourceSets.schematica_api
+            sourceSet sourceSets.main
+            sourceSet sourceSets.launch
+        }
+    }
+}
+
+def fetchOwnedKernelSource = tasks.register('fetchOwnedKernelSource', Exec) {
+    inputs.file(sourceLockFile)
+    inputs.file(fetchScript)
+    inputs.property('sourceCommit', sourceLock.source_commit.toString())
+    inputs.property('sourceArchiveSha256', sourceLock.archive_sha256.toString())
+    outputs.file(sourceArchive)
+    outputs.dir(sourceDirectory)
+    commandLine 'python3', fetchScript.absolutePath,
+            '--lock', sourceLockFile.absolutePath,
+            '--archive', sourceArchive.get().asFile.absolutePath,
+            '--source-dir', sourceDirectory.get().asFile.absolutePath
+}
+
+def generateOwnedKernelSources = tasks.register('generateOwnedKernelSources', Exec) {
+    dependsOn fetchOwnedKernelSource
+    inputs.dir(sourceDirectory)
+    inputs.file(sourceArchive)
+    inputs.file(generatorScript)
+    inputs.dir(overrideDirectory)
+    inputs.file(overrideManifestFile)
+    inputs.file(sourceLockFile)
+    inputs.property('sourceFamily', selectedProfile.source_family.toString())
+    inputs.property('compileMinecraftVersion', minecraftVersion)
+    if (sourceLock.dependency_metadata != null) {
+        inputs.file(layout.projectDirectory.file(sourceLock.dependency_metadata.toString()))
+    }
+    if (sourceLock.source_inputs_file != null) {
+        inputs.file(rootProject.file('owned-kernel/yarn-legacy').toPath()
+                .resolve(sourceLock.source_inputs_file.toString()).toFile())
+        inputs.file(rootProject.file('owned-kernel/yarn-legacy').toPath()
+                .resolve(sourceLock.shared_source_baseline_file.toString()).toFile())
+    }
+    if (sourceMode == 'family' && sourceLock.minecraft_api_family != null) {
+        inputs.file(layout.projectDirectory.file('source-family-diff-manifest.json'))
+    }
+    outputs.dir(generatedRoot)
+    doLast {
+        File manifestFile = sourceManifest.get().asFile
+        Map manifest = new JsonSlurper().parse(manifestFile) as Map
+        manifest.compile_target = [minecraft_version: minecraftVersion,
+                mappings: 'official Mojang mappings', java_release: javaRelease]
+        manifestFile.setText(JsonOutput.prettyPrint(JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
+    if (sourceMode == 'legacy-group') {
+        commandLine 'python3', generatorScript.absolutePath,
+                '--profile', family.generator_profile.toString(),
+                '--source-root', sourceDirectory.get().asFile.absolutePath,
+                '--archive', sourceArchive.get().asFile.absolutePath,
+                '--output', generatedSourceRoot.get().asFile.absolutePath,
+                '--lock-file', sourceLockFile.absolutePath,
+                '--lifecycle-overrides', layout.projectDirectory.asFile.absolutePath
+    } else if (sourceLock.minecraft_api_family != null) {
+        commandLine 'python3', generatorScript.absolutePath,
+                '--source-root', sourceDirectory.get().asFile.absolutePath,
+                '--source-archive', sourceArchive.get().asFile.absolutePath
+    } else {
+        commandLine 'python3', generatorScript.absolutePath,
+                '--source-root', sourceDirectory.get().asFile.absolutePath
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn generateOwnedKernelSources
+}
+tasks.withType(ProcessResources).configureEach {
+    dependsOn generateOwnedKernelSources
+}
+
+tasks.register('compileOwnedKernel') {
+    group = 'build'
+    description = 'Compiles the pinned owned kernel against the selected exact Minecraft profile.'
+    dependsOn tasks.named('compileApiJava')
+    dependsOn tasks.named('compileSchematica_apiJava')
+    dependsOn tasks.named('compileJava')
+    dependsOn tasks.named('compileLaunchJava')
+}
+
+tasks.named('jar') {
+    dependsOn tasks.named('compileOwnedKernel'), generateOwnedKernelSources
+    from sourceSets.api.output
+    from sourceSets.schematica_api.output
+    from sourceSets.launch.output
+    from(sourceLockFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+        rename { 'source-lock.json' }
+    }
+    from(overrideManifestFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+        rename { 'lifecycle-overrides.sha256' }
+    }
+    from(sourceManifest) {
+        into 'META-INF/lodekeeper/owned-kernel'
+        rename { 'source-manifest.json' }
+    }
+}
+
+tasks.named('remapJar') {
+    sourceNamespace = 'named'
+    targetNamespace = 'intermediary'
+    addNestedDependencies = false
+}
+
+def inspectorFile = supportRoot.toPath().resolve('inspect_owned_kernel_jar.py').toFile()
+tasks.register('inspectOwnedKernelJar', Exec) {
+    dependsOn tasks.named('remapJar'), generateOwnedKernelSources
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    inputs.file(sourceManifest)
+    commandLine 'python3', inspectorFile.absolutePath,
+            '--jar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', sourceManifest.get().asFile.absolutePath,
+            '--namespace', 'intermediary'
+}
+
+tasks.register('verifyOwnedKernelSourceSafety', Exec) {
+    inputs.file(supportRoot.toPath().resolve('verify_owned_kernel_source_safety.py').toFile())
+    commandLine 'python3', supportRoot.toPath().resolve('verify_owned_kernel_source_safety.py').toFile().absolutePath
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('inspectOwnedKernelJar'), tasks.named('verifyOwnedKernelSourceSafety')
+}

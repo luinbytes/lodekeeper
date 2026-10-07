@@ -35,6 +35,8 @@ final class NavigationSettingsVerification {
             expected.put(settings.failureTimeoutMS, 900L);
             expected.put(settings.planAheadPrimaryTimeoutMS, 600L);
             expected.put(settings.planAheadFailureTimeoutMS, 1800L);
+            expected.put(settings.strictLiquidCheck, true);
+            expected.put(settings.jumpPenalty, 3.5D);
             expected.forEach((setting, value) -> prior.put(setting, setting.value));
             var actions = new PlayerActions(client);
             movement = new MovementController(client, config, actions, new BotInput(), new GameTerrain(client, config));
@@ -54,6 +56,7 @@ final class NavigationSettingsVerification {
                 config.pathInitialFailureMillis = 900;
                 config.pathContinuationSearchMillis = 600;
                 config.pathContinuationFailureMillis = 1800;
+                config.navigationPreferences = Map.of("strictLiquidCheck", "true", "jumpPenalty", "3.5");
                 movement.start(client.player.blockPosition().offset(20, 0, 0), 0);
                 for (var entry : expected.entrySet()) {
                     if (!entry.getValue().equals(entry.getKey().value))

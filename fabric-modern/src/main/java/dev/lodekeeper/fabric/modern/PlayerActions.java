@@ -366,21 +366,22 @@ final class PlayerActions {
     boolean use(net.minecraft.core.BlockPos position) {
         if (client.player == null || client.gameMode == null || client.player.isShiftKeyDown()
                 || GameApi.screen(client) instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;
-        InteractionHand hand;
-        if (client.player.getMainHandItem().isEmpty()) hand = InteractionHand.MAIN_HAND;
-        else if (client.player.getOffhandItem().isEmpty()) hand = InteractionHand.OFF_HAND;
-        else {
+        if (client.level == null || !client.level.hasChunkAt(position)) return false;
+        var state = client.level.getBlockState(position);
+        boolean defaultVanillaStation = state.is(Blocks.CRAFTING_TABLE) || state.is(Blocks.FURNACE)
+                || state.is(Blocks.SMOKER) || state.is(Blocks.BLAST_FURNACE) || state.is(Blocks.STONECUTTER);
+        if (!defaultVanillaStation && !client.player.getMainHandItem().isEmpty()) {
             int empty = -1;
-            for (int slot = 0; slot < 9; slot++) {
+            for (int slot = 0; slot < 36; slot++) {
                 if (client.player.getInventory().getItem(slot).isEmpty()) { empty = slot; break; }
             }
-            if (empty < 0 || !selectSlot(empty) || !client.player.getMainHandItem().isEmpty()) return false;
-            hand = InteractionHand.MAIN_HAND;
+            if (empty < 0) throw new IllegalStateException("Station interaction needs an empty inventory slot");
+            if (!selectSlot(empty) || !client.player.getMainHandItem().isEmpty()) return false;
         }
         BlockHitResult hit = hit(position);
         if (hit == null) return false;
         look(hit.getLocation());
-        return client.gameMode.useItemOn(client.player, hand, hit).consumesAction();
+        return client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit).consumesAction();
     }
     /** Checks a station placement without changing the selected slot or sending an interaction. */
     boolean safePlacementSupport(net.minecraft.core.BlockPos position) {

@@ -1,0 +1,171 @@
+group = 'dev.lodekeeper.navigation'
+version = rootProject.minecraft_version.toString() + '-source-owned'
+
+base {
+    archivesName = 'lodekeeper-owned-kernel-' + rootProject.minecraft_version.toString()
+}
+
+def sourceLockFile = layout.projectDirectory.file('source-lock.json').asFile
+def sourceLock = new groovy.json.JsonSlurper().parse(sourceLockFile)
+def supportedVersions = sourceLock.minecraft_versions ?: [sourceLock.minecraft_version]
+def apiFamily = sourceLock.minecraft_api_family ?: sourceLock.minecraft_version
+if (!supportedVersions.contains(rootProject.minecraft_version.toString())
+        || providers.gradleProperty('modern_api_family').getOrElse(apiFamily.toString()) != apiFamily.toString()) {
+    throw new GradleException("Owned kernel ${project.projectDir.name} requires ${supportedVersions} and API family ${apiFamily}")
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+def sourceArchive = layout.buildDirectory.file("sources/${sourceLock.archive_filename}")
+def sourceDirectory = layout.buildDirectory.dir("upstream/${sourceLock.source_root}")
+def generatedRoot = layout.buildDirectory.dir('generated/owned-kernel')
+def generatedSourceRoot = generatedRoot.map { it.dir('src') }
+def sourceManifest = generatedRoot.map { it.file('source-manifest.json') }
+def overrideManifestFile = layout.projectDirectory.file('overrides/lifecycle-overrides.sha256').asFile
+
+sourceSets {
+    api {
+        java.srcDir(generatedSourceRoot.map { it.dir('api/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('api/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    schematica_api {
+        java.srcDir(generatedSourceRoot.map { it.dir('schematica_api/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('schematica_api/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+    main {
+        java.setSrcDirs([generatedSourceRoot.map { it.dir('main/java') }])
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('main/resources') }])
+        compileClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.schematica_api.output
+    }
+    launch {
+        java.srcDir(generatedSourceRoot.map { it.dir('launch/java') })
+        resources.setSrcDirs([generatedSourceRoot.map { it.dir('launch/resources') }])
+        compileClasspath += sourceSets.main.compileClasspath
+        compileClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+        runtimeClasspath += sourceSets.api.output + sourceSets.main.output + sourceSets.schematica_api.output
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    compileOnly "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+loom {
+    mods {
+        lodekeeperOwnedKernelSources {
+            sourceSet sourceSets.api
+            sourceSet sourceSets.schematica_api
+            sourceSet sourceSets.main
+            sourceSet sourceSets.launch
+        }
+    }
+}
+
+def fetchOwnedKernelSource = tasks.register('fetchOwnedKernelSource', Exec) {
+    inputs.file(sourceLockFile)
+    inputs.file(layout.projectDirectory.file('scripts/fetch_pinned_source.py'))
+    inputs.property('sourceCommit', sourceLock.source_commit)
+    inputs.property('sourceArchiveSha256', sourceLock.archive_sha256)
+    outputs.file(sourceArchive)
+    outputs.dir(sourceDirectory)
+    commandLine 'python3',
+            layout.projectDirectory.file('scripts/fetch_pinned_source.py').asFile.absolutePath,
+            '--lock', sourceLockFile.absolutePath,
+            '--archive', sourceArchive.get().asFile.absolutePath,
+            '--source-dir', sourceDirectory.get().asFile.absolutePath
+}
+
+def generateOwnedKernelSources = tasks.register('generateOwnedKernelSources', Exec) {
+    dependsOn fetchOwnedKernelSource
+    inputs.dir(sourceDirectory)
+    inputs.file(sourceArchive)
+    inputs.file(layout.projectDirectory.file('prepare_sources.py'))
+    inputs.file(layout.projectDirectory.file(sourceLock.dependency_metadata))
+    inputs.dir(layout.projectDirectory.dir('overrides/lifecycle-overrides'))
+    inputs.file(overrideManifestFile)
+    inputs.property('compileMinecraftVersion', rootProject.minecraft_version)
+    outputs.dir(generatedRoot)
+    doLast {
+        File manifestFile = sourceManifest.get().asFile
+        Map manifest = new groovy.json.JsonSlurper().parse(manifestFile) as Map
+        manifest.compile_target = [minecraft_version: rootProject.minecraft_version.toString(),
+                mappings: 'official Mojang mappings', java_release: 25]
+        manifestFile.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
+    commandLine 'python3',
+            layout.projectDirectory.file('prepare_sources.py').asFile.absolutePath,
+            '--source-root', sourceDirectory.get().asFile.absolutePath,
+            '--source-archive', sourceArchive.get().asFile.absolutePath
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn generateOwnedKernelSources
+}
+
+tasks.withType(ProcessResources).configureEach {
+    dependsOn generateOwnedKernelSources
+}
+
+tasks.register('compileOwnedKernel') {
+    group = 'build'
+    description = 'Compiles the pinned owned kernel against the selected exact Minecraft profile.'
+    dependsOn tasks.named('compileApiJava')
+    dependsOn tasks.named('compileSchematica_apiJava')
+    dependsOn tasks.named('compileJava')
+    dependsOn tasks.named('compileLaunchJava')
+}
+
+tasks.named('jar') {
+    dependsOn tasks.named('compileOwnedKernel'), generateOwnedKernelSources
+    from sourceSets.api.output
+    from sourceSets.schematica_api.output
+    from sourceSets.launch.output
+    from(sourceLockFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+    from(overrideManifestFile) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+    from(sourceManifest) {
+        into 'META-INF/lodekeeper/owned-kernel'
+    }
+}
+
+tasks.register('inspectOwnedKernelJar', Exec) {
+    dependsOn tasks.named('jar'), generateOwnedKernelSources
+    inputs.file(tasks.named('jar').flatMap { it.archiveFile })
+    inputs.file(sourceManifest)
+    commandLine 'python3',
+            layout.projectDirectory.file('scripts/inspect_owned_kernel_jar.py').asFile.absolutePath,
+            '--jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', sourceManifest.get().asFile.absolutePath,
+            '--source-lock', sourceLockFile.absolutePath,
+            '--override-manifest', overrideManifestFile.absolutePath
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('inspectOwnedKernelJar')
+}

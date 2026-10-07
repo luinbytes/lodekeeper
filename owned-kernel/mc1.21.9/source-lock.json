@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/cabaletta/baritone",
+  "archive_url": "https://github.com/cabaletta/baritone/archive/5bf45429eeb17020e90c1ae316f8bac4c62477d8.tar.gz",
+  "archive_filename": "baritone-1.16.0-5bf45429eeb17020e90c1ae316f8bac4c62477d8.tar.gz",
+  "archive_sha256": "23fd24a2bd403161182a15ab9ee5f65e5110c60683ed331e43dd4853657e6602",
+  "source_root": "baritone-5bf45429eeb17020e90c1ae316f8bac4c62477d8",
+  "source_commit": "5bf45429eeb17020e90c1ae316f8bac4c62477d8",
+  "baritone_version": "1.16.0",
+  "minecraft_api_family": "1.21.9",
+  "minecraft_version": "1.21.9",
+  "minecraft_versions": [
+    "1.21.9",
+    "1.21.10"
+  ],
+  "minecraft_mappings": "official Mojang mappings",
+  "java_version": 21,
+  "release_sha256": "7a8c2d08fb6e66b2bc32dd6d78570c798186eed114e6e88f692af4e3742a2b46",
+  "dependency_metadata": "../../third-party/baritone/dependencies.json",
+  "dependency_metadata_sha256": "f890ff89c3446ad6610700094d810ed2701a9ef5252e8b3e662ddb7988d68b45",
+  "canonical_baseline": {
+    "baritone_version": "1.11.3",
+    "source_commit": "10e65932e597ee5f11a654030f17798646f563f2",
+    "archive_sha256": "4678f9540bb457d167171cfdb1dc982f8446b36f7f8e847414bfec7bdbe78a46",
+    "override_manifest_sha256": "778f261b3ccf2bb0a1dbd2c6ea1c5a9038f4c5de24b1d5e9d176369fdc773887"
+  },
+  "reviewed_baseline_sha256": "18f056204e77ccc4cd24701c52e2578bb94720e356cb2de5bfcfe7d28cec70f1"
+}

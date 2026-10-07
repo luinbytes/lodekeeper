@@ -4,6 +4,7 @@
 **/run-verification/
 **/run-visual-*/
 **/verification-launch/
+**/logs/
 .tools/
 .cache/baritone/
 .DS_Store

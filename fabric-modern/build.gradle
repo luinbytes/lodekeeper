@@ -88,8 +88,8 @@ loom {
     }
 }
 
-if (providers.gradleProperty('owned_kernel_modern_263').getOrElse('false') == 'true') {
-    apply from: rootProject.file('gradle/modern263-host-integration.gradle')
-} else {
-    apply from: rootProject.file('gradle/baritone.gradle')
-}
+apply from: rootProject.file('gradle/modern263-host-integration.gradle')
+
+apply from: rootProject.file('gradle/artifact-verification.gradle')
+
+apply from: rootProject.file('gradle/owned-kernel-notices.gradle')

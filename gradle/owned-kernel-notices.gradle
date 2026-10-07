@@ -1,0 +1,11 @@
+tasks.named('jar').configure {
+    from(rootProject.file('third-party/baritone/NOTICE.md')) {
+        into 'META-INF/licenses/baritone'
+    }
+    from(rootProject.file('third-party/baritone/licenses')) {
+        into 'META-INF/licenses/baritone'
+    }
+    from(rootProject.file('third-party/baritone/dependencies.json')) {
+        into 'META-INF/licenses/baritone'
+    }
+}

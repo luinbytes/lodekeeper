@@ -1,0 +1,5 @@
+plugins {
+    id 'fabric-loom' version '1.8.13'
+}
+
+apply from: rootProject.file('gradle/owned-kernel-yarn-build.gradle')

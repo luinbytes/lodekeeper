@@ -6,9 +6,9 @@ if (!enabled) {
     throw new GradleException('Apply this integration only with -Powned_kernel_primary_1211=true')
 }
 if (project.path != ':fabric-1211'
-        || rootProject.minecraft_version.toString() != '1.21.1'
-        || rootProject.yarn_mappings.toString() != '1.21.1+build.3') {
-    throw new GradleException('Owned kernel integration requires :fabric-1211, Minecraft 1.21.1, Yarn build 3')
+        || !['1.21': '1.21+build.9', '1.21.1': '1.21.1+build.3'].containsKey(rootProject.minecraft_version.toString())
+        || ['1.21': '1.21+build.9', '1.21.1': '1.21.1+build.3'][rootProject.minecraft_version.toString()] != rootProject.yarn_mappings.toString()) {
+    throw new GradleException('Owned kernel integration requires :fabric-1211 and the exact Minecraft 1.21 or 1.21.1 Yarn profile')
 }
 
 def kernelProjectPath = rootProject.findProperty('owned_kernel_project_path')?.toString()

@@ -1,0 +1,35 @@
+import groovy.json.JsonOutput
+
+def verificationRun = tasks.named('runVerificationClient')
+tasks.register('prepareArtifactVerification') {
+    group = 'verification'
+    description = 'Export the current Loom verification launch without opening a client.'
+    dependsOn { verificationRun.get().taskDependencies.getDependencies(verificationRun.get()) }
+    def launchDirectory = layout.buildDirectory.dir('verification-launch')
+    outputs.dir(launchDirectory)
+    outputs.upToDateWhen { false }
+    doLast {
+        def run = verificationRun.get()
+        if (run.hasProperty('useArgFile')) run.useArgFile.set(false)
+        List<String> vmArguments = new ArrayList<>(run.allJvmArgs)
+        def configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
+        if (configArgument == null) {
+            run.jvmArgumentProviders.each { vmArguments.addAll(it.asArguments().toList()) }
+            configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
+        }
+        if (configArgument == null) throw new GradleException('Loom supplied no development launch configuration')
+        File sourceConfig = file(configArgument.substring('-Dfabric.dli.config='.length()))
+        if (!sourceConfig.isFile()) throw new GradleException('Loom launch configuration was not generated')
+        File directory = launchDirectory.get().asFile
+        directory.mkdirs()
+        File config = new File(directory, 'launch.cfg')
+        config.bytes = sourceConfig.bytes
+        vmArguments.remove(configArgument)
+        vmArguments.add('-Dfabric.dli.config=' + config.absolutePath)
+        List<String> arguments = vmArguments + ['-cp', run.classpath.asPath, run.mainClass.get()]
+        arguments.addAll(run.args ?: [])
+        run.argumentProviders.each { arguments.addAll(it.asArguments().toList()) }
+        new File(directory, 'launch.args').setText(
+                arguments.collect { JsonOutput.toJson(it) }.join('\n') + '\n', 'UTF-8')
+    }
+}

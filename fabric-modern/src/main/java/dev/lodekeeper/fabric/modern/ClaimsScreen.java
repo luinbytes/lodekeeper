@@ -71,7 +71,7 @@ final class ClaimsScreen extends Screen implements dev.lodekeeper.navigation.ker
             int coordinateWidth = Math.max(1, (content - 128) / 3);
             for (int corner = 0; corner < 2; corner++) {
                 int row = corner;
-    
+
                 for (int axis = 0; axis < 3; axis++) {
                     var field = new EditBox(font, left + 36 + axis * (coordinateWidth + 4),
                             cornerY + corner * (height < 180 ? 22 : 24), coordinateWidth, 20,

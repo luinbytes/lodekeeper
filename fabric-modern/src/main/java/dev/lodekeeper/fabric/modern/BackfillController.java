@@ -60,7 +60,7 @@ final class BackfillController {
         long epoch = protection.capture().epoch();
         intents.values().removeIf(intent -> intent.job() != job || intent.policyEpoch() != epoch
                 || ticks >= intent.expires());
-        if (!config.backfill || client.screen != null) intents.clear();
+        if (!config.backfill || GameApi.screen(client) != null) intents.clear();
     }
 
     private boolean refreshSession() {
@@ -84,7 +84,7 @@ final class BackfillController {
 
     void beforeOwnedBreak(BlockPos position) {
         long job = currentJob.getAsLong();
-        if (!config.backfill || job <= 0 || client.screen != null || !refreshSession()
+        if (!config.backfill || job <= 0 || GameApi.screen(client) != null || !refreshSession()
                 || !protection.mayBreak(position) || !protection.mayPlace(position)) return;
         var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
         var nativeSession = owner == null ? null : owner.captureSession();
@@ -121,7 +121,7 @@ final class BackfillController {
         if (cell != null && received.sequence() > cell.revision() && !dryAir(state)) {
             boolean confirmed = sent != null && sent.receipt() == cell
                     && received.sequence() > sentAfterSequence
-                    && state.equals(BuiltInRegistries.BLOCK.getValue(GameApi.identifier(sent.blockToPlace().toString())).defaultBlockState())
+                    && state.equals(BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(sent.blockToPlace().toString())).defaultBlockState())
                     && queue.confirmServerPlacement(session, sent,
                     BlockId.parse(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString()), received.sequence())
                     == RestorationQueue.PlacementStatus.CONFIRMED;
@@ -177,7 +177,7 @@ final class BackfillController {
 
     void restoreIdle(InventorySnapshot combinedProtectedStock) {
         if (!config.backfill || !config.allowBuilding || !refreshSession() || sent != null
-                || client.player == null || client.screen != null || !client.player.isAlive()
+                || client.player == null || GameApi.screen(client) != null || !client.player.isAlive()
                 || client.player.containerMenu != client.player.inventoryMenu
                 || !client.player.containerMenu.getCarried().isEmpty()
                 || client.player.getAbilities().instabuild || client.player.isSpectator() || client.player.isPassenger() || client.player.isUsingItem()
@@ -196,7 +196,7 @@ final class BackfillController {
             var reserved = queue.tryReserve(queue.currentSession(), receipt, stock);
             if (reserved.status() != RestorationQueue.ReserveStatus.RESERVED) continue;
             var token = reserved.reservation().orElseThrow();
-            Block block = BuiltInRegistries.BLOCK.getValue(GameApi.identifier(token.blockToPlace().toString()));
+            Block block = BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(token.blockToPlace().toString()));
             if (!safeMaterial(destination, block.defaultBlockState()) || !GameCatalog.id(block.asItem()).equals(token.item())) {
                 queue.releaseBeforeSend(queue.currentSession(), token);
                 continue;

@@ -3,9 +3,9 @@
   "id": "lodekeeper",
   "version": "${version}",
   "name": "Lodekeeper",
-  "description": "Goal-driven client survival automation with Baritone navigation.",
+  "description": "Goal-driven client survival automation with source-owned navigation.",
   "environment": "client",
-  "license": "MIT",
+  "license": ["MIT", "LGPL-3.0-or-later"],
   "mixins": ["lodekeeper.mixins.json"],
   "entrypoints": {"client": ["dev.lodekeeper.fabric.LodekeeperClient"]},
   "depends": {"fabricloader": ">=0.15.0", "fabric-api": "*", "minecraft": "${minecraft}", "java": ">=17"}

@@ -1,0 +1,100 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def profilesFile = rootProject.file('gradle/owned-kernel-yarn-profiles.json')
+def profileTable = new JsonSlurper().parse(profilesFile) as Map
+def minecraftVersion = rootProject.minecraft_version.toString()
+def selectedProfile = profileTable.profiles[minecraftVersion]
+def adapter = rootProject.findProperty('adapter')?.toString()
+def yarnMappings = rootProject.findProperty('yarn_mappings')?.toString()
+if (rootProject.findProperty('owned_kernel_yarn')?.toString() != 'true'
+        || selectedProfile == null
+        || project.path != selectedProfile.host_project_path.toString()
+        || adapter != selectedProfile.adapter.toString()
+        || yarnMappings != selectedProfile.yarn_mappings.toString()) {
+    throw new GradleException("Owned Yarn integration on ${project.path} requires an exact supported Yarn profile and owned_kernel_yarn=true")
+}
+
+def kernelProjectPath = selectedProfile.kernel_project.toString()
+def remapProjectPath = selectedProfile.remap_project.toString()
+evaluationDependsOn(kernelProjectPath)
+evaluationDependsOn(remapProjectPath)
+def kernelProject = project(kernelProjectPath)
+def remapProject = project(remapProjectPath)
+def remapOwnedKernelForHost = remapProject.tasks.named('remapOwnedKernelForHost')
+def compileOwnedKernel = kernelProject.tasks.named('compileOwnedKernel')
+def sourceManifest = kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json')
+def sourceLockFile = kernelProject.layout.projectDirectory.file('source-lock.json').asFile
+def family = profileTable.families[selectedProfile.source_family]
+def overrideManifestFile = kernelProject.layout.projectDirectory.file(family.override_manifest.toString()).asFile
+def inspectorFile = rootProject.file('owned-kernel/yarn-support/inspect_owned_kernel_jar.py')
+def mixinConfigName = 'mixins.lodekeeper-kernel.json'
+
+if (kernelProject.projectDir.canonicalFile != rootProject.file(selectedProfile.kernel_directory).canonicalFile
+        || remapProject.projectDir.canonicalFile != rootProject.file(selectedProfile.remap_directory).canonicalFile) {
+    throw new GradleException("Owned Yarn profile directories do not match the table for ${minecraftVersion}")
+}
+
+def hostNamedKernelFiles = files(remapOwnedKernelForHost.flatMap { it.archiveFile })
+hostNamedKernelFiles.builtBy(remapOwnedKernelForHost)
+dependencies.add('implementation', hostNamedKernelFiles)
+
+tasks.named('compileJava').configure {
+    dependsOn remapOwnedKernelForHost, compileOwnedKernel
+}
+
+tasks.named('processResources').configure {
+    inputs.file(layout.projectDirectory.file('src/main/resources/fabric.mod.json'))
+    inputs.property('ownedKernelMixinConfig', mixinConfigName)
+    doLast {
+        File manifestFile = new File(destinationDir, 'fabric.mod.json')
+        Map manifest = new JsonSlurper().parse(manifestFile) as Map
+        if (manifest.mixins != null && !(manifest.mixins instanceof List)) {
+            throw new GradleException('fabric.mod.json mixins must be a list')
+        }
+        List mixins = manifest.mixins == null ? [] : new ArrayList(manifest.mixins)
+        mixins.remove('lodekeeper-baritone.mixins.json')
+        if (!mixins.contains(mixinConfigName)) {
+            mixins.add(mixinConfigName)
+        }
+        manifest.mixins = mixins
+        manifestFile.setText(JsonOutput.prettyPrint(JsonOutput.toJson(manifest)) + '\n', 'UTF-8')
+    }
+}
+
+tasks.named('jar').configure {
+    dependsOn remapOwnedKernelForHost, compileOwnedKernel
+    inputs.file(remapOwnedKernelForHost.flatMap { it.archiveFile })
+    from({ zipTree(remapOwnedKernelForHost.get().archiveFile.get().asFile) }) {
+        exclude 'fabric.mod.json'
+        exclude 'META-INF/MANIFEST.MF'
+        exclude '**/*.jar'
+    }
+}
+
+def inspectHostNamedKernel = tasks.register('inspectOwnedKernelHostNamedJar', Exec) {
+    dependsOn remapOwnedKernelForHost, kernelProject.tasks.named('generateOwnedKernelSources')
+    inputs.file(remapOwnedKernelForHost.flatMap { it.archiveFile })
+    inputs.file(sourceManifest)
+    commandLine 'python3', inspectorFile.absolutePath,
+            '--jar', remapOwnedKernelForHost.get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', sourceManifest.get().asFile.absolutePath,
+            '--namespace', 'named'
+}
+
+tasks.register('inspectOwnedKernelHostJar', Exec) {
+    dependsOn tasks.named('remapJar'), compileOwnedKernel, inspectHostNamedKernel
+    inputs.file(tasks.named('remapJar').flatMap { it.archiveFile })
+    inputs.file(sourceManifest)
+    inputs.file(sourceLockFile)
+    inputs.file(overrideManifestFile)
+    commandLine 'python3', inspectorFile.absolutePath,
+            '--jar', tasks.named('remapJar').get().archiveFile.get().asFile.absolutePath,
+            '--source-manifest', sourceManifest.get().asFile.absolutePath,
+            '--namespace', 'intermediary',
+            '--host-jar'
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('inspectOwnedKernelHostJar')
+}
