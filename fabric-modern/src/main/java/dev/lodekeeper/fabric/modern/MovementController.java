@@ -286,6 +286,7 @@ final class MovementController {
         diagnosticGoal = null;
         mode = Mode.MOVE;
         retreatRequest = true;
+        RetreatSnapshotDiagnostics.register(this, client, config, bot, routeGoal, goals);
         launch();
         return List.copyOf(goals);
     }
@@ -854,6 +855,7 @@ final class MovementController {
     }
 
     private void prepare() {
+        RetreatSnapshotDiagnostics.clear(this);
         if (client.player == null || client.level == null) throw new NavigationFailure("World unavailable");
         stop();
         if (!finishCancellation()) throw new NavigationFailure("Finishing previous movement before starting a new route");
@@ -862,6 +864,7 @@ final class MovementController {
             if (bot == null) throw new NavigationFailure("Owned navigation is unavailable");
             bot.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
                 @Override public void onPathEvent(PathEvent event) {
+                    RetreatSnapshotDiagnostics.pathEvent(MovementController.this, bot, event);
                     if (mode == Mode.IDLE && !cancelling) return;
                     if (event == PathEvent.CALC_FAILED) failedCalculations++;
                     if (event == PathEvent.CALC_FINISHED_NOW_EXECUTING) checkInitialRetreatPath();
@@ -1550,6 +1553,7 @@ final class MovementController {
     }
 
     void stop() {
+        RetreatSnapshotDiagnostics.clear(this);
         rebaseMovementProgress();
         stopDefenseHop();
         boolean stoppingAirRecovery = mode == Mode.AIR || mode == Mode.SUSPENDED && resumeMode == Mode.AIR;

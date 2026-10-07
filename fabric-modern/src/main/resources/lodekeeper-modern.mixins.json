@@ -8,7 +8,9 @@
     "ContainerInputReceiptMixin",
     "OwnedClickPacketMixin",
     "NavigationMiningMixin",
-    "PlacementProvenanceMixin"
+    "PlacementProvenanceMixin",
+    "RetreatCalculationContextMixin",
+    "RetreatWorldSnapshotsMixin"
   ],
   "injectors": {
     "defaultRequire": 1
