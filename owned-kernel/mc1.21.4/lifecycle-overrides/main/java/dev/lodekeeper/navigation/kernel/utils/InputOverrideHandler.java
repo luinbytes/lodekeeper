@@ -44,7 +44,7 @@ public final class InputOverrideHandler extends Behavior implements IInputOverri
     private final Map<Input, Boolean> inputForceStateMap = new HashMap<>();
 
     private LocalPlayer ownedPlayer;
-    private net.minecraft.client.player.Input previousInput;
+    private net.minecraft.client.player.ClientInput previousInput;
     private PlayerMovementInput ownedInput;
     private final BlockBreakHelper blockBreakHelper;
     private final BlockPlaceHelper blockPlaceHelper;

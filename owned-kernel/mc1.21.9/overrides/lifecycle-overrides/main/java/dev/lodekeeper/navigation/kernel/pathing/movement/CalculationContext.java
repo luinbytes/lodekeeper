@@ -111,7 +111,7 @@ public class CalculationContext {
         LocalPlayer player = baritone.getPlayerContext().player();
         Level world = baritone.getPlayerContext().world();
         this.minY = world.getMinY();
-        this.maxY = world.getMaxY();
+        this.maxY = this.minY + world.getHeight();
         this.playerFeet = baritone.getPlayerContext().playerFeet();
         this.session = ((Baritone) baritone).getRuntime().captureSession();
         this.policy = ((Baritone) baritone).getRuntime().capturePolicy();

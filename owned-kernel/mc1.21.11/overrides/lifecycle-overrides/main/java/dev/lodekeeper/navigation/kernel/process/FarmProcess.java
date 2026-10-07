@@ -301,12 +301,6 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
                 toBreak.add(pos);
                 continue;
             }
-            for (Harvest harvest : Harvest.values()) {
-                if (harvest.block == state.getBlock() && OwnedMutationGuard.executeBreak(baritone.getRuntime(), pos)) {
-                    hasImmatureCrop = true;
-                    break;
-                }
-            }
             if (state.getBlock() instanceof BonemealableBlock) {
                 BonemealableBlock ig = (BonemealableBlock) state.getBlock();
                 if (ig.isValidBonemealTarget(ctx.world(), pos, state) && ig.isBonemealSuccess(ctx.world(), ctx.world().random, pos, state)) {

@@ -363,11 +363,11 @@
     {
       "baseline_source_sha256": "e68298beacc522615fe67308bc5ec82b2abf004e1138a1d9651f8ea3b48c2e44",
       "canonical_override_sha256": "af35d2f5914896414dcb9fa5633f4182679e1b3c0b68044cc41598158578632f",
-      "family_override_sha256": "3cd1c1e52825c9db7fac77ed34d1d9406d0f8b0db0250667f075bc1a4f817a0e",
+      "family_override_sha256": "137912869aa77f3c9d6dfbcc76a39a4eea611a363c436f8749168635acdfeff8",
       "family_source_sha256": "1b6bdc4a3b815afab20071728434ae8eeb547d07a74072fd65c32810f5ad9c73",
       "merge_conflict_hunks": 0,
       "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/movement/CalculationContext.java",
-      "port_resolution": "Adapted captured world bounds to getMinY/getMaxY for the pinned target APIs.",
+      "port_resolution": "Use getMinY for the lower bound and minY plus world height for the exclusive upper bound.",
       "source_path": "src/main/java/baritone/pathing/movement/CalculationContext.java",
       "upstream_source_changed": true
     },
@@ -418,11 +418,11 @@
     {
       "baseline_source_sha256": "80c422b6452f673919c7d5fb33d7f7a07786cafc88990b99ded1c743fea573d6",
       "canonical_override_sha256": "7740af6ce015dd19ef93d6a70e4c4da155ec7ad12202b3fd6ffbdd4d38c69208",
-      "family_override_sha256": "2148893e5c8897846e038dc946c0c3b4d695e948f337830a7552694e1d03f232",
+      "family_override_sha256": "dfeb76119663fc2234776d586bf91a372e54613afc749a5f985dec2beafefd95",
       "family_source_sha256": "2d8d56a915566d0bb7c3122444852d028334b347119266081db3a50f2105e5db",
       "merge_conflict_hunks": 1,
       "path": "main/java/dev/lodekeeper/navigation/kernel/process/FarmProcess.java",
-      "port_resolution": "Kept owned snapshot scanning and edit guards; used the pinned BonemealableBlock interface for bone-meal admission.",
+      "port_resolution": "Kept owned snapshot scanning and edit guards; used the pinned BonemealableBlock interface for bone-meal admission; removed a stale immature-crop loop with no state declaration or reader.",
       "source_path": "src/main/java/baritone/process/FarmProcess.java",
       "upstream_source_changed": true
     },
@@ -539,11 +539,11 @@
     {
       "baseline_source_sha256": "dd0732a9781b47003ce5dbc7b7a42e870768af59f89559463ad6865d7117db05",
       "canonical_override_sha256": "77e68616f0f065c7efbf7b25e224a6cac98f784f133b2919247140390123acb5",
-      "family_override_sha256": "77e68616f0f065c7efbf7b25e224a6cac98f784f133b2919247140390123acb5",
+      "family_override_sha256": "d9aa4c56f2c58bd7a322cf83ffb1b94ccff5864f57d61108f5ec9a2c905b9559",
       "family_source_sha256": "dd0732a9781b47003ce5dbc7b7a42e870768af59f89559463ad6865d7117db05",
       "merge_conflict_hunks": 0,
       "path": "main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java",
-      "port_resolution": "upstream source is byte-identical to the 1.21.1 baseline; retained canonical owned source",
+      "port_resolution": "The pinned Mojang mappings expose ClientInput, so previous-input storage uses that type.",
       "source_path": "src/main/java/baritone/utils/InputOverrideHandler.java",
       "upstream_source_changed": false
     },

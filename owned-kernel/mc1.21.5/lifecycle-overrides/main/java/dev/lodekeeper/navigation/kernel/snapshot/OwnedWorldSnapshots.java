@@ -41,7 +41,7 @@ public final class OwnedWorldSnapshots {
         Builder(LevelChunk chunk) {
             x = chunk.getPos().x;
             z = chunk.getPos().z;
-            minY = chunk.getMinBuildHeight();
+            minY = chunk.getMinY();
             sections = new PalettedContainer[chunk.getSections().length];
             dirty.set(0, sections.length);
         }

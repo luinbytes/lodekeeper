@@ -64,7 +64,7 @@ public final class OwnedMutationGuard {
                     || other.getValue(BlockStateProperties.HORIZONTAL_FACING) != facing) { return false; }
             removed.add(companion);
         }
-        int minY = world.getMinBuildHeight();
+        int minY = world.getMinY();
         int maxYExclusive = minY + world.getHeight();
         for (BlockPos cell : removed) {
             if (cell.getY() < minY || cell.getY() >= maxYExclusive
@@ -83,7 +83,7 @@ public final class OwnedMutationGuard {
 
     private static boolean gravityClaims(BoundWorldEditPolicy policy, BlockGetter world, Predicate<BlockPos> loaded,
                                          BlockPos pos, Set<BlockPos> removed) {
-        int maxY = world.getMinBuildHeight() + world.getHeight();
+        int maxY = world.getMinY() + world.getHeight();
         int falling = 0;
         for (int dy = 1; pos.getY() + dy < maxY; dy++) {
             BlockPos above = pos.above(dy);
@@ -97,7 +97,7 @@ public final class OwnedMutationGuard {
         if (!policy.mayPlace(pos)) { return false; }
         for (int dy = 1; dy <= MAX_GRAVITY_CELLS; dy++) {
             BlockPos below = pos.below(dy);
-            if (below.getY() < world.getMinBuildHeight() || !loaded.test(below)) { return false; }
+            if (below.getY() < world.getMinY() || !loaded.test(below)) { return false; }
             if (removed.contains(below)) {
                 if (!policy.mayPlace(below)) { return false; }
                 continue;

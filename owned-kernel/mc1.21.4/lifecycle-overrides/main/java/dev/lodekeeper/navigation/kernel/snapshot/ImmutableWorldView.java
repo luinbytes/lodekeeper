@@ -87,5 +87,5 @@ public final class ImmutableWorldView implements BlockGetter {
     @Override public BlockState getBlockState(BlockPos pos) { return get(pos.getX(), pos.getY(), pos.getZ()); }
     @Override public FluidState getFluidState(BlockPos pos) { return getBlockState(pos).getFluidState(); }
     @Override public int getHeight() { return height; }
-    @Override public int getMinBuildHeight() { return minY; }
+    @Override public int getMinY() { return minY; }
 }

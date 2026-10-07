@@ -66,7 +66,7 @@ public class BlockStateInterface {
             throw new IllegalStateException("BlockStateInterface must be constructed on the main thread");
         }
         Level world = ctx.world();
-        minY = world.getMinBuildHeight();
+        minY = world.getMinY();
         height = world.getHeight();
         this.worldBorder = new BetterWorldBorder(world.getWorldBorder());
         this.worldData = copyLoadedChunks ? null : (WorldData) ctx.worldData();
