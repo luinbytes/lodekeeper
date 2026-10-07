@@ -49,6 +49,7 @@ import java.util.function.Predicate;
 
 /** Owns one upstream process; inventory transactions wait for safe cancellation. */
 final class MovementController {
+    static final int MAX_RETREAT_HAZARDS = 32;
     private static final int AIR_RECOVERY_MAX_PROBES = 12_000;
     private static final long AIR_RECOVERY_SEARCH_BUDGET_NANOS = 4_000_000L;
     private static final int AIR_RECOVERY_MAX_GOALS = 16;
@@ -223,7 +224,7 @@ final class MovementController {
     }
 
     List<BlockPos> startRetreat(List<RetreatThreat> threats, Set<BlockPos> rejectedGoals, BlockPos origin) {
-        if (threats.isEmpty() || threats.size() > 16
+        if (threats.isEmpty() || threats.size() > MAX_RETREAT_HAZARDS
                 || rejectedGoals.size() > 32 || origin == null
                 || threats.stream().anyMatch(threat -> threat == null
                         || !Double.isFinite(threat.x()) || !Double.isFinite(threat.y()) || !Double.isFinite(threat.z())
@@ -652,7 +653,7 @@ final class MovementController {
     }
 
     void updateRetreatHazards(List<RetreatThreat> threats) {
-        if (threats == null || threats.size() > 16 || threats.stream().anyMatch(threat -> threat == null
+        if (threats == null || threats.size() > MAX_RETREAT_HAZARDS || threats.stream().anyMatch(threat -> threat == null
                 || !Double.isFinite(threat.x()) || !Double.isFinite(threat.y()) || !Double.isFinite(threat.z())
                 || threat.clearance() < 4 || threat.clearance() > 32
                 || !Double.isFinite(threat.dangerRadius())

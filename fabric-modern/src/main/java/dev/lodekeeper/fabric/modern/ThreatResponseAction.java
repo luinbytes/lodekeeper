@@ -471,7 +471,7 @@ final class ThreatResponseAction {
     private void addRouteHazard(Map<UUID, Mob> candidates, Mob mob) {
         if (!eligible(mob)) return;
         UUID uuid = mob.getUUID();
-        if (!candidates.containsKey(uuid) && candidates.size() == MAX_THREATS)
+        if (!candidates.containsKey(uuid) && candidates.size() == MovementController.MAX_RETREAT_HAZARDS)
             throw new IllegalStateException("too many loaded route hazards for bounded retreat");
         candidates.put(uuid, mob);
     }
