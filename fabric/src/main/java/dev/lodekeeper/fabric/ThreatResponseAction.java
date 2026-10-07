@@ -218,7 +218,7 @@ final class ThreatResponseAction {
                     if (client.player.isOnGround() || ClientAccess.selectedSlot(client.player.getInventory()) != plannedChoice.slot()
                             || selectedSlot != plannedChoice.slot() || !canAttackTarget(contact, client.player.getMainHandStack())) return false;
                     logAttackDecision("airborne-attack", plannedChoice.slot());
-                    client.interactionManager.attackEntity(client.player, contact);
+                    GameApi.attackAirborneForDefense(client, contact);
                     client.player.swingHand(Hand.MAIN_HAND);
                     attacks++;
                     phase = Phase.HOP_LANDING;

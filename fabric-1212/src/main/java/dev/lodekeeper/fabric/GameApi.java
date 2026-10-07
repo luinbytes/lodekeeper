@@ -78,6 +78,15 @@ final class GameApi {
                 || mob.getTarget() != null || mob.getBrightnessAtEyes() < 0.5f;
     }
 
+    static void attackAirborneForDefense(net.minecraft.client.MinecraftClient client, net.minecraft.entity.Entity target) {
+        var player = client.player;
+        if (player == null || client.interactionManager == null || player.isOnGround())
+            throw new IllegalStateException("airborne defense pose is unavailable");
+        player.networkHandler.sendPacket(new net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket.OnGroundOnly(
+                player.isOnGround(), player.horizontalCollision));
+        client.interactionManager.attackEntity(player, target);
+    }
+
     static double defenseReach(net.minecraft.entity.player.PlayerEntity player) { return player.getEntityInteractionRange(); }
 
     static boolean defenseWithinReach(net.minecraft.entity.player.PlayerEntity player, net.minecraft.entity.Entity target) {
