@@ -20,6 +20,7 @@ package dev.lodekeeper.navigation.kernel.cache;
 import dev.lodekeeper.navigation.kernel.Baritone;
 import dev.lodekeeper.navigation.kernel.api.cache.IWorldProvider;
 import dev.lodekeeper.navigation.kernel.api.utils.IPlayerContext;
+import dev.lodekeeper.navigation.kernel.api.utils.Pair;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
@@ -68,8 +69,8 @@ public class WorldProvider implements IWorldProvider {
     public final void initWorld(Level world) {
         baritone.getRuntime().requireMainThread();
         this.getSaveDirectories(world).ifPresent(dirs -> {
-            final Path worldDir = dirs.getA();
-            final Path readmeDir = dirs.getB();
+            final Path worldDir = dirs.first();
+            final Path readmeDir = dirs.second();
 
             try {
                 // lol wtf is this baritone folder in my minecraft save?
@@ -125,7 +126,7 @@ public class WorldProvider implements IWorldProvider {
      * @return An {@link Optional} containing the world's baritone dir and readme dir, or {@link Optional#empty()} if
      *         the world isn't valid for caching.
      */
-    private Optional<Tuple<Path, Path>> getSaveDirectories(Level world) {
+    private Optional<Pair<Path, Path>> getSaveDirectories(Level world) {
         Path worldDir;
         Path readmeDir;
 
@@ -161,7 +162,7 @@ public class WorldProvider implements IWorldProvider {
             readmeDir = baritone.getDirectory();
         }
 
-        return Optional.of(new Tuple<>(worldDir, readmeDir));
+        return Optional.of(new Pair<>(worldDir, readmeDir));
     }
 
     public void tick() {

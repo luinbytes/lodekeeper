@@ -155,10 +155,10 @@
     {
       "baseline_26_3_upstream_sha256": null,
       "canonical_26_3_override_sha256": "be9483ca621cf4c39489701f96525bcd4f48c77d4fb5f33e050f827ce0e6ec46",
-      "family_override_sha256": "be9483ca621cf4c39489701f96525bcd4f48c77d4fb5f33e050f827ce0e6ec46",
+      "family_override_sha256": "1afa42a44d3e0d8fa71c0020f728b3b40791bdd40d438f55c947c70d347745ae",
       "family_upstream_sha256": null,
       "path": "main/java/dev/lodekeeper/navigation/kernel/OwnedMutationGuard.java",
-      "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "port_resolution": "owned mutation guard uses the 26.1 Minecraft screen field for input barrier checks",
       "upstream_source_changed": false
     },
     {
@@ -254,10 +254,10 @@
     {
       "baseline_26_3_upstream_sha256": "964bc8a63c8b5709464164256851ee720549aaa899563c43d56059bd70bba1d8",
       "canonical_26_3_override_sha256": "725ec5b5e989301cee3960dd8427dd4fb69e22a036c38bbb15524d179400eafb",
-      "family_override_sha256": "6321a135d445808afd6c3e38a8b882e079aa4910a46ac70514688c9db2b6d013",
+      "family_override_sha256": "ef601368909aac685d71d0999a226f72cdbc151de98ad2312530905f8e8e55af",
       "family_upstream_sha256": "776b365ddbc8e1741006785c9d91489b5cdd79ae7d69f4a7ef49452275f7a121",
       "path": "main/java/dev/lodekeeper/navigation/kernel/cache/WorldProvider.java",
-      "port_resolution": "kept owned BlockPos support and dropped the obsolete Tuple API after the owned save-directory path change",
+      "port_resolution": "ported the save-directory tuple to the owned Pair API while preserving the 26.1 world-directory behavior",
       "upstream_source_changed": true
     },
     {
@@ -353,10 +353,10 @@
     {
       "baseline_26_3_upstream_sha256": "a70746fd2d74ec37428fc957cb1235444b354e638560cdf5e89378cd904cad3b",
       "canonical_26_3_override_sha256": "3acb3a687c4e0f2305c4f20967c7fa410db822ce1156793fce47ee5cf4039a99",
-      "family_override_sha256": "4a8426688ac53f37c9eaaf2a58f56f76a354afc41895bf3f07486b2115792dce",
+      "family_override_sha256": "5207003fc782664f5904940652849239583f47f1899ce9eb4c055dccadbb542a",
       "family_upstream_sha256": "893100829a8900292ccc58c001787007c2ddd3754e94d80412e055440ea53106",
       "path": "main/java/dev/lodekeeper/navigation/kernel/process/FarmProcess.java",
-      "port_resolution": "kept the 26.1 two-argument bonemeal API with owned farm guards and snapshots",
+      "port_resolution": "kept the 26.1 two-argument bonemeal API, owned farm guards, and snapshots; uses direction step components for cocoa face targeting",
       "upstream_source_changed": true
     },
     {
@@ -452,10 +452,10 @@
     {
       "baseline_26_3_upstream_sha256": "a49ca82f92013eaae7c1bacaede58384749ac62eacc6af4ff3902425f7d044fb",
       "canonical_26_3_override_sha256": "4c7de3986e284dafeba9ff32f1dc26a18b0cd930347c00b425aa014379eb2539",
-      "family_override_sha256": "4c7de3986e284dafeba9ff32f1dc26a18b0cd930347c00b425aa014379eb2539",
+      "family_override_sha256": "42683f3e45dd6bcddea601a94838cac196b2d6ed732f6f66e941bcd40d365407",
       "family_upstream_sha256": "a49ca82f92013eaae7c1bacaede58384749ac62eacc6af4ff3902425f7d044fb",
       "path": "main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java",
-      "port_resolution": "owned source changes applied over identical upstream source",
+      "port_resolution": "kept the owned input barrier checks using the 26.1 Minecraft screen field",
       "upstream_source_changed": false
     },
     {

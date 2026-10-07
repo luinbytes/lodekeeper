@@ -356,7 +356,7 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
                 if (!(ctx.world().getBlockState(pos.relative(dir)).getBlock() instanceof AirBlock) || !canPlant(pos, dir)) {
                     continue;
                 }
-                Vec3 faceCenter = Vec3.atCenterOf(pos).add(Vec3.atLowerCornerOf(dir.getStep()).scale(0.5));
+                Vec3 faceCenter = Vec3.atCenterOf(pos).add(new Vec3(dir.getStepX(), dir.getStepY(), dir.getStepZ()).scale(0.5));
                 Optional<Rotation> rot = RotationUtils.reachableOffset(ctx, pos, faceCenter, blockReachDistance, false);
                 if (rot.isPresent() && isSafeToCancel && baritone.getInventoryBehavior().throwaway(true, this::isCocoa)) {
                     HitResult result = RayTraceUtils.rayTraceTowards(ctx.player(), rot.get(), blockReachDistance);

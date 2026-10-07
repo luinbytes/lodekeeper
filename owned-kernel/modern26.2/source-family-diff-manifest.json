@@ -351,10 +351,10 @@
     {
       "baseline_26_3_upstream_sha256": "a70746fd2d74ec37428fc957cb1235444b354e638560cdf5e89378cd904cad3b",
       "canonical_26_3_override_sha256": "3acb3a687c4e0f2305c4f20967c7fa410db822ce1156793fce47ee5cf4039a99",
-      "family_override_sha256": "4a8426688ac53f37c9eaaf2a58f56f76a354afc41895bf3f07486b2115792dce",
+      "family_override_sha256": "5207003fc782664f5904940652849239583f47f1899ce9eb4c055dccadbb542a",
       "family_upstream_sha256": "893100829a8900292ccc58c001787007c2ddd3754e94d80412e055440ea53106",
       "path": "main/java/dev/lodekeeper/navigation/kernel/process/FarmProcess.java",
-      "port_resolution": "kept the 26.2 two-argument bonemeal API with owned farm guards and snapshots",
+      "port_resolution": "kept the 26.2 two-argument bonemeal API, owned farm guards, and snapshots; uses direction step components for cocoa face targeting",
       "upstream_source_changed": true
     },
     {

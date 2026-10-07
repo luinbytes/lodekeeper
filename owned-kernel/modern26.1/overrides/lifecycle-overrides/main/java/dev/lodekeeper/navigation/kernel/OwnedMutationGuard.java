@@ -151,7 +151,7 @@ public final class OwnedMutationGuard {
         owner.requireMainThread();
         var session = owner.captureSession();
         if (!owner.isCurrent(session)) { return false; }
-        if (owner.getPrimaryBaritone().getPlayerContext().minecraft().gui.screen()
+        if (owner.getPrimaryBaritone().getPlayerContext().minecraft().screen
                 instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) { return false; }
         return breakClaims(owner.capturePolicy(), session.world(), session.world()::hasChunkAt, pos,
                 session.world().getBlockState(pos));
@@ -161,7 +161,7 @@ public final class OwnedMutationGuard {
         owner.requireMainThread();
         var session = owner.captureSession();
         if (!owner.isCurrent(session)) { return false; }
-        if (owner.getPrimaryBaritone().getPlayerContext().minecraft().gui.screen()
+        if (owner.getPrimaryBaritone().getPlayerContext().minecraft().screen
                 instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) { return false; }
         var player = owner.getPrimaryBaritone().getPlayerContext().player();
         if (!safeEquipment(player)) { return false; }

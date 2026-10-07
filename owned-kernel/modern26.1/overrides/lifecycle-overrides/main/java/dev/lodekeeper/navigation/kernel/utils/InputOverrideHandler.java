@@ -64,7 +64,7 @@ public final class InputOverrideHandler extends Behavior implements IInputOverri
      */
     @Override
     public final boolean isInputForcedDown(Input input) {
-        if (ctx.minecraft().gui.screen() instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) { return false; }
+        if (ctx.minecraft().screen instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) { return false; }
         return input == null ? false : this.inputForceStateMap.getOrDefault(input, false);
     }
 
@@ -93,7 +93,7 @@ public final class InputOverrideHandler extends Behavior implements IInputOverri
             restoreOwnedInput();
             return;
         }
-        if (ctx.minecraft().gui.screen() instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier
+        if (ctx.minecraft().screen instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier
                 || !dev.lodekeeper.navigation.kernel.OwnedMutationGuard.safeEquipment(ctx.player())) {
             baritone.getPathingBehavior().forceCancel();
             restoreOwnedInput();
