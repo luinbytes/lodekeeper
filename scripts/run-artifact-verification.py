@@ -46,7 +46,7 @@ DEFAULT_OPTIONS = {
 STATION_LEFT = re.compile(r"\bOWNED_STATION_LEFT\b")
 STATION_RECOVERED = re.compile(r"\bOWNED_STATION_RECOVERED\b")
 CLASS_LOAD = re.compile(
-    r"^\[[^\]]+\]\[[^\]]+\]\[[^\]]+\]\s+(\S+)\s+source:\s+(.+)$"
+    r"^(?:\[[^\]]+\])+\s+(\S+)\s+source:\s+(.+)$"
 )
 
 
@@ -570,7 +570,7 @@ def build_launch_plan(spec: RunSpec, artifact_sha: str) -> LaunchPlan:
     final_cp_index = next(index for index, value in enumerate(rewritten) if value in {"-cp", "-classpath"})
     injected = [
         f"-Dfabric.addMods={spec.production_jar}",
-        f"-Xlog:class+load=info:file={class_load_log}",
+        f"-Xlog:class+load=info:file={class_load_log}:uptime,level,tags",
         f"-Xmx{MAX_HEAP}",
         f"-XX:ActiveProcessorCount={ACTIVE_PROCESSORS}",
         *effective_flags,

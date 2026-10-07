@@ -144,7 +144,7 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 ## Shield behavior fixture
 
-The shield fixture targets 1.21.1 and 26.3. Its sources compile, but the full native suite remains pending. The metadata and aggregate-count verifier failures are corrected. Three 1.21.1 modes passed in a fresh round; `queued` then found missing reservation of the shears recipe's two iron ingots. The production fix passes local builds on both adapters and independent review. Keep that assertion and require a fresh passing native run. Retain the earlier failed receipts. Run only one isolated client at a time.
+The shield fixture targets 1.21.1 and 26.3. Seven primary modes pass at `ce3c967`, including the corrected queued recipe reservations and native worn-shield blocking. The occupied-offhand native case also passes, but its runner fails when JVM class-load decorators change mid-file. The corrected parser validates the original raw log and still rejects the wrong production artifact; a fresh native retry remains required. Manual takeover and the modern suite remain pending. Retain all earlier failed receipts. Run only one isolated client at a time.
 
 For the `spare` mode, pass the verifier these full flags:
 

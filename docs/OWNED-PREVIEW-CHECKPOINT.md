@@ -40,6 +40,8 @@ With the verifier corrections at `5df577f`, the 1.21.1 `spare`, `default`, and `
 
 The queued-goal fix now makes one joint plan for active, queued, project, and maintained targets before admitting optional shield work. A changed queue invalidates that work; an owned inventory transfer finishes and drains before replanning. Independent review passed after restoring the existing table-open timeout ahead of the stale-plan guard. Local 1.21.1 and 26.3 builds passed with 159 core, 95 navigation, 13 primary adapter, and 3 modern adapter checks. Fresh native checks and a new 24-profile matrix are still required for this production change. The previous docs-only matrix passed 23 profiles; its 1.21.6 job failed while resolving dependency POM parents.
 
+At `ce3c967`, seven 1.21.1 shield modes passed their runner and native gates. `queued` reserves seven iron and completes with six iron and thirteen planks. `worn` records a blocked native damage event, minimum health twenty, and shield restoration. `occupied` passes its native check but fails the runner because JVM class-load log decoration changes mid-file. The full raw log contains the expected production and verifier classes; replay with the corrected parser validates their exact origins and rejects a different production jar. Keep the failed original receipt and require a fresh native retry. Manual takeover and all modern modes remain unrun in this round.
+
 ## Release status
 
 Preview 11 is not released or ready for download. Preview 10 remains available from the [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Its historical full loadout timings are 11:59 on 1.21.1 and 9:33 on 26.3. Those figures do not describe Preview 11.
