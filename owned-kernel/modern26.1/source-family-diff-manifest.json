@@ -92,10 +92,10 @@
     {
       "baseline_26_3_upstream_sha256": "73d389e0e08343a7500ee1c6f556ed1c709b7ee84666b88314ef257c3ce16555",
       "canonical_26_3_override_sha256": "4f656e8550c2c09d7139d254e326ce4e8b8027d0c0d6a7ac3e59783bee116940",
-      "family_override_sha256": "5b2d81558444e7ee84e5ecc59c6f53dd5f297ac6f39ce9c55d014b5b0bc49a90",
+      "family_override_sha256": "4b02d99a954b8b953622a3c3034795656b41c27d348b698c7054138f2192a127",
       "family_upstream_sha256": "d86f43d2ab7aa3af7303cf1ec0d3caca12592c73742bd64ed0328efe480a4282",
       "path": "launch/java/dev/lodekeeper/navigation/kernel/launch/mixins/MixinMinecraft.java",
-      "port_resolution": "adapted the redirect to Minecraft.screen and guarded the empty provider while retaining the current 26.1 mixin targets",
+      "port_resolution": "adapted the redirect to Minecraft.screen, guarded the empty provider, and removed duplicate trailing passEvents statements while retaining the 26.1 mixin targets",
       "upstream_source_changed": true
     },
     {

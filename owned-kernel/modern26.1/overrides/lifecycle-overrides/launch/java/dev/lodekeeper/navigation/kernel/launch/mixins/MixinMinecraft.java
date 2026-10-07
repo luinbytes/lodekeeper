@@ -169,10 +169,5 @@ public class MixinMinecraft {
         return instance.screen;
     }
 
-            return null;
-        }
-        return instance.screen;
-    }
-
 
 }

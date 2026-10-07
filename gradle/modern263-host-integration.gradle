@@ -13,6 +13,8 @@ def kernelProject = project(kernelProjectPath)
 def compileOwnedKernel = kernelProject.tasks.named('compileOwnedKernel')
 def sourceManifest = kernelProject.layout.buildDirectory.file('generated/owned-kernel/source-manifest.json')
 def sourceLockFile = kernelProject.layout.projectDirectory.file('source-lock.json').asFile
+def sourceFamilyDiffManifestFile = kernelProject.layout.projectDirectory
+        .file('source-family-diff-manifest.json').asFile
 def overrideManifestFile = kernelProject.layout.projectDirectory
         .file('overrides/lifecycle-overrides.sha256').asFile
 def inspectorFile = kernelProject.layout.projectDirectory
@@ -66,6 +68,11 @@ tasks.named('jar').configure {
     from(sourceManifest) {
         into 'META-INF/lodekeeper/owned-kernel'
     }
+    if (sourceFamilyDiffManifestFile.isFile()) {
+        from(sourceFamilyDiffManifestFile) {
+            into 'META-INF/lodekeeper/owned-kernel'
+        }
+    }
 }
 
 tasks.register('inspectOwnedKernelHostJar', Exec) {
@@ -74,13 +81,19 @@ tasks.register('inspectOwnedKernelHostJar', Exec) {
     inputs.file(sourceManifest)
     inputs.file(sourceLockFile)
     inputs.file(overrideManifestFile)
+    if (sourceFamilyDiffManifestFile.isFile()) {
+        inputs.file(sourceFamilyDiffManifestFile)
+    }
     commandLine 'python3',
             inspectorFile.absolutePath,
             '--jar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath,
             '--source-manifest', sourceManifest.get().asFile.absolutePath,
             '--source-lock', sourceLockFile.absolutePath,
-            '--override-manifest', overrideManifestFile.absolutePath,
-            '--host-jar'
+            '--override-manifest', overrideManifestFile.absolutePath
+    if (sourceFamilyDiffManifestFile.isFile()) {
+        args '--source-family-diff-manifest', sourceFamilyDiffManifestFile.absolutePath
+    }
+    args '--host-jar'
 }
 
 tasks.named('check').configure {
