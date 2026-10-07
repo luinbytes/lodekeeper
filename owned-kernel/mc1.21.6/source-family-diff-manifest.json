@@ -583,7 +583,8 @@
   ],
   "generator_transforms": {
     "src/api/java/baritone/api/utils/BlockOptionalMeta.java": "keep pinned native reload overload; source has no ForkJoinPool call",
-    "src/launch/java/baritone/launch/mixins/MixinLivingEntity.java": "remove only the unsupported Elytra movement hooks and retain jump rotation"
+    "src/launch/java/baritone/launch/mixins/MixinLivingEntity.java": "remove only the unsupported Elytra movement hooks and retain jump rotation",
+    "src/launch/resources/mixins.baritone.json": "set generated launch mixin config refmap to launch-lodekeeper-owned-kernel-refmap.json"
   },
   "schema_version": 1
 }

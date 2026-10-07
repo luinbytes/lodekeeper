@@ -560,6 +560,9 @@ def verify_source_family_diff_manifest(archive: tarfile.TarFile) -> str:
         "src/launch/java/baritone/launch/mixins/MixinLivingEntity.java": (
             "remove only the unsupported Elytra movement hooks and retain jump rotation"
         ),
+        "src/launch/resources/mixins.baritone.json": (
+            "set generated launch mixin config refmap to launch-lodekeeper-owned-kernel-refmap.json"
+        ),
         "src/api/java/baritone/api/utils/BlockOptionalMeta.java": (
             "replace one ForkJoinPool.commonPool call with Runnable::run"
             if SOURCE_LOCK["minecraft_api_family"] == "1.21.11"
@@ -650,6 +653,7 @@ def write_mixin_config(archive: tarfile.TarFile) -> None:
         read_upstream_file(archive, "src/launch/resources/mixins.baritone.json").decode("utf-8")
     )
     config["package"] = "dev.lodekeeper.navigation.kernel.launch.mixins"
+    config["refmap"] = "launch-lodekeeper-owned-kernel-refmap.json"
     config["client"] = [
         name for name in config["client"]
         if name not in {"MixinCommandSuggestionHelper", "MixinFireworkRocketEntity", "MixinScreen"}
