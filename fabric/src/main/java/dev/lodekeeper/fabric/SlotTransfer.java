@@ -152,6 +152,15 @@ final class SlotTransfer {
                 || !sameContents(received, handler.getSlot(receiptSlot).getStack())
                 || !sameContents(cursor, handler.getCursorStack())) {
             failed = true;
+            ItemStack localSlot = handler.getSlot(receiptSlot).getStack();
+            ItemStack localCursor = handler.getCursorStack();
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").warn(
+                    "[Lodekeeper] INVENTORY_TRANSFER mismatch phase={} source={} destination={} receiptSlot={} expectedItem={} expectedSlotCount={} expectedCursorCount={} receivedItem={} receivedSlotCount={} receivedCursorItem={} receivedCursorCount={} localItem={} localSlotCount={} localCursorItem={} localCursorCount={} outboundRevision={} contentsRevision={} localRevision={} contentsBefore={} contentsSequence={}",
+                    pending, source, destination, receiptSlot, expected.getItem(), receiptSlotCount, receiptCursorCount,
+                    received.getItem(), received.getCount(), cursor.getItem(), cursor.getCount(),
+                    localSlot.getItem(), localSlot.getCount(), localCursor.getItem(), localCursor.getCount(),
+                    outboundRevision, receipt.lodekeeper$contentsRevision(), handler.getRevision(),
+                    contentsBefore, receipt.lodekeeper$contentsSequence());
             throw new IllegalStateException("Server rejected or modified the inventory transfer; leaving the container open");
         }
         if (craftingGridSlots != null) {
