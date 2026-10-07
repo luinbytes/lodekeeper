@@ -1,0 +1,152 @@
+{
+  "sourceCommit": "96e017a68630ddadbacf39533b40287a980b103b",
+  "scope": "Failed ordinary fresh primary Survival full-loadout attempt. Evidence-only local changes existed at launch; production classes come from the unchanged frozen clean-build jar.",
+  "runnerSource": {
+    "commit": "96e017a68630ddadbacf39533b40287a980b103b",
+    "dirty": true,
+    "dirtyPaths": [
+      "docs/evidence/survival-safety/main-96e017a-workbench.json"
+    ],
+    "gitStatusError": null
+  },
+  "productionJar": {
+    "minecraftDependency": "1.21.1",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-previous-table-1.21.1-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/AutomationEngine.class"
+    ],
+    "sha256": "d85749c00c17ff19884d775e29fd126782a1d1058af1a9707ddc86bb9e7bb305"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadViolations": [],
+  "runnerStatus": "failed",
+  "nativeReceiptSha256": "1f6b20e7119caaa687e82d080b20925b37130e4e4cf40b87ac10b5228c77bd8f",
+  "nativeReceipt": {
+    "runId": "2026-10-07T21-13-43.680102Z-6e3eb222",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "1.21.1",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 96452,
+    "worldLaunchElapsedMillis": 87045,
+    "worldReadyElapsedMillis": 65952,
+    "commandElapsedMillis": 62389,
+    "firstServerMovementElapsedMillis": 1542,
+    "commandServerTick": 94,
+    "serverMovementTicks": 152,
+    "serverMovementSteps": 152,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 46.22282429888201,
+    "serverWalkCentimetersSinceCommand": 787,
+    "deathsAtCommand": 0,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "failure": "automation paused: paused \u00b7 Server rejected or modified the inventory transfer; leaving the container open. The current crafting/cooking-station transaction is preserved in its open handler. Server rejected or modified the inventory transfer; leaving the container open \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Server rejected or modified the inventory transfer; leaving the container open. The current crafting/cooking-station transaction is preserved in its open handler. Server rejected or modified the inventory transfer; leaving the container open \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "d85749c00c17ff19884d775e29fd126782a1d1058af1a9707ddc86bb9e7bb305",
+    "renderDistanceChunks": 2,
+    "maxFps": 30,
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -3.5,
+      "y": 74.0,
+      "z": 27.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-07T21-13-43.680102Z-6e3eb222-phase-running.png",
+      "screenshots/lodekeeper-2026-10-07T21-13-43.680102Z-6e3eb222-first-movement.png",
+      "screenshots/lodekeeper-2026-10-07T21-13-43.680102Z-6e3eb222-final.png"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverGameMode": "survival",
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverTick": 1340,
+    "serverInventoryCounts": {
+      "minecraft:birch_log": 2,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:cobblestone": 2,
+      "minecraft:dirt": 5,
+      "minecraft:stick": 2
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:birch_log": 2,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:cobblestone": 2,
+      "minecraft:dirt": 5,
+      "minecraft:stick": 2
+    },
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "serverTargetReceiptsDropped": 0
+  },
+  "selectedStationAndInventoryLogEvents": [
+    {
+      "line": 258,
+      "text": "[22:14:47] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=2, y=70, z=30}"
+    },
+    {
+      "line": 468,
+      "text": "[22:15:19] [Render thread/WARN] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER mismatch phase=RETURN source=40 destination=1 receiptSlot=40 expectedItem=minecraft:cobblestone expectedSlotCount=1 expectedCursorCount=0 receivedItem=minecraft:cobblestone receivedSlotCount=2 receivedCursorItem=minecraft:air receivedCursorCount=0 localItem=minecraft:cobblestone localSlotCount=2 localCursorItem=minecraft:air localCursorCount=0 outboundRevision=6 contentsRevision=7 localRevision=8 contentsBefore=3 contentsSequence=4 contentsSourceItem=minecraft:cobblestone contentsSourceCount=1 sourceSequence=192 cursorSequence=191"
+    }
+  ],
+  "screenshots": [
+    {
+      "assetName": "main-96e017a-natural-primary-screenshot-manifest.json",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-96e017a-natural-primary-screenshot-manifest.json",
+      "anonymousHttpStatus": 200,
+      "bytes": 1815,
+      "sha256": "e2ac6ba0ce410050de84f841ff7e936e84c32c8057635b8dcf498683cc03b3bb"
+    },
+    {
+      "assetName": "mc1.21.1-main-96e017a-natural-final-FAIL-original.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-96e017a-natural-final-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 36187,
+      "sha256": "88d5f5706054b0e29298954a4cc614eb1c24f4c3856b72f201912d533e74c373"
+    },
+    {
+      "assetName": "mc1.21.1-main-96e017a-natural-start-FAIL-original.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-96e017a-natural-start-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 295991,
+      "sha256": "7e6bcb4ea40d925ca37c50352e1bcbd44cb80b4c5ff5c39c7293994aac2f6400"
+    }
+  ],
+  "uploadedLocalOriginalsRemoved": true,
+  "publicVerifiedAtUtc": "2026-10-07T21:24:22.020441+00:00",
+  "screenshotReleaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence"
+}

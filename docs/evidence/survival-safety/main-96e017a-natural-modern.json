@@ -1,0 +1,195 @@
+{
+  "sourceCommit": "96e017a68630ddadbacf39533b40287a980b103b",
+  "scope": "Failed ordinary fresh Survival full-loadout attempt; one completed diamond pickaxe is partial progress. Actual spawn differs from prior same-seed runs.",
+  "runnerSource": {
+    "commit": "96e017a68630ddadbacf39533b40287a980b103b",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "productionJar": {
+    "minecraftDependency": "26.3",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-previous-table-26.3-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+    ],
+    "sha256": "2029471ad4b2e3855b9b6980e1a35a78400751c12843dd31c973b159a4960aee"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadViolations": [],
+  "runnerStatus": "failed",
+  "nativeReceiptSha256": "f2e5b2c2b786a7dcd931f82643ea0c4240091478a63c041bf739f79529dc60b3",
+  "nativeReceipt": {
+    "runId": "2026-10-07T21-05-01.779630Z-f522da32",
+    "worldId": "natural-6a9b20c8b0434910",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 278356,
+    "worldLaunchElapsedMillis": 272330,
+    "worldReadyElapsedMillis": 256922,
+    "commandElapsedMillis": 253932,
+    "firstServerMovementElapsedMillis": 2304,
+    "commandServerTick": 116,
+    "serverMovementTicks": 843,
+    "serverMovementSteps": 843,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 245.28414028226186,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "minimumHunger": 20,
+    "failure": "automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: Navigation process ended before its target was reached \u00b7 7 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: Navigation process ended before its target was reached \u00b7 7 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "2029471ad4b2e3855b9b6980e1a35a78400751c12843dd31c973b159a4960aee",
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -12.5,
+      "y": 63.0,
+      "z": 16.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-07T21-05-01.779630Z-f522da32-phase-running.png",
+      "screenshots/lodekeeper-2026-10-07T21-05-01.779630Z-f522da32-first-movement.png",
+      "screenshots/lodekeeper-2026-10-07T21-05-01.779630Z-f522da32-received-diamond_pickaxe.png",
+      "screenshots/lodekeeper-2026-10-07T21-05-01.779630Z-f522da32-final.png"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverSurvival": true,
+    "serverCreativeAbility": false,
+    "serverSpectator": false,
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverDeaths": 0,
+    "serverTick": 5193,
+    "serverInventoryCounts": {
+      "minecraft:dirt": 2,
+      "minecraft:leather": 4,
+      "minecraft:beef": 6,
+      "minecraft:crafting_table": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:granite": 1,
+      "minecraft:andesite": 6,
+      "minecraft:diorite": 11,
+      "minecraft:wildflowers": 6,
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:cobblestone": 53,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:cobbled_deepslate": 31
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:dirt": 2,
+      "minecraft:leather": 4,
+      "minecraft:beef": 6,
+      "minecraft:crafting_table": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:granite": 1,
+      "minecraft:andesite": 6,
+      "minecraft:diorite": 11,
+      "minecraft:wildflowers": 6,
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:cobblestone": 53,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:cobbled_deepslate": 31
+    },
+    "serverLogItems": [],
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "serverTargetReceiptsDropped": 0
+  },
+  "selectedStationAndRetreatLogEvents": [
+    {
+      "line": 428,
+      "text": "[22:05:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-17, y=63, z=22}"
+    },
+    {
+      "line": 517,
+      "text": "[22:06:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-17, y=56, z=21}"
+    },
+    {
+      "line": 1857,
+      "text": "[22:08:27] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-12, y=26, z=41} reason=owned station recovery failed: native mining refused: PLAYER_SUPPORT"
+    },
+    {
+      "line": 2379,
+      "text": "[22:09:30] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-16, y=-8, z=44}"
+    },
+    {
+      "line": 2437,
+      "text": "[22:09:39] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=-16.46959786844354,-17.69456154824879,43.35007107212069 threats=[820b0bd7-ca87-41f2-bab6-20f04b7a968d/entity.minecraft.skeleton@-14.5,-18.0,38.6376953125/alive=true/removed=false/eligible=true/distance=5.116550958511622]"
+    },
+    {
+      "line": 2441,
+      "text": "[22:09:39] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=1 completedRetreats=0 ticks=2 status=retreating from live threats 1 player=-16.4447308441467,-18.0,43.31422944901043 threats=[820b0bd7-ca87-41f2-bab6-20f04b7a968d/entity.minecraft.skeleton@-14.5,-18.0,38.91292318528576/alive=true/removed=false/eligible=true/distance=4.811805781957284]"
+    },
+    {
+      "line": 2454,
+      "text": "[22:09:39] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=MOVE event=CALC_FAILED elapsedMs=118"
+    },
+    {
+      "line": 2466,
+      "text": "[22:09:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=failed attacks=0 retreatStarts=1 completedRetreats=0 ticks=13 status=threat response failed: NavigationFailure: Navigation process ended before its target was reached player=-16.418841789361267,-18.0,43.284659760987104 threats=[820b0bd7-ca87-41f2-bab6-20f04b7a968d/entity.minecraft.skeleton@-14.539794921875,-18.0,40.412841796875/alive=true/removed=false/eligible=true/distance=3.4319317518282526]"
+    }
+  ],
+  "screenshots": [
+    {
+      "assetName": "main-96e017a-natural-final-screenshot-manifest.json",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-96e017a-natural-final-screenshot-manifest.json",
+      "anonymousHttpStatus": 200,
+      "bytes": 1798,
+      "sha256": "9d3ec1705a274257ff481fd17ec23fb342c97973224c4f7e9f02777f6c19a54b"
+    },
+    {
+      "assetName": "mc26.3-main-96e017a-natural-diamond-pickaxe-FAIL-original.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-96e017a-natural-diamond-pickaxe-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 35626,
+      "sha256": "a56f57cd3ba538a1a98409866f6f0658d28c00a6e940f33494f4e9eaf5f80387"
+    },
+    {
+      "assetName": "mc26.3-main-96e017a-natural-final-FAIL-original.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-96e017a-natural-final-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 100294,
+      "sha256": "8edf967315c5367d21b53c13faf6a2a28419c920765fa6d345a93a3e7c2b0471"
+    }
+  ],
+  "uploadedLocalOriginalsRemoved": true,
+  "publicVerifiedAtUtc": "2026-10-07T21:14:11.639995+00:00",
+  "screenshotReleaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence"
+}
