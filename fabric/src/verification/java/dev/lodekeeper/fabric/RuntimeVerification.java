@@ -77,6 +77,207 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+
+    private static final String SHIELD_SCENARIO = System.getProperty("lodekeeper.verify.shieldScenario");
+    private static final boolean SHIELD_MODE = SHIELD_SCENARIO != null && !"false".equals(SHIELD_SCENARIO);
+    private enum ShieldPhase { NONE, RESERVING, RUNNING, MANUAL_WAIT, MANUAL_RELEASE, FINISHED }
+    private ShieldPhase shieldPhase = ShieldPhase.NONE;
+    private volatile Object shieldFixture;
+    private volatile Map<String, String> shieldPublishedReceipt = Map.of();
+    private Map<String, String> shieldServerReceipt = Map.of();
+    private Map<String, String> shieldInitialReceipt = Map.of(), shieldPreparationAttributes = Map.of();
+    private boolean shieldTaskObserved, shieldQueueObserved, shieldOwnedUseObserved, shieldManualPreserved;
+    private int shieldManualTick = -1, shieldManualServerTick = -1;
+    private Object shieldManualTaskIdentity;
+    private long shieldSourceSequence, shieldOffhandSequence;
+    private final JsonObject shieldEvidence = new JsonObject();
+
+    private static boolean invalidShieldScenario() {
+        if (SHIELD_SCENARIO == null || "false".equals(SHIELD_SCENARIO)) return false;
+        if (!List.of("default", "off", "spare", "queued", "iron_short", "planks_short", "worn", "occupied", "manual").contains(SHIELD_SCENARIO)) return true;
+        if (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())) return true;
+        for (String property : System.getProperties().stringPropertyNames()) {
+            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone", "lodekeeper.verify.shieldScenario").contains(property)) continue;
+            if (!"false".equals(System.getProperty(property))) return true;
+        }
+        return false;
+    }
+
+    private static Object shieldApi(String name, Object... arguments) {
+        try {
+            for (Method method : VerificationApi.class.getDeclaredMethods())
+                if (method.getName().equals(name)) return method.invoke(null, arguments);
+            throw new IllegalStateException("shield native fixture unavailable in this Minecraft profile");
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("shield native fixture failed in " + name, exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void observeShieldServer(ServerPlayerEntity player, int serverTick) {
+        if (shieldFixture == null) return;
+        shieldApi("observeShieldScenario", shieldFixture, player, serverTick);
+        shieldPublishedReceipt = (Map<String, String>) shieldApi("shieldScenarioReceipt", shieldFixture, player, serverTick);
+    }
+
+    private int shieldCount(String key) { return Integer.parseInt(shieldServerReceipt.getOrDefault(key, "-1")); }
+    private boolean shieldReceiptTrue(String key) { return "true".equals(shieldServerReceipt.get(key)); }
+
+    private void startShieldScenario() {
+        shieldInitialReceipt = Map.copyOf(shieldServerReceipt);
+        activeCase = "shield_" + SHIELD_SCENARIO;
+        activeItem = "minecraft:bucket";
+        activeCount = 1;
+        activeRequiresEmpty = activeStartedEmpty = false;
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        activeTableOpeningsAtStart = serverTableOpenings;
+        beginCaseClock();
+        if (client.player.playerScreenHandler instanceof OwnedClickReceipts.Receipt receipt) {
+            shieldSourceSequence = receipt.lodekeeper$slotSequence(20);
+            shieldOffhandSequence = receipt.lodekeeper$slotSequence(45);
+        }
+        shieldPhase = ShieldPhase.RESERVING;
+        state = State.PREPARED_SAFETY;
+        sendCommand("!lk maintain iron_ingot 2");
+        sendCommand("!lk maintain oak_planks 4");
+    }
+
+    private void tickShieldScenario() {
+        shieldServerReceipt = shieldPublishedReceipt;
+        String status = requireEngine().status();
+        if (clientTicks - caseStartedAtTick > 1_200) { fail("shield scenario timed out: " + SHIELD_SCENARIO + "; " + status); return; }
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (shieldPhase == ShieldPhase.RESERVING) {
+            if (!status.startsWith("idle") || !status.endsWith("0 maintenance queued")
+                    || !maintainedReservationObserved("minecraft:iron_ingot", 2)
+                    || !maintainedReservationObserved("minecraft:oak_planks", 4)) return;
+            if (!shieldServerReceipt.equals(shieldInitialReceipt)) {
+                for (String key : List.of("minecraft:iron_ingot", "minecraft:oak_planks", "craftedShields", "craftedBuckets"))
+                    if (!shieldInitialReceipt.get(key).equals(shieldServerReceipt.get(key))) { fail("maintain changed shield fixture stock before foreground work"); return; }
+            }
+            preparedMaintenanceReservationObservedBeforeForeground = true;
+            preparedMaintenanceQueueEmptyBeforeForeground = true;
+            shieldPhase = ShieldPhase.RUNNING;
+            sendCommand("!lk get bucket 1");
+            if ("queued".equals(SHIELD_SCENARIO)) sendCommand("!lk get shears 1");
+            return;
+        }
+        if (requireEngine().diagnosticTaskIdentity() != null) shieldTaskObserved = true;
+        try {
+            Field stepField = findField(AutomationEngine.class, "step"), queueField = findField(AutomationEngine.class, "queue");
+            if (stepField == null || queueField == null) throw new IllegalStateException("shield planning receipt fields unavailable");
+            Object value = stepField.get(requireEngine());
+            if (value instanceof PlanStep step && "true".equals(step.attributes().get("shieldPreparation")))
+                shieldPreparationAttributes = Map.copyOf(step.attributes());
+            if (queueField.get(requireEngine()) instanceof java.util.Collection<?> queue && !queue.isEmpty()) shieldQueueObserved = true;
+        } catch (ReflectiveOperationException exception) { throw new IllegalStateException("could not capture shield plan reservations", exception); }
+        boolean owned = ShieldController.isHoldingUse();
+        if (owned) shieldOwnedUseObserved = true;
+        if ("manual".equals(SHIELD_SCENARIO) && shieldPhase == ShieldPhase.RUNNING && owned && shieldCount("blockedDamageEvents") > 0) {
+            client.options.useKey.setPressed(true);
+            shieldManualTaskIdentity = requireEngine().diagnosticTaskIdentity();
+            shieldManualTick = clientTicks;
+            shieldManualServerTick = shieldCount("serverTick");
+            shieldPhase = ShieldPhase.MANUAL_WAIT;
+            return;
+        }
+        if (shieldPhase == ShieldPhase.MANUAL_WAIT) {
+            if (clientTicks - shieldManualTick > 20) { fail("manual use did not interrupt owned shield hold within twenty ticks"); return; }
+            if (!status.startsWith("paused") || shieldCount("serverTick") <= shieldManualServerTick) return;
+            shieldManualPreserved = client.options.useKey.isPressed() && !owned && client.player.isUsingItem() && shieldReceiptTrue("usingItem")
+                && shieldReceiptTrue("cursorEmpty") && shieldCount("craftedShields") == 0
+                && shieldManualTaskIdentity != null && requireEngine().diagnosticTaskIdentity() == shieldManualTaskIdentity;
+            if (!shieldManualPreserved) { fail("manual takeover lost native user shield use, key state, or cursor ownership"); return; }
+            client.options.useKey.setPressed(false);
+            client.interactionManager.stopUsingItem(client.player);
+            shieldManualServerTick = shieldCount("serverTick");
+            shieldPhase = ShieldPhase.MANUAL_RELEASE;
+            return;
+        }
+        if (shieldPhase == ShieldPhase.MANUAL_RELEASE) {
+            if (shieldCount("serverTick") <= shieldManualServerTick || shieldReceiptTrue("usingItem") || owned) return;
+            boolean passed = shieldTaskObserved && shieldManualPreserved && baritoneNavigationStopped()
+                && maintainedReservationObserved("minecraft:iron_ingot", 2) && maintainedReservationObserved("minecraft:oak_planks", 4)
+                && shieldCount("minecraft:iron_ingot") == Integer.parseInt(shieldInitialReceipt.get("initialIron"))
+                && shieldCount("minecraft:oak_planks") == Integer.parseInt(shieldInitialReceipt.get("initialPlanks"))
+                && shieldCount("craftedBuckets") == 0 && shieldCount("craftedShields") == 0
+                && shieldReceiptTrue("cursorEmpty") && shieldCount("blockedDamageEvents") > 0
+                && "minecraft:shield".equals(shieldServerReceipt.get("offhandItem")) && "empty".equals(shieldServerReceipt.get("sourceItem"));
+            activeCount = 0;
+            preparedMaintenanceReservationPresentAtCompletion = passed;
+            finishShieldScenario(passed, "native shield blocking yielded to the held manual use key; the user hold survived the pause and its explicit release reached the server");
+            return;
+        }
+        if (status.startsWith("paused")) { fail("shield scenario paused: " + status); return; }
+        if (!status.startsWith("idle") || !status.endsWith("0 maintenance queued") || !baritoneNavigationStopped()
+                || shieldCount("craftedBuckets") < 1) return;
+        boolean craft = List.of("spare", "queued").contains(SHIELD_SCENARIO);
+        boolean worn = "worn".equals(SHIELD_SCENARIO), occupied = "occupied".equals(SHIELD_SCENARIO);
+        int initialIron = Integer.parseInt(shieldInitialReceipt.get("initialIron")), initialPlanks = Integer.parseInt(shieldInitialReceipt.get("initialPlanks"));
+        int queuedCost = "queued".equals(SHIELD_SCENARIO) ? 2 : 0;
+        boolean passed = shieldTaskObserved && shieldCount("minecraft:bucket") == 1 && shieldCount("craftedBuckets") == 1
+                && shieldCount("craftedShields") == (craft ? 1 : 0)
+                && shieldCount("minecraft:iron_ingot") == initialIron - 3 - queuedCost - (craft ? 1 : 0)
+                && shieldCount("minecraft:oak_planks") == initialPlanks - (craft ? 6 : 0)
+                && shieldCount("minecraft:shield") == (craft || worn || occupied ? 1 : 0)
+                && shieldReceiptTrue("cursorEmpty") && shieldReceiptTrue("tablePresent") && !shieldReceiptTrue("usingItem") && !owned
+                && maintainedReservationObserved("minecraft:iron_ingot", 2) && maintainedReservationObserved("minecraft:oak_planks", 4)
+                && serverTableOpenings > activeTableOpeningsAtStart;
+        if (craft) passed &= "4".equals(shieldPreparationAttributes.get("shieldIronFloor"))
+                && "9".equals(shieldPreparationAttributes.get("shieldPlankFloor"))
+                && Integer.parseInt(shieldPreparationAttributes.getOrDefault("shieldReserved:minecraft:iron_ingot", "0")) >= 5 + queuedCost
+                && Integer.parseInt(shieldPreparationAttributes.getOrDefault("shieldReserved:minecraft:oak_planks", "0")) >= 4;
+        if ("queued".equals(SHIELD_SCENARIO)) passed &= shieldQueueObserved && shieldCount("minecraft:shears") == 1;
+        if (worn) {
+            boolean swapReceipts = client.player.playerScreenHandler instanceof OwnedClickReceipts.Receipt receipt
+                && receipt.lodekeeper$slotSequence(20) > shieldSourceSequence + 1
+                && receipt.lodekeeper$slotSequence(45) > shieldOffhandSequence + 1;
+            passed &= swapReceipts && shieldOwnedUseObserved && shieldCount("equipServerTick") >= 0
+                && shieldCount("restoreServerTick") > shieldCount("equipServerTick") && shieldCount("nativeUseServerTicks") >= 6
+                && shieldCount("blockedDamageEvents") > 0 && Float.parseFloat(shieldServerReceipt.get("lastBaseDamage")) > 0
+                && "20.0".equals(shieldServerReceipt.get("minimumHealth")) && !shieldReceiptTrue("zombieAlive")
+                && "minecraft:shield".equals(shieldServerReceipt.get("sourceItem")) && shieldCount("sourceCount") == 1
+                && shieldCount("sourceDamage") > 200 && shieldCount("sourceDamage") < 236
+                && "empty".equals(shieldServerReceipt.get("offhandItem"));
+        }
+        if (occupied) passed &= !shieldOwnedUseObserved && shieldCount("nativeUseServerTicks") == 0
+                && shieldCount("equipServerTick") == -1 && shieldCount("sourceDamage") == 200
+                && "minecraft:shield".equals(shieldServerReceipt.get("sourceItem"))
+                && "minecraft:torch".equals(shieldServerReceipt.get("offhandItem")) && shieldCount("offhandCount") == 8
+                && !shieldReceiptTrue("zombieAlive");
+        preparedMaintenanceReservationPresentAtCompletion = passed;
+        finishShieldScenario(passed, "server native crafted stats and exact iron/plank costs retained maintained stock and custom keep floors; foreground bucket completed with cursor clear and shield hold released");
+    }
+
+    private void recordShieldEvidence() {
+        shieldEvidence.addProperty("scenario", SHIELD_SCENARIO);
+        shieldEvidence.addProperty("autoUseShield", requireEngine().config.autoUseShield);
+        shieldEvidence.addProperty("autoCraftShield", requireEngine().config.autoCraftShield);
+        shieldEvidence.addProperty("ironKeepFloor", requireEngine().config.shieldIronReserve);
+        shieldEvidence.addProperty("plankKeepFloor", requireEngine().config.shieldPlankReserve);
+        shieldEvidence.add("initialServerReceipt", new GsonBuilder().create().toJsonTree(shieldInitialReceipt));
+        shieldEvidence.add("finalServerReceipt", new GsonBuilder().create().toJsonTree(shieldServerReceipt));
+        shieldEvidence.add("preparationAttributes", new GsonBuilder().create().toJsonTree(shieldPreparationAttributes));
+        shieldEvidence.addProperty("foregroundTaskObserved", shieldTaskObserved);
+        shieldEvidence.addProperty("queuedTaskObserved", shieldQueueObserved);
+        shieldEvidence.addProperty("ownedUseObserved", shieldOwnedUseObserved);
+        shieldEvidence.addProperty("manualUsePreserved", shieldManualPreserved);
+        shieldEvidence.addProperty("ownedHoldReleased", !ShieldController.isHoldingUse());
+        shieldEvidence.addProperty("nativeNavigationStopped", baritoneNavigationStopped());
+    }
+
+    private void finishShieldScenario(boolean passed, String detail) {
+        recordShieldEvidence();
+        shieldEvidence.addProperty("passed", passed);
+        if (!passed) { fail("shield native scenario failed its required receipts: " + SHIELD_SCENARIO + "; " + shieldServerReceipt + "; plan=" + shieldPreparationAttributes); return; }
+        addResult(true, shieldCount("minecraft:bucket"), detail, capture(activeCase));
+        shieldPhase = ShieldPhase.FINISHED;
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
     private static final boolean BARITONE_MODE = Boolean.getBoolean("lodekeeper.verify.baritone");
     private static final boolean MINING_REQUEST_LIMIT_MODE = Boolean.getBoolean("lodekeeper.verify.miningRequestLimit");
     private static final boolean MINING_ZERO_YIELD_MODE = Boolean.getBoolean("lodekeeper.verify.miningZeroYield");
@@ -120,11 +321,14 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String STATION_ROOM_TUNNEL_PROPERTY = System.getProperty("lodekeeper.verify.stationRoomTunnel");
     private static final boolean STATION_ROOM_TUNNEL_MODE = "true".equals(STATION_ROOM_TUNNEL_PROPERTY);
     private static final boolean STATION_ROOM_APPROACH_MODE = "approach".equals(STATION_ROOM_TUNNEL_PROPERTY);
+    private static final String THREAT_WATER_RETREAT_PROPERTY = System.getProperty("lodekeeper.verify.threatWaterRetreat");
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final String THREAT_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatContact");
     private static final boolean THREAT_CONTACT_MODE = "true".equals(THREAT_CONTACT_PROPERTY);
     private static final String CONTACT_MANUAL_INPUT_PROPERTY = System.getProperty("lodekeeper.verify.threatContactManualInput");
     private static final boolean CONTACT_MANUAL_INPUT_MODE = "true".equals(CONTACT_MANUAL_INPUT_PROPERTY);
+    private static final String THREAT_CREEPER_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatCreeperContact");
+    private static final boolean THREAT_CREEPER_CONTACT_MODE = "true".equals(THREAT_CREEPER_CONTACT_PROPERTY);
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
@@ -404,6 +608,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean preparedMaintenanceQueueEmptyBeforeForeground;
     private boolean preparedMaintenanceReservationObservedBeforeForeground;
     private boolean preparedMaintenanceReservationPresentAtCompletion;
+    private boolean preparedThreatBucketTaskObserved;
     private String failure = "";
     private volatile boolean serverTableOpened, serverFurnaceOpened;
     private volatile int serverTableOpenings;
@@ -419,9 +624,10 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
         if (!SETTINGS_UI_MODE && !WORLD_POLICY_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
+                && (THREAT_CREEPER_CONTACT_PROPERTY == null || "false".equals(THREAT_CREEPER_CONTACT_PROPERTY))
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
-                && !"air".equals(PREPARED_SAFETY_MODE)) {
+                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE) {
             NaturalWorldVerification.start(MinecraftClient.getInstance());
             return;
         }
@@ -448,6 +654,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (invalidShieldScenario()) {
+                failure = "shieldScenario must be exactly false, default, off, spare, queued, iron_short, planks_short, worn, occupied, or manual; active cases require baritone=true on Minecraft 1.21.1 or 26.3 and no other verifier mode";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
             if (invalidStationRoomTunnelMode()) {
                 failure = "stationRoomTunnel must be exactly false, true, or approach and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
                 state = State.FAILED;
@@ -457,7 +671,15 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (invalidThreatContactMode()) {
-                failure = "threatContact must be exactly false or true; true requires baritone=true, preparedSafety=threat, Minecraft 1.21.1 or 26.3, no naturalGoal, and no threatWaterRetreat";
+                failure = "threatContact must be exactly false or true; true requires baritone=true, preparedSafety=threat, Minecraft 1.21.1 or 26.3, no naturalGoal, and no threatWaterRetreat or threatCreeperContact";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if (invalidThreatCreeperContactMode()) {
+                failure = "threatCreeperContact must be exactly false or true; true requires baritone=true, preparedSafety=threat, Minecraft 1.21.1 or 26.3, and no naturalGoal, threatWaterRetreat, threatContact, or threatContactManualInput";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -655,7 +877,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (playerId == null) return;
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player == null) return;
-                if (THREAT_CONTACT_MODE && preparedSafetyThreatFixture != null) {
+                if ((THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE) && preparedSafetyThreatFixture != null) {
                     VerificationApi.observePreparedSafetyThreatTick(preparedSafetyThreatFixture, player, server.getTicks());
                 }
                 if (preparedSafetyPursuitFixture != null) {
@@ -664,6 +886,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (preparedSafetyAirFixture != null) {
                     VerificationApi.observePreparedSafetyAirTick(preparedSafetyAirFixture, player, server.getTicks());
                 }
+                observeShieldServer(player, server.getTicks());
                 observeFirstServerMovement(player);
                 net.minecraft.screen.ScreenHandler handler = player.currentScreenHandler;
                 if (handler != lastServerScreenHandler) {
@@ -826,12 +1049,22 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (SHIELD_MODE) {
+                    shieldServerReceipt = shieldPublishedReceipt;
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
+                            && !shieldServerReceipt.isEmpty() && shieldReceiptTrue("tablePresent") && shieldReceiptTrue("cursorEmpty")) {
+                        if (++readyTicks >= 20) startShieldScenario();
+                    }
+                    return;
+                }
+
                 if (WORLD_POLICY_MODE) {
                     tickWorldPolicyFixture();
                     return;
                 }
                 if (PREPARED_SAFETY_MODE != null) {
-                    if (THREAT_CONTACT_MODE) {
+                    if (THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE) {
                         client.player.setYaw(-90.0F);
                         client.player.setPitch(0.0F);
                     }
@@ -969,7 +1202,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                         && latestObservationRequestSequence < stonecuttingDrainRequiredObservationSequence)) {
                 requestObservation();
             }
-            evaluateCurrentCase();
+            if (SHIELD_MODE && state == State.PREPARED_SAFETY) tickShieldScenario();
+            else evaluateCurrentCase();
             if (state == State.CAPTURING && screenshotWritesPending == 0 && clientTicks - captureStartedAtTick >= 20) finishRun();
             else if (state == State.CAPTURING && clientTicks - captureStartedAtTick >= 100) finishRun();
         } catch (Exception exception) {
@@ -1038,9 +1272,20 @@ public final class RuntimeVerification implements ClientModInitializer {
         engine.config.allowBuilding = !MIXED_NAVIGATION_COURSE && !COAL_RAISED_FULL_DROP_MODE;
         if (WORLD_POLICY_MODE) engine.config.backfill = false;
         engine.config.allowParkour = false;
+        if (SHIELD_MODE) {
+            engine.config.autoDefend = true;
+            engine.config.autoUseShield = !"off".equals(SHIELD_SCENARIO);
+            if (!"default".equals(SHIELD_SCENARIO)) engine.config.autoCraftShield = true;
+            else if (engine.config.autoCraftShield) throw new IllegalStateException("untouched shield crafting default must be off");
+            engine.config.shieldIronReserve = 4;
+            engine.config.shieldPlankReserve = 9;
+            engine.config.allowBreaking = false;
+            engine.config.allowExploration = false;
+            engine.config.debugLogging = true;
+        }
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
-        if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE) engine.config.debugLogging = true;
+        if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE) engine.config.debugLogging = true;
         if (STATION_ROOM_APPROACH_MODE) engine.config.debugLogging = true;
         if (MINING_REQUEST_LIMIT_MODE) {
             engine.config.actionTimeoutTicks = 200;
@@ -1646,6 +1891,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
+                if (SHIELD_MODE) {
+                    server.setDifficulty(Difficulty.NORMAL, true);
+                    shieldFixture = shieldApi("seedShieldScenario", player, world, SHIELD_SCENARIO);
+                }
                 if (PREPARED_SAFETY_MODE != null) {
                     server.setDifficulty(Difficulty.NORMAL, true);
                     if (preparedSafetyPhase == PreparedSafetyPhase.WORKBENCH_SEEDING) {
@@ -1666,7 +1915,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (!VerificationApi.teleport(player, world,
                         STATION_ROOM_APPROACH_MODE ? 1.5 : STATION_ROOM_TUNNEL_MODE ? 0.367555 : MIXED_NAVIGATION_COURSE ? 0.25 : 0.5, startFeetY,
                         STATION_ROOM_TUNNEL_MODE ? 0.505802 : MIXED_NAVIGATION_COURSE ? 0.75 : 0.5,
-                        STATION_ROOM_TUNNEL_MODE ? 98.886902F : THREAT_CONTACT_MODE ? -90.0F : 0.0F, STATION_ROOM_TUNNEL_MODE ? -38.467983F : 0.0F)) {
+                        STATION_ROOM_TUNNEL_MODE ? 98.886902F : THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE ? -90.0F : 0.0F, STATION_ROOM_TUNNEL_MODE ? -38.467983F : 0.0F)) {
                     throw new IllegalStateException("could not teleport verifier player to the fixture spawn");
                 }
                 if (preparedSafetyAirFixture != null) {
@@ -2556,7 +2805,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 Map.of("minecraft:oak_log", 2, "minecraft:crafting_table", 1))
                 && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:oak_log"))
                 && latestSnapshot.count("minecraft:oak_log") == 10;
-            case THREAT -> THREAT_CONTACT_MODE ? preparedSafetyContactFixtureReady() : latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+            case THREAT -> THREAT_CREEPER_CONTACT_MODE ? preparedSafetyCreeperContactFixtureReady()
+                : THREAT_CONTACT_MODE ? preparedSafetyContactFixtureReady() : latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
                 && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
                     "minecraft:iron_ingot", 3, "minecraft:wooden_pickaxe", 1))
                 && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
@@ -2981,7 +3231,18 @@ public final class RuntimeVerification implements ClientModInitializer {
         return THREAT_CONTACT_PROPERTY != null && !"false".equals(THREAT_CONTACT_PROPERTY)
             && (!THREAT_CONTACT_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
-                || System.getProperty("lodekeeper.verify.naturalGoal") != null || THREAT_WATER_RETREAT_MODE);
+                || System.getProperty("lodekeeper.verify.naturalGoal") != null || THREAT_WATER_RETREAT_MODE
+                || THREAT_CREEPER_CONTACT_MODE);
+    }
+
+    private static boolean invalidThreatCreeperContactMode() {
+        if (THREAT_CREEPER_CONTACT_PROPERTY == null || "false".equals(THREAT_CREEPER_CONTACT_PROPERTY)) return false;
+        return !THREAT_CREEPER_CONTACT_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+            || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+            || System.getProperty("lodekeeper.verify.naturalGoal") != null
+            || THREAT_WATER_RETREAT_PROPERTY != null && !"false".equalsIgnoreCase(THREAT_WATER_RETREAT_PROPERTY)
+            || THREAT_CONTACT_PROPERTY != null && !"false".equals(THREAT_CONTACT_PROPERTY)
+            || CONTACT_MANUAL_INPUT_PROPERTY != null && !"false".equals(CONTACT_MANUAL_INPUT_PROPERTY);
     }
 
     private boolean preparedSafetyContactFixtureReady() {
@@ -3019,6 +3280,39 @@ public final class RuntimeVerification implements ClientModInitializer {
         return !receipt.get("contactZombie0Uuid").equals(receipt.get("contactZombie1Uuid"));
     }
 
+    private boolean preparedSafetyCreeperContactFixtureReady() {
+        Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
+        return latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+            && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
+                "minecraft:iron_ingot", 3, "minecraft:stone_sword", 1, "minecraft:wooden_pickaxe", 1))
+            && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
+            && "true".equals(receipt.get("creeperContactClockFrozen"))
+            && "-1".equals(receipt.get("creeperContactClockReleaseServerTick"))
+            && "true".equals(receipt.get("creeperAiEnabled"))
+            && "true".equals(receipt.get("creeperTargetsPlayer"))
+            && "true".equals(receipt.get("creeperAlive"))
+            && "20.0".equals(receipt.get("creeperHealth"))
+            && Double.parseDouble(receipt.getOrDefault("creeperDistanceSquared", "NaN")) <= 4.0
+            && "true".equals(receipt.get("creeperContactOpenPlatform"))
+            && "true".equals(receipt.get("creeperContactControlShade"))
+            && "0".equals(receipt.get("creeperContactObservedServerTicks"))
+            && "20.0".equals(receipt.get("creeperContactMinimumPlayerHealth"))
+            && "true".equals(receipt.get("zombieAlive"))
+            && "4.0".equals(receipt.get("zombieHealth"))
+            && "false".equals(receipt.get("zombieAiEnabled"))
+            && "20.5,64.0,20.5".equals(receipt.get("zombiePosition"))
+            && "true".equals(receipt.get("cowAlive"))
+            && "10.0".equals(receipt.get("cowHealth"))
+            && "10.0".equals(receipt.get("cowInitialHealth"))
+            && "18.5,64.0,20.5".equals(receipt.get("cowPosition"))
+            && "0".equals(receipt.get("diamondSwordDamage"))
+            && "0".equals(receipt.get("stoneSwordDamage"))
+            && "0".equals(receipt.get("woodenPickaxeDamage"))
+            && "20.0".equals(receipt.get("creeperContactPlayerHealth"))
+            && "true".equals(receipt.get("creeperContactPlayerAlive"))
+            && "0".equals(receipt.get("creeperContactPlayerDeaths"));
+    }
+
     private static boolean contactShellPreserved(Map<String, String> receipt) {
         return "5018".equals(receipt.get("contactShellCells"))
             && "0".equals(receipt.get("contactShellChangedCells"))
@@ -3052,6 +3346,38 @@ public final class RuntimeVerification implements ClientModInitializer {
         return hits >= weaponHits && hits <= weaponHits * 2;
     }
 
+    private boolean preparedSafetyCreeperContactCompleted(Map<String, String> receipt, int pickaxeWear) {
+        int stoneSwordWear = Integer.parseInt(receipt.getOrDefault("stoneSwordDamage", "-1"))
+            - Integer.parseInt(activeInitialThreatReceipt.getOrDefault("stoneSwordDamage", "-1"));
+        return preparedThreatBucketTaskObserved && preparedMaintenanceReservationPresentAtCompletion
+            && preparedMaintenanceReservationObservedBeforeForeground && preparedMaintenanceQueueEmptyBeforeForeground
+            && latestSnapshot.health == 20.0F && "20.0".equals(receipt.get("creeperContactPlayerHealth"))
+            && "true".equals(receipt.get("creeperContactPlayerAlive"))
+            && "0".equals(receipt.get("creeperContactPlayerDeaths"))
+            && "false".equals(receipt.get("creeperContactClockFrozen"))
+            && Integer.parseInt(receipt.getOrDefault("creeperContactClockReleaseServerTick", "-1")) >= 0
+            && activeInitialThreatReceipt.get("creeperUuid").equals(receipt.get("creeperUuid"))
+            && "escaped_alive".equals(receipt.get("creeperContactOutcome"))
+            && "true".equals(receipt.get("creeperAlive")) && "false".equals(receipt.get("creeperRemoved"))
+            && "20.0".equals(receipt.get("creeperHealth"))
+            && Double.parseDouble(receipt.getOrDefault("creeperDistanceSquared", "NaN")) >= 144.0
+            && "false".equals(receipt.get("creeperContactPlayerKillObserved"))
+            && "false".equals(receipt.get("creeperContactExplosionObserved"))
+            && "20.0".equals(receipt.get("creeperContactMinimumPlayerHealth"))
+            && Integer.parseInt(receipt.getOrDefault("creeperContactObservedServerTicks", "0")) > 0
+            && "true".equals(receipt.get("creeperContactControlShade"))
+            && "true".equals(receipt.get("creeperAiEnabled"))
+            && activeInitialThreatReceipt.get("zombieUuid").equals(receipt.get("zombieUuid"))
+            && "true".equals(receipt.get("zombieAlive")) && "4.0".equals(receipt.get("zombieHealth"))
+            && "false".equals(receipt.get("zombieAiEnabled"))
+            && activeInitialThreatReceipt.get("cowUuid").equals(receipt.get("cowUuid"))
+            && "true".equals(receipt.get("cowAlive"))
+            && activeInitialThreatReceipt.get("cowInitialHealth").equals(receipt.get("cowHealth"))
+            && activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
+            && "0".equals(receipt.get("diamondSwordDamage")) && pickaxeWear == 0
+            && stoneSwordWear == 0;
+    }
+
     private void startPreparedSafetyThreatCase() {
         String engineStatus = requireEngine().status();
         if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
@@ -3059,6 +3385,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             return;
         }
         activeCase = CONTACT_MANUAL_INPUT_MODE ? "contact_defense_manual_takeover"
+            : THREAT_CREEPER_CONTACT_MODE ? "live_creeper_contact_defense_maintained_bucket"
             : THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
             : THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
         activeItem = "minecraft:bucket";
@@ -3069,24 +3396,33 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
         activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
         activeInitialThreatReceipt = Map.copyOf(latestSnapshot.preparedSafetyThreatReceipt);
-        preparedSafetyForegroundStarted = true;
-        preparedMaintenanceQueueEmptyBeforeForeground = true;
+        preparedSafetyForegroundStarted = !THREAT_CREEPER_CONTACT_MODE;
+        preparedMaintenanceQueueEmptyBeforeForeground = !THREAT_CREEPER_CONTACT_MODE;
         preparedMaintenanceReservationObservedBeforeForeground = false;
         preparedMaintenanceReservationPresentAtCompletion = false;
+        preparedThreatBucketTaskObserved = false;
         activeFoodLevelAtStart = latestSnapshot.foodLevel;
         beginCaseClock();
         state = State.PREPARED_SAFETY;
+        if (THREAT_CREEPER_CONTACT_MODE) {
+            sendCommand("!lk maintain diamond_sword 1");
+            return;
+        }
         sendCommand("!lk get bucket 1");
         if (THREAT_CONTACT_MODE) {
             contactOriginalInput = client.player.input;
-            var server = client.getServer();
-            if (server == null) throw new IllegalStateException("contact clock release requires integrated server");
-            server.execute(() -> {
-                var player = server.getPlayerManager().getPlayer(playerId);
-                if (player == null) throw new IllegalStateException("contact clock release requires original player");
-                VerificationApi.releasePreparedSafetyThreatClock(preparedSafetyThreatFixture, player);
-            });
+            releasePreparedThreatFixtureClock();
         }
+    }
+
+    private void releasePreparedThreatFixtureClock() {
+        var server = client.getServer();
+        if (server == null) throw new IllegalStateException("prepared threat clock release requires integrated server");
+        server.execute(() -> {
+            var player = server.getPlayerManager().getPlayer(playerId);
+            if (player == null) throw new IllegalStateException("prepared threat clock release requires original player");
+            VerificationApi.releasePreparedSafetyThreatClock(preparedSafetyThreatFixture, player);
+        });
     }
 
     private static boolean invalidStationRoomTunnelMode() {
@@ -3385,6 +3721,28 @@ public final class RuntimeVerification implements ClientModInitializer {
             evaluatePreparedSafetyWorkbenchCase(engineStatus);
             return;
         }
+        if (THREAT_CREEPER_CONTACT_MODE && preparedSafetyForegroundStarted && !engineStatus.startsWith("idle")
+                && requireEngine().diagnosticTaskIdentity() != null) preparedThreatBucketTaskObserved = true;
+        if (THREAT_CREEPER_CONTACT_MODE && !preparedSafetyForegroundStarted) {
+            if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
+                fail("maintained diamond sword was not reserved before the creeper-contact bucket goal");
+                return;
+            }
+            if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")
+                    || !baritoneNavigationStopped() || requireEngine().diagnosticTaskIdentity() != null
+                    || !maintainedReservationObserved("minecraft:diamond_sword", 1)) return;
+            if (!latestSnapshot.serverCursorEmpty || !latestSnapshot.equippedItems.isEmpty()
+                    || !latestSnapshot.inventory.equals(activeInitialResources)) {
+                fail("maintaining the diamond sword changed the prepared inventory, equipment, or cursor before the bucket goal");
+                return;
+            }
+            preparedMaintenanceQueueEmptyBeforeForeground = true;
+            preparedMaintenanceReservationObservedBeforeForeground = true;
+            preparedSafetyForegroundStarted = true;
+            sendCommand("!lk get bucket 1");
+            releasePreparedThreatFixtureClock();
+            return;
+        }
         if ((preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_FOOD
                 || preparedSafetyPhase == PreparedSafetyPhase.OFFHAND_INGREDIENTS)
                 && !preparedSafetyForegroundStarted) {
@@ -3444,7 +3802,13 @@ public final class RuntimeVerification implements ClientModInitializer {
             int initialPickaxeDamage = Integer.parseInt(activeInitialThreatReceipt.getOrDefault(pickaxeDamageKey, "-1"));
             int finalPickaxeDamage = Integer.parseInt(receipt.getOrDefault(pickaxeDamageKey, "-1"));
             int pickaxeWear = finalPickaxeDamage - initialPickaxeDamage;
+            int stoneSwordWear = Integer.parseInt(receipt.getOrDefault("stoneSwordDamage", "-1"))
+                - Integer.parseInt(activeInitialThreatReceipt.getOrDefault("stoneSwordDamage", "-1"));
             boolean pickaxeShowsNativeHits = pickaxeWear > 0 && pickaxeWear <= 6 && pickaxeWear % 2 == 0;
+            if (THREAT_CREEPER_CONTACT_MODE) {
+                preparedMaintenanceReservationPresentAtCompletion = preparedMaintenanceReservationObservedBeforeForeground
+                    && maintainedReservationObserved("minecraft:diamond_sword", 1);
+            }
             passed = observed == 1 && latestSnapshot.storageCount("minecraft:iron_ingot") == 0
                 && latestSnapshot.count("minecraft:iron_ingot") == 0
                 && latestSnapshot.serverCursorEmpty && latestSnapshot.equippedItems.isEmpty()
@@ -3457,6 +3821,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (THREAT_CONTACT_MODE || activeInitialThreatReceipt.get("diamondSwordDamage").equals(receipt.get("diamondSwordDamage"))
                     && "0".equals(receipt.get("diamondSwordDamage")))
                 && (THREAT_CONTACT_MODE ? preparedSafetyContactCompleted(receipt, pickaxeWear)
+                    : THREAT_CREEPER_CONTACT_MODE ? preparedSafetyCreeperContactCompleted(receipt, pickaxeWear)
                     : THREAT_WATER_RETREAT_MODE
                     ? latestSnapshot.health == 20.0F && "true".equals(receipt.get("zombieAlive"))
                         && "4.0".equals(receipt.get("zombieHealth"))
@@ -3477,6 +3842,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             detail = THREAT_CONTACT_MODE
                 ? passed ? "both original full-health live zombies died from native player hits, the player survived native contact damage with zero deaths, the iron pickaxe wore by " + pickaxeWear + ", safe sword wear was bounded, cow stayed untouched, shell stayed intact, and the supplied iron became one bucket with cursor clear and idle stopped navigation"
                     : "live contact defense lacked required native hits, two player-attributed deaths, player survival, protected cow, bounded weapon wear, intact shell, or bucket completion"
+                : THREAT_CREEPER_CONTACT_MODE
+                ? passed ? "the same full-health normal-AI creeper remained unharmed at least twelve blocks away with its fuse stopped; the server observed no player health loss and zero deaths, the protected diamond sword and shaded control mobs stayed untouched, the stone sword wore by " + stoneSwordWear + ", the maintained reservation remained present, and the observed bucket goal completed with an empty cursor and idle navigation"
+                    : "creeper contact lacked an unharmed same-UUID live escape, stopped fuse, persistent full player health, zero deaths, untouched weapons and shaded control mobs, maintained reservation, active bucket goal, or idle bucket completion; observed outcome=" + receipt.getOrDefault("creeperContactOutcome", "missing") + " minimum player health=" + receipt.getOrDefault("creeperContactMinimumPlayerHealth", "missing")
                 : THREAT_WATER_RETREAT_MODE
                 ? passed ? "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation"
                     : "the water-retreat fixture lacked the required native distance, health, untouched-mob/weapon, dry-support, bucket, cursor, or cancellation receipts"
@@ -4535,6 +4903,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void sendCommand(String command) {
         ClientPlayNetworkHandler network = client.getNetworkHandler();
         if (network == null) throw new IllegalStateException("Integrated client is not connected");
+        client.inGameHud.getChatHud().addMessage(net.minecraft.text.Text.literal("[Verifier command] " + command));
         network.sendChatMessage(command);
     }
 
@@ -4902,6 +5271,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (client != null && (client.currentScreen instanceof AutomationSettingsScreen
                     || client.currentScreen instanceof NavigationPreferencesScreen)) client.setScreen(null);
         }
+        if (SHIELD_MODE && shieldManualTick >= 0) client.options.useKey.setPressed(false);
+        if (SHIELD_MODE) recordShieldEvidence();
         failure = reason;
         if (activeCase != null && results.stream().noneMatch(result -> result.name.equals(activeCase))) {
             int observed = latestSnapshot == null || activeItem == null ? 0 : latestSnapshot.count(activeItem);
@@ -4937,13 +5308,15 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"worldKind\":\"isolated_superflat_fixture\",\n")
             .append("  \"preparedWorld\":").append(PREPARED_SAFETY_MODE != null).append(",\n")
             .append("  \"threatWaterRetreat\":").append(THREAT_WATER_RETREAT_MODE).append(",\n")
+            .append("  \"threatCreeperContact\":").append(THREAT_CREEPER_CONTACT_MODE).append(",\n")
             .append("  \"stationRoomTunnel\":").append(STATION_ROOM_TUNNEL_MODE).append(",\n")
             .append("  \"stationRoomTunnelProperty\":").append(STATION_ROOM_TUNNEL_PROPERTY == null ? "null" : "\"" + escape(STATION_ROOM_TUNNEL_PROPERTY) + "\"").append(",\n")
             .append("  \"stationRoomSetupScreenshot\":").append(stationRoomSetupScreenshot == null ? "null" : "\"" + escape(stationRoomSetupScreenshot) + "\"").append(",\n")
             .append("  \"preparedSafetyProperty\":").append(PREPARED_SAFETY_MODE == null ? "null" : "\"" + escape(PREPARED_SAFETY_MODE) + "\"").append(",\n")
             .append("  \"evidenceAuthority\":\"")
             .append(SETTINGS_UI_MODE ? "native_screen_child_widgets_native_input_events_and_config_reload"
-                : HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
+                : HELD_FUEL_MODE ? "integrated_server_inventory_native_furnace_slots_and_idle_navigation" : WORKBENCH_MODE ? "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status" : THREAT_CREEPER_CONTACT_MODE
+                ? "integrated_server_inventory_entity_damage_source_player_health_stats_and_item_durability" : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("threat")
                 ? "integrated_server_inventory_entities_and_item_durability"
                 : PREPARED_SAFETY_MODE != null && PREPARED_SAFETY_MODE.equals("station_room")
                     ? "integrated_server_inventory_furnace_menu_and_block_states"
@@ -4955,6 +5328,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                         : "integrated_server_inventory")
             .append("\",\n")
             .append("  \"verificationMode\":\"").append(verificationMode()).append("\",\n")
+            .append("  \"shieldScenario\":").append(SHIELD_MODE ? shieldEvidence : "null").append(",\n")
             .append("  \"worldPolicy\":").append(WORLD_POLICY_MODE && worldPolicyEvidence != null ? worldPolicyEvidence : "null").append(",\n")
             .append("  \"settingsUiChatEntryConfirmed\":").append(settingsUiChatEntryConfirmed).append(",\n")
             .append("  \"settingsUiReceipt\":").append(settingsUiReceipt == null ? "null" : "\"" + escape(settingsUiReceipt) + "\"").append(",\n")
@@ -4969,7 +5343,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             .append("  \"serverFurnaceOpenings\":").append(serverFurnaceOpenings).append(",\n");
         if (WORKBENCH_MODE) json.append("  \"preparedWorkbench\":").append(workbenchEvidence()).append(",\n");
         if (HELD_FUEL_MODE) json.append("  \"preparedHeldFuel\":").append(heldFuelEvidence()).append(",\n");
-        if ("pursuit".equals(PREPARED_SAFETY_MODE)) {
+        if (THREAT_CREEPER_CONTACT_MODE) {
+            json.append("  \"preparedSafetyFixtureGrants\":\"one unprotected stone sword, one maintained diamond sword, one wooden pickaxe, 3 iron ingots, one crafting table; full-health player; one full-health normal-AI creeper at contact range; distant shaded 4-health NoAI zombie and full-health NoAI cow; open bedrock platform; server clock frozen until ordinary bucket command\",\n");
+        } else if ("pursuit".equals(PREPARED_SAFETY_MODE)) {
             json.append("  \"preparedSafetyFixtureGrants\":\"3 iron ingots, one crafting table, food level 7, one normal-AI cow, bounded bedrock pen\",\n");
         } else if ("pursuit-tool".equals(PREPARED_SAFETY_MODE)) {
             json.append("  \"preparedSafetyFixtureGrants\":\"3 iron ingots, one crafting table, one full-durability stone pickaxe in hotbar slot index 7, food level 7, one normal-AI cow, bounded bedrock pen\",\n");
@@ -5619,6 +5995,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (invalidShieldScenario()) return "invalid_shield_scenario";
+        if (SHIELD_MODE) return "native_shield_" + SHIELD_SCENARIO;
         if (WORLD_POLICY_MODE) return "native_world_policy";
         if (SETTINGS_UI_MODE) return "native_settings_ui";
         if (invalidStationRoomTunnelMode()) return "invalid_station_room_tunnel";
@@ -5634,6 +6012,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                     || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_safety_air";
         if (invalidThreatContactMode()) return "invalid_threat_contact";
+        if (invalidThreatCreeperContactMode()) return "invalid_threat_creeper_contact";
         if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
                 || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_threat_water_retreat";
@@ -5661,7 +6040,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
         if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
-        if (PREPARED_SAFETY_MODE != null) return CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
+        if (PREPARED_SAFETY_MODE != null) return THREAT_CREEPER_CONTACT_MODE ? "prepared_safety_threat_creeper_contact" : CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
         if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";

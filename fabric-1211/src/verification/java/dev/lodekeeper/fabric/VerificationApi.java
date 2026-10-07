@@ -112,6 +112,141 @@ final class VerificationApi {
         }
     }
 
+
+    static Object seedShieldScenario(ServerPlayerEntity player, ServerWorld world, String scenario) {
+        int iron = "queued".equals(scenario) ? 12 : "iron_short".equals(scenario) ? 9 : 10;
+        int planks = "planks_short".equals(scenario) ? 18 : 19;
+        if (!player.getInventory().insertStack(new ItemStack(Items.IRON_INGOT, iron))
+                || !player.getInventory().insertStack(new ItemStack(Items.OAK_PLANKS, planks)))
+            throw new IllegalStateException("could not seed shield scenario stock");
+        for (int x = -5; x <= 8; x++) for (int z = -4; z <= 4; z++) {
+            world.setBlockState(new BlockPos(x, 63, z), Blocks.BEDROCK.getDefaultState(), 3);
+            for (int y = 64; y <= 66; y++) world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState(), 3);
+            world.setBlockState(new BlockPos(x, 67, z), Blocks.BEDROCK.getDefaultState(), 3);
+        }
+        world.setBlockState(new BlockPos(-2, 64, 0), Blocks.CRAFTING_TABLE.getDefaultState(), 3);
+        ShieldScenarioFixture fixture = new ShieldScenarioFixture(scenario, iron, planks);
+        if (java.util.List.of("worn", "occupied", "manual").contains(scenario)) {
+            ItemStack shield = new ItemStack(Items.SHIELD);
+            shield.setDamage(200);
+            player.getInventory().setStack(20, shield);
+            if ("occupied".equals(scenario)) player.equipStack(EquipmentSlot.OFFHAND, new ItemStack(Items.TORCH, 8));
+            if (!player.getInventory().insertStack(new ItemStack(Items.STONE_SWORD)))
+                throw new IllegalStateException("could not seed ordinary shield defense sword");
+            ZombieEntity zombie = new ZombieEntity(EntityType.ZOMBIE, world);
+            zombie.refreshPositionAndAngles(2.0, 64.0, 0.5, 90.0F, 0.0F);
+            zombie.setBaby(false);
+            zombie.setAiDisabled(true);
+            zombie.setTarget(player);
+            zombie.setHealth(zombie.getMaxHealth());
+            if (!world.spawnEntity(zombie)) throw new IllegalStateException("could not seed controlled shield threat");
+            fixture.zombie = zombie;
+            registerShieldDamageReceipt(player, fixture);
+        }
+        player.getInventory().markDirty();
+        return fixture;
+    }
+
+    private static void registerShieldDamageReceipt(ServerPlayerEntity player, ShieldScenarioFixture fixture) {
+        try {
+            var field = ServerLivingEntityEvents.class.getField("AFTER_DAMAGE");
+            var type = (java.lang.reflect.ParameterizedType) field.getGenericType();
+            Class<?> callback = (Class<?>) type.getActualTypeArguments()[0];
+            Object listener = java.lang.reflect.Proxy.newProxyInstance(callback.getClassLoader(), new Class<?>[]{callback},
+                (proxy, method, arguments) -> {
+                    if (arguments != null && arguments.length == 5 && arguments[0] == player
+                            && arguments[1] instanceof net.minecraft.entity.damage.DamageSource source
+                            && source.getAttacker() == fixture.zombie) {
+                        fixture.damageEvents++;
+                        if (Boolean.TRUE.equals(arguments[4])) fixture.blockedDamageEvents++;
+                        fixture.lastBaseDamage = ((Number) arguments[2]).floatValue();
+                        fixture.lastDamage = ((Number) arguments[3]).floatValue();
+                    }
+                    return null;
+                });
+            var event = (net.fabricmc.fabric.api.event.Event<?>) field.get(null);
+            net.fabricmc.fabric.api.event.Event.class.getMethod("register", Object.class).invoke(event, listener);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("native AFTER_DAMAGE shield receipt unavailable", exception);
+        }
+    }
+
+    static void observeShieldScenario(Object value, ServerPlayerEntity player, int serverTick) {
+        ShieldScenarioFixture fixture = (ShieldScenarioFixture) value;
+        ItemStack source = player.getInventory().getStack(20), offhand = player.getOffHandStack();
+        boolean equipped = source.isEmpty() && offhand.isOf(Items.SHIELD) && offhand.getDamage() >= 200;
+        if (equipped && fixture.equipServerTick < 0) fixture.equipServerTick = serverTick;
+        if (fixture.equipServerTick >= 0 && source.isOf(Items.SHIELD) && offhand.isEmpty())
+            fixture.restoreServerTick = serverTick;
+        boolean nativeUse = player.isUsingItem() && player.getActiveHand() == net.minecraft.util.Hand.OFF_HAND
+                && player.getActiveItem().isOf(Items.SHIELD);
+        if (nativeUse) fixture.nativeUseServerTicks++;
+        fixture.consecutiveUseTicks = nativeUse ? fixture.consecutiveUseTicks + 1 : 0;
+        if (fixture.zombie != null && fixture.zombie.isAlive() && fixture.consecutiveUseTicks >= 6 && !fixture.attackProbeIssued) {
+            fixture.attackProbeIssued = true;
+            fixture.attackProbeServerTick = serverTick;
+            fixture.zombie.tryAttack(player);
+        }
+        fixture.minimumHealth = Math.min(fixture.minimumHealth, player.getHealth());
+    }
+
+    static Map<String, String> shieldScenarioReceipt(Object value, ServerPlayerEntity player, int serverTick) {
+        ShieldScenarioFixture fixture = (ShieldScenarioFixture) value;
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("scenario", fixture.scenario);
+        result.put("serverTick", Integer.toString(serverTick));
+        result.put("initialIron", Integer.toString(fixture.iron));
+        result.put("initialPlanks", Integer.toString(fixture.planks));
+        for (Item item : java.util.List.of(Items.IRON_INGOT, Items.OAK_PLANKS, Items.SHIELD, Items.BUCKET, Items.SHEARS)) {
+            int count = 0;
+            for (int slot = 0; slot < player.getInventory().size(); slot++) {
+                ItemStack stack = player.getInventory().getStack(slot);
+                if (stack.isOf(item)) count += stack.getCount();
+            }
+            result.put(Registries.ITEM.getId(item).toString(), Integer.toString(count));
+        }
+        result.put("craftedShields", Integer.toString(player.getStatHandler().getStat(net.minecraft.stat.Stats.CRAFTED.getOrCreateStat(Items.SHIELD))));
+        result.put("craftedBuckets", Integer.toString(player.getStatHandler().getStat(net.minecraft.stat.Stats.CRAFTED.getOrCreateStat(Items.BUCKET))));
+        ItemStack source = player.getInventory().getStack(20), offhand = player.getOffHandStack();
+        result.put("sourceItem", source.isEmpty() ? "empty" : Registries.ITEM.getId(source.getItem()).toString());
+        result.put("sourceCount", Integer.toString(source.getCount()));
+        result.put("sourceDamage", Integer.toString(source.getDamage()));
+        result.put("offhandItem", offhand.isEmpty() ? "empty" : Registries.ITEM.getId(offhand.getItem()).toString());
+        result.put("offhandCount", Integer.toString(offhand.getCount()));
+        result.put("offhandDamage", Integer.toString(offhand.getDamage()));
+        result.put("equipServerTick", Integer.toString(fixture.equipServerTick));
+        result.put("restoreServerTick", Integer.toString(fixture.restoreServerTick));
+        result.put("nativeUseServerTicks", Integer.toString(fixture.nativeUseServerTicks));
+        result.put("usingItem", Boolean.toString(player.isUsingItem()));
+        result.put("blockedDamageEvents", Integer.toString(fixture.blockedDamageEvents));
+        result.put("damageEvents", Integer.toString(fixture.damageEvents));
+        result.put("attackProbeIssued", Boolean.toString(fixture.attackProbeIssued));
+        result.put("attackProbeServerTick", Integer.toString(fixture.attackProbeServerTick));
+        result.put("attackProbeKind", "controlled_NoAI_zombie_native_tryAttack_after_six_shield_use_ticks");
+        result.put("lastBaseDamage", Float.toString(fixture.lastBaseDamage));
+        result.put("lastDamage", Float.toString(fixture.lastDamage));
+        result.put("minimumHealth", Float.toString(fixture.minimumHealth));
+        result.put("cursorEmpty", Boolean.toString(player.currentScreenHandler.getCursorStack().isEmpty()));
+        result.put("zombieAlive", Boolean.toString(fixture.zombie != null && fixture.zombie.isAlive()));
+        result.put("tablePresent", Boolean.toString(player.getServerWorld().getBlockState(new BlockPos(-2, 64, 0)).isOf(Blocks.CRAFTING_TABLE)));
+        return Map.copyOf(result);
+    }
+
+    private static final class ShieldScenarioFixture {
+        private final String scenario;
+        private final int iron, planks;
+        private ZombieEntity zombie;
+        private int equipServerTick = -1, restoreServerTick = -1, attackProbeServerTick = -1;
+        private int nativeUseServerTicks, consecutiveUseTicks, damageEvents, blockedDamageEvents;
+        private boolean attackProbeIssued;
+        private float lastBaseDamage, lastDamage, minimumHealth = 20.0F;
+        private ShieldScenarioFixture(String scenario, int iron, int planks) {
+            this.scenario = scenario;
+            this.iron = iron;
+            this.planks = planks;
+        }
+    }
+
     static void seedPreparedSafetyFixture(ServerPlayerEntity player, String mode) {
         if ("held-fuel".equals(mode)) {
             if (!player.getInventory().insertStack(new ItemStack(Items.RAW_IRON, 3))
@@ -612,6 +747,37 @@ final class VerificationApi {
     static PreparedSafetyThreatFixture seedPreparedSafetyThreatFixture(ServerPlayerEntity player, ServerWorld world) {
         boolean waterRetreat = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
         if (Boolean.getBoolean("lodekeeper.verify.threatContact")) return seedPreparedSafetyContactFixture(player, world);
+        if (Boolean.getBoolean("lodekeeper.verify.threatCreeperContact")) {
+            player.getServer().getTickManager().setFrozen(true);
+            for (int x = -12; x <= 24; x++) for (int z = -6; z <= 24; z++) {
+                world.setBlockState(new BlockPos(x, 63, z), Blocks.BEDROCK.getDefaultState(), 3);
+            }
+            world.setBlockState(new BlockPos(20, 67, 20), Blocks.BEDROCK.getDefaultState(), 3);
+            if (!player.getInventory().insertStack(new ItemStack(Items.DIAMOND_SWORD))
+                    || !player.getInventory().insertStack(new ItemStack(Items.WOODEN_PICKAXE))
+                    || !player.getInventory().insertStack(new ItemStack(Items.STONE_SWORD))
+                    || !player.getInventory().insertStack(new ItemStack(Items.IRON_INGOT, 3))
+                    || !player.getInventory().insertStack(new ItemStack(Items.CRAFTING_TABLE))) {
+                throw new IllegalStateException("could not seed the creeper-contact weapons and bucket stock");
+            }
+            ClientAccess.selectedSlot(player.getInventory(), 2);
+            ZombieEntity zombie = new ZombieEntity(EntityType.ZOMBIE, world);
+            zombie.refreshPositionAndAngles(20.5, 64.0, 20.5, 180.0F, 0.0F);
+            zombie.setAiDisabled(true);
+            zombie.setHealth(4.0F);
+            CowEntity cow = new CowEntity(EntityType.COW, world);
+            cow.refreshPositionAndAngles(18.5, 64.0, 20.5, 180.0F, 0.0F);
+            cow.setAiDisabled(true);
+            CreeperEntity creeper = new CreeperEntity(EntityType.CREEPER, world);
+            creeper.refreshPositionAndAngles(2.5, 64.0, 0.5, -90.0F, 0.0F);
+            creeper.setAiDisabled(false);
+            creeper.setHealth(20.0F);
+            creeper.setTarget(player);
+            if (!world.spawnEntity(zombie) || !world.spawnEntity(cow) || !world.spawnEntity(creeper)) {
+                throw new IllegalStateException("could not spawn the creeper-contact targets and protected cow");
+            }
+            return new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth(), creeper, true);
+        }
         if (waterRetreat) {
             for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) {
                 world.setBlockState(new BlockPos(x, 63, z), Blocks.BEDROCK.getDefaultState(), 3);
@@ -721,13 +887,35 @@ final class VerificationApi {
     }
 
     static void releasePreparedSafetyThreatClock(PreparedSafetyThreatFixture fixture, ServerPlayerEntity player) {
-        if (fixture.contact == null) throw new IllegalStateException("live contact fixture is absent");
-        fixture.contact.observing = true;
-        fixture.contact.releaseServerTick = player.getServer().getTicks();
+        if (fixture.contact != null) {
+            fixture.contact.observing = true;
+            fixture.contact.releaseServerTick = player.getServer().getTicks();
+        } else if (fixture.creeperContact) {
+            fixture.creeperContactReleaseServerTick = player.getServer().getTicks();
+        } else {
+            throw new IllegalStateException("live contact fixture is absent");
+        }
         player.getServer().getTickManager().setFrozen(false);
     }
 
     static void observePreparedSafetyThreatTick(PreparedSafetyThreatFixture fixture, ServerPlayerEntity player, int serverTick) {
+        if (fixture.creeperContact && fixture.creeperContactReleaseServerTick >= 0) {
+            fixture.creeperContactObservedServerTicks++;
+            fixture.creeperContactMinimumPlayerHealth = Math.min(fixture.creeperContactMinimumPlayerHealth, player.getHealth());
+            fixture.creeperContactPeakFuse = Math.max(fixture.creeperContactPeakFuse, fixture.creeper.getClientFuseTime(1.0f));
+            if (fixture.creeper.getHealth() < fixture.creeperContactLastHealth) {
+                var damage = fixture.creeper.getRecentDamageSource();
+                fixture.creeperContactLastDamage = damage == null ? "" : damage.getName();
+                fixture.creeperContactLastDamageByPlayer = damage != null && damage.getAttacker() == player;
+            }
+            fixture.creeperContactLastHealth = fixture.creeper.getHealth();
+            if (!fixture.creeper.isAlive() && fixture.creeper.getHealth() <= 0.0F
+                    && "player".equals(fixture.creeperContactLastDamage) && fixture.creeperContactLastDamageByPlayer)
+                fixture.creeperContactPlayerKillObserved = true;
+            if (fixture.creeper.isRemoved() && !fixture.creeper.isAlive() && fixture.creeper.getHealth() > 0.0F
+                    && fixture.creeper.getClientFuseTime(1.0f) >= 1.0F)
+                fixture.creeperContactExplosionObserved = true;
+        }
         if (fixture.contact == null || !fixture.contact.observing) return;
         ContactThreatObservation contact = fixture.contact;
         contact.observedServerTicks++;
@@ -839,10 +1027,13 @@ final class VerificationApi {
         result.put("zombieAlive", Boolean.toString(fixture.zombie.isAlive()));
         result.put("zombieRemoved", Boolean.toString(fixture.zombie.isRemoved()));
         result.put("zombieHealth", Float.toString(fixture.zombie.getHealth()));
+        result.put("zombieAiEnabled", Boolean.toString(!fixture.zombie.isAiDisabled()));
+        result.put("zombiePosition", fixture.zombie.getX() + "," + fixture.zombie.getY() + "," + fixture.zombie.getZ());
         result.put("cowUuid", fixture.cow.getUuid().toString());
         result.put("cowAlive", Boolean.toString(fixture.cow.isAlive()));
         result.put("cowInitialHealth", Float.toString(fixture.cowInitialHealth));
         result.put("cowHealth", Float.toString(fixture.cow.getHealth()));
+        result.put("cowPosition", fixture.cow.getX() + "," + fixture.cow.getY() + "," + fixture.cow.getZ());
         result.put("diamondSwordDamage", Integer.toString(sword.isOf(Items.DIAMOND_SWORD) ? sword.getDamage() : -1));
         result.put("woodenPickaxeDamage", Integer.toString(pickaxe.isOf(Items.WOODEN_PICKAXE) ? pickaxe.getDamage() : -1));
         result.put("preparedThreatsCleared", Boolean.toString(!fixture.zombie.isAlive() && fixture.zombie.getHealth() <= 0.0F));
@@ -853,21 +1044,54 @@ final class VerificationApi {
             result.put("creeperRemoved", Boolean.toString(fixture.creeper.isRemoved()));
             result.put("creeperHealth", Float.toString(fixture.creeper.getHealth()));
             result.put("creeperDistanceSquared", Double.toString(fixture.creeper.squaredDistanceTo(player)));
-            boolean roofPresent = true, waterPresent = true, floorPresent = true;
-            for (int z = -3; z <= -1; z++) roofPresent &= world.getBlockState(new BlockPos(0, 65, z)).isOf(Blocks.BEDROCK);
-            for (int x = -2; x <= 2; x++) for (int z = -3; z <= 3; z++) {
-                BlockPos cell = new BlockPos(x, 63, z);
-                waterPresent &= world.getBlockState(cell).isOf(Blocks.WATER) && world.getFluidState(cell).isStill();
-                floorPresent &= world.getBlockState(new BlockPos(x, 62, z)).isOf(Blocks.BEDROCK);
+            if (fixture.creeperContact) {
+                boolean openPlatform = world.getBlockState(new BlockPos(2, 63, 0)).isOf(Blocks.BEDROCK)
+                    && world.getBlockState(new BlockPos(2, 64, 0)).isOf(Blocks.AIR)
+                    && world.getBlockState(new BlockPos(2, 65, 0)).isOf(Blocks.AIR)
+                    && world.getBlockState(new BlockPos(2, 66, 0)).isOf(Blocks.AIR);
+                result.put("creeperAiEnabled", Boolean.toString(!fixture.creeper.isAiDisabled()));
+                result.put("creeperTargetsPlayer", Boolean.toString(fixture.creeper.getTarget() == player));
+                result.put("creeperLastDamage", fixture.creeperContactLastDamage);
+                result.put("creeperLastDamageByPlayer", Boolean.toString(fixture.creeperContactLastDamageByPlayer));
+                result.put("creeperContactObservedServerTicks", Integer.toString(fixture.creeperContactObservedServerTicks));
+                result.put("creeperContactMinimumPlayerHealth", Float.toString(fixture.creeperContactMinimumPlayerHealth));
+                result.put("creeperContactPeakFuse", Float.toString(fixture.creeperContactPeakFuse));
+                result.put("creeperContactFuse", Float.toString(fixture.creeper.getClientFuseTime(1.0f)));
+                result.put("creeperContactFuseSpeed", Integer.toString(fixture.creeper.getFuseSpeed()));
+                result.put("creeperContactPlayerKillObserved", Boolean.toString(fixture.creeperContactPlayerKillObserved));
+                result.put("creeperContactExplosionObserved", Boolean.toString(fixture.creeperContactExplosionObserved));
+                boolean escaped = fixture.creeper.isAlive() && !fixture.creeper.isRemoved()
+                    && fixture.creeper.getHealth() == 20.0F && fixture.creeper.squaredDistanceTo(player) >= 144.0
+                    && fixture.creeper.getClientFuseTime(1.0f) <= 0.0F && fixture.creeper.getFuseSpeed() <= 0;
+                result.put("creeperContactOutcome", fixture.creeperContactPlayerKillObserved ? "player_kill"
+                    : fixture.creeperContactExplosionObserved ? "exploded" : escaped ? "escaped_alive" : "pending");
+                result.put("creeperContactControlShade", Boolean.toString(world.getBlockState(new BlockPos(20, 67, 20)).isOf(Blocks.BEDROCK)));
+                result.put("creeperContactClockFrozen", Boolean.toString(player.getServer().getTickManager().isFrozen()));
+                result.put("creeperContactClockReleaseServerTick", Integer.toString(fixture.creeperContactReleaseServerTick));
+                result.put("creeperContactOpenPlatform", Boolean.toString(openPlatform));
+                result.put("creeperContactPlayerHealth", Float.toString(player.getHealth()));
+                result.put("creeperContactPlayerAlive", Boolean.toString(player.isAlive()));
+                result.put("creeperContactPlayerDeaths", Integer.toString(player.getStatHandler().getStat(
+                    net.minecraft.stat.Stats.CUSTOM.getOrCreateStat(net.minecraft.stat.Stats.DEATHS))));
+                result.put("stoneSwordDamage", Integer.toString(player.getInventory().getStack(2).isOf(Items.STONE_SWORD)
+                    ? player.getInventory().getStack(2).getDamage() : -1));
+            } else {
+                boolean roofPresent = true, waterPresent = true, floorPresent = true;
+                for (int z = -3; z <= -1; z++) roofPresent &= world.getBlockState(new BlockPos(0, 65, z)).isOf(Blocks.BEDROCK);
+                for (int x = -2; x <= 2; x++) for (int z = -3; z <= 3; z++) {
+                    BlockPos cell = new BlockPos(x, 63, z);
+                    waterPresent &= world.getBlockState(cell).isOf(Blocks.WATER) && world.getFluidState(cell).isStill();
+                    floorPresent &= world.getBlockState(new BlockPos(x, 62, z)).isOf(Blocks.BEDROCK);
+                }
+                BlockPos feet = player.getBlockPos();
+                result.put("lowWaterRoofPresent", Boolean.toString(roofPresent));
+                result.put("waterSourceCellsPresent", Boolean.toString(waterPresent));
+                result.put("waterFloorPresent", Boolean.toString(floorPresent));
+                result.put("playerInWater", Boolean.toString(player.isTouchingWater()));
+                result.put("playerSupportBedrock", Boolean.toString(world.getBlockState(feet.down()).isOf(Blocks.BEDROCK)));
+                result.put("playerBodyCellsAir", Boolean.toString(world.getBlockState(feet).isOf(Blocks.AIR)
+                        && world.getBlockState(feet.up()).isOf(Blocks.AIR)));
             }
-            BlockPos feet = player.getBlockPos();
-            result.put("lowWaterRoofPresent", Boolean.toString(roofPresent));
-            result.put("waterSourceCellsPresent", Boolean.toString(waterPresent));
-            result.put("waterFloorPresent", Boolean.toString(floorPresent));
-            result.put("playerInWater", Boolean.toString(player.isTouchingWater()));
-            result.put("playerSupportBedrock", Boolean.toString(world.getBlockState(feet.down()).isOf(Blocks.BEDROCK)));
-            result.put("playerBodyCellsAir", Boolean.toString(world.getBlockState(feet).isOf(Blocks.AIR)
-                    && world.getBlockState(feet.up()).isOf(Blocks.AIR)));
         }
         appendContactThreatReceipt(result, player, fixture);
         return Map.copyOf(result);
@@ -879,15 +1103,27 @@ final class VerificationApi {
         private final CowEntity cow;
         private final float cowInitialHealth;
         private final CreeperEntity creeper;
+        private final boolean creeperContact;
+        private int creeperContactReleaseServerTick = -1;
+        private int creeperContactObservedServerTicks;
+        private float creeperContactMinimumPlayerHealth = 20.0F;
+        private float creeperContactLastHealth = 20.0F, creeperContactPeakFuse;
+        private String creeperContactLastDamage = "";
+        private boolean creeperContactLastDamageByPlayer, creeperContactPlayerKillObserved, creeperContactExplosionObserved;
 
         private PreparedSafetyThreatFixture(ZombieEntity zombie, CowEntity cow, float cowInitialHealth) {
             this(zombie, cow, cowInitialHealth, null);
         }
         private PreparedSafetyThreatFixture(ZombieEntity zombie, CowEntity cow, float cowInitialHealth, CreeperEntity creeper) {
+            this(zombie, cow, cowInitialHealth, creeper, false);
+        }
+        private PreparedSafetyThreatFixture(ZombieEntity zombie, CowEntity cow, float cowInitialHealth,
+                                            CreeperEntity creeper, boolean creeperContact) {
             this.zombie = zombie;
             this.cow = cow;
             this.cowInitialHealth = cowInitialHealth;
             this.creeper = creeper;
+            this.creeperContact = creeperContact;
         }
     }
     static PreparedSafetyStationRoomFixture seedPreparedSafetyStationRoomFixture(ServerPlayerEntity player, ServerWorld world) {

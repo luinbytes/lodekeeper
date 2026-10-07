@@ -180,6 +180,56 @@ public final class SettingsUiVerification {
             clickMessage("Discard");
             access.reloadConfig();
         });
+        add("shield-crafting-controls-save-reload-and-dependency", () -> {
+            require(Boolean.FALSE.equals(access.defaultValue("autoCraftShield")), "shield crafting default must be opt-in");
+            access.writeConfig("autoDefend", Boolean.TRUE);
+            access.writeConfig("autoUseShield", Boolean.TRUE);
+            access.writeConfig("autoCraftShield", Boolean.FALSE);
+            access.saveConfig();
+            access.reloadConfig();
+            access.openSettingsScreen();
+            search("autoCraftShield");
+            clickMessage("Filter");
+            clickSetting("autoCraftShield");
+            search("shieldIronReserve");
+            clickMessage("Filter");
+            click(settingWidget("shieldIronReserve"));
+            replaceFocusedText("19");
+            search("shieldPlankReserve");
+            clickMessage("Filter");
+            click(settingWidget("shieldPlankReserve"));
+            replaceFocusedText("37");
+            clickMessage("Save");
+            access.reloadConfig();
+            require(Boolean.TRUE.equals(access.readConfig("autoCraftShield"))
+                    && Integer.valueOf(19).equals(access.readConfig("shieldIronReserve"))
+                    && Integer.valueOf(37).equals(access.readConfig("shieldPlankReserve")),
+                    "custom shield crafting values did not survive native GUI save and reload");
+            access.openSettingsScreen();
+            search("autoUseShield");
+            clickMessage("Filter");
+            clickSetting("autoUseShield");
+            search("autoCraftShield");
+            clickMessage("Filter");
+            Widget craft = settingWidget("autoCraftShield");
+            require(!craft.active() && "On".equals(craft.message()), "disabled shield craft option lost its saved value");
+            search("shieldIronReserve");
+            clickMessage("Filter");
+            Widget iron = settingWidget("shieldIronReserve");
+            require(!iron.active() && "19".equals(iron.text()), "disabled iron floor lost its saved value");
+            search("shieldPlankReserve");
+            clickMessage("Filter");
+            Widget planks = settingWidget("shieldPlankReserve");
+            require(!planks.active() && "37".equals(planks.text()), "disabled plank floor lost its saved value");
+            clickMessage("Discard");
+            access.reloadConfig();
+            require(Boolean.TRUE.equals(access.readConfig("autoUseShield")), "discard changed saved shield use");
+            access.openSettingsScreen();
+            search("shield");
+            clickMessage("Filter");
+            captureHoldTicks = 2;
+            delayedCaptureLabel = "shield-options";
+        });
         add("invalid-number-refuses-save", () -> {
             Setting numeric = access.settings().stream()
                     .filter(s -> "DECIMAL".equals(s.type()))

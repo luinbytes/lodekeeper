@@ -364,6 +364,7 @@ final class NaturalWorldVerification {
         commandServerTick = observation.serverTick;
         commandStartedAtNanos = System.nanoTime();
         commandStarted = true;
+        client.inGameHud.getChatHud().addMessage(net.minecraft.text.Text.literal("[Verification] " + command));
         network.sendChatMessage(command);
         System.out.println("[Lodekeeper natural verification] Sent " + command + " at server tick " + commandServerTick);
     }
