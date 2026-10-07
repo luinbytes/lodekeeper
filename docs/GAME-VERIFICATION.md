@@ -146,6 +146,8 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 All nine shield modes pass on both 1.21.1 and 26.3 with the exact `ce3c967` production jars. The corrected runner at `fbd5261` handles variable JVM class-log decorators and keeps the original class-origin checks. Queued work reserves seven iron; worn shields block native damage and restore; occupied offhand stock is preserved. Manual takeover uses simulated native key-state injection. Keep the earlier failed receipts separate. Fresh modern queued and worn checks now save original scenario screenshots through the existing capture helper. The ten-step native settings GUI passes on both primary versions at `ce3c967`. The later retreat correction at `98a7856` passes live-creeper contact on both primary versions with full health, no explosion and more than sixteen blocks of final clearance. Breaking is disabled in that threat fixture; its retained table warning is expected. Verify actual station recovery separately with prepared safety mode `workbench` and runner flag `--require-station-cleanup`. Current shield and settings reruns remain pending. Run only one isolated client at a time.
 
+The `bf68249` matrix compiles all 24 exact profiles, but its fresh 1.21.1 natural full gear run fails during a cave threat response. A prior surface creeper retreat passes within that failed run. Its startup and partial creeper videos end before the final cave pause. Keep clip outcomes, complete-run outcomes, and partial recording errors separate. The following hazard-aware correction requires new native runs against its exact jars; earlier shield, GUI and isolated creeper passes do not verify it.
+
 For the `spare` mode, pass the verifier these full flags:
 
 ```text
