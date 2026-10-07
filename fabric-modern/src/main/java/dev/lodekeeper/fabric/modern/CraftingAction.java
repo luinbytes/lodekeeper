@@ -22,7 +22,11 @@ import java.util.Set;
 final class CraftingAction {
     private enum MovePurpose { OUTPUT, GRID_CONTENT }
 
-    private record Placement(int menuSlot, Item item, String budgetKey) {}
+    private record Placement(int menuSlot, int sourceSlot, Item item,
+                             net.minecraft.world.item.crafting.Ingredient predicate, ItemStack inputStack, String budgetKey) {
+        private Placement { inputStack = inputStack.copy(); }
+        @Override public ItemStack inputStack() { return inputStack.copy(); }
+    }
 
     private final Minecraft client;
     private final PlayerActions actions;
@@ -45,7 +49,7 @@ final class CraftingAction {
     private SlotTransfer transfer;
     private VerifiedQuickMove quickMove;
     private MovePurpose movePurpose;
-    private int placementIndex;
+    private int placementIndex, transferPlacementCount;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested;
 
     CraftingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
@@ -81,11 +85,20 @@ final class CraftingAction {
         if (transfer != null) {
             if (!transferStarted) { verifyShieldBudget(); transferStarted = true; }
             if (transfer.tick()) {
-                Placement placed = placements.get(placementIndex);
-                remainingMaterials.compute(placed.budgetKey(), (ignored, count) -> count - 1);
-                rememberOwnedGridContents(placed);
+                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                    Placement placed = placements.get(index);
+                    ItemStack gridStack = menu.getSlot(placed.menuSlot()).getItem();
+                    if (gridStack.getCount() != 1 || !same(gridStack, placed.inputStack()) || !placed.predicate().test(gridStack))
+                        throw new IllegalStateException("Crafting grid input changed or no longer matches the planned recipe; leaving the container open");
+                }
+                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                    Placement placed = placements.get(index);
+                    remainingMaterials.compute(placed.budgetKey(), (ignored, count) -> count - 1);
+                    rememberOwnedGridContents(placed);
+                }
                 transfer = null;
-                placementIndex++;
+                placementIndex += transferPlacementCount;
+                transferPlacementCount = 0;
             }
             if (transfer != null) return false;
         }
@@ -149,12 +162,42 @@ final class CraftingAction {
             return false;
         }
         Placement placement = placements.get(placementIndex);
-        int source = source(placement.item());
+        ItemStack currentInput = menu.getSlot(placement.sourceSlot()).getItem();
+        int groupSize = 1;
+        while (placementIndex + groupSize < placements.size()) {
+            Placement next = placements.get(placementIndex + groupSize);
+            if (next.sourceSlot() != placement.sourceSlot() || !same(next.inputStack(), placement.inputStack())) break;
+            groupSize++;
+        }
+        verifyPlacementInputs(groupSize, currentInput);
         verifyShieldBudget();
         transferStarted = true;
-        transfer = new SlotTransfer(client, menu, source, placement.menuSlot(), 1);
+        transferPlacementCount = groupSize;
+        if (groupSize > 1) {
+            int count = groupSize;
+            int[] destinations = new int[count];
+            for (int index = 0; index < count; index++) destinations[index] = placements.get(placementIndex + index).menuSlot();
+            transfer = new SlotTransfer(client, menu, placement.sourceSlot(), destinations, () -> {
+                verifyPlacementInputs(count, menu.getSlot(placement.sourceSlot()).getItem());
+                verifyShieldBudget();
+            }, () -> verifyPlacementInputs(count, menu.getCarried()));
+        } else {
+            transfer = new SlotTransfer(client, menu, placement.sourceSlot(), placement.menuSlot(), 1);
+        }
         transfer.tick();
         return false;
+    }
+
+    private void verifyPlacementInputs(int count, ItemStack currentInput) {
+        if (currentInput.getCount() < count || ordinaryInputsOnly() && !ordinary(currentInput))
+            throw new IllegalStateException("The selected inventory stack no longer matches the planned recipe input; no mismatching item was consumed");
+        for (int index = placementIndex; index < placementIndex + count; index++) {
+            Placement placement = placements.get(index);
+            if (currentInput.isEmpty() || !currentInput.is(placement.item()) || !same(currentInput, placement.inputStack())
+                    || !placement.predicate().test(currentInput) || !menu.getSlot(placement.menuSlot()).getItem().isEmpty()) {
+                throw new IllegalStateException("The selected inventory stack or crafting grid no longer matches the planned recipe input; no mismatching item was consumed");
+            }
+        }
     }
 
     private void initialize() {
@@ -194,6 +237,7 @@ final class CraftingAction {
             if (gridIndex < 0 || gridIndex >= craftingMenu.getInputGridSlots().size()) throw new IllegalStateException("Recipe does not fit the open grid");
             Item selected = null;
             String selectedKey = null;
+            AvailableInput selectedInput = null;
             for (SelectedItemRequirement requirement : step.requirements().stream()
                     .filter(SelectedItemRequirement.class::isInstance).map(SelectedItemRequirement.class::cast)
                     .filter(candidate -> candidate.purpose().equals("recipe ingredient") && candidate.recipeSlot() == input.recipeSlot()).toList()) {
@@ -201,17 +245,20 @@ final class CraftingAction {
                 String candidateKey = key(input.recipeSlot(), item);
                 long alreadyPlaced = placements.stream().filter(placement -> placement.budgetKey().equals(candidateKey)).count();
                 long alreadyPlacedForItem = placements.stream().filter(placement -> placement.item().equals(item)).count();
-                if (!input.ingredient().test(new ItemStack(item))
-                        || remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyPlaced
+                if (remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyPlaced
                         || actions.count(item) <= alreadyPlacedForItem) continue;
+                AvailableInput available = findAvailableInput(item, input.ingredient());
+                if (available == null) continue;
                 selected = item;
+                selectedInput = available;
                 selectedKey = candidateKey;
                 break;
             }
             if (selected == null) throw new IllegalStateException("Planned ingredient is missing or no longer matches the known recipe");
             Slot target = craftingMenu.getInputGridSlots().get(gridIndex);
             if (!target.getItem().isEmpty()) throw new IllegalStateException("Crafting grid changed during automation");
-            placements.add(new Placement(menu.slots.indexOf(target), selected, selectedKey));
+            placements.add(new Placement(menu.slots.indexOf(target), selectedInput.slotId(), selected,
+                    input.ingredient(), selectedInput.stack(), selectedKey));
         }
         if (placements.isEmpty()) throw new IllegalStateException("Known recipe has no placeable ingredients");
     }
@@ -246,14 +293,20 @@ final class CraftingAction {
         return true;
     }
 
-    private int source(Item item) {
+    private record AvailableInput(int slotId, ItemStack stack) {}
+
+    private AvailableInput findAvailableInput(Item item, net.minecraft.world.item.crafting.Ingredient predicate) {
         Inventory inventory = client.player.getInventory();
         for (int index = 0; index < menu.slots.size(); index++) {
             Slot slot = menu.getSlot(index);
-            if (slot.container == inventory && slot.getContainerSlot() < 36 && slot.getItem().is(item)
-                    && (!ordinaryInputsOnly() || ordinary(slot.getItem()))) return index;
+            ItemStack stack = slot.getItem();
+            if (slot.container != inventory || slot.getContainerSlot() >= 36 || stack.isEmpty() || !stack.is(item)
+                    || !predicate.test(stack) || ordinaryInputsOnly() && !ordinary(stack)) continue;
+            int sourceSlot = index;
+            long reserved = placements.stream().filter(placement -> placement.sourceSlot() == sourceSlot).count();
+            if (stack.getCount() > reserved) return new AvailableInput(index, stack.copyWithCount(1));
         }
-        throw new IllegalStateException("Missing ingredient " + GameCatalog.id(item));
+        return null;
     }
 
     private static String key(int recipeSlot, Item item) {

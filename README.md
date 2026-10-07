@@ -41,7 +41,7 @@ For large wood requests, try `!lk config optimizeWoodTools true`. This experimen
 
 Lodekeeper works backward from what you ask for. It identifies ingredients, gathers supplies, makes tools, uses crafting and cooking stations, then checks the finished item in your inventory. Preview 10 uses Baritone to calculate later path segments during movement. Lodekeeper waits for safe movement cancellation before taking control of inventory screens.
 
-`!lk project gear_diamond` requests five diamond tools and four armor pieces. Armor equips automatically. The Preview 10 preset passed one fresh world run on each primary version. Terrain and resource availability affect completion time.
+`!lk project gear_diamond` requests five diamond tools and four armor pieces. Armor equips automatically. Preview 10 passed one run in a new survival world on each primary version. The current source-owned Preview 11 candidate has not completed a full gear loadout in a natural survival world. Terrain and resource availability affect completion time.
 
 Counts are inventory targets. If you already have 20 logs, `!lk get wood 64` asks for 44 more. New requests join a queue. Use `!lk plan` to show the current plan or `!lk plan diamond_boots` to preview a goal before starting it.
 
@@ -65,7 +65,7 @@ Unknown recipes and unsupported mechanics report a blocker. Modded items using o
 
 Preview 11 is not released. Its source builds the licensed navigation kernel into Lodekeeper under `dev.lodekeeper.navigation.kernel`. It does not load a separate Baritone runtime.
 
-The source map routes 24 exact Minecraft profiles through 14 navigation source families. The shared core and navigation modules target Java 17. Each Fabric adapter targets the APIs for its exact profile. The source map does not prove support. An exact artifact must compile before we declare that version supported.
+The source map covers 24 exact Minecraft profiles across 14 navigation source families. The shared core and navigation modules target Java 17. Each Fabric adapter targets the APIs for its exact profile. A previous CI run passed [builds for all 24 profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37592201134). The latest completed [matrix at `c7c885f2`](https://github.com/luinbytes/lodekeeper/actions/runs/37597621889) passed 12 profiles and failed 12. Failures cover 1.21.5 through 1.21.11 and all five 26.x profiles. The API fixes are in source and await a new matrix. Do not treat the earlier run as a build of the current candidate. An exact artifact must compile before we declare that version supported.
 
 The 23 advanced navigation options are available in the settings GUI. Open it with Right Shift or `!lk config`. The settings screen suspends automation while it is open. Save applies the draft; Escape discards it. The `Protected plots` button opens the claim editor.
 
@@ -86,7 +86,11 @@ Protected claims block automated breaking and placing. Placement checks include 
 
 Optional backfill uses only surplus stone or cobblestone after other goals and reserves. It does not gather blocks just to restore the route.
 
-The current 26.3 candidate build completed one native iron run in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. The 1.20.1 navigation kernel compiles, but its adapter still needs a fix for the host preview API. Current primary version build and native gates remain open. CI for all 24 profiles and fresh world full loadout runs remain pending.
+The initial primary native check passed 9/9. A separate native GUI check passed 9/9 across the 1.21.1 and 26.3 adapters. All claim face, torch support, station preference, backfill, and station recovery checks also passed before the current inventory and shield changes. The nine shield modes and repeats with exact final jars remain pending. Two preliminary inventory benchmark pairs passed; the next old-baseline run stalled while making a wooden pickaxe. The repeated comparison is incomplete and makes no speed claim. The two latest goals in natural survival worlds failed before these changes. The current source-owned Preview 11 candidate has not completed a full gear loadout in a natural survival world.
+
+When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps the configured iron and plank reserves after planned recipes, goals, and other reservations. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The settings GUI labels these values `Iron ingots to keep` and `Planks to keep`.
+
+Shield defense preserves non-shield offhand items and uses a plain shield only when it has more than 100 durability remaining. A creeper always triggers immediate escape. That response does not wait for inventory or equipment changes and does not try to finish the creeper with melee. The fixture source has not passed a build or native run. See the [Preview 11 checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md) for current gates and the [verification guide](docs/GAME-VERIFICATION.md) for the pending fixture modes.
 
 ## Installation and compatibility
 
@@ -103,7 +107,7 @@ Each Preview 10 jar targets one exact release. The release includes all 24 decla
 <details>
 <summary><strong>Development, architecture, and verification</strong></summary>
 
-Source lives in `core` for acquisition and commands, `nav` for route views and earlier navigation models, and the Fabric adapters for Minecraft integration. Preview 11 uses the owned navigation kernel described above. Builds run with one worker and no persistent daemon. Set `JAVA_HOME` to the JDK required by the exact game profile. Development artifacts still need their exact build and native checks.
+Source lives in `core` for acquisition and commands, `nav` for route views and earlier navigation models, and the Fabric adapters for Minecraft integration. Preview 11 builds the owned navigation kernel described above into Lodekeeper. Builds run with one worker and no persistent daemon. Set `JAVA_HOME` to the JDK required by the exact game profile. Development artifacts still need their exact build and native checks.
 
 Preview 10 binaries come from source `852b72f177befc1b55771cee86076544f39c9f9b` and [its successful CI run across 24 profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017). The exact [1.21.1](docs/evidence/navigation-rebuild/checkpoint-14.json) and [26.3 fresh world receipts](docs/evidence/navigation-rebuild/checkpoint-15.json) confirm the complete loadout. Prepared workbench checks on both primary versions use the earlier `7ba8d375` source. Their supplies and geometry are declared in the evidence. Earlier failures remain in the [rebuild record](docs/NAVIGATION-REBUILD.md).
 

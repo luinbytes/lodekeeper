@@ -44,7 +44,7 @@ final class CraftingAction {
     private CompletableFuture<List<ItemStack>> remainderFuture;
     private List<ItemStack> remainderInputGrid;
     private MovePurpose movePurpose;
-    private int placementIndex;
+    private int placementIndex, transferPlacementCount;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested, remaindersResolved;
     private boolean outputMoveObserved, interruptedOutputDrain;
     private static final class StaleRecipeBeforeOutputClick extends RuntimeException {}
@@ -95,16 +95,22 @@ final class CraftingAction {
         if (transfer != null) {
             if (!transferStarted) { verifyShieldBudget(); transferStarted = true; }
             if (transfer.tick()) {
-                Placement placed = placements.get(placementIndex);
-                ItemStack gridStack = handler.getSlot(placed.gridSlot()).getStack();
-                if (gridStack.getCount() != 1 || !GameApi.canCombine(gridStack, placed.inputStack())
-                        || !placed.predicate().test(gridStack)) {
-                    throw new IllegalStateException("Crafting grid input changed or no longer matches the planned recipe; leaving the container open");
+                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                    Placement placed = placements.get(index);
+                    ItemStack gridStack = handler.getSlot(placed.gridSlot()).getStack();
+                    if (gridStack.getCount() != 1 || !GameApi.canCombine(gridStack, placed.inputStack())
+                            || !placed.predicate().test(gridStack)) {
+                        throw new IllegalStateException("Crafting grid input changed or no longer matches the planned recipe; leaving the container open");
+                    }
                 }
-                remainingMaterials.compute(placed.budgetKey, (key, count) -> count - 1);
-                rememberOwnedGridContents(placed.gridSlot(), gridStack);
+                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                    Placement placed = placements.get(index);
+                    remainingMaterials.compute(placed.budgetKey, (key, count) -> count - 1);
+                    rememberOwnedGridContents(placed.gridSlot(), handler.getSlot(placed.gridSlot()).getStack());
+                }
                 transfer = null;
-                placementIndex++;
+                placementIndex += transferPlacementCount;
+                transferPlacementCount = 0;
             }
             if (transfer != null) return false;
         }
@@ -215,15 +221,44 @@ final class CraftingAction {
         }
         Placement placement = placements.get(placementIndex);
         ItemStack currentInput = handler.getSlot(placement.sourceSlot()).getStack();
-        if (currentInput.isEmpty() || !currentInput.isOf(placement.item())
-                || !GameApi.canCombine(currentInput, placement.inputStack()) || !placement.predicate().test(currentInput)) {
-            throw new IllegalStateException("The selected inventory stack no longer matches the planned recipe input; no mismatching item was consumed");
+        int groupSize = 1;
+        while (placementIndex + groupSize < placements.size()) {
+            Placement next = placements.get(placementIndex + groupSize);
+            if (next.sourceSlot() != placement.sourceSlot() || !GameApi.canCombine(next.inputStack(), placement.inputStack())) break;
+            groupSize++;
         }
+        verifyPlacementInputs(groupSize, currentInput);
         verifyShieldBudget();
         transferStarted = true;
-        transfer = new SlotTransfer(client, handler, placement.sourceSlot(), placement.gridSlot(), 1);
+        transferPlacementCount = groupSize;
+        if (groupSize > 1) {
+            int count = groupSize;
+            int[] destinations = new int[count];
+            for (int index = 0; index < count; index++) destinations[index] = placements.get(placementIndex + index).gridSlot();
+            transfer = new SlotTransfer(client, handler, placement.sourceSlot(), destinations, () -> {
+                verifyPlacementInputs(count, handler.getSlot(placement.sourceSlot()).getStack());
+                verifyShieldBudget();
+            }, () -> verifyPlacementInputs(count, handler.getCursorStack()));
+        } else {
+            transfer = new SlotTransfer(client, handler, placement.sourceSlot(), placement.gridSlot(), 1);
+        }
         transfer.tick();
         return false;
+    }
+
+    private void verifyPlacementInputs(int count, ItemStack currentInput) {
+        if (!recipeCurrent.getAsBoolean())
+            throw new IllegalStateException("Recipe catalog changed before ingredient placement; leaving the grid open for safe recovery");
+        if (currentInput.getCount() < count || ordinaryInputsOnly() && !ordinary(currentInput))
+            throw new IllegalStateException("The selected inventory stack no longer matches the planned recipe input; no mismatching item was consumed");
+        for (int index = placementIndex; index < placementIndex + count; index++) {
+            Placement placement = placements.get(index);
+            if (currentInput.isEmpty() || !currentInput.isOf(placement.item())
+                    || !GameApi.canCombine(currentInput, placement.inputStack()) || !placement.predicate().test(currentInput)
+                    || !handler.getSlot(placement.gridSlot()).getStack().isEmpty()) {
+                throw new IllegalStateException("The selected inventory stack or crafting grid no longer matches the planned recipe input; no mismatching item was consumed");
+            }
+        }
     }
 
     private void initialize() {

@@ -7,7 +7,7 @@ import net.minecraft.screen.slot.Slot;
 import java.util.function.DoubleSupplier;
 
 final class SlotTransfer {
-    private enum Phase { PICKUP, PLACE, RETURN, COMPLETE }
+    private enum Phase { PICKUP, PLACE, DRAG, RETURN, COMPLETE }
     private static final int MAX_OBSERVATION_TICKS = 40;
     private final MinecraftClient client;
     private final ScreenHandler handler;
@@ -15,6 +15,11 @@ final class SlotTransfer {
     private final int source, destination;
     private final ItemStack expected;
     private final DoubleSupplier consumptionProgress;
+    private final int[] dragDestinations;
+    private final Runnable beforePickup, beforeDrag;
+    private final int[] craftingGridSlots;
+    private final ItemStack[] expectedCraftingGrid;
+    private long[] gridBefore;
     private int remaining, pendingAmount, beforeCursor, beforeDestination, sourceCount;
     private int receiptSlot, receiptSlotCount, receiptCursorCount, observations, outboundRevision;
     private long contentsBefore, cursorBefore, sourceBefore, destinationBefore;
@@ -28,6 +33,19 @@ final class SlotTransfer {
 
     SlotTransfer(MinecraftClient client, ScreenHandler handler, int source, int destination, int amount,
                  DoubleSupplier consumptionProgress) {
+        this(client, handler, source, destination, amount, consumptionProgress, null, null, null);
+    }
+
+    SlotTransfer(MinecraftClient client, ScreenHandler handler, int source, int[] destinations,
+                 Runnable beforePickup, Runnable beforeDrag) {
+        this(client, handler, source, destinations[0], destinations.length, null,
+                destinations, beforePickup, beforeDrag);
+        if (destinations.length < 2) throw new IllegalArgumentException("A crafting drag needs multiple destinations");
+    }
+
+    private SlotTransfer(MinecraftClient client, ScreenHandler handler, int source, int destination, int amount,
+                         DoubleSupplier consumptionProgress, int[] dragDestinations,
+                         Runnable beforePickup, Runnable beforeDrag) {
         this.client = client;
         this.handler = handler;
         this.player = client.player;
@@ -35,6 +53,34 @@ final class SlotTransfer {
         this.source = source;
         this.destination = destination;
         this.consumptionProgress = consumptionProgress;
+        this.dragDestinations = dragDestinations == null ? null : dragDestinations.clone();
+        this.beforePickup = beforePickup;
+        this.beforeDrag = beforeDrag;
+        if (dragDestinations != null) {
+            int gridSize;
+            if (handler instanceof net.minecraft.screen.CraftingScreenHandler) gridSize = 9;
+            else if (handler instanceof net.minecraft.screen.PlayerScreenHandler) gridSize = 4;
+            else throw new IllegalArgumentException("A crafting drag requires a native crafting grid");
+            craftingGridSlots = new int[gridSize];
+            expectedCraftingGrid = new ItemStack[gridSize];
+            for (int index = 0; index < gridSize; index++) {
+                craftingGridSlots[index] = index + 1;
+                expectedCraftingGrid[index] = handler.getSlot(index + 1).getStack().copy();
+            }
+            for (int index = 0; index < dragDestinations.length; index++) {
+                int slot = dragDestinations[index];
+                boolean gridSlot = false;
+                for (int candidate : craftingGridSlots) gridSlot |= candidate == slot;
+                if (!gridSlot || slot == source || !handler.getSlot(slot).getStack().isEmpty())
+                    throw new IllegalArgumentException("invalid crafting destination");
+                for (int previous = 0; previous < index; previous++) {
+                    if (dragDestinations[previous] == slot) throw new IllegalArgumentException("duplicate crafting destination");
+                }
+            }
+        } else {
+            craftingGridSlots = null;
+            expectedCraftingGrid = null;
+        }
         if (amount < 1 || amount > 64 || source == destination) throw new IllegalArgumentException("invalid transfer");
         remaining = amount;
         expected = handler.getSlot(source).getStack().copy();
@@ -46,6 +92,8 @@ final class SlotTransfer {
         if (pending != null && !observeClick()) return false;
         if (phase == Phase.COMPLETE) return true;
         if (phase == Phase.PICKUP) {
+            if (beforePickup != null) beforePickup.run();
+            requireCraftingGrid();
             if (!handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
             ItemStack stack = handler.getSlot(source).getStack();
             if (stack.isEmpty() || !GameApi.canCombine(stack, expected) || stack.getCount() < remaining)
@@ -70,6 +118,8 @@ final class SlotTransfer {
             beforeConsumptionProgress = consumptionProgress == null ? 0 : consumptionProgress.getAsDouble();
             click(destination, pendingAmount == remaining && pendingAmount == beforeCursor ? 0 : 1,
                     beforeDestination + pendingAmount, beforeCursor - pendingAmount);
+        } else if (phase == Phase.DRAG) {
+            drag();
         } else {
             returnCursor();
         }
@@ -78,7 +128,13 @@ final class SlotTransfer {
 
     private boolean observeClick() {
         OwnedClickReceipts.Receipt receipt = receipt();
-        if (receipt.lodekeeper$contentsSequence() <= contentsBefore || receipt.lodekeeper$cursorSequence() <= cursorBefore
+        boolean gridFresh = true;
+        if (craftingGridSlots != null) {
+            for (int index = 0; index < craftingGridSlots.length; index++) {
+                gridFresh &= receipt.lodekeeper$slotSequence(craftingGridSlots[index]) > gridBefore[index];
+            }
+        }
+        if (!gridFresh || receipt.lodekeeper$contentsSequence() <= contentsBefore || receipt.lodekeeper$cursorSequence() <= cursorBefore
                 || receipt.lodekeeper$slotSequence(source) <= sourceBefore
                 || receipt.lodekeeper$slotSequence(destination) <= destinationBefore
                 || receipt.lodekeeper$contentsRevision() == outboundRevision) {
@@ -98,7 +154,26 @@ final class SlotTransfer {
             failed = true;
             throw new IllegalStateException("Server rejected or modified the inventory transfer; leaving the container open");
         }
-        if (pending == Phase.PLACE) {
+        if (craftingGridSlots != null) {
+            for (int index = 0; index < craftingGridSlots.length; index++) {
+                int slot = craftingGridSlots[index];
+                ItemStack receivedGrid = receipt.lodekeeper$receivedSlot(slot);
+                if (!sameContents(receivedGrid, expectedCraftingGrid[index])
+                        || !sameContents(receivedGrid, handler.getSlot(slot).getStack())) {
+                    failed = true;
+                    throw new IllegalStateException("Server rejected or modified the crafting grid; leaving the container open");
+                }
+            }
+            if (!matchesCount(receipt.lodekeeper$receivedSlot(source), pending == Phase.RETURN ? receiptSlotCount : sourceCount)
+                    || !sameContents(receipt.lodekeeper$receivedSlot(source), handler.getSlot(source).getStack())) {
+                failed = true;
+                throw new IllegalStateException("Original inventory slot changed during crafting drag; leaving the container open");
+            }
+        }
+        if (pending == Phase.DRAG) {
+            remaining = 0;
+            phase = Phase.RETURN;
+        } else if (pending == Phase.PLACE) {
             if (!matchesCount(receipt.lodekeeper$receivedSlot(source), sourceCount)) {
                 failed = true;
                 throw new IllegalStateException("Original inventory slot changed during transfer; leaving the container open");
@@ -107,13 +182,34 @@ final class SlotTransfer {
             pendingAmount = 0;
             phase = remaining == 0 ? Phase.RETURN : Phase.PLACE;
         } else if (pending == Phase.PICKUP) {
-            phase = Phase.PLACE;
+            phase = dragDestinations == null ? Phase.PLACE : Phase.DRAG;
         } else {
             phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
         }
         pending = null;
         observations = 0;
         return true;
+    }
+
+    private void drag() {
+        ItemStack cursor = handler.getCursorStack();
+        if (cursor.isEmpty() || !GameApi.canCombine(cursor, expected) || cursor.getCount() < dragDestinations.length)
+            throw new IllegalStateException("Crafting drag cursor changed; leaving the container open");
+        requireSourceCount();
+        if (beforeDrag != null) beforeDrag.run();
+        requireCraftingGrid();
+        for (int slot : dragDestinations) {
+            Slot target = handler.getSlot(slot);
+            if (!target.getStack().isEmpty() || !target.canInsert(cursor) || target.getMaxItemCount(cursor) < 1)
+                throw new IllegalStateException("Crafting drag destination changed; leaving the container open");
+        }
+        prepareReceipt(source, sourceCount, cursor.getCount() - dragDestinations.length);
+        for (int index = 0; index < craftingGridSlots.length; index++) {
+            for (int slot : dragDestinations) {
+                if (craftingGridSlots[index] == slot) expectedCraftingGrid[index] = expected.copyWithCount(1);
+            }
+        }
+        OwnedClickReceipts.craftingDrag(client, handler.syncId, dragDestinations, client.player);
     }
 
     void recover() {
@@ -128,6 +224,7 @@ final class SlotTransfer {
     }
 
     private void returnCursor() {
+        requireCraftingGrid();
         ItemStack cursor = handler.getCursorStack();
         if (cursor.isEmpty()) {
             phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
@@ -139,6 +236,14 @@ final class SlotTransfer {
                 || handler.getSlot(source).getMaxItemCount(cursor) - existing.getCount() < cursor.getCount())
             throw new IllegalStateException("Original slot changed; return the held stack manually");
         click(source, 0, existing.getCount() + cursor.getCount(), 0);
+    }
+
+    private void requireCraftingGrid() {
+        if (craftingGridSlots == null) return;
+        for (int index = 0; index < craftingGridSlots.length; index++) {
+            if (!sameContents(expectedCraftingGrid[index], handler.getSlot(craftingGridSlots[index]).getStack()))
+                throw new IllegalStateException("Crafting grid changed during transfer; leaving the container open");
+        }
     }
 
     private void requireSourceCount() {
@@ -169,18 +274,27 @@ final class SlotTransfer {
     }
 
     private void click(int slot, int button, int expectedSlotCount, int expectedCursorCount) {
+        prepareReceipt(slot, expectedSlotCount, expectedCursorCount);
+        OwnedClickReceipts.cursorClick(client, handler.syncId, slot, button, client.player);
+    }
+
+    private void prepareReceipt(int slot, int expectedSlotCount, int expectedCursorCount) {
         if (pending != null) throw new IllegalStateException("An inventory click is already awaiting its receipt");
         OwnedClickReceipts.Receipt receipt = receipt();
         contentsBefore = receipt.lodekeeper$contentsSequence();
         cursorBefore = receipt.lodekeeper$cursorSequence();
         sourceBefore = receipt.lodekeeper$slotSequence(source);
         destinationBefore = receipt.lodekeeper$slotSequence(destination);
+        if (craftingGridSlots != null) {
+            gridBefore = new long[craftingGridSlots.length];
+            for (int index = 0; index < craftingGridSlots.length; index++)
+                gridBefore[index] = receipt.lodekeeper$slotSequence(craftingGridSlots[index]);
+        }
         outboundRevision = handler.getRevision();
         receiptSlot = slot;
         receiptSlotCount = expectedSlotCount;
         receiptCursorCount = expectedCursorCount;
         observations = 0;
         pending = phase;
-        OwnedClickReceipts.cursorClick(client, handler.syncId, slot, button, client.player);
     }
 }

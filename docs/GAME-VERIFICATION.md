@@ -142,6 +142,19 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 `-Dlodekeeper.verify.preparedSafety=workbench-blocked` encloses the owned table in twenty-six bedrock cells before the measured command. It must observe one bounded recovery attempt, an intact table and shell, one collected cobblestone and no repeated recovery. Both cases retain their declared setup inventory, server block receipts, natural client status transitions and screenshots. They do not establish fresh-world progression.
 
+## Shield behavior fixture
+
+The shield fixture supports 1.21.1 and 26.3. Its source is frozen but has not passed a build or native run. Do not report gameplay acceptance from the source alone. Run only one isolated client at a time after the verifier source compiles.
+
+For the `spare` mode, pass the verifier these full flags:
+
+```text
+--verify-flag lodekeeper.verify.baritone=true
+--verify-flag lodekeeper.verify.shieldScenario=spare
+```
+
+Select one `lodekeeper.verify.shieldScenario` mode per run: `default`, `off`, `spare`, `queued`, `iron_short`, `planks_short`, `worn`, `occupied`, or `manual`. These modes cannot be combined with another active verifier mode. Invalid or mixed flags stop before world creation.
+
 ## Preview screenshots and original gameplay recordings
 
 Each new preview must include representative screenshots and original gameplay videos as release assets. Capture the exact production jars staged for that release through the artifact verifier. Keep commands and the HUD visible. Name every capture with the Minecraft version, preview version, source commit, scenario and `PASS`, `FAIL` or `UNFINISHED` outcome. A capture manifest must record the full source commit, jar SHA-256, capture SHA-256, native receipt and short caption. Label supplied-stock fixtures separately from natural survival runs.

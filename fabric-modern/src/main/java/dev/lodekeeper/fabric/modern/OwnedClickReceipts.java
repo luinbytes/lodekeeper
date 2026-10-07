@@ -70,6 +70,18 @@ public final class OwnedClickReceipts {
         } finally { if (existing == null) CURRENT.remove(); }
     }
 
+    static void craftingDrag(net.minecraft.client.Minecraft client, int containerId,
+                             int[] destinations, net.minecraft.world.entity.player.Player player) {
+        inventoryClick(client, containerId, -999, net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(0, 1), net.minecraft.world.inventory.ContainerInput.QUICK_CRAFT, player);
+        for (int slot : destinations)
+            inventoryClick(client, containerId, slot, net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(1, 1), net.minecraft.world.inventory.ContainerInput.QUICK_CRAFT, player);
+        enter(containerId, false);
+        try {
+            CURRENT.get().cursorEcho = true;
+            inventoryClick(client, containerId, -999, net.minecraft.world.inventory.AbstractContainerMenu.getQuickcraftMask(2, 1), net.minecraft.world.inventory.ContainerInput.QUICK_CRAFT, player);
+        } finally { CURRENT.remove(); }
+    }
+
     static boolean inputTransfer(int containerId, BooleanSupplier operation) {
         enter(containerId, true);
         try { return operation.getAsBoolean(); } finally { CURRENT.remove(); }

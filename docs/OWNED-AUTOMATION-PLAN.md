@@ -22,6 +22,8 @@ Backfill uses confirmed break receipts and only spare stone or cobblestone after
 
 The settings GUI exposes 23 advanced navigation options through a settings lease limited to the current session. Right Shift and `!lk config` open the editor. It suspends automation while open and saves or discards a draft. The `Protected plots` button opens the claim editor.
 
+Shield use follows `autoDefend`. When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps planned recipe inputs, project goals, and other reservations before spending stock. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The GUI labels are `Iron ingots to keep` and `Planks to keep`. Defense preserves non-shield offhand items and uses a plain shield only with more than 100 durability remaining. A creeper always triggers immediate escape without waiting for inventory or equipment changes or switching to melee.
+
 Claim commands run on the client. `!lk claim pos1` and `!lk claim pos2` record the targeted block. They use the player block when no block is targeted. `!lk claim add <name> [preferred]` saves the 3D box.
 
 `!lk claim list` lists claims. `!lk claim remove <name>` removes a claim. `!lk claim prefer <name> <true|false>` sets station preference. `!lk claim clear` clears the pending corner selection.
@@ -30,15 +32,13 @@ Route, action, claim, station, and restoration views use bounded snapshots. The 
 
 ## Current evidence
 
-The current 26.3 candidate build completed one native iron run in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. This is selected iron task evidence, not a fresh world full loadout result.
+The earlier 26.3 candidate completed a native iron goal in 119 seconds. A station check after the snapshot fix recovered both bot-placed stations. These selected results predate the current inventory and shield changes. They do not establish a full gear loadout in a natural survival world. See the [Preview 11 checkpoint](OWNED-PREVIEW-CHECKPOINT.md) for the current CI and native gates.
 
-The exact 1.20.1 artifact and verification sources now compile and pass the host packaging checks. Native gameplay on that profile remains unverified.
-
-The current primary version build and native gates remain open. CI across all 24 profiles and fresh world full loadout runs remain pending. Preview 11 remains unreleased. Preview 10 is still available from its [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10).
+Preview 11 remains unreleased. Preview 10 is still available from its [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10).
 
 ## Remaining gates
 
-Compile each exact profile before declaring its Minecraft version supported. Run the native claim, torch support, station preference, station recovery, backfill, settings, and overlay checks against the current artifact. Then pass CI across the full profile matrix and run fresh world full loadout checks on the primary versions.
+Compile each exact profile before declaring its Minecraft version supported. Validate the source fixes for 1.21.5 through 1.21.11 and all five 26.x profiles, then pass CI across the full profile matrix. Repeat the primary native checks with the exact final jars, including all nine shield modes and the separate repeated inventory benchmark. Run full gear loadouts in new survival worlds on the primary versions.
 
 Review the final artifact recursively. It must keep the LGPL notices, exact source locks, modified corresponding source, and rebuild instructions. Do not call the candidate complete or publish it until those gates pass.
 

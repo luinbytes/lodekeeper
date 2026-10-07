@@ -2,13 +2,19 @@
 
 The target covers all stable Java releases from 1.20 through 26.3. This is a target, not a supported-version declaration. A successful compile is separate from a successful gameplay scenario. Never install a jar for a different game release. The exact 24-release dependency ledger and adapter boundaries are in [VERSION-MATRIX.md](VERSION-MATRIX.md).
 
-## Preview 10 release candidate
+## Preview 11 source candidate
+
+Preview 11 remains unreleased. The earlier [CI run for all 24 profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37592201134) passed. The latest completed [matrix at `c7c885f2`](https://github.com/luinbytes/lodekeeper/actions/runs/37597621889) passed 12 profiles and failed 12. Failures cover 1.21.5 through 1.21.11 and all five 26.x profiles. The API fixes are in source and await a new matrix. The earlier run does not prove the current candidate builds.
+
+The two latest goals in natural survival worlds failed before the current inventory and shield changes. The current source-owned Preview 11 candidate has not completed a full gear loadout in a natural survival world. Repeat the previous primary native checks with the exact final jars. The nine shield modes and the repeated inventory benchmark remain pending. See the [Preview 11 checkpoint](OWNED-PREVIEW-CHECKPOINT.md) for the current source and runtime status.
+
+## Preview 10 release
 
 Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. Exact metadata, JVM levels, nested Baritone pins, licences, refmaps and verifier exclusion were checked for every downloaded jar.
 
 The exact [1.21.1 jar passes a fresh normal-survival full diamond project](evidence/navigation-rebuild/checkpoint-14.json) in 719,372 ms (11 minutes 59 seconds), with all five tools and all four equipped armor pieces. The world starts empty without grants, cheats or a bonus chest. Final health is 20, minimum health 9.33 and no deaths occurred. First server movement is at 1,638 ms. The exact [26.3 jar also passes the full project](evidence/navigation-rebuild/checkpoint-15.json) in 573,306 ms (9 minutes 33 seconds), with minimum and final health 20, no deaths and first server movement after 238 ms.
 
-Prepared reachable and blocked workbench checks pass on both versions at the earlier `7ba8d375` source. Their source-specific receipts remain below. Full-catalog fuel selection still chose whole logs in the current 1.21.1 run. Other seeds, ordinary launchers, remote servers and all Minecraft mechanics remain separate acceptance gates. Historical rows describe their original artifacts.
+Prepared reachable and blocked workbench checks pass on both versions at the earlier `7ba8d375` source. Their source-specific receipts remain below. Full-catalog fuel selection still chose whole logs in the Preview 10 1.21.1 run. Other seeds, ordinary launchers, remote servers and all Minecraft mechanics remain separate acceptance gates. Historical rows describe their original artifacts.
 
 | Versions | JVM | Adapter build | Gameplay |
 | --- | --- | --- | --- |
@@ -27,7 +33,7 @@ Prepared reachable and blocked workbench checks pass on both versions at the ear
 | 26.2 | 25 | Exact local and CI development builds pass at `8aafbcf` | Pending |
 | 26.3 | 25 | Expanded development adapter, including automatic eating, compiles and packages; shared Java regressions pass | Exact Preview 10 full diamond project passes one fresh survival world in 9:33; older controlled checks retain their source scope |
 
-## Preview 8 navigation rebuild
+## Historical Preview 8 navigation rebuild
 
 Preview 8 uses source `6ca3e283cffc553a5885eaa5b9ff5bff1329541a` and version-matched bundled Baritone. [All 24 exact CI profiles pass](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). Each downloaded artifact has exact Minecraft metadata, the correct JVM level, pinned nested dependency bytes, licences and source notices. Earlier gameplay rows below retain their original source scope and do not certify the new backend on every version.
 
@@ -35,7 +41,7 @@ Prepared native checks pass water retreat on 1.21.1 and 26.3, plus selected 26.3
 
 The [normal-survival full diamond run](evidence/navigation-rebuild/checkpoint-07.json) fails its 15-minute target with all four armor pieces equipped and three of five diamond tools complete. Moving-animal pursuit and portable crafting supplies need further work. Ordinary-launcher, remote-server and broader version gameplay acceptance remain pending.
 
-Current development jars pass prepared native moving-animal pursuit and the repaired 64-log tool investment on 1.21.1 and 26.3. [Pursuit receipts](evidence/survival-safety/preview9-pursuit-1211/run.json) include server health, hunger, actual target movement, crafted output and stopped navigation. [Wood receipts](evidence/survival-safety/preview9-wood-tools-1211/run.json) include exact stock and axe wear. These working-tree candidates have not passed the fresh-world full diamond project.
+Later development jars passed prepared native moving-animal pursuit and the repaired 64-log tool investment on 1.21.1 and 26.3. [Pursuit receipts](evidence/survival-safety/preview9-pursuit-1211/run.json) include server health, hunger, actual target movement, crafted output and stopped navigation. [Wood receipts](evidence/survival-safety/preview9-wood-tools-1211/run.json) include exact stock and axe wear. Those working-tree candidates did not pass the fresh-world full diamond project.
 
 ## What a check proves
 
@@ -48,7 +54,7 @@ Current development jars pass prepared native moving-animal pursuit and the repa
 
 ## Known implementation limits
 
-The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Held-food eating is verified in the controlled 1.20.1, 1.21.1 and 26.3 fixtures. The historical custom navigator has collision-shape grounded stances in sixteenths; current releases use version-matched Baritone. Mixed slab/stair/path/farmland/snow courses with an integral one-block jump pass in controlled development-source runs on 1.21.1 and 26.3; other orientations, airborne fractional moves, vehicles, dimensions and specialty stations still require their own acceptance. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). No benchmark comparison is claimed yet.
+The legacy adapter has synchronized shaped/shapeless recipes, furnace recipes, ordinary mining sources and reusable owned stations. Held-food eating is verified in controlled 1.20.1, 1.21.1 and 26.3 fixtures. The historical custom navigator has collision-shape grounded stances in sixteenths. Preview 10 uses version-matched bundled Baritone. Preview 11 builds its licensed navigation kernel into Lodekeeper and does not load a separate Baritone runtime. Mixed slab/stair/path/farmland/snow courses with an integral one-block jump passed in controlled development-source runs on 1.21.1 and 26.3; other orientations, airborne fractional moves, vehicles, dimensions and specialty stations still require acceptance. The mechanic coverage plan is in [EXPERIENCE.md](EXPERIENCE.md). Preview 10's recorded completion times are not comparisons against another mod.
 
 Latest controlled 1.20.1 evidence: [nine-case server observations](evidence/1.20.1-progression/run.json), with per-case screenshots linked from the JSON. The 162,653 ms run started with an empty inventory on a deterministic resource pad; this is a controlled progression check, not a natural-world completion or comparative benchmark.
 

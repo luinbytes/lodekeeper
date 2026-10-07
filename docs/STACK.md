@@ -2,9 +2,9 @@
 
 ## Decisions
 
-**Lodekeeper** uses Java, Fabric Loader/Fabric API, Gradle with Fabric Loom, and Minecraft's own inventory/network interactions. No Baritone, Kotlin runtime, native library, remote AI service, or embedded database. Java 17 is the portable core baseline; adapters use the JVM required by their game version. MIT licence for original implementation.
+**Lodekeeper** uses Java, Fabric Loader/Fabric API, Gradle with Fabric Loom, and Minecraft's own inventory/network interactions. Preview 10 bundles version-matched Baritone. Preview 11 builds the licensed navigation kernel into Lodekeeper and does not load a separate Baritone runtime. Java 17 is the portable core baseline; adapters use the JVM required by their game version. Original implementation uses the MIT licence.
 
-Separate `core` (acquisition, catalog, commands), `nav` (incremental terrain search), and `fabric` (world discovery and tick execution). Minecraft integration is isolated because recipe, item component, input and rendering APIs change between releases. A binary may only declare versions for which it was compiled and validated. The current official release manifest says 26.3; snapshots are excluded from stable support.
+Separate `core` (acquisition, catalog, commands), `nav` (route views and earlier navigation models), and Fabric adapters (world discovery and tick execution). Minecraft integration is isolated because recipe, item component, input and rendering APIs change between releases. A version can be declared supported only after its exact artifact compiles. Runtime acceptance has a separate status. The current official release manifest says 26.3; snapshots are excluded from stable support. The Preview 11 source map covers 24 exact profiles across 14 navigation source families.
 
 ## Algorithms and budgets
 
@@ -18,11 +18,10 @@ Separate `core` (acquisition, catalog, commands), `nav` (incremental terrain sea
 ## Milestones
 
 1. Research API families and document stack (this plan).
-2. Pure core and navigation implementation with direct temporary harness verification; no new repository tests without approval.
-3. First real adapter and build: 1.20.1. Dogfood log gathering, tool chain and crafting; fix review findings.
-4. Build each remaining stable release separately, including recipe-display and unobfuscated families. Record compile and runtime status separately.
-5. Expand mechanics through explicit providers: farming, mob drops/combat, fishing, trading, dimensions, structures and custom machine contracts. Coverage audit must expose gaps.
-6. Independent review, public source and artifacts, installation guide, runtime evidence and user acceptance.
+2. The Java 17 core and navigation modules were implemented and checked through development harnesses. No new repository tests are added without approval.
+3. Adapter work expanded from 1.20.1 to 24 exact profiles across 14 source families. The current Preview 11 matrix and remaining native gates are listed in the [owned automation checkpoint](OWNED-PREVIEW-CHECKPOINT.md).
+4. The Preview 10 release has public source, jars, installation guidance, and selected native evidence. Preview 11 remains unreleased until its current matrix and gameplay gates pass.
+5. Farming, fishing, trading, dimension travel, structures, and custom machine contracts remain in the coverage ledger.
 
 ## Evidence and research boundaries
 

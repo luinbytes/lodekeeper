@@ -1,6 +1,6 @@
 # Exact release coordinates
 
-Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on 2026-10-05. These are source-family candidates and published dependency coordinates, **not compatibility declarations**. Build and gameplay evidence remain in [COMPATIBILITY.md](COMPATIBILITY.md).
+Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on 2026-10-05. These are source-family candidates and published dependency coordinates, **not compatibility declarations**. Build and gameplay evidence remain separate in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 | Minecraft | JDK | Candidate adapter family | Latest Yarn mapping | Latest matching Fabric API |
 | --- | --- | --- | --- | --- |
@@ -16,18 +16,18 @@ Checked against the official Minecraft manifest, Fabric Meta and Fabric Maven on
 | 1.21.2 | 21 | 1212 (source implemented; build pending) | 1.21.2+build.1 | 0.106.1+1.21.2 |
 | 1.21.3 | 21 | 1212 (source implemented; build pending) | 1.21.3+build.2 | 0.114.1+1.21.3 |
 | 1.21.4 | 21 | 1212 (source implemented; build pending) | 1.21.4+build.8 | 0.119.4+1.21.4 |
-| 1.21.5 | 21 | 1212 (source implemented; build pending) | 1.21.5+build.1 | 0.128.2+1.21.5 |
-| 1.21.6 | 21 | 1212 (source implemented; build pending) | 1.21.6+build.1 | 0.128.2+1.21.6 |
-| 1.21.7 | 21 | 1212 (source implemented; build pending) | 1.21.7+build.8 | 0.129.0+1.21.7 |
-| 1.21.8 | 21 | 1212 (source implemented; build pending) | 1.21.8+build.1 | 0.136.1+1.21.8 |
-| 1.21.9 | 21 | 1212 (source implemented; build pending) | 1.21.9+build.1 | 0.134.1+1.21.9 |
-| 1.21.10 | 21 | 1212 (source implemented; build pending) | 1.21.10+build.3 | 0.138.4+1.21.10 |
-| 1.21.11 | 21 | 1212 (source implemented; build pending) | 1.21.11+build.6 | 0.141.6+1.21.11 |
-| 26.1 | 25 | modern candidate | none | 0.145.1+26.1 |
-| 26.1.1 | 25 | modern candidate | none | 0.145.4+26.1.1 |
-| 26.1.2 | 25 | modern candidate | none | 0.155.3+26.1.2 |
-| 26.2 | 25 | modern candidate | none | 0.161.0+26.2 |
-| 26.3 | 25 | modern | none | 0.161.0+26.3 |
+| 1.21.5 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.5+build.1 | 0.128.2+1.21.5 |
+| 1.21.6 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.6+build.1 | 0.128.2+1.21.6 |
+| 1.21.7 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.7+build.8 | 0.129.0+1.21.7 |
+| 1.21.8 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.8+build.1 | 0.136.1+1.21.8 |
+| 1.21.9 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.9+build.1 | 0.134.1+1.21.9 |
+| 1.21.10 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.10+build.3 | 0.138.4+1.21.10 |
+| 1.21.11 | 21 | 1212 (matrix at c7c885f2 failed; source fix pending CI) | 1.21.11+build.6 | 0.141.6+1.21.11 |
+| 26.1 | 25 | modern (matrix at c7c885f2 failed; source fix pending CI) | none | 0.145.1+26.1 |
+| 26.1.1 | 25 | modern (matrix at c7c885f2 failed; source fix pending CI) | none | 0.145.4+26.1.1 |
+| 26.1.2 | 25 | modern (matrix at c7c885f2 failed; source fix pending CI) | none | 0.155.3+26.1.2 |
+| 26.2 | 25 | modern (matrix at c7c885f2 failed; source fix pending CI) | none | 0.161.0+26.2 |
+| 26.3 | 25 | modern (matrix at c7c885f2 failed; source fix pending CI) | none | 0.161.0+26.3 |
 
 The build selector implements the legacy, 1202, 1211, 1212, and modern profile candidates. The 1212 source family covers 1.21.2–1.21.11 with input overlays for the 1.21.2–1.21.3, 1.21.4, and 1.21.5+ API shapes. The modern selector shares one API overlay across 26.1, 26.1.1, and 26.1.2, then uses separate 26.2 and 26.3 overlays for their known API changes. These are source and dependency candidates until each exact artifact compiles. The validated 1.21.1 profile deliberately pins Fabric API `0.110.0+1.21.1`; updating it to the newer coordinate above requires another check. Loader is pinned to `0.19.5`. Loom is pinned per build family (1.6.12, 1.8.13, or 1.17.21), rather than upgraded implicitly with each game target.
 

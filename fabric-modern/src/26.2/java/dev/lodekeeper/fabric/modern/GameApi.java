@@ -61,11 +61,6 @@ final class GameApi {
                 || mob.getTarget() != null || mob.getLightLevelDependentMagicValue() < 0.5f;
     }
 
-    static double defenseCreeperFuseProgress(net.minecraft.world.entity.Mob mob) {
-        return mob instanceof net.minecraft.world.entity.monster.Creeper creeper
-                ? creeper.getSwelling(1.0f) : Double.NaN;
-    }
-
     static void attackAirborneForDefense(Minecraft client, net.minecraft.world.entity.Entity target) {
         var player = client.player;
         if (player == null || client.gameMode == null || player.onGround())

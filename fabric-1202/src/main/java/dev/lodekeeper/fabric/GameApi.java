@@ -75,11 +75,6 @@ final class GameApi {
                 || mob.getTarget() != null || mob.getBrightnessAtEyes() < 0.5f;
     }
 
-    static double defenseCreeperFuseProgress(net.minecraft.entity.mob.MobEntity mob) {
-        return mob instanceof net.minecraft.entity.mob.CreeperEntity creeper
-                ? creeper.getClientFuseTime(1.0f) : Double.NaN;
-    }
-
     static void attackAirborneForDefense(MinecraftClient client, net.minecraft.entity.Entity target) {
         var player = client.player;
         if (player == null || client.interactionManager == null || player.isOnGround())

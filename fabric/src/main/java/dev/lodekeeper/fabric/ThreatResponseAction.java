@@ -127,8 +127,7 @@ final class ThreatResponseAction {
             List<MobEntity> threats = remainingThreats();
             if (useShield && (phase == Phase.STOPPING || phase == Phase.FINISHING)
                     && GameApi.ordinaryShield(client.player.getOffHandStack())) {
-                MobEntity urgent = threats.stream().filter(ThreatResponseAction::creeper)
-                        .filter(mob -> GameApi.defenseCreeperFuseProgress(mob) >= 0.5).findFirst().orElse(null);
+                MobEntity urgent = threats.stream().filter(ThreatResponseAction::creeper).findFirst().orElse(null);
                 if (urgent != null && shield.prepare(protection)) {
                     actions.look(urgent.getBoundingBox().getCenter());
                     shield.block();

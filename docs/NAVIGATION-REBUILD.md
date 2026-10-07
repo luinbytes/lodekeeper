@@ -1,12 +1,12 @@
 # Navigation and survival rebuild
 
-The current release candidate is Preview 8 at `6ca3e283cffc553a5885eaa5b9ff5bff1329541a`. [All 24 exact builds pass](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896). The full fresh-world diamond benchmark remains unpassed.
+This record began as a Preview 8 navigation rebuild plan. Its initial source, `6ca3e283cffc553a5885eaa5b9ff5bff1329541a`, passed [all 24 exact builds](https://github.com/luinbytes/lodekeeper/actions/runs/37435670896), but its full fresh-world diamond benchmark had not passed. Preview 10 later became the published release. The current Preview 11 source and acceptance gates are in the [development checkpoint](OWNED-PREVIEW-CHECKPOINT.md).
 
-The current prepared-world checks did not cover the repeated departure failures and elevated drops seen in a natural village. Lu authorized replacing navigation with Baritone on 2026-10-06, followed by AltoClef routines where they improve survival automation. This supersedes the original independent-navigation restriction.
+At the start of this rebuild, prepared-world checks did not cover the repeated departure failures and elevated drops seen in a natural village. Lu authorized replacing navigation with Baritone on 2026-10-06, followed by AltoClef routines where they improve survival automation. This superseded the original independent-navigation restriction.
 
 The working period ends at 2026-10-06 15:03 UTC. The acceptance benchmark is one command in a new normal survival world, starting without items, obtaining all five diamond tools and all four armor pieces. This needs 35 diamonds. Command time and world startup time are recorded separately. The target is 10–15 minutes; success on one seed does not guarantee that time on every seed.
 
-## Stack and ownership
+## Original stack and ownership plan
 
 Use the official, version-matched Baritone API Fabric binary as the first movement and mining base. It already calculates later path segments during movement. Lodekeeper owns the goal queue, dependency planning, exact inventory receipts, station transactions, configuration and task UI. AltoClef's resource and survival routines will be assessed and ported with their original license notices where useful. Its old Minecraft interfaces need adaptation before use.
 
@@ -22,7 +22,7 @@ Building uses only unreserved stock. A type whitelist cannot enforce a protected
 
 Replacing just the old A* queue would retain expensive native geometry and the planner/executor interaction mismatch. Repeated source retries would still recreate the same failed departure.
 
-Porting all of AltoClef's Minecraft 1.18 runtime first would require a broad game API migration before proving movement. The chosen path establishes the current Baritone base, keeps the already tested native crafting transactions, then ports survival routines in verified units.
+Porting all of AltoClef's Minecraft 1.18 runtime first would require a broad game API migration before proving movement. The original plan used the then-current Baritone base, kept the already tested native crafting transactions, then ported survival routines in verified units.
 
 ## Verification sequence
 
@@ -168,9 +168,9 @@ The next fresh-world repeat was stopped after a food hunt spent sixty seconds pu
 
 ## User trace and exact release candidate
 
-The [user's cobblestone trace](evidence/navigation-rebuild/user-cobblestone-stall-2026-10-06/assessment.json) records 125,745 ms to acquire one block. The old custom navigator searched for an oak log until its first 61-second gathering timeout, then repeatedly restarted the stone approach. The excerpt omits the installed jar version. Its `search_cpu_ms` and sixteenth-height fields identify the custom navigator; the current production backend emits `backend=baritone` events.
+The [user's cobblestone trace](evidence/navigation-rebuild/user-cobblestone-stall-2026-10-06/assessment.json) records 125,745 ms to acquire one block. The old custom navigator searched for an oak log until its first 61-second gathering timeout, then repeatedly restarted the stone approach. The excerpt omits the installed jar version. Its `search_cpu_ms` and sixteenth-height fields identify the custom navigator; Preview 10 emits `backend=baritone` events.
 
-Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact CI builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. The frozen local 1.21.1 and 26.3 jars match their downloaded CI jars byte for byte. The current native full-project run still selected two whole logs for iron fuel, despite the focused conversion test passing. The full-catalog fuel choice remains an efficiency defect; the release does not claim that it eliminates the late wood resupply.
+Source `852b72f177befc1b55771cee86076544f39c9f9b` passes [all 24 exact CI builds](https://github.com/luinbytes/lodekeeper/actions/runs/37478984017) and 195 core/navigation regressions. The frozen local 1.21.1 and 26.3 jars match their downloaded CI jars byte for byte. The Preview 10 native full-project run still selected two whole logs for iron fuel, despite the focused conversion test passing. The full-catalog fuel choice remains an efficiency defect; the release does not claim that it eliminates the late wood resupply.
 
 
 ## Exact Preview 10, 1.21.1

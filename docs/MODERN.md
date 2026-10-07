@@ -1,6 +1,6 @@
 # Minecraft 26.3 Fabric build
 
-This artifact targets **Minecraft 26.3 exactly**, uses Java 25, and includes Lodekeeper's shared acquisition planner and independent navigation engine. Install the matching build only with Fabric Loader and Fabric API for 26.3.
+This adapter targets **Minecraft 26.3 exactly** and uses Java 25. Preview 10 bundles the matching Baritone runtime. Preview 11 is an unreleased candidate that includes the shared acquisition planner and licensed owned navigation kernel without a separate Baritone runtime. Install only a jar built for Fabric Loader and Fabric API for 26.3.
 
 With Java 25 installed and selected through `JAVA_HOME`, build this adapter with:
 
@@ -10,9 +10,9 @@ With Java 25 installed and selected through `JAVA_HOME`, build this adapter with
 
 Use client chat commands with the configured prefix (default `!lk `), for example `!lk get minecraft:oak_log 64`. Prefix commands are intercepted locally and never sent to the server. Other useful commands include `!lk plan diamond_boots`, `!lk projects`, `!lk project gear_iron`, `!lk maintain minecraft:torch 32`, `!lk maintained`, `!lk unmaintain minecraft:torch`, `!lk queue`, `!lk pause`, and `!lk stop`. Maintained targets refill after stock falls below half of the target; `stop` clears them, while `clear` only clears foreground goals. A foreground goal temporarily takes priority over maintenance.
 
-The adapter only acts through the connected player's normal survival interaction and container protocols. It reads loaded chunks only; unexplored or unloaded terrain is treated as blocked. Route searches, world scans, and planning work use bounded budgets. No Baritone or AltoClef code is used.
+The adapter only acts through the connected player's normal survival interaction and container protocols. It reads loaded chunks only; unexplored or unloaded terrain is treated as blocked. Route searches, world scans, and planning work use bounded budgets. Preview 11's owned kernel contains licensed Baritone-derived source. It does not load a separate Baritone runtime.
 
-Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. The 26.3 implementation compiles and has passed source review; isolated gameplay verification is pending.
+Automatic eating is enabled by default and can be switched with `!lk config autoEat false` (or `true`). When hunger is at least six points below full, Lodekeeper may pause a non-container goal, eat a familiar vanilla food, and replan from the updated inventory. It only considers an explicit ordinary-food allowlist and rejects any consume effects except sound; it will not use suspicious stew, effect foods, or modded foods. It waits for a safe stance with no screen or open container, an empty cursor, and no item already being used. Earlier controlled 26.3 checks passed eating. Repeat gameplay verification with the exact current candidate jar.
 
 Modded item names are resolved from registered items, including namespaced IDs and available aliases. Recipe automation uses the integrated world's live recipes in single-player, or only the recipe displays the remote server has revealed to the client. Custom loot tables cannot be inferred from block and item registries. To teach a verified one-item block drop, create `config/lodekeeper-sources.json`:
 
