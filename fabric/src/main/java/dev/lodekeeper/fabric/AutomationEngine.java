@@ -74,10 +74,21 @@ final class AutomationEngine {
     private enum LocalReachPurpose { LOG_CHOICE, RECIPE_WOOD, GATHER }
 
     private record PlanningOutcome(PlanResult result, boolean explorationProven, boolean auxiliaryInvestment,
-                                   PlanStep unbatchedGather) {
+                                   PlanStep unbatchedGather, ShieldPlanningIdentity shieldIdentity) {
         PlanningOutcome(PlanResult result, boolean explorationProven, boolean auxiliaryInvestment) {
-            this(result, explorationProven, auxiliaryInvestment, null);
+            this(result, explorationProven, auxiliaryInvestment, null, null);
         }
+    }
+    private record PendingGoals(Map<ItemId, Integer> targets, boolean unresolvedLogs) {
+        PendingGoals { targets = Map.copyOf(targets); }
+    }
+    private record ShieldOptions(boolean autoDefend, boolean autoUseShield, boolean autoCraftShield,
+                                 boolean allowBreaking, boolean allowBuilding, int ironFloor, int plankFloor) { }
+    private record ShieldPlanningIdentity(long jobToken, PendingGoals goals, Object world, Object dimension,
+                                          java.util.Optional<OwnedStationLedger.Session> session,
+                                          long catalogGeneration, long preferencesVersion, ShieldOptions options,
+                                          Set<String> unavailableSources) {
+        ShieldPlanningIdentity { unavailableSources = Set.copyOf(unavailableSources); }
     }
     private record GatherLimit(ItemId output, int localPositions) { }
     private record LocalLogEvidence(Map<String, GatherLimit> sources, Set<ItemId> outputs,
@@ -86,9 +97,10 @@ final class AutomationEngine {
                                 HarvestInvestment.ToolDemand demand, Map<String, GatherLimit> localSources,
                                 Set<ItemId> localOutputs, Set<ItemId> goalLogItems, Set<String> nativeCraftSources,
                                 Set<String> allowedAxeCraftSources, HarvestInvestment.TickEstimates estimates) { }
-    private record ShieldPreparationOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
-                                          InventorySnapshot knownInventory, Set<ItemId> planks,
-                                          int ironFloor, int plankFloor, boolean canPlaceStations) { }
+    private record ShieldPreparationOffer(CatalogSnapshot catalog, InventorySnapshot knownInventory, Set<ItemId> planks,
+                                          int ironFloor, int plankFloor, boolean canPlaceStations,
+                                          CatalogSnapshot workCatalog, InventorySnapshot workInventory,
+                                          ProjectSpec pendingProject, ShieldPlanningIdentity identity) { }
     private record CombatPreparationOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
                                           InventorySnapshot knownInventory, boolean canPlaceStations) { }
 
@@ -280,6 +292,8 @@ final class AutomationEngine {
     private long stepCatalogGeneration;
     private PlanStep step;
     private boolean stepAuxiliaryInvestment;
+    private ShieldPlanningIdentity stepShieldIdentity;
+    private boolean deferShieldPreparation;
     private BlockSearch scan;
     private BlockSearch logScan;
     private LocalReachScan localLogReachScan, localIngredientWoodReachScan, localGatherReachScan;
@@ -582,6 +596,13 @@ final class AutomationEngine {
             if (pendingPlan != null && (pendingPlan.isDone() || !pendingPreferencePlan || step == null)) {
                 if (!pendingPlan.isDone()) return;
                 PlanningOutcome outcome = pendingPlan.join();
+                if (outcome.shieldIdentity() != null && !shieldIdentityCurrent(outcome.shieldIdentity())) {
+                    deferShieldPreparation = true;
+                    pendingPlan = null;
+                    pendingPreferencePlan = false;
+                    requestPlan();
+                    return;
+                }
                 if (pendingPreferencePlan && step != null) {
                     pendingPlan = null;
                     pendingPreferencePlan = false;
@@ -634,7 +655,7 @@ final class AutomationEngine {
                         requestPlan();
                         return;
                     }
-                    begin(first, resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion);
+                    begin(first, resultGeneration, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion, outcome.shieldIdentity());
                 }
             }
             if (step == null) return;
@@ -647,6 +668,16 @@ final class AutomationEngine {
                 resetAction();
                 requestPlan();
                 return;
+            }
+            if (!shieldStepCurrent()) {
+                deferShieldPreparation = true;
+                if (crafting != null) crafting.requestDrain();
+                else if (stationPlacementWait == null || !stationPlacementWait.sent()) {
+                    if (openingStation && !stationReady()) return;
+                    resetAction();
+                    requestPlan();
+                    return;
+                }
             }
             if (isFoodPreparation(step) && !config.autoEat) {
                 if (transactionInProgress()) requestActiveTransactionDrain();
@@ -1499,17 +1530,17 @@ final class AutomationEngine {
                                 PlannerLimits.DEFAULT, preferences, gatherCapacity.getOrDefault(steps.get(0).output(), 0)));
                     PlanResult basePlan = new PlanResult(targetItem, targetCount, steps, List.of(),
                             joint.optimal(), joint.expandedNodes(), joint.elapsedNanos());
-                    PlanningOutcome shieldPreparation = shieldPreparationOutcome(basePlan, joint, shieldOffer, preferences);
+                    PlanningOutcome shieldPreparation = shieldPreparationOutcome(basePlan, shieldOffer, preferences);
                     if (shieldPreparation != null) return shieldPreparation;
                     PlanningOutcome combatPreparation = combatPreparationOutcome(basePlan, joint, combatOffer, preferences);
                     if (combatPreparation != null) return combatPreparation;
-                    return new PlanningOutcome(basePlan, false, false, steps.get(0) == first ? null : first);
+                    return new PlanningOutcome(basePlan, false, false, steps.get(0) == first ? null : first, null);
                 }
             }
             PlanResult filteredPlan = planWithStationFallback(filteredSnapshot, inventory, knownInventory,
                     targetItem, targetCount, preferences);
             if (filteredPlan.success() && (joint == null || joint.success())) {
-                PlanningOutcome shieldPreparation = shieldPreparationOutcome(filteredPlan, joint, shieldOffer, preferences);
+                PlanningOutcome shieldPreparation = shieldPreparationOutcome(filteredPlan, shieldOffer, preferences);
                 if (shieldPreparation != null) return shieldPreparation;
                 PlanningOutcome combatPreparation = combatPreparationOutcome(filteredPlan, joint, combatOffer, preferences);
                 if (combatPreparation != null) return combatPreparation;
@@ -1554,6 +1585,10 @@ final class AutomationEngine {
     private ShieldPreparationOffer captureShieldPreparationOffer(CatalogSnapshot snapshot,
                                                                 InventorySnapshot inventory,
                                                                 InventorySnapshot knownInventory) {
+        if (deferShieldPreparation) {
+            deferShieldPreparation = false;
+            return null;
+        }
         if (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield || client.player == null
                 || !client.player.isAlive() || client.player.getAbilities().creativeMode || client.player.isSpectator()
                 || !client.player.getOffHandStack().isEmpty() || gatherCapacity(ItemId.parse("minecraft:shield")) < 1)
@@ -1585,27 +1620,29 @@ final class AutomationEngine {
         foodReservations().forEach((item, count) -> reserved.merge(item, count, Math::max));
         reserved.replaceAll((item, count) -> Math.min(count, ordinary.getOrDefault(item, 0)));
         reserved.values().removeIf(count -> count == 0);
-        InventorySnapshot stock = new InventorySnapshot(ordinary, inventory.availableStations(), Map.of(), reserved);
         InventorySnapshot known = new InventorySnapshot(ordinary, knownInventory.availableStations(), Map.of(), reserved);
-        return new ShieldPreparationOffer(builder.build(), stock, known, planks,
-                config.shieldIronReserve, config.shieldPlankReserve, config.allowBuilding);
+        ShieldPlanningIdentity identity = shieldPlanningIdentity();
+        if (identity.goals().unresolvedLogs() || identity.goals().targets().size() > ProjectSpec.MAX_GOALS) return null;
+        ProjectSpec pendingProject = remainingProject(new ProjectSpec("pending_goals", "Pending inventory targets",
+                identity.goals().targets(), ProjectSpec.Purpose.INVENTORY_GOALS), inventory);
+        if (pendingProject == null) return null;
+        return new ShieldPreparationOffer(builder.build(), known, planks,
+                config.shieldIronReserve, config.shieldPlankReserve, config.allowBuilding,
+                snapshot, knownInventory, pendingProject, identity);
     }
 
-    private PlanningOutcome shieldPreparationOutcome(PlanResult basePlan, ProjectPlanResult project,
-                                                     ShieldPreparationOffer offer, PlanningPreferences preferences) {
+    private PlanningOutcome shieldPreparationOutcome(PlanResult basePlan, ShieldPreparationOffer offer,
+                                                     PlanningPreferences preferences) {
         if (offer == null || !basePlan.success() || basePlan.steps().isEmpty()) return null;
         try {
-            InventorySnapshot reserved = project == null
-                    ? ProjectMaterialReservations.protectOptionalWork(offer.inventory(), basePlan)
-                    : ProjectMaterialReservations.protectOptionalWork(offer.inventory(), project);
-            InventorySnapshot knownReserved = project == null
-                    ? ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), basePlan)
-                    : ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), project);
+            ProjectPlanResult pending = planner.planProjectFast(offer.workCatalog(), offer.workInventory(),
+                    offer.pendingProject(), PlannerLimits.DEFAULT, preferences);
+            if (!pending.success()) return null;
+            InventorySnapshot reserved = ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), pending);
             InventorySnapshot stock = shieldFloorInventory(reserved, offer);
-            InventorySnapshot known = shieldFloorInventory(knownReserved, offer);
-            if (stock == null || known == null) return null;
+            if (stock == null) return null;
             ItemId shieldItem = ItemId.parse("minecraft:shield"), iron = ItemId.parse("minecraft:iron_ingot");
-            PlanResult plan = planWithStationFallback(offer.catalog(), stock, known, shieldItem, 1, preferences);
+            PlanResult plan = planner.planFast(offer.catalog(), stock, shieldItem, 1, PlannerLimits.DEFAULT, preferences);
             if (!plan.success() || plan.steps().isEmpty() || plan.steps().size() > 3) return null;
             int shields = 0, tables = 0, ironCost = 0, plankCost = 0;
             for (PlanStep candidate : plan.steps()) {
@@ -1652,7 +1689,7 @@ final class AutomationEngine {
                         candidate.recipeWidth(), candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes));
             }
             return new PlanningOutcome(new PlanResult(plan.target(), plan.requestedCount(), marked, plan.blockedReasons(),
-                    plan.optimal(), plan.expandedNodes(), plan.elapsedNanos()), false, true);
+                    plan.optimal(), plan.expandedNodes(), plan.elapsedNanos()), false, true, null, offer.identity());
         } catch (RuntimeException ignored) { return null; }
     }
 
@@ -1671,6 +1708,41 @@ final class AutomationEngine {
         }
         if (toReserve != 0) return null;
         return new InventorySnapshot(stock.counts(), stock.availableStations(), Map.of(), floors);
+    }
+
+    private PendingGoals pendingGoals() {
+        Map<ItemId, Integer> targets = new TreeMap<>();
+        boolean unresolvedLogs = false;
+        if (active != null) {
+            targets.merge(active.item(), active.count(), Math::max);
+            unresolvedLogs = active.anyLogs();
+        }
+        for (Request request : queue) {
+            targets.merge(request.item(), request.count(), Math::max);
+            unresolvedLogs |= request.anyLogs();
+        }
+        for (ProjectRun run : projects) if (!run.aborted)
+            run.spec.goals().forEach((item, count) -> targets.merge(item, count, Math::max));
+        for (MaintainedDemandModel.Status target : maintained.statuses())
+            targets.merge(target.item(), target.targetCount(), Math::max);
+        return new PendingGoals(targets, unresolvedLogs);
+    }
+
+    private ShieldPlanningIdentity shieldPlanningIdentity() {
+        return new ShieldPlanningIdentity(active.jobToken(), pendingGoals(), client.world, client.world.getRegistryKey(),
+                placementProvenance.session(), catalog.generation(), nearbyResources.version(),
+                new ShieldOptions(config.autoDefend, config.autoUseShield, config.autoCraftShield,
+                        config.allowBreaking, config.allowBuilding, config.shieldIronReserve, config.shieldPlankReserve),
+                unavailableSources);
+    }
+
+    private boolean shieldIdentityCurrent(ShieldPlanningIdentity identity) {
+        return identity != null && active != null && client.world != null && catalog != null && catalog.ready()
+                && identity.equals(shieldPlanningIdentity()) && catalog.usesCurrentProvider();
+    }
+
+    private boolean shieldStepCurrent() {
+        return stepShieldIdentity == null || shieldIdentityCurrent(stepShieldIdentity);
     }
 
     private Map<ItemId, Integer> shieldExecutionReservations() {
@@ -2467,7 +2539,13 @@ final class AutomationEngine {
         }
         return count;
     }
-    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment, long plannedPreferencesVersion) {
+    private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment, long plannedPreferencesVersion,
+                       ShieldPlanningIdentity shieldIdentity) {
+        if (shieldIdentity != null && !shieldIdentityCurrent(shieldIdentity)) {
+            deferShieldPreparation = true;
+            requestPlan();
+            return;
+        }
         if (!catalog.ready() || catalog.generation() != plannedGeneration) {
             if (catalog.ready()) requestPlan();
             else status = "waiting for recipe catalog";
@@ -2482,6 +2560,7 @@ final class AutomationEngine {
         stationDiscoveryDone = false;
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
         stepAuxiliaryInvestment = auxiliaryInvestment;
+        stepShieldIdentity = shieldIdentity;
         lastMovementProgressToken = movement.progressToken();
         stepPreferencesVersion = plannedPreferencesVersion;
         status = (auxiliaryInvestment ? "preparing for task · " : "") + next.kind() + " " + next.sourceId();
@@ -2757,7 +2836,8 @@ final class AutomationEngine {
     }
     private void placeStation() {
         if (step != null && Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))
-                && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) {
+                && (!shieldStepCurrent() || !config.autoDefend || !config.autoUseShield || !config.autoCraftShield)
+                && (stationPlacementWait == null || !stationPlacementWait.sent())) {
             resetAction(); requestPlan(); return;
         }
         if (client.player == null || client.world == null || active == null || step == null
@@ -2863,6 +2943,13 @@ final class AutomationEngine {
 
     private void sendStationPlacement(Block block) {
         if (Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) {
+            if (!shieldStepCurrent()) {
+                deferShieldPreparation = true;
+                cancelStationPlacement();
+                resetAction();
+                requestPlan();
+                return;
+            }
             ItemId table = GameCatalog.id(block.asItem());
             Map<ItemId, Integer> reserved = new HashMap<>(shieldExecutionReservations());
             step.attributes().forEach((key, value) -> {
@@ -3067,7 +3154,7 @@ final class AutomationEngine {
             if (recipe == null || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Recipe disappeared or changed before crafting could start");
             crafting = new CraftingAction(client, actions, recipe, step,
                     () -> catalog != null && catalog.ready() && catalog.generation() == stepCatalogGeneration
-                            && catalog.usesCurrentProvider(), this::shieldExecutionReservations,
+                            && catalog.usesCurrentProvider(), this::shieldStepCurrent, this::shieldExecutionReservations,
                     () -> config.autoDefend && config.autoUseShield && config.autoCraftShield,
                     Set.copyOf(catalog.tags.getOrDefault(PLANKS_TAG, List.of())),
                     () -> config.shieldIronReserve, () -> config.shieldPlankReserve);
@@ -3515,7 +3602,7 @@ final class AutomationEngine {
         catch (RuntimeException ex) { message("Movement cancellation: " + ex.getMessage()); }
         finally {
             crafting = null; stonecutting = null; smelting = null; openingStation = false; stationOpenTicks = 0; moving = false; movingPickup = false;
-            step = null; stepAuxiliaryInvestment = false; scan = null; localGatherReachScan = null;
+            step = null; stepAuxiliaryInvestment = false; stepShieldIdentity = null; scan = null; localGatherReachScan = null;
             target = null; stationApproachTarget = null; verifyTicks = 0;
             clearGatherAttempt();
             exploring = false; explorationMoving = false; explorationTicks = 0;

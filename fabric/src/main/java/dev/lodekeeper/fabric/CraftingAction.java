@@ -30,7 +30,7 @@ final class CraftingAction {
     private boolean transferStarted;
 
     private final RecipeWork recipe;
-    private final BooleanSupplier recipeCurrent;
+    private final BooleanSupplier recipeCurrent, optionalWorkCurrent;
     private final ItemStack expectedOutput;
     private final int targetCount;
     private final PlanStep step;
@@ -57,11 +57,11 @@ final class CraftingAction {
 
     CraftingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step,
                    BooleanSupplier recipeCurrent) {
-        this(client, actions, recipe, step, recipeCurrent, Map::of, () -> false, java.util.Set.of(), () -> 0, () -> 0);
+        this(client, actions, recipe, step, recipeCurrent, () -> true, Map::of, () -> false, java.util.Set.of(), () -> 0, () -> 0);
     }
 
     CraftingAction(MinecraftClient client, PlayerActions actions, RecipeWork recipe, PlanStep step,
-                   BooleanSupplier recipeCurrent,
+                   BooleanSupplier recipeCurrent, BooleanSupplier optionalWorkCurrent,
                    java.util.function.Supplier<Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations,
                    BooleanSupplier shieldEnabled, java.util.Set<dev.lodekeeper.core.ItemId> plankItems,
                    java.util.function.IntSupplier ironFloor, java.util.function.IntSupplier plankFloor) {
@@ -74,6 +74,7 @@ final class CraftingAction {
         this.actions = actions;
         this.recipe = recipe;
         this.recipeCurrent = recipeCurrent;
+        this.optionalWorkCurrent = optionalWorkCurrent;
         if (recipe.kind() != RecipeWork.Kind.SHAPED_CRAFTING && recipe.kind() != RecipeWork.Kind.SHAPELESS_CRAFTING) {
             throw new IllegalArgumentException("Crafting action received non-crafting recipe work");
         }
@@ -89,6 +90,7 @@ final class CraftingAction {
         if (client.player == null || client.interactionManager == null) throw new IllegalStateException("No player");
         Item output = expectedOutput.getItem();
         if (!initialized) initialize();
+        if (!optionalWorkCurrent.getAsBoolean()) drainRequested = true;
         if (client.player.currentScreenHandler != handler) throw new IllegalStateException("Crafting container closed or changed");
         if (transfer == null && !handler.getCursorStack().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
 
@@ -338,7 +340,8 @@ final class CraftingAction {
     private void startOutputMove(ItemStack expectedSource) {
         ItemStack guardedSource = expectedSource.copy();
         quickMove = new VerifiedQuickMove(client, handler, 0, guardedSource.getItem(), "crafting output", null, () -> {
-            if (drainRequested || !recipeCurrent.getAsBoolean()) throw new StaleRecipeBeforeOutputClick();
+            if (drainRequested || !recipeCurrent.getAsBoolean() || !optionalWorkCurrent.getAsBoolean())
+                throw new StaleRecipeBeforeOutputClick();
             ItemStack current = handler.getSlot(0).getStack();
             if (current.isEmpty() || current.getCount() != guardedSource.getCount()
                     || !GameApi.canCombine(current, guardedSource)) {
@@ -442,6 +445,7 @@ final class CraftingAction {
     }
 
     private void verifyShieldBudget() {
+        if (drainRequested) return;
         if (!Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) return;
         if (!shieldEnabled.getAsBoolean()) throw new IllegalStateException("automatic shield crafting was disabled; no further ingredient was transferred");
         Map<dev.lodekeeper.core.ItemId, Integer> reservations = new HashMap<>(liveReservations.get());

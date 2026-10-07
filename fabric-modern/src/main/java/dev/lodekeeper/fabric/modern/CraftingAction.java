@@ -31,7 +31,7 @@ final class CraftingAction {
     private final Minecraft client;
     private final PlayerActions actions;
     private final java.util.function.Supplier<Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations;
-    private final java.util.function.BooleanSupplier shieldEnabled;
+    private final java.util.function.BooleanSupplier shieldEnabled, optionalWorkCurrent;
     private final java.util.Set<dev.lodekeeper.core.ItemId> plankItems;
     private final java.util.function.IntSupplier ironFloor, plankFloor;
     private boolean transferStarted;
@@ -53,13 +53,15 @@ final class CraftingAction {
     private boolean initialized, awaitingResult, drainGridPending, drainRequested;
 
     CraftingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
-        this(client, actions, recipe, step, Map::of, () -> false, Set.of(), () -> 0, () -> 0);
+        this(client, actions, recipe, step, () -> true, Map::of, () -> false, Set.of(), () -> 0, () -> 0);
     }
 
     CraftingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step,
+                   java.util.function.BooleanSupplier optionalWorkCurrent,
                    java.util.function.Supplier<Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations,
                    java.util.function.BooleanSupplier shieldEnabled, Set<dev.lodekeeper.core.ItemId> plankItems,
                    java.util.function.IntSupplier ironFloor, java.util.function.IntSupplier plankFloor) {
+        this.optionalWorkCurrent = optionalWorkCurrent;
         this.liveReservations = liveReservations;
         this.shieldEnabled = shieldEnabled;
         this.plankItems = Set.copyOf(plankItems);
@@ -80,6 +82,7 @@ final class CraftingAction {
     boolean tick() {
         if (client.player == null || client.gameMode == null) throw new IllegalStateException("No player");
         if (!initialized) initialize();
+        if (!optionalWorkCurrent.getAsBoolean()) drainRequested = true;
         if (client.player.containerMenu != menu) throw new IllegalStateException("Crafting container closed or changed");
         if (transfer == null && !menu.getCarried().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
         if (transfer != null) {
@@ -103,36 +106,46 @@ final class CraftingAction {
             if (transfer != null) return false;
         }
         if (quickMove != null) {
-            if (quickMove.tick()) {
-                MovePurpose completedPurpose = movePurpose;
+            try {
+                if (quickMove.tick()) {
+                    MovePurpose completedPurpose = movePurpose;
+                    quickMove = null;
+                    movePurpose = null;
+                    if (completedPurpose == MovePurpose.OUTPUT) {
+                        ItemStack remainingOutput = craftingMenu.getResultSlot().getItem();
+                        if (!remainingOutput.isEmpty()) {
+                            if (!same(remainingOutput, expectedOutput)) {
+                                throw new IllegalStateException("Unexpected item remained in the crafting output slot; leaving the container open");
+                            }
+                            startOutputMove(remainingOutput);
+                            return false;
+                        }
+                        awaitingResult = false;
+                        placements.clear();
+                        placementIndex = 0;
+                        drainGridPending = true;
+                    }
+                }
+            } catch (StaleOptionalWorkBeforeOutputClick stale) {
                 quickMove = null;
                 movePurpose = null;
-                if (completedPurpose == MovePurpose.OUTPUT) {
-                    ItemStack remainingOutput = craftingMenu.getResultSlot().getItem();
-                    if (!remainingOutput.isEmpty()) {
-                        if (!same(remainingOutput, expectedOutput)) {
-                            throw new IllegalStateException("Unexpected item remained in the crafting output slot; leaving the container open");
-                        }
-                        quickMove = new VerifiedQuickMove(client, menu, menu.slots.indexOf(craftingMenu.getResultSlot()),
-                                expectedOutput.getItem(), "crafting output");
-                        movePurpose = MovePurpose.OUTPUT;
-                        return false;
-                    }
-                    awaitingResult = false;
-                    placements.clear();
-                    placementIndex = 0;
-                    drainGridPending = true;
-                }
+                drainRequested = true;
+                awaitingResult = false;
+                if (!drainKnownGridContents(true)) return false;
+                return true;
             }
             return false;
+        }
+        if (awaitingResult && drainRequested) {
+            awaitingResult = false;
+            if (!drainKnownGridContents(true)) return false;
+            return true;
         }
         if (awaitingResult) {
             ItemStack actual = craftingMenu.getResultSlot().getItem();
             if (actual.isEmpty()) return false;
             if (!same(actual, expectedOutput)) throw new IllegalStateException("Crafting result disagrees with the planned recipe");
-            quickMove = new VerifiedQuickMove(client, menu, menu.slots.indexOf(craftingMenu.getResultSlot()),
-                    expectedOutput.getItem(), "crafting output");
-            movePurpose = MovePurpose.OUTPUT;
+            startOutputMove(actual);
             return false;
         }
 
@@ -141,10 +154,6 @@ final class CraftingAction {
                 if (!drainKnownGridContents(false)) return false;
                 drainGridPending = false;
                 return true;
-            }
-            if (!placements.isEmpty() && placementIndex == placements.size()) {
-                awaitingResult = true;
-                return false;
             }
             if (!drainKnownGridContents(true)) return false;
             return true;
@@ -263,6 +272,21 @@ final class CraftingAction {
         if (placements.isEmpty()) throw new IllegalStateException("Known recipe has no placeable ingredients");
     }
 
+    private static final class StaleOptionalWorkBeforeOutputClick extends RuntimeException { }
+
+    private void startOutputMove(ItemStack expectedSource) {
+        ItemStack guardedSource = expectedSource.copy();
+        quickMove = new VerifiedQuickMove(client, menu, menu.slots.indexOf(craftingMenu.getResultSlot()),
+                guardedSource.getItem(), "crafting output", null, () -> {
+            if (drainRequested || !optionalWorkCurrent.getAsBoolean())
+                throw new StaleOptionalWorkBeforeOutputClick();
+            ItemStack current = craftingMenu.getResultSlot().getItem();
+            if (current.isEmpty() || current.getCount() != guardedSource.getCount() || !same(current, guardedSource))
+                throw new IllegalStateException("Crafting output changed before transfer; leaving the container open");
+        });
+        movePurpose = MovePurpose.OUTPUT;
+    }
+
     private void rememberOwnedGridContents(Placement placement) {
         Set<Item> expected = expectedGridContents.computeIfAbsent(placement.menuSlot(), ignored -> new HashSet<>());
         expected.add(placement.item());
@@ -327,6 +351,7 @@ final class CraftingAction {
     }
 
     private void verifyShieldBudget() {
+        if (drainRequested) return;
         if (!Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) return;
         if (!shieldEnabled.getAsBoolean()) throw new IllegalStateException("automatic shield crafting was disabled; no further ingredient was transferred");
         Map<dev.lodekeeper.core.ItemId, Integer> reservations = new HashMap<>(liveReservations.get());

@@ -36,6 +36,10 @@ A later 1.21.1 `spare` attempt at `bc496e4` observed one crafted shield and one 
 
 The nine shield modes and the repeated inventory benchmark remain pending. Repeat the previous native checks with the exact final jars. Do not treat the fixture source as gameplay evidence.
 
+With the verifier corrections at `5df577f`, the 1.21.1 `spare`, `default`, and `off` modes passed their full runner and native receipt gates. The next `queued` run at `432c344` failed. It completed a shield, bucket, and shears with six iron and thirteen planks remaining, but its shield plan reserved only five iron instead of seven. The missing two ingots belong to the queued shears recipe. This exposes a production reservation gap; the assertion remains unchanged. The five other primary modes and all nine modern modes remain unrun in that round. These runs use the byte-identical jars from the `8d7bb68` matrix.
+
+The queued-goal fix now makes one joint plan for active, queued, project, and maintained targets before admitting optional shield work. A changed queue invalidates that work; an owned inventory transfer finishes and drains before replanning. Independent review passed after restoring the existing table-open timeout ahead of the stale-plan guard. Local 1.21.1 and 26.3 builds passed with 159 core, 95 navigation, 13 primary adapter, and 3 modern adapter checks. Fresh native checks and a new 24-profile matrix are still required for this production change. The previous docs-only matrix passed 23 profiles; its 1.21.6 job failed while resolving dependency POM parents.
+
 ## Release status
 
 Preview 11 is not released or ready for download. Preview 10 remains available from the [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Its historical full loadout timings are 11:59 on 1.21.1 and 9:33 on 26.3. Those figures do not describe Preview 11.
