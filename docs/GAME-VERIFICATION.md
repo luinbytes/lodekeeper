@@ -138,9 +138,11 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 ## Owned workbench recovery
 
-On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.preparedSafety=workbench` first gives twelve ordinary oak planks and lets the production wooden-pickaxe command create its own crafting table. With the engine stopped, the fixture moves the player six blocks from that table and prepares level support plus one stone. The measured cobblestone command must approach, recover and collect the table, mine the stone, then finish with exact server inventory and stopped navigation.
+On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.preparedSafety=workbench` first gives twelve ordinary oak planks and lets the production wooden-pickaxe command create its own crafting table. Station recovery is disabled only during seeding and enabled before measurement. With the engine stopped, the fixture moves the player six blocks from that table and prepares level support plus one stone. The measured cobblestone command must approach, recover and collect the table, mine the stone, then finish with exact server inventory and stopped navigation.
 
 `-Dlodekeeper.verify.preparedSafety=workbench-blocked` encloses the owned table in twenty-six bedrock cells before the measured command. It must observe one bounded recovery attempt, an intact table and shell, one collected cobblestone and no repeated recovery. Both cases retain their declared setup inventory, server block receipts, natural client status transitions and screenshots. They do not establish fresh-world progression.
+
+At main `6419d9e`, both approach controls fail because the measured standalone command never starts recovery of the preceding command's table. The [paired receipts](evidence/survival-safety/main-6419d9e-station-recovery.json) preserve the unchanged expectations. The separate project table-carry path executes in the natural run recorded there.
 
 ## Shield behavior fixture
 

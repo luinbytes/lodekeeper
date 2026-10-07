@@ -117,6 +117,8 @@ Preview 10 binaries come from source `852b72f177befc1b55771cee86076544f39c9f9b` 
 
 Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds/preview11-88f2b52.json), native QA, and corresponding source archives. Its thirty public assets include twenty-three original captures and seven build, source, and QA assets. Five captures use the exact released source; eighteen retain historical source labels. Two original MP4s are flagged unplayable. All thirty asset links returned anonymous HTTP 200, and all ten release screenshots loaded in the browser. Lodekeeper code uses the MIT licence. The included Baritone source retains LGPL-3.0-or-later notices. [Dependency notices and source access](third-party/baritone/NOTICE.md) list the pinned source locks and rebuild details.
 
+The newer [main matrix at `6419d9e`](https://github.com/luinbytes/lodekeeper/actions/runs/37679974095) passes all 24 profiles. Its [current gameplay record](docs/evidence/survival-safety/main-6419d9e-station-recovery.json) remains a partial loadout failure, with all four armor pieces and three tools. These results do not change Preview 11's released binaries.
+
 New verification uses screenshots. The [work-in-progress evidence release](https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence) receives labelled screenshots between previews. Its results apply to the named main commits, separately from Preview 11.
 
 - [Navigation and survival rebuild](docs/NAVIGATION-REBUILD.md)

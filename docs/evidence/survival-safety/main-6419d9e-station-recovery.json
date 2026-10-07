@@ -1,0 +1,228 @@
+{
+  "sourceCommit": "6419d9e5a2c9893af141b1c0de93ee8be3339489",
+  "productionSourceCommit": "0d550535e011cb3d7a247b593252e513a0142077",
+  "scope": "Post-preview11 main verification. Supplied-stock workbench controls and fresh natural survival remain separate. No test assertions or time limits changed.",
+  "ci": {
+    "runId": 37679974095,
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37679974095",
+    "status": "success",
+    "passedAdapterProfiles": 24
+  },
+  "workbenchControls": [
+    {
+      "minecraftVersion": "1.21.1",
+      "artifactSha256": "b55cad563eb6f6a371408b27637edf7768103ac73c799461679edfc424fbc771",
+      "status": "failed",
+      "failure": "owned-workbench cobblestone command did not finish after one bounded recovery attempt",
+      "nativeReceipt": "run-2026-10-07T20-10-48-936764Z-715ac59b.json",
+      "nativeReceiptSha256": "bc97c31a87b99bceac668ed59f45727cf8e019eb7e7284a6c2e3b686b69e99c6",
+      "elapsedMillis": 60125,
+      "serverInventory": {
+        "minecraft:cobblestone": 1,
+        "minecraft:oak_planks": 3,
+        "minecraft:stick": 2,
+        "minecraft:wooden_pickaxe": 1
+      },
+      "serverHealth": 20.0,
+      "serverCursorEmpty": true,
+      "navigationStopped": true,
+      "artifactUnchangedDuringRun": true,
+      "classOriginViolations": [],
+      "interpretation": "Setup completes. Measured command reaches one cobblestone and idle, but observes zero recovery episodes and leaves the earlier completed standalone command table placed."
+    },
+    {
+      "minecraftVersion": "26.3",
+      "artifactSha256": "32ea5615282f213a1c43173e4e55921a8ab9d8174dd3c79431c1d51767801c01",
+      "status": "failed",
+      "failure": "owned-workbench cobblestone command did not finish after one bounded recovery attempt",
+      "nativeReceipt": "run-2026-10-07T20-12-51-511623Z-c9dd89b3.json",
+      "nativeReceiptSha256": "c77fce2f946c3b8288d07e92ea5ced1f7c3f14a10cb2119aba46c2b419810daa",
+      "elapsedMillis": 60306,
+      "serverInventory": {
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2,
+        "minecraft:cobblestone": 1,
+        "minecraft:oak_planks": 3
+      },
+      "serverHealth": 20.0,
+      "serverCursorEmpty": true,
+      "navigationStopped": true,
+      "artifactUnchangedDuringRun": true,
+      "classOriginViolations": [],
+      "interpretation": "Setup completes. Measured command reaches one cobblestone and idle, but observes zero recovery episodes and leaves the earlier completed standalone command table placed."
+    }
+  ],
+  "naturalModern": {
+    "artifactSha256": "32ea5615282f213a1c43173e4e55921a8ab9d8174dd3c79431c1d51767801c01",
+    "nativeReceipt": "natural-2026-10-07T20-16-03.410383Z-510ea33a.json",
+    "nativeReceiptSha256": "64adb769ae1e32106ed118831a6d76b2b6226e592e1e21cf50adad834c226c15",
+    "runnerReceiptSha256": "ceb772af7bb6b128d45edbe908a5d9fde6d80741072dd5bb39ad5d5c312befbc",
+    "artifactUnchangedDuringRun": true,
+    "classOriginViolations": [],
+    "nativeRun": {
+      "runId": "2026-10-07T20-16-03.410383Z-510ea33a",
+      "worldId": "natural-165693fd19264148",
+      "status": "failed",
+      "verificationMode": "natural_world",
+      "evidenceAuthority": "integrated_server_ticks_and_inventory",
+      "goal": "gear_diamond",
+      "command": "!lk project gear_diamond",
+      "minecraftVersion": "26.3",
+      "worldKind": "normal_generated_world",
+      "worldPreset": "minecraft:normal",
+      "worldSeed": 483920105,
+      "gameMode": "survival",
+      "difficulty": "normal",
+      "cheatsEnabled": false,
+      "bonusChestEnabled": false,
+      "structuresEnabled": true,
+      "worldInitializationTimeoutSeconds": 120,
+      "requestTimeoutSeconds": 900,
+      "initializedElapsedMillis": 823649,
+      "worldLaunchElapsedMillis": 817703,
+      "worldReadyElapsedMillis": 801654,
+      "commandElapsedMillis": 798699,
+      "firstServerMovementElapsedMillis": 1841,
+      "commandServerTick": 119,
+      "serverMovementTicks": 5483,
+      "serverMovementSteps": 5483,
+      "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+      "serverDistanceMeters": 1079.3907341097304,
+      "deathsObserved": 0,
+      "minimumHealth": 16.5,
+      "minimumHunger": 16,
+      "failure": "automation paused: paused \u00b7 Project gear_diamond blocked: Action timeout: gather:minecraft:birch_log \u00b7 mining and collecting minecraft:birch_log \u00b7 0/1 \u00b7 planning next route. Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "successRequiresIdleAndCancelledNavigation": true,
+      "candidateSha256": "32ea5615282f213a1c43173e4e55921a8ab9d8174dd3c79431c1d51767801c01",
+      "framebufferWidth": 640,
+      "framebufferHeight": 360,
+      "commandStartPosition": {
+        "x": -6.5,
+        "y": 77.0,
+        "z": 17.5
+      },
+      "expectedItems": [
+        "minecraft:diamond_pickaxe",
+        "minecraft:diamond_axe",
+        "minecraft:diamond_shovel",
+        "minecraft:diamond_hoe",
+        "minecraft:diamond_sword",
+        "minecraft:diamond_helmet",
+        "minecraft:diamond_chestplate",
+        "minecraft:diamond_leggings",
+        "minecraft:diamond_boots"
+      ],
+      "serverDifficulty": "NORMAL",
+      "serverSurvival": true,
+      "serverCreativeAbility": false,
+      "serverSpectator": false,
+      "serverHealth": 20.0,
+      "serverHunger": 18,
+      "serverDeaths": 0,
+      "serverTick": 16087,
+      "serverInventoryCounts": {
+        "minecraft:dirt": 7,
+        "minecraft:beef": 1,
+        "minecraft:mutton": 2,
+        "minecraft:diamond": 3,
+        "minecraft:leather": 2,
+        "minecraft:cobblestone": 98,
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:white_wool": 1,
+        "minecraft:porkchop": 2,
+        "minecraft:crafting_table": 1,
+        "minecraft:diamond_axe": 1,
+        "minecraft:brown_wool": 1,
+        "minecraft:birch_planks": 1,
+        "minecraft:granite": 6,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:tuff": 21,
+        "minecraft:diamond_pickaxe": 1,
+        "minecraft:cobbled_deepslate": 195,
+        "minecraft:wildflowers": 4,
+        "minecraft:diamond_hoe": 1
+      },
+      "serverArmorCounts": {
+        "minecraft:diamond_leggings": 1,
+        "minecraft:diamond_boots": 1,
+        "minecraft:diamond_helmet": 1,
+        "minecraft:diamond_chestplate": 1
+      },
+      "serverHeldCounts": {
+        "minecraft:iron_pickaxe": 1,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:diamond_pickaxe": 1,
+        "minecraft:diamond_helmet": 1,
+        "minecraft:brown_wool": 1,
+        "minecraft:cobblestone": 98,
+        "minecraft:diamond_chestplate": 1,
+        "minecraft:birch_planks": 1,
+        "minecraft:granite": 6,
+        "minecraft:crafting_table": 1,
+        "minecraft:diamond_leggings": 1,
+        "minecraft:diamond_boots": 1,
+        "minecraft:stone_pickaxe": 1,
+        "minecraft:cobbled_deepslate": 195,
+        "minecraft:beef": 1,
+        "minecraft:tuff": 21,
+        "minecraft:diamond": 3,
+        "minecraft:wildflowers": 4,
+        "minecraft:dirt": 7,
+        "minecraft:leather": 2,
+        "minecraft:diamond_axe": 1,
+        "minecraft:diamond_hoe": 1,
+        "minecraft:mutton": 2,
+        "minecraft:porkchop": 2,
+        "minecraft:white_wool": 1
+      },
+      "serverLogItems": [],
+      "serverCursor": {
+        "item": "",
+        "count": 0
+      },
+      "goalSatisfied": false,
+      "serverTargetReceiptsDropped": 0
+    },
+    "interpretation": "Partial gear only. All four armor pieces are equipped; diamond pickaxe, axe and hoe are present. Shovel and sword are absent. Three diamonds, one plank, zero sticks and one crafting table remain. Two early table carries succeed. The third exact-drop collection times out, forcing a replacement table. A later recovery reports a changed removal receipt despite a held table in the final inventory. The final request for one log provides planks for the remaining stick batch, not a missing table. Physical pickup failure and receipt-change causes require further evidence.",
+    "carryEvidence": [
+      {
+        "logLine": 429,
+        "position": [
+          -1,
+          69,
+          23
+        ],
+        "outcome": "recovered"
+      },
+      {
+        "logLine": 3682,
+        "position": [
+          23,
+          64,
+          64
+        ],
+        "outcome": "recovered"
+      },
+      {
+        "logLine": 4883,
+        "position": [
+          -14,
+          43,
+          61
+        ],
+        "outcome": "exact_live_drop_retained_at_20_second_deadline"
+      },
+      {
+        "logLine": 7003,
+        "position": [
+          -2,
+          -23,
+          67
+        ],
+        "outcome": "removal_receipt_equality_failure"
+      }
+    ]
+  },
+  "screenshotReleaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence"
+}
