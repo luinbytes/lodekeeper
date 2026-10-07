@@ -213,19 +213,20 @@ final class MovementController {
         startMove(new GoalNear(target, radius), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), radius * 16));
     }
 
-    List<BlockPos> startRetreat(List<RetreatThreat> threats, int distance, Set<BlockPos> rejectedGoals, BlockPos origin) {
-        if (threats.isEmpty() || threats.size() > 16 || distance < 4 || distance > 32
+    List<BlockPos> startRetreat(List<RetreatThreat> threats, int clearance, Set<BlockPos> rejectedGoals, BlockPos origin) {
+        if (threats.isEmpty() || threats.size() > 16 || clearance < 4 || clearance > 32
                 || rejectedGoals.size() > 32 || origin == null
                 || threats.stream().anyMatch(threat -> !Double.isFinite(threat.x()) || !Double.isFinite(threat.z())))
-            throw new IllegalArgumentException("Retreat requires bounded threat positions and distance");
+            throw new IllegalArgumentException("Retreat requires bounded threat positions and clearance");
         prepare();
         terrain.beginSearch();
         BlockPos center = client.player.getBlockPos();
         List<BlockPos> goals = new ArrayList<>();
         List<BlockPos> offsets = new ArrayList<>();
-        for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
+        int radius = Math.max(12, clearance);
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
             int squared = dx * dx + dz * dz;
-            if (squared >= 4 * 4 && squared <= 12 * 12) offsets.add(new BlockPos(dx, 0, dz));
+            if (squared >= 4 * 4 && squared <= radius * radius) offsets.add(new BlockPos(dx, 0, dz));
         }
         offsets.sort(Comparator.<BlockPos>comparingDouble(offset ->
                         retreatThreatClearance(center.getX() + offset.getX(), center.getZ() + offset.getZ(), threats))
@@ -236,7 +237,7 @@ final class MovementController {
         int[] heights = {0, 1, -1, 2, -2};
         search: for (BlockPos offset : offsets) {
             int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
-            if (retreatThreatClearance(x, z, threats) < (distance + 3.0) * (distance + 3.0)) continue;
+            if (retreatThreatClearance(x, z, threats) < clearance * clearance) continue;
             for (int dy : heights) {
                 if (++candidates > 4_096 || probes >= 192
                         || System.nanoTime() - searchStarted >= 8_000_000L) break search;

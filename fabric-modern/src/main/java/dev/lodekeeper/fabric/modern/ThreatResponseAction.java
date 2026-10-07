@@ -380,13 +380,13 @@ final class ThreatResponseAction {
         plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
-        int distance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 10 : 8;
+        int clearance = threats.stream().anyMatch(ThreatResponseAction::creeper) ? 16 : 11;
         List<BlockPos> positions = threats.stream().map(mob -> mob.blockPosition().immutable()).toList();
         List<MovementController.RetreatThreat> capturedThreats = threats.stream()
                 .map(mob -> new MovementController.RetreatThreat(mob.getX(), mob.getZ())).toList();
         List<BlockPos> goals;
         try {
-            goals = movement.startRetreat(capturedThreats, distance, rejectedRetreatGoals,
+            goals = movement.startRetreat(capturedThreats, clearance, rejectedRetreatGoals,
                     new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
