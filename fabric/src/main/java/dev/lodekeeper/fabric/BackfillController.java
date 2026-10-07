@@ -186,7 +186,7 @@ final class BackfillController {
             var cell = receipt.position();
             BlockPos destination = new BlockPos(cell.x(), cell.y(), cell.z());
             if (!protection.mayPlace(destination) || !dryAir(client.world.getBlockState(destination))) continue;
-            Vec3d offset = Vec3d.ofCenter(destination).subtract(client.player.getPos());
+            Vec3d offset = Vec3d.ofCenter(destination).subtract(ClientAccess.position(client.player));
             Vec3d forward = client.player.getRotationVec(1.0f);
             if (offset.x * forward.x + offset.z * forward.z >= -0.5
                     || destination.getSquaredDistance(client.player.getBlockPos()) > 16

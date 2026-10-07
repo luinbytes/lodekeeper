@@ -531,8 +531,8 @@ def build_launch_plan(spec: RunSpec, artifact_sha: str) -> LaunchPlan:
         if not isinstance(raw_working_directory, str) or not Path(raw_working_directory).is_absolute():
             raise VerificationError("Loom launch metadata workingDirectory must be an absolute path")
         source_run_dir = Path(raw_working_directory).resolve()
-        if not is_within(source_run_dir, module_dir) or not source_run_dir.is_dir():
-            raise VerificationError(f"Loom workingDirectory must be an existing directory inside {module_dir}: {source_run_dir}")
+        if not is_within(source_run_dir, module_dir) or (source_run_dir.exists() and not source_run_dir.is_dir()):
+            raise VerificationError(f"Loom workingDirectory must be a directory inside {module_dir}: {source_run_dir}")
     else:
         source_run_dir = spec.launch_args.parent.parent.resolve()
         if not is_within(source_run_dir, module_dir) or not source_run_dir.is_dir():

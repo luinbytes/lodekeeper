@@ -67,6 +67,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -3917,7 +3918,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         JsonObject evidence = new JsonObject();
         evidence.addProperty("name", probe.name());
         evidence.add("clickedBlock", blockPositionJson(probe.clicked()));
-        evidence.addProperty("face", probe.face().getName());
+        evidence.addProperty("face", probe.face().name().toLowerCase(Locale.ROOT));
         evidence.add("intendedTarget", blockPositionJson(probe.target()));
         evidence.addProperty("expectedPermitted", expectedPermitted);
         evidence.addProperty("actualPermitted", permitted);
