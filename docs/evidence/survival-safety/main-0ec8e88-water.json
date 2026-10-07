@@ -1,0 +1,399 @@
+{
+  "sourceCommit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+  "scope": "Paired unchanged prepared water/roof safety fixtures with supplied weapons, three iron ingots, a crafting table, bedrock footing and NoAI mobs. These are controlled retreat and bucket-crafting checks, not natural resource acquisition, station recovery, or resolution of the earlier natural skeleton-water calculation failure.",
+  "ci": {
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37696100736",
+    "jobs": 24,
+    "passed": 24,
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "runs": [
+    {
+      "minecraftVersion": "1.21.1",
+      "outcome": "PASS",
+      "runnerSource": {
+        "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-0ec8e88-1.21.1-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "1fb8df73ad97c034999e64582dac73e9f4a91e716c07a6e176c591f513207f94"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadViolations": [],
+      "nativeReceiptSha256": "ef9dd2943dfcb92cd34c1279d46789ee3b19c385cb769fb2c0f4ca76583bd8fa",
+      "worldKind": "isolated_superflat_fixture",
+      "fixtureGrants": "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs_and_helmeted_distant_zombie",
+      "case": {
+        "name": "water_retreat_bucket",
+        "item": "minecraft:bucket",
+        "expected": 1,
+        "serverObserved": 1,
+        "inventoryEmptyAtStart": false,
+        "passed": true,
+        "clientTicks": 161,
+        "worldTicks": 161,
+        "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+        "detail": "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation",
+        "serverHealth": 20.0,
+        "serverDifficulty": "NORMAL",
+        "serverCraftingTableOpenedDuringCase": true,
+        "serverFurnaceOpenedDuringCase": false,
+        "serverIronPickaxeCount": 0,
+        "serverFoodLevelAtStart": 20,
+        "serverFoodLevelObserved": 20,
+        "serverBreadAtStart": 0,
+        "serverBreadObserved": 0,
+        "serverPosition": [
+          -11.27826176932165,
+          64.0,
+          -11.27180936955671
+        ],
+        "screenshot": "screenshots/lodekeeper-2026-10-07T22-34-47-601154Z-5e811b18-water_retreat_bucket.png",
+        "initialStorageInventory": {
+          "minecraft:crafting_table": 1,
+          "minecraft:diamond_sword": 1,
+          "minecraft:iron_ingot": 3,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "finalStorageInventory": {
+          "minecraft:bucket": 1,
+          "minecraft:diamond_sword": 1,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "fullServerHeldInventory": {
+          "minecraft:bucket": 1,
+          "minecraft:diamond_sword": 1,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "elapsedMillisFromCommand": 8033,
+        "baritoneCompletionGuardEnabled": true,
+        "baritoneNavigationStoppedAtReceipt": true,
+        "initialEquipmentSlotItems": {},
+        "serverEquipmentSlotItems": {},
+        "initialServerCursorEmpty": true,
+        "serverCursorEmpty": true,
+        "noMaintenanceQueuedBeforeForeground": true,
+        "maintainedReservationObservedBeforeForeground": false,
+        "maintainedReservationPresentAtCompletion": false,
+        "noMaintenanceQueued": true,
+        "initialPreparedThreatReceipt": {
+          "cowAlive": "true",
+          "cowHealth": "10.0",
+          "cowInitialHealth": "10.0",
+          "cowPosition": "18.5,64.0,20.5",
+          "cowUuid": "abf81644-4afc-4f96-a50e-dfaf4f37e527",
+          "creeperAlive": "true",
+          "creeperDistanceSquared": "30.0",
+          "creeperHealth": "20.0",
+          "creeperRemoved": "false",
+          "creeperUuid": "8952de10-e5cf-4e5e-ac0b-3baf3e4442e1",
+          "diamondSwordDamage": "0",
+          "lowWaterRoofPresent": "true",
+          "playerBodyCellsAir": "false",
+          "playerInWater": "true",
+          "playerSupportBedrock": "true",
+          "preparedThreatsCleared": "false",
+          "waterFloorPresent": "true",
+          "waterSourceCellsPresent": "true",
+          "woodenPickaxeDamage": "0",
+          "zombieAiEnabled": "false",
+          "zombieAlive": "true",
+          "zombieHealth": "4.0",
+          "zombiePosition": "20.5,64.0,20.5",
+          "zombieRemoved": "false",
+          "zombieUuid": "bb2c2524-b62d-4393-8c56-0712a9cdba3f"
+        },
+        "serverPreparedThreatReceipt": {
+          "cowAlive": "true",
+          "cowHealth": "10.0",
+          "cowInitialHealth": "10.0",
+          "cowPosition": "18.5,64.0,20.5",
+          "cowUuid": "abf81644-4afc-4f96-a50e-dfaf4f37e527",
+          "creeperAlive": "true",
+          "creeperDistanceSquared": "471.1340869127008",
+          "creeperHealth": "20.0",
+          "creeperRemoved": "false",
+          "creeperUuid": "8952de10-e5cf-4e5e-ac0b-3baf3e4442e1",
+          "diamondSwordDamage": "0",
+          "lowWaterRoofPresent": "true",
+          "playerBodyCellsAir": "true",
+          "playerInWater": "false",
+          "playerSupportBedrock": "true",
+          "preparedThreatsCleared": "false",
+          "waterFloorPresent": "true",
+          "waterSourceCellsPresent": "true",
+          "woodenPickaxeDamage": "0",
+          "zombieAiEnabled": "false",
+          "zombieAlive": "true",
+          "zombieHealth": "4.0",
+          "zombiePosition": "20.5,64.0,20.5",
+          "zombieRemoved": "false",
+          "zombieUuid": "bb2c2524-b62d-4393-8c56-0712a9cdba3f"
+        },
+        "initialPreparedStationRoomReceipt": {},
+        "serverPreparedStationRoomReceipt": {},
+        "initialPreparedPursuitReceipt": {},
+        "serverPreparedPursuitReceipt": {},
+        "initialPreparedAirReceipt": {},
+        "serverPreparedAirReceipt": {}
+      },
+      "stationRecoveryClaim": false,
+      "screenshotUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-0ec8e88-prepared-water-retreat-PASS-original.png"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "outcome": "PASS",
+      "runnerSource": {
+        "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-0ec8e88-26.3-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "0b914929ad992b0a21fe9ad5ad8c07b7c2e6f5a52b449aa82b57c59ef56c52cf"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadViolations": [],
+      "nativeReceiptSha256": "64945b7b2a586805bddd2d06623e6a24bd2d1b15320caf874b1ee27fe22939e2",
+      "worldKind": "isolated_superflat_fixture",
+      "fixtureGrants": "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs_and_helmeted_distant_zombie",
+      "case": {
+        "name": "water_retreat_bucket",
+        "item": "minecraft:bucket",
+        "expected": 1,
+        "serverObserved": 1,
+        "inventoryEmptyAtStart": false,
+        "passed": true,
+        "clientTicks": 159,
+        "worldTicks": 158,
+        "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+        "detail": "the prepared native water/roof fixture ended with the same unharmed creeper at least twelve blocks away, unchanged zombie/cow and weapons, a bucket from supplied iron, dry bedrock support, an empty cursor, and idle cancelled navigation",
+        "serverHealth": 20.0,
+        "serverDifficulty": "NORMAL",
+        "serverCraftingTableOpenedDuringCase": true,
+        "serverFurnaceOpenedDuringCase": false,
+        "serverIronPickaxeCount": 0,
+        "serverFoodLevelAtStart": 20,
+        "serverFoodLevelObserved": 20,
+        "serverBreadAtStart": 0,
+        "serverBreadObserved": 0,
+        "serverPosition": "-11.273607322966486,64.0,-11.283841528999309",
+        "screenshot": "screenshots/lodekeeper-2026-10-07T22-33-01-866893Z-3406e075-prepared-safety-water_retreat_bucket.png",
+        "screenshotCaptureCallback": "Saved screenshot as lodekeeper-2026-10-07T22-33-01-866893Z-3406e075-prepared-safety-water_retreat_bucket.png",
+        "initialStorageInventory": {
+          "minecraft:crafting_table": 1,
+          "minecraft:iron_ingot": 3,
+          "minecraft:wooden_pickaxe": 1,
+          "minecraft:diamond_sword": 1
+        },
+        "finalStorageInventory": {
+          "minecraft:diamond_sword": 1,
+          "minecraft:bucket": 1,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "fullServerHeldInventory": {
+          "minecraft:diamond_sword": 1,
+          "minecraft:bucket": 1,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "elapsedMillisFromCommand": 7972,
+        "baritoneCompletionGuardEnabled": true,
+        "baritoneNavigationStoppedAtReceipt": true,
+        "initialEquipmentSlotItems": {},
+        "serverEquipmentSlotItems": {},
+        "initialServerCursorEmpty": true,
+        "serverCursorEmpty": true,
+        "noMaintenanceQueuedBeforeForeground": true,
+        "maintainedReservationObservedBeforeForeground": false,
+        "maintainedReservationPresentAtCompletion": false,
+        "noMaintenanceQueued": true,
+        "initialPreparedThreatReceipt": {
+          "diamondSwordDamage": "0",
+          "waterFloorPresent": "true",
+          "cowInitialHealth": "10.0",
+          "playerBodyCellsAir": "false",
+          "zombieOnFire": "false",
+          "cowAlive": "true",
+          "preparedThreatsCleared": "false",
+          "zombieLastDamage": "",
+          "creeperAlive": "true",
+          "zombieUuid": "dda5ec41-9326-44ff-bb69-6e3719b724d8",
+          "zombieCanSeeSky": "false",
+          "zombiePosition": "20.5,64.0,20.5",
+          "playerInWater": "true",
+          "lowWaterRoofPresent": "true",
+          "zombieAiEnabled": "false",
+          "zombieRemoved": "false",
+          "creeperUuid": "78f45dcb-7c8c-49fa-8383-1189a560e713",
+          "cowHealth": "10.0",
+          "woodenPickaxeDamage": "0",
+          "cowUuid": "94cd7f4f-44a6-4a80-97bf-766816e283bd",
+          "playerSupportBedrock": "true",
+          "creeperDistanceSquared": "30.0",
+          "creeperHealth": "20.0",
+          "creeperRemoved": "false",
+          "zombieHealth": "4.0",
+          "zombieAlive": "true",
+          "waterSourceCellsPresent": "true",
+          "cowPosition": "18.5,64.0,20.5"
+        },
+        "serverPreparedThreatReceipt": {
+          "diamondSwordDamage": "0",
+          "waterFloorPresent": "true",
+          "cowInitialHealth": "10.0",
+          "playerBodyCellsAir": "true",
+          "zombieOnFire": "false",
+          "cowAlive": "true",
+          "preparedThreatsCleared": "false",
+          "zombieLastDamage": "",
+          "creeperAlive": "true",
+          "zombieUuid": "dda5ec41-9326-44ff-bb69-6e3719b724d8",
+          "zombieCanSeeSky": "false",
+          "zombiePosition": "20.5,64.0,20.5",
+          "playerInWater": "false",
+          "lowWaterRoofPresent": "true",
+          "zombieAiEnabled": "false",
+          "zombieRemoved": "false",
+          "creeperUuid": "78f45dcb-7c8c-49fa-8383-1189a560e713",
+          "cowHealth": "10.0",
+          "woodenPickaxeDamage": "0",
+          "cowUuid": "94cd7f4f-44a6-4a80-97bf-766816e283bd",
+          "playerSupportBedrock": "true",
+          "creeperDistanceSquared": "471.40959515783794",
+          "creeperHealth": "20.0",
+          "creeperRemoved": "false",
+          "zombieHealth": "4.0",
+          "zombieAlive": "true",
+          "waterSourceCellsPresent": "true",
+          "cowPosition": "18.5,64.0,20.5"
+        },
+        "initialPreparedStationRoomReceipt": {},
+        "serverPreparedStationRoomReceipt": {},
+        "initialPreparedPursuitReceipt": {},
+        "serverPreparedPursuitReceipt": {},
+        "initialPreparedAirReceipt": {},
+        "serverPreparedAirReceipt": {}
+      },
+      "stationRecoveryClaim": false,
+      "screenshotUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-0ec8e88-prepared-water-retreat-PASS-original.png",
+      "snapshotDiagnostics": {
+        "logSha256": "ac080e327c9333ed1ae918ddc5775972a1e86f34fd21179901a7e8484a01b652",
+        "requests": 1,
+        "freezeRecords": 8,
+        "completionRecords": 6,
+        "maxSampledChunks": 49,
+        "freezeSummaries": [
+          {
+            "record": "phase=freeze request=1 context=410427877 sample=1 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=622211693 sample=2 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=2027305052 sample=3 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=507502147 sample=4 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=109758166 sample=5 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=1973847146 sample=6 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=2096780670 sample=7 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          },
+          {
+            "record": "phase=freeze request=1 context=1370233076 sample=8 runtime=1683495596 bot=1093544755 session=1358121436 generation=2 world=2108138414 player=1494109132 goal=1774818413 requestFeet=BetterBlockPos{x=0,y=63,z=0} contextFeet=BetterBlockPos{x=0,y=63,z=0} goals=[BlockPos{x=-14, y=64, z=-14}, BlockPos{x=-13, y=64, z=-14}, BlockPos{x=-14, y=64, z=-13}, BlockPos{x=-12, y=64, z=-14}, BlockPos{x=-13, y=64, z=-13}, BlockPos{x=-14, y=64, z=-12}, BlockPos{x=-11, y=64, z=-14}, BlockPos{x=-12, y=64, z=-13}, BlockPos{x=-13, y=64, z=-12}, BlockPos{x=-14, y=64, z=-11}, BlockPos{x=-10, y=64, z=-14}, BlockPos{x=14, y=64, z=-14}, BlockPos{x=-11, y=64, z=-13}, BlockPos{x=-12, y=64, z=-12}, BlockPos{x=-9, y=64, z=-14}, BlockPos{x=13, y=64, z=-14}] interestCenterPresent=true interestCenter=0,0",
+            "sampledChunks": 49,
+            "liveFullCount": 49,
+            "pendingCount": 0,
+            "readyCurrentCount": 49,
+            "frozenLiveCount": 49
+          }
+        ],
+        "completionSummaries": [
+          {
+            "record": "phase=completion request=1 context=410427877 sample=1 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          },
+          {
+            "record": "phase=completion request=1 context=622211693 sample=2 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          },
+          {
+            "record": "phase=completion request=1 context=2027305052 sample=3 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          },
+          {
+            "record": "phase=completion request=1 context=507502147 sample=4 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          },
+          {
+            "record": "phase=completion request=1 context=109758166 sample=5 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          },
+          {
+            "record": "phase=completion request=1 context=1973847146 sample=6 event=CALC_FINISHED_NOW_EXECUTING contextAssociation=observedOnly sessionCurrentAtCompletion=true",
+            "sampledChunks": 49
+          }
+        ],
+        "limits": "Completion contextAssociation=observedOnly; observed contexts are not proven to be the contexts that launched the search. Two freezes lack completion records. All sampled interest chunks were ready and frozen live in this prepared run; the earlier natural-water failure remains unresolved."
+      }
+    }
+  ],
+  "screenshotManifestUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0ec8e88-water-screenshot-manifest.json"
+}

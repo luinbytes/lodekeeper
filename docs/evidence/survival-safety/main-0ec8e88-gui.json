@@ -1,0 +1,103 @@
+{
+  "sourceCommit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+  "scope": "Ten existing native settings GUI checks on each primary version, twenty total. Shield test floors19 iron/37planks are saved/reloaded, dependent controls disable without losing values, invalid values/discard/reset/navigation options/protected plots are checked, and original defaults/settings are restored. This does not prove shield combat, full Survival, native37-value navigation lease or speed.",
+  "runs": [
+    {
+      "minecraftVersion": "1.21.1",
+      "outcome": "PASS_10_OF_10",
+      "runnerSource": {
+        "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-0ec8e88-1.21.1-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "1fb8df73ad97c034999e64582dac73e9f4a91e716c07a6e176c591f513207f94"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadViolations": [],
+      "nativeReceiptSha256": "7cc0baba787cf189cb149345763ec199415d42a7e2e932bf41ba10a7fc30826d",
+      "nativeReceipt": "settingsUi=PASS; steps=10/10; restored=true; plots=live=0 disk=0 corners=clear; preferred toggle persisted; double remove confirmed; framesHeld=2; captures=4; trace=PASS allowBreaking-search-filter-off-save-reload | PASS discard-preserves-saved-value | PASS dependency-disables-child-keeps-stored-value | PASS shield-crafting-controls-save-reload-and-dependency | PASS invalid-number-refuses-save | PASS per-row-reset | PASS navigation-options-open-and-capture | PASS navigation-options-edit-validate-save-reload-reset | PASS protected-plots-native-form-resize-persist-prefer-remove | PASS all-original-values-restored",
+      "chatEntryConfirmed": true,
+      "elapsedMillis": 17778,
+      "screenshots": [
+        {
+          "path": "verification/evidence/screenshots/lodekeeper-2026-10-07T22-58-19-029629Z-f9cffe5e-native-settings-ui-final.png",
+          "sha256": "d06f6656b951826069127b0d84cfb11c12eb28d6c29ff1547452abc329503ea5"
+        },
+        {
+          "path": "verification/evidence/screenshots/lodekeeper-2026-10-07T22-58-19-029629Z-f9cffe5e-settings-ui-actual-plot-editor.png",
+          "sha256": "09fea1095530ebadad398d182a1eaeafa4cb6cbf417ad449f739e4273338b396"
+        },
+        {
+          "path": "verification/evidence/screenshots/lodekeeper-2026-10-07T22-58-19-029629Z-f9cffe5e-settings-ui-navigation-options.png",
+          "sha256": "afc205c496794a5f6d71240086fff94d22ad9b001db9acf4e2d9d922f1198bb4"
+        },
+        {
+          "path": "verification/evidence/screenshots/lodekeeper-2026-10-07T22-58-19-029629Z-f9cffe5e-settings-ui-settings-open.png",
+          "sha256": "1191b1779da0b83c4838cf6019d3bede6641d28431fb0b6fc344b154ffcb4950"
+        },
+        {
+          "path": "verification/evidence/screenshots/lodekeeper-2026-10-07T22-58-19-029629Z-f9cffe5e-settings-ui-shield-options.png",
+          "sha256": "b871ac733475a5bb58df7b6eafeff97f9c428d07b0029facc1ea89a96825d7d6"
+        }
+      ]
+    },
+    {
+      "minecraftVersion": "26.3",
+      "outcome": "PASS_10_OF_10",
+      "runnerSource": {
+        "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-0ec8e88-26.3-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "0b914929ad992b0a21fe9ad5ad8c07b7c2e6f5a52b449aa82b57c59ef56c52cf"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadViolations": [],
+      "nativeReceiptSha256": "ded0a75d57d08cc35499c781704f5d8437f833ed3244e84e9b0286be22d10f60",
+      "nativeReceipt": "settingsUi=PASS; steps=10/10; restored=true; plots=live=0 disk=0 corners=clear; preferred toggle persisted; double remove confirmed; framesHeld=2; captures=4; trace=PASS allowBreaking-search-filter-off-save-reload | PASS discard-preserves-saved-value | PASS dependency-disables-child-keeps-stored-value | PASS shield-crafting-controls-save-reload-and-dependency | PASS invalid-number-refuses-save | PASS per-row-reset | PASS navigation-options-open-and-capture | PASS navigation-options-edit-validate-save-reload-reset | PASS protected-plots-native-form-resize-persist-prefer-remove | PASS all-original-values-restored",
+      "chatEntryConfirmed": true,
+      "elapsedMillis": 19495,
+      "screenshots": [
+        {
+          "path": "verification/2026-10-07T22-59-19-366855Z-a6c42a9c/evidence/screenshots/lodekeeper-2026-10-07T22-59-19-366855Z-a6c42a9c-native-settings-ui-final.png",
+          "sha256": "19c2fb404564ee601a15ac2d5af70367acb6bc4b153049fe242108b8e7075334"
+        },
+        {
+          "path": "verification/2026-10-07T22-59-19-366855Z-a6c42a9c/evidence/screenshots/lodekeeper-2026-10-07T22-59-19-366855Z-a6c42a9c-settings-ui-actual-plot-editor.png",
+          "sha256": "d767d8f97c922212e82053f1624aaf67429ad394c6196ddf868742964b96df40"
+        },
+        {
+          "path": "verification/2026-10-07T22-59-19-366855Z-a6c42a9c/evidence/screenshots/lodekeeper-2026-10-07T22-59-19-366855Z-a6c42a9c-settings-ui-navigation-options.png",
+          "sha256": "d7466a8ec1d088cfcab15ba62c8281a8037321ca0cb43ab2ecd06f8a620e426a"
+        },
+        {
+          "path": "verification/2026-10-07T22-59-19-366855Z-a6c42a9c/evidence/screenshots/lodekeeper-2026-10-07T22-59-19-366855Z-a6c42a9c-settings-ui-settings-open.png",
+          "sha256": "79618dd4ca4ff039078a025bbe44da5670841ac6b1b0889aa96c46d0db6ef876"
+        },
+        {
+          "path": "verification/2026-10-07T22-59-19-366855Z-a6c42a9c/evidence/screenshots/lodekeeper-2026-10-07T22-59-19-366855Z-a6c42a9c-settings-ui-shield-options.png",
+          "sha256": "8adf0d16c544f3ed35fd1ad1a211aaffc9f02c280addf6eb87cb6f9655487fda"
+        }
+      ]
+    }
+  ],
+  "screenshotManifestUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0ec8e88-gui-screenshot-manifest.json"
+}

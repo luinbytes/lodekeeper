@@ -1,0 +1,289 @@
+{
+  "sourceCommit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+  "scope": "Fresh generated Normal Survival gear_diamond attempt, failed threat candidate admission with one diamond pickaxe and no equipped armor. The previous terminal RETURN packet ordering was reproduced and continued through stone-pickaxe crafting. This does not resolve the natural water-calculation failure or establish full gear, station cleanup or speedup.",
+  "runnerSource": {
+    "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "runnerStatus": "failed",
+  "runnerFailures": [
+    "native run receipt verification/evidence/natural-2026-10-07T22-45-49.319664Z-7c473932.json status is 'failed'",
+    "native run receipt verification/evidence/natural-2026-10-07T22-45-49.319664Z-7c473932.json reports failure 'automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 7 foreground queued \u00b7 0 maintenance queued'"
+  ],
+  "productionJar": {
+    "minecraftDependency": "1.21.1",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-0ec8e88-1.21.1-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/AutomationEngine.class"
+    ],
+    "sha256": "1fb8df73ad97c034999e64582dac73e9f4a91e716c07a6e176c591f513207f94"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadViolations": [],
+  "nativeReceiptSha256": "fa80617e59d290c7eff7b0ea0a60b2deb847f0939b844d6c9b98bef9cfa05959",
+  "nativeEvidence": {
+    "runId": "2026-10-07T22-45-49.319664Z-7c473932",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "1.21.1",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 317552,
+    "commandElapsedMillis": 286553,
+    "commandServerTick": 96,
+    "deathsAtCommand": 0,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "failure": "automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 7 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 7 foreground queued \u00b7 0 maintenance queued",
+    "candidateSha256": "1fb8df73ad97c034999e64582dac73e9f4a91e716c07a6e176c591f513207f94",
+    "commandStartPosition": {
+      "x": -9.5,
+      "y": 67.0,
+      "z": 37.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverGameMode": "survival",
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverTick": 5826,
+    "serverInventoryCounts": {
+      "minecraft:diorite": 13,
+      "minecraft:granite": 2,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:beef": 4,
+      "minecraft:andesite": 6,
+      "minecraft:birch_log": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobblestone": 57,
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:cobbled_deepslate": 33,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:leather": 4
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:granite": 2,
+      "minecraft:diorite": 13,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:beef": 4,
+      "minecraft:andesite": 6,
+      "minecraft:birch_log": 1,
+      "minecraft:cobblestone": 57,
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobbled_deepslate": 33,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:leather": 4
+    },
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-07T22-45-49.319664Z-7c473932-phase-running.png",
+      "screenshots/lodekeeper-2026-10-07T22-45-49.319664Z-7c473932-first-movement.png",
+      "screenshots/lodekeeper-2026-10-07T22-45-49.319664Z-7c473932-received-diamond_pickaxe.png",
+      "screenshots/lodekeeper-2026-10-07T22-45-49.319664Z-7c473932-final.png"
+    ]
+  },
+  "inventoryOrdering": {
+    "outcome": "PASS_REPRODUCED_NATIVE_ORDERING",
+    "nativeFullReplySourceCount": 1,
+    "laterPartialSourceCount": 2,
+    "contentsSequence": 4,
+    "contentsRevision": 7,
+    "sourceSequence": 185,
+    "cursorSequence": 191,
+    "laterSourceSequence": 192,
+    "laterRevision": 8,
+    "nativeWatchedGridAndComponentsMatchedAtFull": true,
+    "subsequentServerStonePickaxeCount": 1,
+    "logLines": [
+      "[23:47:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_ack phase=RETURN handler=3 source=40 destination=1 expectedItem=minecraft:cobblestone expectedSlotCount=1 expectedCursorCount=0 fullSlots=[1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air] fullCursor=0 minecraft:air contentsBefore=3 contentsSequence=4 outboundRevision=6 contentsRevision=7 localRevision=7 sourceSequence=185 cursorSequence=191 consumptionRequired=false consumptionConfirmed=true itemComponentsAndLiveMatched=true",
+      "[23:47:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_RECEIPT generation=0 contents menu=3 slots=46 mapped=true complete=true",
+      "[23:47:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER slot_after_full phase=RETURN handler=3 source=40 destination=1 ackSequence=4 ackRevision=7 ackSourceSequence=185 ackCursorSequence=191 ackSlots=[1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 1 minecraft:cobblestone, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air] ackCursor=0 minecraft:air updatedSlot=40 updatedSequence=192 updatedRevision=8 liveSlot=2 minecraft:cobblestone consumptionConfirmed=true itemComponentsAndLiveMatchedAtFull=true",
+      "[23:47:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_RECEIPT generation=0 contents menu=3 slots=46 mapped=true complete=true",
+      "[23:47:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_RECEIPT generation=0 contents menu=3 slots=46 mapped=true complete=true",
+      "[23:47:15] [Server thread/INFO] (Minecraft) Player24 has made the advancement [Getting an Upgrade]",
+      "[23:47:15] [Render thread/INFO] (Minecraft) [System] [CHAT] Player24 has made the advancement [Getting an Upgrade]",
+      "[23:47:15] [Render thread/INFO] (Minecraft) Loaded 54 advancements",
+      "[23:47:16] [lodekeeper-planner/INFO] (lodekeeper) [Lodekeeper] PROJECT_MATERIALS project=gear_diamond before=[gather:minecraft:iron_ore:3, gather:minecraft:stone:6, gather:minecraft:diamond_ore:3, gather:minecraft:diamond_ore:3, gather:minecraft:diamond_ore:4, gather:minecraft:diamond_ore:8, gather:minecraft:diamond_ore:5, gather:minecraft:diamond_ore:2, gather:minecraft:diamond_ore:7, gather:minecraft:diamond_ore:1, gather:minecraft:diamond_ore:2] after=[gather:minecraft:iron_ore:3, gather:minecraft:stone:6, gather:minecraft:diamond_ore:3, gather:minecraft:diamond_ore:3, gather:minecraft:diamond_ore:4, gather:minecraft:diamond_ore:8, gather:minecraft:diamond_ore:5, gather:minecraft:diamond_ore:2, gather:minecraft:diamond_ore:7, gather:minecraft:diamond_ore:1, gather:minecraft:diamond_ore:2]",
+      "[23:47:16] [lodekeeper-planner/INFO] (lodekeeper) [Lodekeeper] PLAN project=gear_diamond success=true steps=29 branches=143 elapsedMs=4.829138"
+    ],
+    "review": "Independent read-only review confirmed terminal source growth, exact watched-grid/component checks and server advancement. This validates this ordering in this run, not every native lifecycle.",
+    "latestLogSha256": "69302a149e326ee26ca0de87d31e8b3255150a7778acca746af0a345a030d216"
+  },
+  "selectedServerInventoryDiffs": [
+    {
+      "serverTick": 607,
+      "elapsedMillisFromCommand": 25516,
+      "item": "minecraft:crafting_table",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 715,
+      "elapsedMillisFromCommand": 30917,
+      "item": "minecraft:crafting_table",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 1209,
+      "elapsedMillisFromCommand": 55618,
+      "item": "minecraft:stone_pickaxe",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 1306,
+      "elapsedMillisFromCommand": 60465,
+      "item": "minecraft:crafting_table",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 2211,
+      "elapsedMillisFromCommand": 105716,
+      "item": "minecraft:raw_iron",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 2294,
+      "elapsedMillisFromCommand": 109867,
+      "item": "minecraft:raw_iron",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 2,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 3036,
+      "elapsedMillisFromCommand": 146966,
+      "item": "minecraft:raw_iron",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 3,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 3321,
+      "elapsedMillisFromCommand": 161216,
+      "item": "minecraft:iron_ingot",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 3521,
+      "elapsedMillisFromCommand": 171215,
+      "item": "minecraft:iron_ingot",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 2,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 3721,
+      "elapsedMillisFromCommand": 181215,
+      "item": "minecraft:iron_ingot",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 3,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 3749,
+      "elapsedMillisFromCommand": 182616,
+      "item": "minecraft:iron_pickaxe",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 4385,
+      "elapsedMillisFromCommand": 214416,
+      "item": "minecraft:diamond",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 4414,
+      "elapsedMillisFromCommand": 215865,
+      "item": "minecraft:diamond",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 2,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 4868,
+      "elapsedMillisFromCommand": 238565,
+      "item": "minecraft:diamond",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 3,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 5243,
+      "elapsedMillisFromCommand": 257315,
+      "item": "minecraft:diamond_pickaxe",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": true,
+      "authority": "integrated_server_inventory_diff"
+    }
+  ],
+  "ci": {
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37696100736",
+    "status": "completed",
+    "jobs": 24,
+    "passed": 24
+  },
+  "screenshotManifestUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0ec8e88-natural-primary-final-screenshot-manifest.json"
+}

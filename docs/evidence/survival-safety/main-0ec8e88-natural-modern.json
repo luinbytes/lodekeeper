@@ -1,0 +1,139 @@
+{
+  "sourceCommit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+  "scope": "Fresh generated Normal Survival gear_diamond attempt failed after the player was slain by a zombie during air recovery. This is a different failure from the previous natural skeleton-water calculation failure; no frozen retreat records emitted. No gear or armor remained at the death receipt.",
+  "runnerSource": {
+    "commit": "0ec8e8817aa54cee56ec8219d09ae54390737520",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "runnerStatus": "failed",
+  "runnerFailures": [
+    "native run receipt verification/2026-10-07T22-52-27.006651Z-5a357b27/evidence/natural-2026-10-07T22-52-27.006651Z-5a357b27.json status is 'failed'",
+    "native run receipt verification/2026-10-07T22-52-27.006651Z-5a357b27/evidence/natural-2026-10-07T22-52-27.006651Z-5a357b27.json reports failure 'player died during the natural request'"
+  ],
+  "productionJar": {
+    "minecraftDependency": "26.3",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-0ec8e88-26.3-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+    ],
+    "sha256": "0b914929ad992b0a21fe9ad5ad8c07b7c2e6f5a52b449aa82b57c59ef56c52cf"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadViolations": [],
+  "nativeReceiptSha256": "cae7c959c31e62597d74ad89812461bc5f3dc343069a3046226e8912b674a38d",
+  "nativeEvidence": {
+    "runId": "2026-10-07T22-52-27.006651Z-5a357b27",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 80812,
+    "commandElapsedMillis": 56299,
+    "commandServerTick": 114,
+    "deathsObserved": 1,
+    "minimumHealth": 0.0,
+    "failure": "player died during the natural request",
+    "engineStatus": "paused \u00b7 player is no longer alive \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "candidateSha256": "0b914929ad992b0a21fe9ad5ad8c07b7c2e6f5a52b449aa82b57c59ef56c52cf",
+    "commandStartPosition": {
+      "x": -6.5,
+      "y": 73.0,
+      "z": 15.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverHealth": 0.0,
+    "serverHunger": 17,
+    "serverTick": 1238,
+    "serverInventoryCounts": {},
+    "serverArmorCounts": {},
+    "serverHeldCounts": {},
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-07T22-52-27.006651Z-5a357b27-phase-running.png",
+      "screenshots/lodekeeper-2026-10-07T22-52-27.006651Z-5a357b27-first-movement.png",
+      "screenshots/lodekeeper-2026-10-07T22-52-27.006651Z-5a357b27-final.png"
+    ]
+  },
+  "diagnosticLogLines": [
+    "[23:53:37] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=5.300000011920929,60.08927631787322,22.669689756359173 threats=[511b1dc9-58b4-48a8-acec-3276c60acd6d/entity.minecraft.skeleton@6.399347527370808,64.06636487072683,26.792270801269435/alive=true/removed=false/eligible=true/distance=5.832792880672039]",
+    "[23:53:37] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RETREAT planning starts=0 completed=0 attacks=0 ticks=1 hazards=[511b1dc9-58b4-48a8-acec-3276c60acd6d/entity.minecraft.skeleton@6.350357051022283,64.0,26.63741152978515 clearance=11, 5bbbc31a-80d4-45d3-b130-9b0430a569c0/entity.minecraft.zombie@7.493977864593035,66.0,27.532633460075886 clearance=11, 3cbe45de-1cdf-4512-b2ab-65921ca96544/entity.minecraft.zombie@12.5,64.0,43.5 clearance=11]",
+    "[23:53:37] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=no-open-retreat attacks=0 retreatStarts=1 completedRetreats=0 ticks=1 status=waiting for live contact without an open retreat player=5.300000011920929,60.06427232983718,22.669689756359173 threats=[511b1dc9-58b4-48a8-acec-3276c60acd6d/entity.minecraft.skeleton@6.350357051022283,64.0,26.63741152978515/alive=true/removed=false/eligible=true/distance=5.6864767892424934]",
+    "[23:53:38] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=melee attacks=0 retreatStarts=1 completedRetreats=0 ticks=22 status=native melee defense player=5.300000011920929,59.53914090446877,21.18303154306927 threats=[511b1dc9-58b4-48a8-acec-3276c60acd6d/entity.minecraft.skeleton@5.8153483062342275,61.79280598819605,24.372314447158715/alive=true/removed=false/eligible=true/distance=3.9390500906157957]",
+    "[23:53:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=stopped attacks=2 retreatStarts=1 completedRetreats=0 ticks=59 status=threat response stopped player=5.300000011920929,58.58913935281323,21.179563558653747 threats=[]",
+    "[23:53:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=48663 phase=working backend=owned-navigation target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=recovering_air___swimming___196/300 execution[opening=false,moving=false,crafting=false,smelting=false,actionTicks=34,station=null,handler=InventoryMenu,sneaking=false]",
+    "[23:53:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=50729 phase=working backend=owned-navigation target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=recovering_air___swimming___174/300 execution[opening=false,moving=false,crafting=false,smelting=false,actionTicks=34,station=null,handler=InventoryMenu,sneaking=false]",
+    "[23:53:44] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=52729 phase=working backend=owned-navigation target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=recovering_air___swimming___300/300 execution[opening=false,moving=false,crafting=false,smelting=false,actionTicks=34,station=null,handler=InventoryMenu,sneaking=false]",
+    "[23:53:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] PROGRESS elapsed_ms=54763 phase=working backend=owned-navigation target=none navigation_elapsed_ms=0 navigation_ticks=0 searching=false path_index=0 path_length=0 retries=0 pending_route_events=0 dropped_route_events=0 status=recovering_air___swimming___300/300 execution[opening=false,moving=false,crafting=false,smelting=false,actionTicks=34,station=null,handler=InventoryMenu,sneaking=false]",
+    "[23:53:47] [Server thread/INFO] (Minecraft) System chat: Player892 was slain by Zombie",
+    "[23:53:47] [Render thread/INFO] (Minecraft) [System] [CHAT] Player892 was slain by Zombie",
+    "[23:53:47] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Paused: player is no longer alive. Use resume or stop."
+  ],
+  "latestLogSha256": "3844f878dc790cca9d40cb349b1173a909e7b921e772a6189331052bef0fa39c",
+  "retreatSnapshotRecords": 0,
+  "selectedServerInventoryDiffs": [
+    {
+      "serverTick": 691,
+      "elapsedMillisFromCommand": 28805,
+      "item": "minecraft:crafting_table",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 709,
+      "elapsedMillisFromCommand": 29710,
+      "item": "minecraft:wooden_pickaxe",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    },
+    {
+      "serverTick": 803,
+      "elapsedMillisFromCommand": 34409,
+      "item": "minecraft:crafting_table",
+      "countIncrease": 1,
+      "heldCountAfterReceipt": 1,
+      "requestedTargetItem": false,
+      "authority": "integrated_server_inventory_diff"
+    }
+  ],
+  "ci": {
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37696100736",
+    "status": "completed",
+    "jobs": 24,
+    "passed": 24
+  },
+  "screenshotManifestUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0ec8e88-natural-modern-final-screenshot-manifest.json"
+}
