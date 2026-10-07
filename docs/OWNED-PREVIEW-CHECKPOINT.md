@@ -30,15 +30,17 @@ The production source is `ce3c967b567ec1d7592e11a9f67e318cbcfa52c4`. Later runne
 | Exact adapter and verifier compilation | All 24 profiles pass |
 | Shield modes | 18/18 pass, nine on each primary version |
 | Inventory progression warmup | Current 1.21.1 jar passes 9/9; profiled and uncounted |
-| Repeated inventory comparison | Running; includes one failed baseline trial; no speed claim |
-| GUI and settings | Earlier nine-step GUI passes are historical; current ten-step GUI and 37-value native lease checks are pending |
-| Claims, backfill, stations and threats | Earlier receipts retain their source scope; fresh current runs are pending |
+| Repeated inventory comparison | Historical A/B sequence complete: five progression passes each, one additional A timeout and one B cleanup failure; current-build counted trials pending |
+| GUI and settings | Current ten-step GUI passes on both primary versions with saved shield thresholds; 37-value native lease checks pending |
+| Claims, backfill, stations and threats | Current 1.21.1 live-creeper retreat fails after two routes; other fresh safety runs pending |
 | Fresh natural full diamond gear | Pending on both primary versions; latest earlier attempts failed |
-| Original gameplay media | Modern shield capture call compiles; fresh capture and raw video checks are pending |
+| Original gameplay media | Fresh 26.3 queued and worn shield PNG captures pass; raw videos pending |
 
 The queued shield case reserves seven iron before adding a keep floor of four. Twelve starting ingots leave eleven after the shield and six after the bucket and shears. Four reserved planks plus a keep floor of nine leave thirteen after shield crafting. The worn case records native blocked damage, minimum health twenty, and shield restoration. Occupied offhand stock is preserved. Manual takeover uses simulated native key-state input, not physical keyboard input.
 
-The inventory warmup passes all nine controlled cases, including custom crafting and automatic eating. Its profiling samples include navigation and engine work; the receipt exposes no per-click latency. The repeated comparison retains the baseline wooden-pickaxe timeout as a failure. Neither the warmup nor an incomplete comparison establishes a speedup.
+The inventory warmup passes all nine controlled cases, including custom crafting and automatic eating. Its profiling samples include navigation and engine work; the receipt exposes no per-click latency. The historical A/B sequence records five progression passes each across eleven attempts. A's additional wooden-pickaxe timeout remains a failure. One B progression pass leaves an owned table pickup incomplete, and one A pass includes a temporary pickup timeout followed by recovery. B's source commit is unknown; its jar hash identifies that historical candidate. Current-build counted trials remain pending, so these results do not establish the released build's speedup.
+
+The current GUI passes all ten checks on each primary version, including shield controls, saved thresholds of nineteen iron and thirty-seven planks, dependent-control disabling, discard, protected plots and restoration of original settings. The current primary creeper fixture fails after two retreats. The player remains at full health, the same creeper remains alive with its fuse stopped, and weapons are untouched; clearance is still below twelve blocks. This failure blocks release.
 
 ## Build and native history
 
@@ -58,10 +60,10 @@ Earlier receipts and original screenshots remain distinct from current acceptanc
 
 The earlier `8d7bb68` primary hashes are historical: 1.21.1 `e7158a2c1cab3c9bda750f82c4f17f44a924276f081c24c86b8f08e13cebfd1b`, and 26.3 `b45ff0961188292a86b82223c6cc0e1d3058d5214b1220eca0695a13863a706a`. Earlier progression, claims, station recovery, and nine-step GUI results do not cover the current production change. An earlier exact 1.20.1 artifact and its verifier compile; current native gameplay on that profile is unverified.
 
-Modern shield completion initially omitted a screenshot request. The capture-only fix compiles on 26.3 without changing production jar bytes. Its fresh native capture check remains pending. The failed original receipts remain unchanged.
+Modern shield completion initially omitted a screenshot request. The capture-only fix compiles on 26.3 without changing production jar bytes. Fresh queued and worn cases now pass with existing original PNGs. The failed original receipts remain unchanged.
 
 ## Release status
 
 Preview 11 is not released or ready for download. Preview 10 remains on the [release page](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10). Its historical full gear timings are 11:59 on 1.21.1 and 9:33 on 26.3; those figures do not describe Preview 11.
 
-Release requires the remaining current GUI, safety, inventory comparison, and fresh full gear gates; final exact-source CI and packaging; and labelled original screenshots and raw videos. Uploaded media must pass remote size and SHA-256 read-back before its local copies are removed. Compiled coverage, runtime verification, and Lu's acceptance remain separate.
+Release requires corrected live-creeper retreat, the remaining settings, safety, inventory comparison, and fresh full gear gates; final exact-source CI and packaging; and labelled original screenshots and raw videos. Uploaded media must pass remote size and SHA-256 read-back before its local copies are removed. Compiled coverage, runtime verification, and Lu's acceptance remain separate.

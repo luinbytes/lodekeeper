@@ -144,7 +144,7 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 ## Shield behavior fixture
 
-All nine shield modes pass on both 1.21.1 and 26.3 with the exact `ce3c967` production jars. The corrected runner at `fbd5261` handles variable JVM class-log decorators and keeps the original class-origin checks. Queued work reserves seven iron; worn shields block native damage and restore; occupied offhand stock is preserved. Manual takeover uses simulated native key-state injection. Keep the earlier failed receipts separate. The modern shield fixture now requests an original screenshot through the existing capture helper; its fresh capture check remains pending. Run only one isolated client at a time.
+All nine shield modes pass on both 1.21.1 and 26.3 with the exact `ce3c967` production jars. The corrected runner at `fbd5261` handles variable JVM class-log decorators and keeps the original class-origin checks. Queued work reserves seven iron; worn shields block native damage and restore; occupied offhand stock is preserved. Manual takeover uses simulated native key-state injection. Keep the earlier failed receipts separate. Fresh modern queued and worn checks now save original scenario screenshots through the existing capture helper. The ten-step native settings GUI passes on both primary versions. The fresh 1.21.1 live-creeper contact check fails to retain twelve-block clearance after two retreat routes and blocks release. Run only one isolated client at a time.
 
 For the `spare` mode, pass the verifier these full flags:
 
