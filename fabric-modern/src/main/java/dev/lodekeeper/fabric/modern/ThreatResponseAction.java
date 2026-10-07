@@ -22,9 +22,9 @@ import java.util.UUID;
 /** Caller-owned inventory arbitration; native movement and attacks provide all effects. */
 final class ThreatResponseAction {
     private record RetreatRoute(List<BlockPos> threats, List<BlockPos> goals) { }
-    private record RouteHazard(UUID uuid, EntityType<?> type, double x, double y, double z) {
-        int clearance() { return type == EntityType.CREEPER ? 20 : 11; }
-        double dangerRadius() { return type == EntityType.CREEPER ? 6.0 : 3.5; }
+    private record RouteHazard(UUID uuid, EntityType<?> type, boolean creeper, double x, double y, double z) {
+        int clearance() { return creeper ? 20 : 11; }
+        double dangerRadius() { return creeper ? 6.0 : 3.5; }
         MovementController.RetreatThreat movementThreat() {
             return new MovementController.RetreatThreat(x, y, z, clearance(), dangerRadius());
         }
@@ -417,7 +417,7 @@ final class ThreatResponseAction {
         List<RouteHazard> hazards = routeHazards();
         logRetreatPlanning(hazards);
         if (retreatStarts >= MAX_RETREAT_STARTS || completedRetreats >= MAX_COMPLETED_RETREATS) {
-            if (hazards.stream().anyMatch(hazard -> hazard.type() == EntityType.CREEPER))
+            if (hazards.stream().anyMatch(RouteHazard::creeper))
                 throw new IllegalStateException("active creeper remained after bounded retreat routes");
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
@@ -435,7 +435,7 @@ final class ThreatResponseAction {
                     new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
-                    || hazards.stream().anyMatch(hazard -> hazard.type() == EntityType.CREEPER)) throw failure;
+                    || hazards.stream().anyMatch(RouteHazard::creeper)) throw failure;
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
             status = "waiting for live contact without an open retreat";
@@ -465,7 +465,7 @@ final class ThreatResponseAction {
         for (Mob mob : client.level.getEntities(EntityTypeTest.forClass(Mob.class), envelope, this::eligible))
             addRouteHazard(candidates, mob);
         return candidates.values().stream().sorted(Comparator.comparingDouble(client.player::distanceToSqr))
-                .map(mob -> new RouteHazard(mob.getUUID(), mob.getType(), mob.getX(), mob.getY(), mob.getZ())).toList();
+                .map(mob -> new RouteHazard(mob.getUUID(), mob.getType(), creeper(mob), mob.getX(), mob.getY(), mob.getZ())).toList();
     }
 
     private void addRouteHazard(Map<UUID, Mob> candidates, Mob mob) {
