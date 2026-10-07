@@ -38,7 +38,7 @@ Preview 11 remains unreleased. Preview 10 is still available from its [release p
 
 ## Remaining gates
 
-Compile each exact profile before declaring its Minecraft version supported. Validate the source fixes for 1.21.5 through 1.21.11 and all five 26.x profiles, then pass CI across the full profile matrix. Repeat the primary native checks with the exact final jars, including all nine shield modes and the separate repeated inventory benchmark. Run full gear loadouts in new survival worlds on the primary versions.
+All 24 exact profiles compile at `8d7bb68` in [CI run 37603417871](https://github.com/luinbytes/lodekeeper/actions/runs/37603417871). Compile any later source changes before declaring their artifacts supported. Repeat the primary native checks with the exact final jars, including all nine shield modes and the separate repeated inventory benchmark. Run full gear loadouts in new survival worlds on the primary versions.
 
 Review the final artifact recursively. It must keep the LGPL notices, exact source locks, modified corresponding source, and rebuild instructions. Do not call the candidate complete or publish it until those gates pass.
 
