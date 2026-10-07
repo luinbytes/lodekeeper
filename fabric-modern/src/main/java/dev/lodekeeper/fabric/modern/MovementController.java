@@ -164,6 +164,8 @@ final class MovementController {
     private Object followOwnerWorld, followOwnerPlayer;
     private Predicate<Entity> followFilter;
     private OwnedPickupTarget pickupTarget;
+    private Boolean ownedPickupProcessActive;
+    private int ownedPickupProcessActiveTick;
     private long progressToken, startedNanos, lastDefenseCancellationLog;
     private double observedX, observedY, observedZ, requestX, requestZ;
     private boolean positionObserved;
@@ -773,6 +775,8 @@ final class MovementController {
         followTargetId = pickupTarget.entityId();
         followOwnerWorld = pickupTarget.ownerWorld();
         followOwnerPlayer = pickupTarget.ownerPlayer();
+        ownedPickupProcessActive = null;
+        ownedPickupProcessActiveTick = 0;
         OwnedPickupTarget target = pickupTarget;
         followFilter = entity -> mode == Mode.PICKUP && pickupTarget == target
                 && target.ownerSession() == ownerSession
@@ -784,6 +788,44 @@ final class MovementController {
         diagnosticGoal = dev.lodekeeper.nav.Goal.near16(position.getX(), position.getY() * 16, position.getZ(), 32);
         mode = Mode.PICKUP;
         launch();
+    }
+
+    String ownedPickupDiagnostic(ItemEntity entity, Object ownerSession) {
+        OwnedPickupTarget target = pickupTarget;
+        if (!config.debugLogging || target == null || target.entity() != entity
+                || target.ownerSession() != ownerSession || client.player == null
+                || client.player != target.ownerPlayer() || client.level != target.ownerWorld()
+                || bot == null || bot.getPlayerContext().player() != client.player
+                || bot.getPlayerContext().world() != client.level) {
+            return "nativeContextMatches=false";
+        }
+        var pathing = bot.getPathingBehavior();
+        var goal = pathing.getGoal();
+        var executor = pathing.getCurrent();
+        var path = executor == null ? null : executor.getPath();
+        var feet = bot.getPlayerContext().playerFeet();
+        var follow = bot.getFollowProcess();
+        var following = follow.following();
+        var controlling = bot.getPathingControlManager().mostRecentInControl().orElse(null);
+        String goalText = goal == null ? "none" : goal.toString().replace('\n', ' ').replace('\r', ' ');
+        if (goalText.length() > 256) goalText = goalText.substring(0, 256);
+        return "nativeContextMatches=true pinnedUUID=" + target.entityId()
+                + " pinnedStartingCount=" + target.startingCount() + " nativeMode=" + mode
+                + " nativeGoal=" + goalText + " kernelPlayerFeet=" + feet
+                + " goalInPlayerFeet=" + (goal == null ? "unavailable" : goal.isInGoal(feet))
+                + " followRadius=" + OwnedKernelAPI.getSettings().followRadius.value
+                + " processActiveObserved=" + ownedPickupProcessActive
+                + " processActiveObservedTick=" + ownedPickupProcessActiveTick
+                + " processActiveCached=" + (follow.currentFilter() != null && following != null && !following.isEmpty())
+                + " followFilterMatches=" + (follow.currentFilter() == followFilter)
+                + " followControlling=" + (controlling == follow)
+                + " controllingProcess=" + (controlling == null ? "none" : controlling.getClass().getSimpleName())
+                + " searching=" + pathing.getInProgress().isPresent()
+                + " hasPath=" + pathing.hasPath() + " pathing=" + pathing.isPathing()
+                + " executor=" + (executor == null ? "none" : executor.getClass().getSimpleName())
+                + " pathIndex=" + (executor == null ? -1 : executor.getPosition())
+                + " pathLength=" + (path == null ? 0 : path.positions().size())
+                + " requestTicks=" + requestTicks + " failedCalculations=" + failedCalculations;
     }
 
     void startMining(Block[] blocks, Item output, int totalCount, SelectedToolRequirement tool,
@@ -1085,6 +1127,10 @@ final class MovementController {
             case PICKUP, FOLLOW -> bot.getFollowProcess().isActive();
             default -> false;
         };
+        if (config.debugLogging && mode == Mode.PICKUP && pickupTarget != null) {
+            ownedPickupProcessActive = active;
+            ownedPickupProcessActiveTick = requestTicks;
+        }
         if (mode == Mode.PICKUP && pickupTarget != null && failedCalculations >= 2) {
             stop(); throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
                     "Owned station pickup route exhausted two native path calculations");

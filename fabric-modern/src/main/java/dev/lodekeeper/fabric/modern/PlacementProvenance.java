@@ -46,6 +46,7 @@ public final class PlacementProvenance {
     private long clientTicks;
     private boolean inventoryComplete;
     private int receiptDiagnostics;
+    private int stationBlockDiagnostics;
     private final java.util.Map<OwnedStationLedger.BlockPosition, BlockReceipt> recentStationBlocks = new java.util.LinkedHashMap<>();
     private boolean placementQuarantined;
     record ServerBlockReceipt(OwnedStationLedger.Session session, long sequence, BlockPos position, BlockState state) { }
@@ -273,6 +274,15 @@ public final class PlacementProvenance {
                 || pending != null && pending.ticket.intent().position().equals(cell)
                 || ledger.records().stream().anyMatch(record -> record.position().equals(cell));
         if (tracked) {
+            if (LodekeeperClient.engine != null && LodekeeperClient.engine.config.debugLogging
+                    && stationBlockDiagnostics < 24) {
+                stationBlockDiagnostics++;
+                BlockReceipt previous = recentStationBlocks.get(cell);
+                org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] STATION_BLOCK_RECEIPT generation={} position={} previousBlock={} previousSequence={} observedBlock={} observedSequence={}",
+                        generation, position, previous == null ? "none" : previous.block(),
+                        previous == null ? -1 : previous.sequence(), observedBlockId, sequence);
+            }
             if (!recentStationBlocks.containsKey(cell) && recentStationBlocks.size() >= 256)
                 recentStationBlocks.remove(recentStationBlocks.keySet().iterator().next());
             recentStationBlocks.put(cell, new BlockReceipt(binding.session, observedBlockId, sequence));
@@ -439,6 +449,7 @@ public final class PlacementProvenance {
         binding = new Binding(nextSession, player, world, networkHandler, connection);
         placementQuarantined = false;
         receiptDiagnostics = 0;
+        stationBlockDiagnostics = 0;
         receiptDiagnostic("binding established");
         clearInventory();
         return true;

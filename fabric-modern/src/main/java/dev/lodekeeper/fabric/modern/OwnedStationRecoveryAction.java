@@ -77,6 +77,19 @@ final class OwnedStationRecoveryAction {
         }
     }
 
+    private static final class PickupDiagnostics {
+        private Object connection;
+        private OwnedStationLedger.Session observedSession;
+        private PlacementProvenance.ServerInventoryReceipt inventoryReceipt;
+        private long inventoryObservedNanos;
+        private OptionalLong removalSequence = OptionalLong.empty();
+        private long removalObservedNanos;
+        private long stallAnchorNanos, lastSampleNanos;
+        private double anchorX, anchorY, anchorZ;
+        private int samples;
+        private boolean terminalLogged;
+    }
+
     private final Minecraft client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
@@ -104,6 +117,7 @@ final class OwnedStationRecoveryAction {
     private long startedAtNanos;
     private OwnedStationLedger.Session recoverySession;
     private int pickupAttempts;
+    private PickupDiagnostics pickupDiagnostics = new PickupDiagnostics();
     private boolean miningStarted, contentsVerifiedEmpty, collectedBeforeDropObserved;
     private static final int MAX_PICKUP_ATTEMPTS = 3;
 
@@ -127,7 +141,9 @@ final class OwnedStationRecoveryAction {
             status = "owned station recovery is already active";
             return false;
         }
-        OwnedStationLedger.Session session = currentSession.get().orElse(null);
+        pickupDiagnostics = new PickupDiagnostics();
+        OwnedStationLedger.Session session = observeSession().orElse(null);
+        pickupDiagnostics.connection = diagnosticConnection();
         boolean resumePickup = phase == Phase.PICKUP_INCOMPLETE && session != null
                 && session.equals(recoverySession) && position != null && ownedPosition != null
                 && ownedPosition.equals(position) && expectedBlock == block
@@ -234,7 +250,7 @@ final class OwnedStationRecoveryAction {
             if (System.nanoTime() - startedAtNanos >= MAX_DURATION_NANOS) {
                 throw new IllegalStateException("owned station recovery exceeded 20 seconds");
             }
-            if (active() && !currentSession.get().filter(recoverySession::equals).isPresent()) {
+            if (active() && !observeSession().filter(recoverySession::equals).isPresent()) {
                 throw new MovementController.NavigationFailure(
                         MovementController.NavigationFailure.Kind.OWNERSHIP_LOST,
                         "Owned station recovery lost its server session");
@@ -397,7 +413,7 @@ final class OwnedStationRecoveryAction {
         if (miningStarted && client.level.hasChunkAt(ownedPosition)
                 && client.level.getBlockState(ownedPosition).isAir()) {
             actions.cancel();
-            OptionalLong removalSequence = serverRemovalSequence.apply(ownedPosition);
+            OptionalLong removalSequence = observeRemovalSequence(ownedPosition);
             if (removalSequence.isEmpty()) {
                 status = "waiting for the server station removal receipt";
                 return false;
@@ -424,7 +440,7 @@ final class OwnedStationRecoveryAction {
         if (!hasRoomForStation()) throw new IllegalStateException("inventory has no room for the recovered station");
         if (!miningStarted) {
             startingNearbyDrops = snapshotNearbyDrops(ownedPosition);
-            Optional<PlacementProvenance.ServerInventoryReceipt> baseline = inventoryReceipt.apply(blockItem);
+            Optional<PlacementProvenance.ServerInventoryReceipt> baseline = observeInventoryReceipt();
             if (baseline.isEmpty()) {
                 status = "waiting for the server inventory baseline before mining the owned " + stationKind.name;
                 return false;
@@ -456,7 +472,7 @@ final class OwnedStationRecoveryAction {
                 status = "waiting for the owned " + stationKind.name + " drop";
                 return false;
             }
-            Optional<PlacementProvenance.ServerInventoryReceipt> receipt = inventoryReceipt.apply(blockItem);
+            Optional<PlacementProvenance.ServerInventoryReceipt> receipt = observeInventoryReceipt();
             if (receipt.isEmpty()) {
                 status = "waiting for the server inventory receipt before collecting the exact drop";
                 return false;
@@ -466,7 +482,7 @@ final class OwnedStationRecoveryAction {
             dropObservedCount = drop.getItem().getCount() - startingNearbyDrops.getOrDefault(drop, 0);
             status = "collecting the owned " + stationKind.name + " drop";
             pickupAttempts = 1;
-            movement.startOwnedPickup(drop, recoverySession);
+            startOwnedPickup();
             return false;
         }
         boolean collectedDrop = dropWasCollected();
@@ -477,6 +493,7 @@ final class OwnedStationRecoveryAction {
             status = "waiting for the server inventory receipt for the exact owned station drop";
             return false;
         }
+        sampleStalledPickup();
         try {
             if (!movement.tick()) return false;
         } catch (MovementController.NavigationFailure failure) {
@@ -486,6 +503,7 @@ final class OwnedStationRecoveryAction {
             }
             if (failure.kind == MovementController.NavigationFailure.Kind.PROCESS_ENDED
                     && pickupAttempts < MAX_PICKUP_ATTEMPTS) {
+                logPickupDiagnostic("replan", diagnostic(failure), true);
                 movement.stop();
                 phase = Phase.PICKUP_REPLANNING;
                 status = "replanning the exact owned " + stationKind.name + " drop after a failed native route";
@@ -534,10 +552,122 @@ final class OwnedStationRecoveryAction {
             return false;
         }
         pickupAttempts++;
-        movement.startOwnedPickup(drop, recoverySession);
+        startOwnedPickup();
         phase = Phase.PICKUP;
         status = "retrying the exact owned " + stationKind.name + " drop";
         return false;
+    }
+
+    private Optional<OwnedStationLedger.Session> observeSession() {
+        Optional<OwnedStationLedger.Session> session = currentSession.get();
+        pickupDiagnostics.observedSession = session.orElse(null);
+        return session;
+    }
+
+    private Optional<PlacementProvenance.ServerInventoryReceipt> observeInventoryReceipt() {
+        Optional<PlacementProvenance.ServerInventoryReceipt> receipt = inventoryReceipt.apply(blockItem);
+        pickupDiagnostics.inventoryReceipt = receipt.orElse(null);
+        pickupDiagnostics.inventoryObservedNanos = System.nanoTime();
+        return receipt;
+    }
+
+    private OptionalLong observeRemovalSequence(BlockPos position) {
+        OptionalLong sequence = serverRemovalSequence.apply(position);
+        pickupDiagnostics.removalSequence = sequence;
+        pickupDiagnostics.removalObservedNanos = System.nanoTime();
+        return sequence;
+    }
+
+    private Object diagnosticConnection() {
+        var handler = client.getConnection();
+        return handler == null ? null : handler.getConnection();
+    }
+
+    private boolean diagnosticContextMatches() {
+        return client.player != null && client.player == ownerPlayer && client.level != null
+                && client.level == ownerWorld && recoverySession != null
+                && recoverySession.equals(pickupDiagnostics.observedSession)
+                && pickupDiagnostics.connection != null
+                && pickupDiagnostics.connection == diagnosticConnection();
+    }
+
+    private void startOwnedPickup() {
+        pickupDiagnostics.samples = 0;
+        pickupDiagnostics.terminalLogged = false;
+        pickupDiagnostics.stallAnchorNanos = pickupDiagnostics.lastSampleNanos = System.nanoTime();
+        pickupDiagnostics.anchorX = client.player.getX();
+        pickupDiagnostics.anchorY = client.player.getY();
+        pickupDiagnostics.anchorZ = client.player.getZ();
+        movement.startOwnedPickup(drop, recoverySession);
+        logPickupDiagnostic("start", "exact drop pinned", false);
+    }
+
+    private void sampleStalledPickup() {
+        if (!config.debugLogging || pickupDiagnostics.samples >= 8 || !diagnosticContextMatches()) return;
+        long now = System.nanoTime();
+        double dx = client.player.getX() - pickupDiagnostics.anchorX;
+        double dy = client.player.getY() - pickupDiagnostics.anchorY;
+        double dz = client.player.getZ() - pickupDiagnostics.anchorZ;
+        if (dx * dx + dy * dy + dz * dz >= 0.0025) {
+            pickupDiagnostics.anchorX = client.player.getX();
+            pickupDiagnostics.anchorY = client.player.getY();
+            pickupDiagnostics.anchorZ = client.player.getZ();
+            pickupDiagnostics.stallAnchorNanos = now;
+        }
+        if (now - pickupDiagnostics.stallAnchorNanos < 1_000_000_000L
+                || now - pickupDiagnostics.lastSampleNanos < 1_000_000_000L) return;
+        pickupDiagnostics.lastSampleNanos = now;
+        pickupDiagnostics.samples++;
+        logPickupDiagnostic("stalled", "player displacement below 0.05 blocks", false);
+    }
+
+    private String diagnosticStationBlock() {
+        if (!diagnosticContextMatches()) return "unavailable-context";
+        if (ownedPosition == null || !client.level.hasChunkAt(ownedPosition)) return "unloaded";
+        return client.level.getBlockState(ownedPosition).getBlock().toString();
+    }
+
+    private String diagnosticDropAndPlayer() {
+        if (!diagnosticContextMatches()) return "contextMatches=false entity=unavailable localHeldCount=unavailable";
+        var player = client.player;
+        return "contextMatches=true entityUUID=" + (drop == null ? "none" : drop.getUUID())
+                + " entityItem=" + (drop == null ? "none" : drop.getItem().getItem())
+                + " entityCount=" + (drop == null ? 0 : drop.getItem().getCount())
+                + " entityAlive=" + (drop != null && drop.isAlive())
+                + " entityRemoved=" + (drop != null && drop.isRemoved())
+                + " entityXYZ=" + (drop == null ? "none" : drop.getX() + "," + drop.getY() + "," + drop.getZ())
+                + " entityBounds=" + (drop == null ? "none" : drop.getBoundingBox())
+                + " playerXYZ=" + player.getX() + "," + player.getY() + "," + player.getZ()
+                + " playerBounds=" + player.getBoundingBox()
+                + " distance=" + (drop == null ? "unavailable" : Math.sqrt(drop.distanceToSqr(player)))
+                + " localHeldCount=" + (blockItem == null ? "unavailable" : actions.count(blockItem));
+    }
+
+    private void logPickupDiagnostic(String event, String reason, boolean terminal) {
+        if (!config.debugLogging || terminal && pickupDiagnostics.terminalLogged) return;
+        if (terminal) pickupDiagnostics.terminalLogged = true;
+        long now = System.nanoTime();
+        boolean sameContext = diagnosticContextMatches();
+        var receipt = sameContext ? pickupDiagnostics.inventoryReceipt : null;
+        String flatReason = reason.replace('\n', ' ').replace('\r', ' ');
+        if (flatReason.length() > 180) flatReason = flatReason.substring(0, 180);
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] OWNED_PICKUP event={} phase={} attempt={} sample={} reason={} position={} currentBlock={} expectedItem={} baselineCount={} baselineIncreaseSequence={} expectedCount={} observedDropIncreaseCount={} dropObservedIncreaseSequence={} completeMatchingServerReceiptObserved={} observedServerCount={} observedServerIncreaseSequence={} inventoryObservationAgeMs={} expectedRemovalSequence={} currentRemovalSequenceObserved={} removalObservationAgeMs={} {} {}",
+                event, phase, pickupAttempts, pickupDiagnostics.samples, flatReason, ownedPosition,
+                diagnosticStationBlock(), blockItem,
+                startingInventoryReceipt == null ? "unavailable" : startingInventoryReceipt.count(),
+                startingInventoryReceipt == null ? "unavailable" : startingInventoryReceipt.increaseSequence(),
+                startingInventoryReceipt == null ? "unavailable" : startingInventoryReceipt.count() + Math.max(1, dropObservedCount),
+                dropObservedCount, dropObservedIncreaseSequence, receipt != null,
+                receipt == null ? "unavailable" : receipt.count(),
+                receipt == null ? "unavailable" : receipt.increaseSequence(),
+                pickupDiagnostics.inventoryObservedNanos == 0 ? -1 : (now - pickupDiagnostics.inventoryObservedNanos) / 1_000_000L,
+                exactStationRemovalSequence,
+                sameContext && pickupDiagnostics.removalSequence.isPresent()
+                        ? pickupDiagnostics.removalSequence.getAsLong() : "unavailable",
+                pickupDiagnostics.removalObservedNanos == 0 ? -1 : (now - pickupDiagnostics.removalObservedNanos) / 1_000_000L,
+                diagnosticDropAndPlayer(), sameContext ? movement.ownedPickupDiagnostic(drop, recoverySession)
+                        : "nativeContextMatches=false");
     }
 
     private boolean pickupInProgress() {
@@ -545,6 +675,7 @@ final class OwnedStationRecoveryAction {
     }
 
     private void markPickupIncomplete(String reason) {
+        logPickupDiagnostic("incomplete", reason, true);
         actions.cancel();
         cancelMovement();
         phase = Phase.PICKUP_INCOMPLETE;
@@ -626,7 +757,7 @@ final class OwnedStationRecoveryAction {
 
     private Optional<PlacementProvenance.ServerInventoryReceipt> inventoryGain() {
         if (startingInventoryReceipt == null) return Optional.empty();
-        return inventoryReceipt.apply(blockItem).filter(receipt ->
+        return observeInventoryReceipt().filter(receipt ->
                 receipt.count() > startingInventoryReceipt.count()
                         && receipt.increaseSequence() > startingInventoryReceipt.increaseSequence());
     }
@@ -667,10 +798,14 @@ final class OwnedStationRecoveryAction {
     }
 
     private void requireClearedTarget() {
-        OptionalLong removalSequence = serverRemovalSequence.apply(ownedPosition);
+        OptionalLong removalSequence = observeRemovalSequence(ownedPosition);
         if (exactStationRemovalSequence <= 0 || removalSequence.isEmpty()
                 || removalSequence.getAsLong() != exactStationRemovalSequence) {
-            throw new IllegalStateException("owned station removal receipt changed during recovery");
+            throw new IllegalStateException("owned station removal receipt changed during recovery"
+                    + " expectedSequence=" + exactStationRemovalSequence
+                    + " currentSequence=" + (removalSequence.isPresent() ? removalSequence.getAsLong() : "unavailable")
+                    + " position=" + ownedPosition + " currentBlock=" + diagnosticStationBlock()
+                    + " " + diagnosticDropAndPlayer());
         }
         if (client.level == null || !client.level.hasChunkAt(ownedPosition)
                 || !client.level.getBlockState(ownedPosition).isAir()) {
@@ -679,7 +814,7 @@ final class OwnedStationRecoveryAction {
     }
 
     private boolean isClearedTarget(BlockPos position) {
-        OptionalLong removalSequence = serverRemovalSequence.apply(position);
+        OptionalLong removalSequence = observeRemovalSequence(position);
         return exactStationRemovalSequence > 0 && removalSequence.isPresent()
                 && removalSequence.getAsLong() == exactStationRemovalSequence
                 && client.level != null && client.level.hasChunkAt(position)
@@ -763,12 +898,14 @@ final class OwnedStationRecoveryAction {
     }
 
     private boolean refuse(String reason) {
+        logPickupDiagnostic("refusal", reason, true);
         if (phase != Phase.PICKUP_INCOMPLETE) phase = Phase.STOPPED;
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
         return false;
     }
 
     private IllegalStateException abort(String reason, RuntimeException cause) {
+        logPickupDiagnostic("abort", reason, true);
         actions.cancel();
         boolean cancelled = cancelMovement();
         phase = Phase.STOPPED;
