@@ -809,6 +809,7 @@ final class VerificationApi {
         zombie.refreshPositionAndAngles(waterRetreat ? 20.5 : 2.5, 64.0, waterRetreat ? 20.5 : 0.5, 180.0F, 0.0F);
         zombie.setAiDisabled(true);
         zombie.setHealth(4.0F);
+        if (waterRetreat) zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         CowEntity cow = new CowEntity(EntityType.COW, world);
         cow.refreshPositionAndAngles(waterRetreat ? 18.5 : 2.5, 64.0, waterRetreat ? 20.5 : 1.5, 180.0F, 0.0F);
         cow.setAiDisabled(true);

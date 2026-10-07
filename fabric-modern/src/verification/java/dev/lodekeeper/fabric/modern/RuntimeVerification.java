@@ -5084,7 +5084,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             root.addProperty("stationRoomTunnelProperty", STATION_ROOM_TUNNEL_PROPERTY);
             if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) root.addProperty("stationRoomSetupScreenshot", stationRoomSetupScreenshot);
             if (THREAT_WATER_RETREAT_MODE) root.addProperty("fixtureGrants",
-                "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs");
+                "stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs_and_helmeted_distant_zombie");
             if (PREPARED_SAFETY_MODE != null) root.addProperty("preparedSafetyProperty", PREPARED_SAFETY_MODE);
             if (WORKBENCH_MODE) root.add("preparedWorkbench", workbenchEvidence());
             if (HELD_FUEL_MODE) root.add("preparedHeldFuel", heldFuelEvidence());

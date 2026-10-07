@@ -752,6 +752,7 @@ final class VerificationApi {
         zombie.setXRot(0.0F);
         zombie.setNoAi(true);
         zombie.setHealth(4.0F);
+        if (waterRetreat) zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         Mob cow = preparedMob(world, "minecraft:cow");
         cow.setPos(waterRetreat ? 18.5 : 2.5, 64.0, waterRetreat ? 20.5 : 1.5);
         cow.setYRot(180.0F);
