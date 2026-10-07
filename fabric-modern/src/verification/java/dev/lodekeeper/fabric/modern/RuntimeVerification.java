@@ -4927,7 +4927,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
+        int expectedCases = SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || NEARBY_WOOD_MODE
                 || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;

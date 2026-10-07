@@ -65,7 +65,7 @@ Unknown recipes and unsupported mechanics report a blocker. Modded items using o
 
 Preview 11 is not released. Its source builds the licensed navigation kernel into Lodekeeper under `dev.lodekeeper.navigation.kernel`. It does not load a separate Baritone runtime.
 
-The source map covers 24 exact Minecraft profiles across 14 navigation source families. The shared core and navigation modules target Java 17. Each Fabric adapter targets the APIs for its exact profile. The [current matrix at `8d7bb68`](https://github.com/luinbytes/lodekeeper/actions/runs/37603417871) is in progress. Its 1.20.1, 1.21.1, 1.21.11, and 26.3 jobs passed; remaining profiles are pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md) records earlier failures and local checks. An exact artifact must compile before we declare that version supported.
+The source map covers 24 exact Minecraft profiles across 14 navigation source families. The shared core and navigation modules target Java 17. Each Fabric adapter targets the APIs for its exact profile. The [matrix at `8d7bb68`](https://github.com/luinbytes/lodekeeper/actions/runs/37603417871) passed all 24 profiles. The downloaded 1.21.1 and 26.3 production jars match the local gameplay jars byte for byte. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md) records runtime gates and earlier failures. A successful build does not establish gameplay support.
 
 The 23 advanced navigation options are available in the settings GUI. Open it with Right Shift or `!lk config`. The settings screen suspends automation while it is open. Save applies the draft; Escape discards it. The `Protected plots` button opens the claim editor.
 
@@ -90,7 +90,7 @@ The initial primary native check passed 9/9. A separate native GUI check passed 
 
 When `autoDefend` is enabled, `autoUseShield` defaults to `true`. `autoCraftShield` defaults to `false` and requires `autoUseShield`. Shield crafting keeps the configured iron and plank reserves after planned recipes, goals, and other reservations. `shieldIronReserve` defaults to 2 and `shieldPlankReserve` defaults to 16. The settings GUI labels these values `Iron ingots to keep` and `Planks to keep`.
 
-Shield defense preserves non-shield offhand items and uses a plain shield only when it has more than 100 durability remaining. A creeper always triggers immediate escape. That response does not wait for inventory or equipment changes and does not try to finish the creeper with melee. The fixture source has not passed a build or native run. See the [Preview 11 checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md) for current gates and the [verification guide](docs/GAME-VERIFICATION.md) for the pending fixture modes.
+Shield defense preserves non-shield offhand items and uses a plain shield only when it has more than 100 durability remaining. A creeper always triggers immediate escape. That response does not wait for inventory or equipment changes and does not try to finish the creeper with melee. The fixture sources compile on all 24 profiles; native shield behavior remains unverified. See the [Preview 11 checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md) for current gates and the [verification guide](docs/GAME-VERIFICATION.md) for the pending fixture modes.
 
 ## Installation and compatibility
 

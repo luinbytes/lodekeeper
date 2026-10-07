@@ -144,7 +144,7 @@ On 1.21.1 and 26.3, `-Dlodekeeper.verify.baritone=true -Dlodekeeper.verify.prepa
 
 ## Shield behavior fixture
 
-The shield fixture supports 1.21.1 and 26.3. Its source is frozen but has not passed a build or native run. Do not report gameplay acceptance from the source alone. Run only one isolated client at a time after the verifier source compiles.
+The shield fixture targets 1.21.1 and 26.3. Its sources compile, but the full native suite remains pending. The first attempt failed before world creation on metadata validation. A later 1.21.1 `spare` case observed exact shield and bucket costs, but its aggregate receipt failed because the verifier expected nine cases. Both verifier errors are corrected in source. Retain those failed receipts and require a fresh passing run. Run only one isolated client at a time.
 
 For the `spare` mode, pass the verifier these full flags:
 
