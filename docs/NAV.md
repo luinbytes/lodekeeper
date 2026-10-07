@@ -2,6 +2,8 @@
 
 `nav` is a Java 17 library with no Minecraft or third-party runtime dependencies. It searches a bounded set of block-centered player stances with incremental A*. The Fabric adapter owns world reads and actual input; it must call the planner on the client thread and give each tick a small expansion and time budget.
 
+`ActionMovementProgress` tracks confirmed travel independently of the route planner. Pass actual floored XYZ cells encoded by `Position.pack` to `observe`; the first cell earns no credit, and each directed edge earns credit once. `rebase` changes the anchor without clearing history or inventing an edge. At 8,192 edges, movement earns no further credit until the adapter admits a new logical action. The adapter owns that lifetime, separates auxiliary work, and validates world/player/session identity. Confirmed inventory and world actions remain separate progress signals.
+
 ## Integration API
 
 ```java
