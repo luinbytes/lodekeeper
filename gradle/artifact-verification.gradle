@@ -11,8 +11,12 @@ tasks.register('prepareArtifactVerification') {
     doLast {
         def run = verificationRun.get()
         if (run.hasProperty('useArgFile')) run.useArgFile.set(false)
-        List<String> vmArguments = new ArrayList<>(run.jvmArguments.get())
+        List<String> vmArguments = new ArrayList<>(run.allJvmArgs)
         def configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
+        if (configArgument == null) {
+            vmArguments.addAll(run.jvmArguments.get())
+            configArgument = vmArguments.find { it.startsWith('-Dfabric.dli.config=') }
+        }
         if (configArgument == null) throw new GradleException('Loom supplied no development launch configuration')
         File sourceConfig = file(configArgument.substring('-Dfabric.dli.config='.length()))
         if (!sourceConfig.isFile()) throw new GradleException('Loom launch configuration was not generated')
@@ -27,5 +31,8 @@ tasks.register('prepareArtifactVerification') {
         run.argumentProviders.each { arguments.addAll(it.asArguments().toList()) }
         new File(directory, 'launch.args').setText(
                 arguments.collect { JsonOutput.toJson(it) }.join('\n') + '\n', 'UTF-8')
+        new File(directory, 'launch-metadata.json').setText(JsonOutput.toJson([
+                schemaVersion: 1, workingDirectory: file(loom.runs.named('verificationClient').get().runDir).absolutePath
+        ]) + '\n', 'UTF-8')
     }
 }

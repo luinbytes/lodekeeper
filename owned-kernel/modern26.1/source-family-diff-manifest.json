@@ -2,7 +2,7 @@
   "baseline": {
     "archive_sha256": "b3ddbf081f5a0483dfb1cfc25fddcf787218b05d63c8c78c59bc4de8fdcbd9b7",
     "baritone_version": "1.20.0",
-    "override_manifest_sha256": "fc07495b3b0567e7230cd289d5a9d8ae9038a16ec659fa5d233dbf157697b173",
+    "override_manifest_sha256": "04c1241d0f902cdd7571d4f8c94edef7eb96f8ca2422a9e78fd9fb0bf2f266f5",
     "source_commit": "25111daedf1d59e6a8dfb5a3e61885cdb8d953df"
   },
   "family": {
@@ -42,6 +42,15 @@
       "family_upstream_sha256": null,
       "path": "api/java/dev/lodekeeper/navigation/kernel/api/AutomationInputBarrier.java",
       "port_resolution": "owned helper source carried forward as a new family-owned file",
+      "upstream_source_changed": false
+    },
+    {
+      "baseline_26_3_upstream_sha256": "387293d5b5ed4988e0fd8aeca094021fdd685a7c5b7ec39308a147694a782506",
+      "canonical_26_3_override_sha256": "058221690fbbe737d02b30f3a1c3eccf819f2e996c44d9c8e20b3eb4c8ea56c4",
+      "family_override_sha256": "058221690fbbe737d02b30f3a1c3eccf819f2e996c44d9c8e20b3eb4c8ea56c4",
+      "family_upstream_sha256": "387293d5b5ed4988e0fd8aeca094021fdd685a7c5b7ec39308a147694a782506",
+      "path": "api/java/dev/lodekeeper/navigation/kernel/api/pathing/calc/IPathFinder.java",
+      "port_resolution": "bounded immutable search preview API carried forward in the owned finder interface",
       "upstream_source_changed": false
     },
     {
@@ -262,8 +271,8 @@
     },
     {
       "baseline_26_3_upstream_sha256": "81dc9b1d96b1d9a1484994225c5508cd34c8713c7e0a6b8d27b1e67ae1d621f2",
-      "canonical_26_3_override_sha256": "d67d3d431fd0cb5bc85af7820f6f23ea504cbfcdcd74bfff548828f3079ae98d",
-      "family_override_sha256": "d67d3d431fd0cb5bc85af7820f6f23ea504cbfcdcd74bfff548828f3079ae98d",
+      "canonical_26_3_override_sha256": "ce3bc560d28666dea6cb275c33f51d250c9f05879aad5390136f920120f355e3",
+      "family_override_sha256": "ce3bc560d28666dea6cb275c33f51d250c9f05879aad5390136f920120f355e3",
       "family_upstream_sha256": "81dc9b1d96b1d9a1484994225c5508cd34c8713c7e0a6b8d27b1e67ae1d621f2",
       "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AStarPathFinder.java",
       "port_resolution": "owned source changes applied over identical upstream source",
@@ -271,8 +280,8 @@
     },
     {
       "baseline_26_3_upstream_sha256": "b4f08953a070c04c14cc6f897c388642e24808fb92a53ecb50e2fc6ac216f971",
-      "canonical_26_3_override_sha256": "120797f789148f9e884d014bfa84fc994df3f3a58e1ab311e0648026695fee7b",
-      "family_override_sha256": "120797f789148f9e884d014bfa84fc994df3f3a58e1ab311e0648026695fee7b",
+      "canonical_26_3_override_sha256": "4f054bb5af5f42b1b25c68b5a9f447d54e0d6013e459012db0551704474460ec",
+      "family_override_sha256": "4f054bb5af5f42b1b25c68b5a9f447d54e0d6013e459012db0551704474460ec",
       "family_upstream_sha256": "b4f08953a070c04c14cc6f897c388642e24808fb92a53ecb50e2fc6ac216f971",
       "path": "main/java/dev/lodekeeper/navigation/kernel/pathing/calc/AbstractNodeCostSearch.java",
       "port_resolution": "owned source changes applied over identical upstream source",
