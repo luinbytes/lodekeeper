@@ -381,6 +381,9 @@ final class PlayerActions {
         return BackfillAttempt.SENT_OR_UNCERTAIN;
     }
     PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken) {
+        return placeStation(destination, block, jobToken, false);
+    }
+    PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken, boolean ordinaryOnly) {
         if (placementProvenance == null || client.interactionManager == null) return PlacementAttempt.REJECTED;
         BlockHitResult hit = placementHit(destination);
         if (hit == null) return PlacementAttempt.REJECTED;
@@ -389,7 +392,7 @@ final class PlayerActions {
             return PlacementAttempt.QUARANTINED;
         if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.EXPIRED)
             return PlacementAttempt.INVENTORY_TIMEOUT;
-        if (readiness.isEmpty() && !select(block.asItem())) return PlacementAttempt.REJECTED;
+        if (readiness.isEmpty() && !(ordinaryOnly ? selectOrdinary(block.asItem()) : select(block.asItem()))) return PlacementAttempt.REJECTED;
         if (!permitsPlacement(hit)) return PlacementAttempt.REJECTED;
         look(hit.getPos());
         var reservation = placementProvenance.reservePlacement(jobToken, destination, block);
@@ -410,6 +413,16 @@ final class PlayerActions {
             throw failure;
         }
     }
+    private boolean selectOrdinary(Item item) {
+        if (client.player == null) return false;
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getStack(index);
+            if (stack.isOf(item) && !stack.hasEnchantments() && !GameApi.hasCustomName(stack)
+                    && GameApi.canCombine(stack, new ItemStack(item)) && selectSlot(index)) return true;
+        }
+        return false;
+    }
+
     void cancel() {
         if (ownsBreaking && client.interactionManager != null) client.interactionManager.cancelBlockBreaking();
         ownsBreaking = false;

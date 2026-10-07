@@ -122,15 +122,14 @@ public final class SettingsUiVerification {
             plotReceipt = "preflight live=0 disk=0 corners=clear";
             plotProbeStarted = true;
             List<Setting> specs = access.settings();
-            if (specs.size() != 48) throw new IllegalStateException("expected 48 settings, found " + specs.size());
             for (Setting setting : specs) original.put(setting.key(), copy(access.readConfig(setting.key())));
-            if (original.size() != 48) throw new IllegalStateException("settings keys are not unique");
+            if (original.size() != specs.size()) throw new IllegalStateException("settings keys are not unique");
             originalNavigation = Map.copyOf(access.navigationPreferences());
             access.openSettingsScreen();
             if (access.currentScreen() == null) throw new IllegalStateException("settings screen did not open");
             state = State.RUNNING;
             plan();
-            log("settings UI probe started with 48 config snapshots; native events=" + access.nativeEventReceipt());
+            log("settings UI probe started with " + specs.size() + " config snapshots; native events=" + access.nativeEventReceipt());
         } catch (Throwable failure) {
             fail(failure);
         }
@@ -282,7 +281,7 @@ public final class SettingsUiVerification {
         });
         addInteractive("protected-plots-native-form-resize-persist-prefer-remove", this::runPlotProbe);
         add("all-original-values-restored", () -> {
-            require(original.size() == 48, "snapshot does not cover every setting");
+            require(original.size() == access.settings().size(), "snapshot does not cover every setting");
             restore();
             access.reloadConfig();
             for (Map.Entry<String, Object> entry : original.entrySet())

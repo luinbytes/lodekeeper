@@ -180,6 +180,10 @@ class AutomationSettingsTest {
         public boolean autoEat;
         public boolean autoEquipArmor;
         public boolean autoDefend;
+        public boolean autoUseShield;
+        public boolean autoCraftShield;
+        public int shieldIronReserve;
+        public int shieldPlankReserve;
         public boolean optimizeWoodTools;
         public boolean avoidance;
         public int mobAvoidanceRadius;

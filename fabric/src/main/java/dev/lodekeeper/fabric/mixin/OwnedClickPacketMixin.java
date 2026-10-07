@@ -17,10 +17,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClickSlotC2SPacket.class)
 abstract class OwnedClickPacketMixin {
     @Shadow @Final private int syncId;
+    @Shadow @Final @Mutable private int revision;
     @Shadow @Final @Mutable private Int2ObjectMap<?> modifiedStacks;
     @Inject(method = "<init>", at = @At("RETURN"))
     private void lodekeeper$reconcileOwnedInput(CallbackInfo callback) {
         if (OwnedClickReceipts.claimInputReconciliation(syncId)) {
+            // Native revisions are nonnegative. This requests a full post-click cursor receipt.
+            if (OwnedClickReceipts.reconcileCursorContents(syncId)) revision = -1;
             var copy = new Int2ObjectOpenHashMap<>(modifiedStacks);
             if (OwnedClickReceipts.reconcileInputSlot(syncId)) copy.remove(0);
             copy.keySet().removeIf((int slot) -> OwnedClickReceipts.reconcileStorageSlot(syncId, slot));

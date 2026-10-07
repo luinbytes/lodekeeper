@@ -1,6 +1,7 @@
 package dev.lodekeeper.fabric.modern.mixin;
 
 import dev.lodekeeper.fabric.modern.FoodController;
+import dev.lodekeeper.fabric.modern.ShieldController;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,6 +15,6 @@ public abstract class AutomationUseMixin {
             value = "INVOKE", target = "Lnet/minecraft/client/KeyMapping;isDown()Z"))
     private boolean lodekeeper$holdFoodUse(KeyMapping mapping) {
         Minecraft client = Minecraft.getInstance();
-        return mapping.isDown() || mapping == client.options.keyUse && FoodController.isHoldingUse();
+        return mapping.isDown() || mapping == client.options.keyUse && (FoodController.isHoldingUse() || ShieldController.isHoldingUse());
     }
 }

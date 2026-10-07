@@ -9,12 +9,18 @@ public final class OwnedClickReceipts {
         long lodekeeper$inputSequence();
         long lodekeeper$contentsSequence();
         ItemStack lodekeeper$receivedInput();
+        default long lodekeeper$slotSequence(int slot) { return 0; }
+        default ItemStack lodekeeper$receivedSlot(int slot) { return ItemStack.EMPTY; }
+        default long lodekeeper$cursorSequence() { return 0; }
+        default ItemStack lodekeeper$receivedCursor() { return ItemStack.EMPTY; }
+        default int lodekeeper$contentsRevision() { return -1; }
     }
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
     private static final class Scope {
         final int containerId;
         final boolean inputEcho;
         boolean claimed;
+        boolean cursorEcho;
         net.minecraft.client.MinecraftClient client;
         net.minecraft.screen.ScreenHandler menu;
         net.minecraft.entity.player.PlayerEntity player;
@@ -54,6 +60,16 @@ public final class OwnedClickReceipts {
         finally { if (existing == null) CURRENT.remove(); }
     }
 
+    static void cursorClick(net.minecraft.client.MinecraftClient client, int containerId,
+                            int slot, int button, net.minecraft.entity.player.PlayerEntity player) {
+        Scope existing = CURRENT.get();
+        if (existing == null) enter(containerId, false);
+        try {
+            CURRENT.get().cursorEcho = true;
+            inventoryClick(client, containerId, slot, button, net.minecraft.screen.slot.SlotActionType.PICKUP, player);
+        } finally { if (existing == null) CURRENT.remove(); }
+    }
+
     static boolean inputTransfer(int containerId, BooleanSupplier operation) {
         enter(containerId, true);
         try { return operation.getAsBoolean(); } finally { CURRENT.remove(); }
@@ -61,6 +77,10 @@ public final class OwnedClickReceipts {
     static void outputClick(int containerId, Runnable operation) {
         enter(containerId, true);
         try { operation.run(); } finally { CURRENT.remove(); }
+    }
+    public static boolean reconcileCursorContents(int containerId) {
+        Scope scope = CURRENT.get();
+        return scope != null && scope.containerId == containerId && scope.cursorEcho && scope.contextCurrent();
     }
     public static boolean reconcileInputSlot(int containerId) {
         Scope scope = CURRENT.get();
@@ -72,7 +92,7 @@ public final class OwnedClickReceipts {
                 || slotIndex < 0 || slotIndex >= scope.menu.slots.size()) return false;
         var slot = scope.menu.slots.get(slotIndex);
         int index = slot.getIndex();
-        return slot.inventory == scope.inventory && index >= 0 && index < 36;
+        return slot.inventory == scope.inventory && index >= 0 && (index < 36 || index == 40);
     }
 
     /** Called only by the synchronous client packet constructor, once per owned click. */

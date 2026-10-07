@@ -26,6 +26,12 @@ final class CraftingAction {
 
     private final Minecraft client;
     private final PlayerActions actions;
+    private final java.util.function.Supplier<Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations;
+    private final java.util.function.BooleanSupplier shieldEnabled;
+    private final java.util.Set<dev.lodekeeper.core.ItemId> plankItems;
+    private final java.util.function.IntSupplier ironFloor, plankFloor;
+    private boolean transferStarted;
+
     private final GameCatalog.RecipeWork recipe;
     private final ItemStack expectedOutput;
     private final int targetCount;
@@ -39,10 +45,22 @@ final class CraftingAction {
     private SlotTransfer transfer;
     private VerifiedQuickMove quickMove;
     private MovePurpose movePurpose;
-    private int placementIndex, cooldown;
+    private int placementIndex;
     private boolean initialized, awaitingResult, drainGridPending, drainRequested;
 
     CraftingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
+        this(client, actions, recipe, step, Map::of, () -> false, Set.of(), () -> 0, () -> 0);
+    }
+
+    CraftingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step,
+                   java.util.function.Supplier<Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations,
+                   java.util.function.BooleanSupplier shieldEnabled, Set<dev.lodekeeper.core.ItemId> plankItems,
+                   java.util.function.IntSupplier ironFloor, java.util.function.IntSupplier plankFloor) {
+        this.liveReservations = liveReservations;
+        this.shieldEnabled = shieldEnabled;
+        this.plankItems = Set.copyOf(plankItems);
+        this.ironFloor = ironFloor;
+        this.plankFloor = plankFloor;
         this.client = client;
         this.actions = actions;
         this.recipe = recipe;
@@ -57,11 +75,11 @@ final class CraftingAction {
 
     boolean tick() {
         if (client.player == null || client.gameMode == null) throw new IllegalStateException("No player");
-        if (cooldown-- > 0) return false;
         if (!initialized) initialize();
         if (client.player.containerMenu != menu) throw new IllegalStateException("Crafting container closed or changed");
         if (transfer == null && !menu.getCarried().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
         if (transfer != null) {
+            if (!transferStarted) { verifyShieldBudget(); transferStarted = true; }
             if (transfer.tick()) {
                 Placement placed = placements.get(placementIndex);
                 remainingMaterials.compute(placed.budgetKey(), (ignored, count) -> count - 1);
@@ -69,7 +87,7 @@ final class CraftingAction {
                 transfer = null;
                 placementIndex++;
             }
-            return false;
+            if (transfer != null) return false;
         }
         if (quickMove != null) {
             if (quickMove.tick()) {
@@ -128,12 +146,14 @@ final class CraftingAction {
         if (placements.isEmpty()) buildPlacements();
         if (placementIndex == placements.size()) {
             awaitingResult = true;
-            cooldown = 3;
             return false;
         }
         Placement placement = placements.get(placementIndex);
         int source = source(placement.item());
+        verifyShieldBudget();
+        transferStarted = true;
         transfer = new SlotTransfer(client, menu, source, placement.menuSlot(), 1);
+        transfer.tick();
         return false;
     }
 
@@ -230,7 +250,8 @@ final class CraftingAction {
         Inventory inventory = client.player.getInventory();
         for (int index = 0; index < menu.slots.size(); index++) {
             Slot slot = menu.getSlot(index);
-            if (slot.container == inventory && slot.getContainerSlot() < 36 && slot.getItem().is(item)) return index;
+            if (slot.container == inventory && slot.getContainerSlot() < 36 && slot.getItem().is(item)
+                    && (!ordinaryInputsOnly() || ordinary(slot.getItem()))) return index;
         }
         throw new IllegalStateException("Missing ingredient " + GameCatalog.id(item));
     }
@@ -241,6 +262,46 @@ final class CraftingAction {
 
     private static boolean same(ItemStack left, ItemStack right) {
         return ItemStack.isSameItemSameComponents(left, right);
+    }
+
+    private boolean ordinaryInputsOnly() {
+        return Boolean.parseBoolean(step.attributes().getOrDefault("ordinaryInputOnly", "false"));
+    }
+
+    private static boolean ordinary(ItemStack stack) {
+        return !stack.isEmpty() && !stack.isEnchanted() && !GameApi.hasCustomName(stack)
+                && ItemStack.isSameItemSameComponents(stack, new ItemStack(stack.getItem()));
+    }
+
+    private void verifyShieldBudget() {
+        if (!Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) return;
+        if (!shieldEnabled.getAsBoolean()) throw new IllegalStateException("automatic shield crafting was disabled; no further ingredient was transferred");
+        Map<dev.lodekeeper.core.ItemId, Integer> reservations = new HashMap<>(liveReservations.get());
+        Map<dev.lodekeeper.core.ItemId, Integer> needed = new HashMap<>();
+        step.attributes().forEach((key, value) -> {
+            if (key.startsWith("shieldReserved:")) reservations.merge(dev.lodekeeper.core.ItemId.parse(key.substring(15)), Integer.parseInt(value), Math::max);
+            if (key.startsWith("shieldFuture:")) needed.merge(dev.lodekeeper.core.ItemId.parse(key.substring(13)), Integer.parseInt(value), Math::addExact);
+        });
+        remainingMaterials.forEach((key, count) -> {
+            if (count > 0) needed.merge(dev.lodekeeper.core.ItemId.parse(key.substring(key.indexOf(':') + 1)), count, Math::addExact);
+        });
+        Map<dev.lodekeeper.core.ItemId, Integer> counts = new HashMap<>();
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getItem(index);
+            if (ordinary(stack)) counts.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        dev.lodekeeper.core.ItemId iron = dev.lodekeeper.core.ItemId.parse("minecraft:iron_ingot");
+        long spareIron = counts.getOrDefault(iron, 0) - (long) reservations.getOrDefault(iron, 0) - needed.getOrDefault(iron, 0);
+        long sparePlanks = 0;
+        for (dev.lodekeeper.core.ItemId item : plankItems) {
+            long spare = counts.getOrDefault(item, 0) - (long) reservations.getOrDefault(item, 0) - needed.getOrDefault(item, 0);
+            if (spare < 0) throw new IllegalStateException("reserved shield planks changed; no further ingredient was transferred");
+            sparePlanks += spare;
+        }
+        int keepIron = Math.max(ironFloor.getAsInt(), Integer.parseInt(step.attributes().getOrDefault("shieldIronFloor", "0")));
+        int keepPlanks = Math.max(plankFloor.getAsInt(), Integer.parseInt(step.attributes().getOrDefault("shieldPlankFloor", "0")));
+        if (spareIron < keepIron || sparePlanks < keepPlanks)
+            throw new IllegalStateException("shield stock floors or reserved materials changed; no further ingredient was transferred");
     }
 
     void pause() { if (transfer != null) transfer.recover(); }

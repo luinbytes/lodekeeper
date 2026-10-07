@@ -26,6 +26,8 @@ final class ThreatResponseAction {
     private final Minecraft client;
     private final PlayerActions actions;
     private final MovementController movement;
+    private final ShieldController shield;
+    private boolean useShield;
     private final List<Mob> tracked = new ArrayList<>();
     private Map<ItemId, Integer> protection = Map.of();
     private Phase phase = Phase.IDLE;
@@ -48,7 +50,11 @@ final class ThreatResponseAction {
         this.client = client;
         this.actions = actions;
         this.movement = movement;
+        shield = new ShieldController(client, actions);
     }
+
+    void useShield(boolean enabled) { useShield = enabled; if (!enabled) shield.stop(); }
+    boolean hasAvailableShield() { return shield.available(protection); }
 
     void updateProtection(Map<ItemId, Integer> reserved) {
         if (reserved == null || reserved.entrySet().stream().anyMatch(entry ->
@@ -75,6 +81,7 @@ final class ThreatResponseAction {
 
     boolean begin() {
         if (!ready()) return false;
+        shield.begin();
         ownerPlayer = client.player;
         ownerWorld = client.level;
         originX = client.player.getX();
@@ -117,11 +124,26 @@ final class ThreatResponseAction {
                 throw new IllegalStateException("defense exceeded 32 blocks from its start");
             if (selectedSlot >= 0 && client.player.getInventory().getSelectedSlot() != selectedSlot)
                 throw new IllegalStateException("player changed the defense selection");
+            if (!useShield && !shield.finish()) return false;
             List<Mob> threats = remainingThreats();
+            if (useShield && (phase == Phase.STOPPING || phase == Phase.FINISHING)
+                    && GameApi.ordinaryShield(client.player.getOffhandItem())) {
+                Mob urgent = threats.stream().filter(ThreatResponseAction::creeper)
+                        .filter(mob -> GameApi.defenseCreeperFuseProgress(mob) >= 0.5).findFirst().orElse(null);
+                if (urgent != null && shield.prepare(protection)) {
+                    actions.look(urgent.getBoundingBox().getCenter());
+                    shield.block();
+                }
+            }
+            if (useShield && !threats.isEmpty() && threats.stream().noneMatch(ThreatResponseAction::creeper)
+                    && (phase == Phase.MELEE || phase == Phase.CONTACT_WAIT)
+                    && !shield.prepare(protection)) return false;
             switch (phase) {
                 case STOPPING -> {
                     movement.stopForDefense();
                     if (!movement.finishCancellationForDefense()) return false;
+                    if (useShield && !threats.isEmpty() && threats.stream().noneMatch(ThreatResponseAction::creeper)
+                            && !shield.prepare(protection)) return false;
                     return chooseResponse(threats);
                 }
                 case MELEE -> {
@@ -132,6 +154,7 @@ final class ThreatResponseAction {
                         return complete();
                     }
                     if (!selectContactTarget(threats)) {
+                        shield.release();
                         if (threats.stream().anyMatch(ThreatResponseAction::creeper)) stopForRetreat();
                         else {
                             phase = Phase.CONTACT_WAIT;
@@ -150,7 +173,14 @@ final class ThreatResponseAction {
                         return false;
                     }
                     // The native attribute and attack cooldown tick must observe the selected hand first.
-                    if (!(client.player.getAttackStrengthScale(0.0f) >= 1.0f)) return false;
+                    if (!(client.player.getAttackStrengthScale(0.0f) >= 1.0f)) {
+                        if (useShield && canHit(choice.target())) {
+                            actions.look(choice.target().getBoundingBox().getCenter());
+                            shield.block();
+                        }
+                        return false;
+                    }
+                    shield.release();
                     if (choice.hop() != null) {
                         MovementController.DefenseHop launch = movement.planDefenseHop();
                         if (launch != null && movement.startDefenseHop(launch)) {
@@ -279,6 +309,7 @@ final class ThreatResponseAction {
     }
 
     void stop() {
+        shield.stop();
         if (!active()) { clearOwnership(); return; }
         boolean cancelled = cancelMovement();
         restoreSelection();
@@ -333,6 +364,7 @@ final class ThreatResponseAction {
     }
 
     private void stopForRetreat() {
+        shield.release();
         movement.stopForDefense();
         plannedChoice = null;
         restoreSelection();
@@ -342,6 +374,7 @@ final class ThreatResponseAction {
     }
 
     private void startRetreat(List<Mob> threats) {
+        shield.release();
         if (++retreats > MAX_RETREATS) throw new IllegalStateException("moving threats remained after two retreat routes");
         plannedChoice = null;
         restoreSelection();
@@ -378,6 +411,7 @@ final class ThreatResponseAction {
     }
 
     private boolean complete() {
+        if (!shield.finish()) return false;
         restoreSelection();
         clearOwnership();
         phase = Phase.COMPLETE;
@@ -424,7 +458,7 @@ final class ThreatResponseAction {
     }
 
     private boolean canAttackTarget(Mob mob, ItemStack weapon) {
-        return safeStack(weapon) && canHit(mob) && safeWeaponForTarget(mob, weapon);
+        return !creeper(mob) && safeStack(weapon) && canHit(mob) && safeWeaponForTarget(mob, weapon);
     }
 
     private boolean safeWeaponForTarget(Mob mob, ItemStack weapon) {
@@ -433,7 +467,8 @@ final class ThreatResponseAction {
     }
 
     private boolean canChooseTarget(Mob mob, ItemStack weapon, MovementController.DefenseHop hop) {
-        return canHit(mob) && (safeWeaponForTarget(mob, weapon) || hop != null && GameApi.isSword(weapon));
+        return !creeper(mob) && canHit(mob)
+                && (safeWeaponForTarget(mob, weapon) || hop != null && GameApi.isSword(weapon));
     }
 
     private Mob chooseTargetForSlot(List<Mob> threats, ItemStack weapon, MovementController.DefenseHop hop) {
@@ -462,12 +497,13 @@ final class ThreatResponseAction {
             swords[slot] = GameApi.isSword(weapon);
             swordAvailable |= swords[slot];
         }
-        MovementController.DefenseHop hop = allowHop && swordAvailable && (tracked.size() > 1 || client.player.getHealth() <= 6.0f)
+        MovementController.DefenseHop hop = allowHop && swordAvailable && threats.stream().noneMatch(ThreatResponseAction::creeper)
+                && (tracked.size() > 1 || client.player.getHealth() <= 6.0f)
                 ? movement.planDefenseHop() : null;
         int currentSlot = client.player.getInventory().getSelectedSlot();
         List<AttackChoice> choices = new ArrayList<>(MAX_THREATS * 9);
         for (Mob mob : threats) {
-            if (!canHit(mob)) continue;
+            if (creeper(mob) || !canHit(mob)) continue;
             boolean sweepCollateral = swordAvailable
                     && GameApi.defenseHasSweepCollateral(client.level, client.player, mob);
             for (int slot = 0; slot < 9; slot++) {
@@ -499,12 +535,13 @@ final class ThreatResponseAction {
 
     private String unsafeContextReason() {
         if (client.player == null || client.level == null || client.gameMode == null) return "defense world unavailable";
+        if (shield.manualInput()) return "manual input interrupted defense";
         var player = client.player;
         if (!Double.isFinite(player.getX()) || !Double.isFinite(player.getY()) || !Double.isFinite(player.getZ()))
             return "player position is not finite";
         if (!player.isAlive() || !Float.isFinite(player.getHealth()) || player.getHealth() <= 0) return "player is not alive";
         if (player.isCreative() || player.isSpectator()) return "defense requires survival play";
-        if (player.isPassenger() || player.isUsingItem()) return "player is riding or using an item";
+        if (player.isPassenger() || player.isUsingItem() && !shield.ownsUse()) return "player is riding or using an item";
         if (GameApi.screen(client) != null || player.containerMenu != player.inventoryMenu
                 || !player.containerMenu.getCarried().isEmpty()) return "defense inventory context is unsafe";
         return null;
@@ -523,6 +560,7 @@ final class ThreatResponseAction {
     }
 
     private IllegalStateException abort(RuntimeException failure) {
+        shield.stop();
         boolean cancelled = cancelMovement();
         restoreSelection();
         clearOwnership();

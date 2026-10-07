@@ -17,13 +17,24 @@ public final class ProjectMaterialReservations {
         if (!remaining.success()) {
             throw new IllegalArgumentException("Cannot reserve materials from a failed project plan");
         }
-        if (remaining.steps().size() > MAX_PLAN_STEPS) {
+        return protectOptionalWork(stock, remaining.steps());
+    }
+
+    public static InventorySnapshot protectOptionalWork(InventorySnapshot stock, PlanResult remaining) {
+        Objects.requireNonNull(remaining, "remaining");
+        if (!remaining.success()) throw new IllegalArgumentException("Cannot reserve materials from a failed plan");
+        return protectOptionalWork(stock, remaining.steps());
+    }
+
+    private static InventorySnapshot protectOptionalWork(InventorySnapshot stock, java.util.List<PlanStep> steps) {
+        Objects.requireNonNull(stock, "stock");
+        if (steps.size() > MAX_PLAN_STEPS) {
             throw new IllegalArgumentException("Project plan exceeds the planner step limit");
         }
 
         Map<ItemId, Long> consumed = new HashMap<>();
         Map<ItemId, Long> reusable = new HashMap<>();
-        for (PlanStep step : remaining.steps()) {
+        for (PlanStep step : steps) {
             for (SelectedRequirement requirement : step.requirements()) {
                 if (requirement instanceof SelectedItemRequirement item) {
                     if (item.consumed()) {

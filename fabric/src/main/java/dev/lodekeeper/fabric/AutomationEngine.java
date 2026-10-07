@@ -86,6 +86,9 @@ final class AutomationEngine {
                                 HarvestInvestment.ToolDemand demand, Map<String, GatherLimit> localSources,
                                 Set<ItemId> localOutputs, Set<ItemId> goalLogItems, Set<String> nativeCraftSources,
                                 Set<String> allowedAxeCraftSources, HarvestInvestment.TickEstimates estimates) { }
+    private record ShieldPreparationOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
+                                          InventorySnapshot knownInventory, Set<ItemId> planks,
+                                          int ironFloor, int plankFloor, boolean canPlaceStations) { }
     private record CombatPreparationOffer(CatalogSnapshot catalog, InventorySnapshot inventory,
                                           InventorySnapshot knownInventory, boolean canPlaceStations) { }
 
@@ -470,6 +473,7 @@ final class AutomationEngine {
             }
             if (!client.player.isAlive()) { pause("player is no longer alive"); return; }
             if (config.pauseOnScreen && client.currentScreen != null && cleanupRun == null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+            threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
             if (!airRecovery.active() && config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
                     && !hasOwnedStationHandlerOpen() && !food.active() && !equipment.active() && threats.ready()) {
@@ -477,7 +481,8 @@ final class AutomationEngine {
                 pendingPlan = null;
                 resetAction();
                 refreshNavigationProtection();
-                threats.updateProtection(foodReservations());
+                threats.useShield(config.autoUseShield);
+            threats.updateProtection(foodReservations());
                 if (threats.begin()) status = threats.status();
                 else requestPlan();
                 return;
@@ -610,6 +615,8 @@ final class AutomationEngine {
                     if (!result.success()) { failActive("No plan: " + result.blockedReasons().stream().map(BlockedReason::detail).limit(3).toList()); return; }
                     if (result.steps().isEmpty()) { finishGoal(); return; }
                     PlanStep first = result.steps().get(0);
+                    if (Boolean.parseBoolean(first.attributes().getOrDefault("shieldPreparation", "false"))
+                            && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) { requestPlan(); return; }
                     if (isFoodPreparation(first) && !config.autoEat) { requestPlan(); return; }
                     if (first.kind() == PlanKind.GATHER) {
                         int capacity = gatherCapacity(first.output());
@@ -1350,6 +1357,7 @@ final class AutomationEngine {
                 requestPlan();
                 return true;
             }
+            threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
             if (threats.tick()) { observeInventory(); requestPlan(); }
             else status = threats.status();
@@ -1421,6 +1429,7 @@ final class AutomationEngine {
         pendingPlanGeneration = catalog.generation();
         CatalogSnapshot filteredSnapshot = snapshot;
         CombatPreparationOffer combatOffer = captureCombatPreparationOffer(filteredSnapshot, inventory, knownInventory);
+        ShieldPreparationOffer shieldOffer = captureShieldPreparationOffer(filteredSnapshot, inventory, knownInventory);
         ProjectSpec project = active.project() != null && !active.project().aborted
                 ? remainingProject(active.project().spec, inventory) : null;
         Map<ItemId, Integer> gatherCapacity = project == null ? Map.of() : gatherCapacity(filteredSnapshot);
@@ -1490,6 +1499,8 @@ final class AutomationEngine {
                                 PlannerLimits.DEFAULT, preferences, gatherCapacity.getOrDefault(steps.get(0).output(), 0)));
                     PlanResult basePlan = new PlanResult(targetItem, targetCount, steps, List.of(),
                             joint.optimal(), joint.expandedNodes(), joint.elapsedNanos());
+                    PlanningOutcome shieldPreparation = shieldPreparationOutcome(basePlan, joint, shieldOffer, preferences);
+                    if (shieldPreparation != null) return shieldPreparation;
                     PlanningOutcome combatPreparation = combatPreparationOutcome(basePlan, joint, combatOffer, preferences);
                     if (combatPreparation != null) return combatPreparation;
                     return new PlanningOutcome(basePlan, false, false, steps.get(0) == first ? null : first);
@@ -1498,6 +1509,8 @@ final class AutomationEngine {
             PlanResult filteredPlan = planWithStationFallback(filteredSnapshot, inventory, knownInventory,
                     targetItem, targetCount, preferences);
             if (filteredPlan.success() && (joint == null || joint.success())) {
+                PlanningOutcome shieldPreparation = shieldPreparationOutcome(filteredPlan, joint, shieldOffer, preferences);
+                if (shieldPreparation != null) return shieldPreparation;
                 PlanningOutcome combatPreparation = combatPreparationOutcome(filteredPlan, joint, combatOffer, preferences);
                 if (combatPreparation != null) return combatPreparation;
             }
@@ -1536,6 +1549,136 @@ final class AutomationEngine {
             return new PlanningOutcome(filteredPlan,
                     ExplorationRecovery.provesExploration(filteredPlan, fullPlan, full, excludedGatherSourceIds), false);
         }, plannerWorker);
+    }
+
+    private ShieldPreparationOffer captureShieldPreparationOffer(CatalogSnapshot snapshot,
+                                                                InventorySnapshot inventory,
+                                                                InventorySnapshot knownInventory) {
+        if (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield || client.player == null
+                || !client.player.isAlive() || client.player.getAbilities().creativeMode || client.player.isSpectator()
+                || !client.player.getOffHandStack().isEmpty() || gatherCapacity(ItemId.parse("minecraft:shield")) < 1)
+            return null;
+        threats.updateProtection(foodReservations());
+        if (threats.hasAvailableShield()) return null;
+        Set<ItemId> planks = Set.copyOf(catalog.tags.getOrDefault(PLANKS_TAG, List.of()));
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+        snapshot.itemDefinitions().values().forEach(builder::item);
+        catalog.tags.forEach(builder::tag);
+        for (AcquisitionSource source : catalog.sources) {
+            if (!(source instanceof CraftingSource crafting) || unavailableSources.contains(source.sourceId())
+                    || !Set.of(ItemId.parse("minecraft:shield"), CRAFTING_TABLE_ITEM).contains(source.output())) continue;
+            var recipe = catalog.recipes.get(source.sourceId());
+            if (recipe == null || crafting.outputCount() != 1) continue;
+            ItemStack output = recipe.outputPerOperation();
+            if (!GameApi.canCombine(output, new ItemStack(GameCatalog.item(crafting.output())))
+                    || output.getCount() != 1) continue;
+            builder.source(source);
+        }
+        Map<ItemId, Integer> ordinary = new HashMap<>();
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getStack(index);
+            if (!stack.isEmpty() && !stack.hasEnchantments() && !GameApi.hasCustomName(stack)
+                    && GameApi.canCombine(stack, new ItemStack(stack.getItem())))
+                ordinary.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        Map<ItemId, Integer> reserved = new HashMap<>(inventory.protectedCounts());
+        foodReservations().forEach((item, count) -> reserved.merge(item, count, Math::max));
+        reserved.replaceAll((item, count) -> Math.min(count, ordinary.getOrDefault(item, 0)));
+        reserved.values().removeIf(count -> count == 0);
+        InventorySnapshot stock = new InventorySnapshot(ordinary, inventory.availableStations(), Map.of(), reserved);
+        InventorySnapshot known = new InventorySnapshot(ordinary, knownInventory.availableStations(), Map.of(), reserved);
+        return new ShieldPreparationOffer(builder.build(), stock, known, planks,
+                config.shieldIronReserve, config.shieldPlankReserve, config.allowBuilding);
+    }
+
+    private PlanningOutcome shieldPreparationOutcome(PlanResult basePlan, ProjectPlanResult project,
+                                                     ShieldPreparationOffer offer, PlanningPreferences preferences) {
+        if (offer == null || !basePlan.success() || basePlan.steps().isEmpty()) return null;
+        try {
+            InventorySnapshot reserved = project == null
+                    ? ProjectMaterialReservations.protectOptionalWork(offer.inventory(), basePlan)
+                    : ProjectMaterialReservations.protectOptionalWork(offer.inventory(), project);
+            InventorySnapshot knownReserved = project == null
+                    ? ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), basePlan)
+                    : ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), project);
+            InventorySnapshot stock = shieldFloorInventory(reserved, offer);
+            InventorySnapshot known = shieldFloorInventory(knownReserved, offer);
+            if (stock == null || known == null) return null;
+            ItemId shieldItem = ItemId.parse("minecraft:shield"), iron = ItemId.parse("minecraft:iron_ingot");
+            PlanResult plan = planWithStationFallback(offer.catalog(), stock, known, shieldItem, 1, preferences);
+            if (!plan.success() || plan.steps().isEmpty() || plan.steps().size() > 3) return null;
+            int shields = 0, tables = 0, ironCost = 0, plankCost = 0;
+            for (PlanStep candidate : plan.steps()) {
+                if (candidate.kind() == PlanKind.PLACE_STATION) {
+                    if (!offer.canPlaceStations() || !CRAFTING_TABLE.equals(candidate.station())) return null;
+                    continue;
+                }
+                if (candidate.kind() != PlanKind.CRAFT || candidate.operationCount() != 1 || candidate.outputCount() != 1)
+                    return null;
+                boolean shieldCraft = shieldItem.equals(candidate.output());
+                if (shieldCraft) shields++;
+                else if (CRAFTING_TABLE_ITEM.equals(candidate.output())) tables++;
+                else return null;
+                int ironForStep = 0, planksForStep = 0;
+                for (SelectedRequirement requirement : candidate.requirements()) {
+                    if (requirement instanceof SelectedItemRequirement input && input.consumed()) {
+                        if (iron.equals(input.item())) ironForStep += input.count();
+                        else if (offer.planks().contains(input.item())) planksForStep += input.count();
+                        else return null;
+                    } else if (requirement instanceof SelectedToolRequirement) return null;
+                }
+                if (ironForStep != (shieldCraft ? 1 : 0) || planksForStep != (shieldCraft ? 6 : 4)) return null;
+                ironCost += ironForStep;
+                plankCost += planksForStep;
+            }
+            if (shields != 1 || tables > 1 || ironCost != 1 || plankCost != 6 + tables * 4) return null;
+            List<PlanStep> marked = new ArrayList<>();
+            for (int index = 0; index < plan.steps().size(); index++) {
+                PlanStep candidate = plan.steps().get(index);
+                Map<String, String> attributes = new HashMap<>(candidate.attributes());
+                attributes.put("shieldPreparation", "true");
+                attributes.put("ordinaryInputOnly", "true");
+                attributes.put("shieldIronFloor", Integer.toString(offer.ironFloor()));
+                attributes.put("shieldPlankFloor", Integer.toString(offer.plankFloor()));
+                reserved.protectedCounts().forEach((item, count) -> attributes.put("shieldReserved:" + item, Integer.toString(count)));
+                Map<ItemId, Integer> future = new HashMap<>();
+                for (PlanStep later : plan.steps().subList(index + 1, plan.steps().size()))
+                    for (SelectedRequirement requirement : later.requirements())
+                        if (requirement instanceof SelectedItemRequirement input && input.consumed())
+                            future.merge(input.item(), input.count(), Math::addExact);
+                future.forEach((item, count) -> attributes.put("shieldFuture:" + item, Integer.toString(count)));
+                marked.add(new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(), candidate.outputCount(),
+                        candidate.operationCount(), candidate.requirements(), candidate.candidateBlocks(), candidate.recipeType(),
+                        candidate.recipeWidth(), candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes));
+            }
+            return new PlanningOutcome(new PlanResult(plan.target(), plan.requestedCount(), marked, plan.blockedReasons(),
+                    plan.optimal(), plan.expandedNodes(), plan.elapsedNanos()), false, true);
+        } catch (RuntimeException ignored) { return null; }
+    }
+
+    private static InventorySnapshot shieldFloorInventory(InventorySnapshot stock, ShieldPreparationOffer offer) {
+        Map<ItemId, Integer> floors = new HashMap<>(stock.protectedCounts());
+        ItemId iron = ItemId.parse("minecraft:iron_ingot");
+        int ironReserved = floors.getOrDefault(iron, 0);
+        if ((long) stock.count(iron) - ironReserved < (long) offer.ironFloor() + 1) return null;
+        floors.put(iron, ironReserved + offer.ironFloor());
+        int toReserve = offer.plankFloor();
+        for (ItemId item : offer.planks().stream().sorted().toList()) {
+            int current = floors.getOrDefault(item, 0);
+            int allocated = Math.min(toReserve, Math.max(0, stock.count(item) - current));
+            if (allocated > 0) floors.put(item, current + allocated);
+            toReserve -= allocated;
+        }
+        if (toReserve != 0) return null;
+        return new InventorySnapshot(stock.counts(), stock.availableStations(), Map.of(), floors);
+    }
+
+    private Map<ItemId, Integer> shieldExecutionReservations() {
+        Map<ItemId, Integer> reserved = new HashMap<>(foodReservations());
+        if (step != null) for (SelectedRequirement requirement : step.requirements())
+            if (requirement instanceof SelectedItemRequirement input)
+                reserved.computeIfPresent(input.item(), (item, count) -> Math.max(0, count - input.count()));
+        return Map.copyOf(reserved);
     }
 
     private CombatPreparationOffer captureCombatPreparationOffer(CatalogSnapshot snapshot,
@@ -2613,6 +2756,10 @@ final class AutomationEngine {
         movement.updateProtection(reserved, stations);
     }
     private void placeStation() {
+        if (step != null && Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))
+                && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) {
+            resetAction(); requestPlan(); return;
+        }
         if (client.player == null || client.world == null || active == null || step == null
                 || step.kind() != PlanKind.PLACE_STATION || step.station() == null) {
             cancelStationPlacement();
@@ -2715,7 +2862,29 @@ final class AutomationEngine {
     }
 
     private void sendStationPlacement(Block block) {
-        PlayerActions.PlacementAttempt attempt = actions.placeStation(target, block, active.jobToken());
+        if (Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) {
+            ItemId table = GameCatalog.id(block.asItem());
+            Map<ItemId, Integer> reserved = new HashMap<>(shieldExecutionReservations());
+            step.attributes().forEach((key, value) -> {
+                if (key.startsWith("shieldReserved:"))
+                    reserved.merge(ItemId.parse(key.substring(15)), Integer.parseInt(value), Math::max);
+            });
+            ItemStack ordinaryTable = new ItemStack(GameCatalog.item(table));
+            int ordinaryTables = 0;
+            for (int index = 0; index < 36; index++) {
+                ItemStack stack = client.player.getInventory().getStack(index);
+                if (!stack.isEmpty() && GameApi.canCombine(stack, ordinaryTable))
+                    ordinaryTables += stack.getCount();
+            }
+            if (ordinaryTables <= reserved.getOrDefault(table, 0)) {
+                cancelStationPlacement();
+                resetAction();
+                requestPlan();
+                return;
+            }
+        }
+        PlayerActions.PlacementAttempt attempt = actions.placeStation(target, block, active.jobToken(),
+                Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false")));
         switch (attempt) {
             case SENT, WAITING_FOR_PROVENANCE -> {
                 var session = placementProvenance.session().orElseThrow();
@@ -2898,7 +3067,10 @@ final class AutomationEngine {
             if (recipe == null || stepCatalogGeneration != catalog.generation()) throw new IllegalStateException("Recipe disappeared or changed before crafting could start");
             crafting = new CraftingAction(client, actions, recipe, step,
                     () -> catalog != null && catalog.ready() && catalog.generation() == stepCatalogGeneration
-                            && catalog.usesCurrentProvider());
+                            && catalog.usesCurrentProvider(), this::shieldExecutionReservations,
+                    () -> config.autoDefend && config.autoUseShield && config.autoCraftShield,
+                    Set.copyOf(catalog.tags.getOrDefault(PLANKS_TAG, List.of())),
+                    () -> config.shieldIronReserve, () -> config.shieldPlankReserve);
         }
         if (shouldDrainActiveTransaction()) crafting.requestDrain();
         if (crafting.tick()) completeStep();

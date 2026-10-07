@@ -154,7 +154,7 @@ public final class AutomationSettingsScreen extends Screen implements dev.lodeke
         int groupWidth = resetWidth + closeWidth + saveWidth + gap * 2;
         int actionX = panelX + (panelWidth - groupWidth) / 2;
         add(button("Reset all", actionX, actionY, resetWidth, 20,
-                "Reset all 48 settings in this draft. Save to apply the defaults.", ignored -> resetAll()));
+                "Reset all " + draft.specs().size() + " settings in this draft. Save to apply the defaults.", ignored -> resetAll()));
         add(button("Discard", actionX + resetWidth + gap, actionY, closeWidth, 20,
                 "Discard unsaved changes and return to the previous screen.", ignored -> onClose()));
         add(button("Save", actionX + resetWidth + closeWidth + gap * 2, actionY, saveWidth, 20,

@@ -69,6 +69,35 @@ final class GameApi {
 
     private GameApi() {}
 
+
+    static boolean ordinaryShield(ItemStack stack) {
+        if (stack.isEmpty() || !stack.isOf(net.minecraft.item.Items.SHIELD) || stack.getCount() != 1
+                || !stack.isDamageable() || stack.hasEnchantments() || hasCustomName(stack)
+                || stack.getMaxDamage() - stack.getDamage() <= 100) return false;
+        ItemStack normalized = stack.copy(), ordinary = new ItemStack(net.minecraft.item.Items.SHIELD);
+        normalized.setDamage(0);
+        ordinary.setDamage(0);
+        return canCombine(normalized, ordinary);
+    }
+
+    static boolean sameShield(ItemStack current, ItemStack expected) {
+        if (current.isEmpty() || expected.isEmpty() || current.getCount() != 1 || expected.getCount() != 1
+                || !current.isOf(net.minecraft.item.Items.SHIELD) || current.getDamage() < expected.getDamage()) return false;
+        ItemStack first = current.copy(), second = expected.copy();
+        first.setDamage(0);
+        second.setDamage(0);
+        return canCombine(first, second);
+    }
+
+    static boolean startShieldUse(net.minecraft.client.MinecraftClient client) {
+        return client.interactionManager.interactItem(client.player, net.minecraft.util.Hand.OFF_HAND).isAccepted()
+                && client.player.isUsingItem() && client.player.getActiveHand() == net.minecraft.util.Hand.OFF_HAND;
+    }
+
+    static boolean ownsShieldUse(net.minecraft.entity.player.PlayerEntity player, ItemStack expected) {
+        return player.isUsingItem() && player.getActiveHand() == net.minecraft.util.Hand.OFF_HAND
+                && sameShield(player.getActiveItem(), expected) && sameShield(player.getOffHandStack(), expected);
+    }
     static boolean isHostileMob(net.minecraft.entity.Entity entity) {
         if (!(entity instanceof net.minecraft.entity.mob.MobEntity mob)
                 || !(entity instanceof net.minecraft.entity.mob.Monster)
@@ -76,6 +105,11 @@ final class GameApi {
                 || entity instanceof net.minecraft.entity.mob.PiglinEntity) return false;
         return !(entity instanceof net.minecraft.entity.mob.SpiderEntity)
                 || mob.getTarget() != null || mob.getBrightnessAtEyes() < 0.5f;
+    }
+
+    static double defenseCreeperFuseProgress(net.minecraft.entity.mob.MobEntity mob) {
+        return mob instanceof net.minecraft.entity.mob.CreeperEntity creeper
+                ? creeper.getClientFuseTime(1.0f) : Double.NaN;
     }
 
     static void attackAirborneForDefense(net.minecraft.client.MinecraftClient client, net.minecraft.entity.Entity target) {
