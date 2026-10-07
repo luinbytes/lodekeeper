@@ -148,19 +148,31 @@
       "assetName": "mc26.3-main-cfeb010-natural-mining-FAIL-original.png",
       "sha256": "20369d60ca010ced13edd74975931822c51b01316f086a5dbfed4d1e100223f9",
       "bytes": 49038,
-      "caption": "Raw native window showing underground diamond gathering. Full run later fails."
+      "caption": "Raw native window showing underground diamond gathering. Full run later fails.",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-cfeb010-natural-mining-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "remoteBytesAndSha256Verified": true,
+      "localOriginalRemovedAfterVerification": true
     },
     {
       "assetName": "mc26.3-main-cfeb010-natural-first-movement-FAIL-original.png",
       "sha256": "a9153e962cc5fb6ae8fe12311fb64898fba4ed83ecd408db5472ca9c4a6a806d",
       "bytes": 245083,
-      "caption": "Native command and HUD at the start of the failed full-gear request."
+      "caption": "Native command and HUD at the start of the failed full-gear request.",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-cfeb010-natural-first-movement-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "remoteBytesAndSha256Verified": true,
+      "localOriginalRemovedAfterVerification": true
     },
     {
       "assetName": "mc26.3-main-cfeb010-natural-final-FAIL-original.png",
       "sha256": "141425b60718b6670a98443a82559073b412661e6131e1d8e2db1605795d3ab2",
       "bytes": 38011,
-      "caption": "Native final pause after birch-log action timeout. A diamond pickaxe and 32 diamonds do not meet the full-gear goal."
+      "caption": "Native final pause after birch-log action timeout. A diamond pickaxe and 32 diamonds do not meet the full-gear goal.",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-cfeb010-natural-final-FAIL-original.png",
+      "anonymousHttpStatus": 200,
+      "remoteBytesAndSha256Verified": true,
+      "localOriginalRemovedAfterVerification": true
     }
   ],
   "stationDiagnosis": {
@@ -185,5 +197,12 @@
       4292,
       4294
     ]
+  },
+  "screenshotPublication": {
+    "releaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence",
+    "manifestUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-cfeb010-0d55053-screenshot-manifest.json",
+    "loggedOutBrowserImagesLoaded": 4,
+    "verifiedAtUtc": "2026-10-07T20:05:44.345570+00:00",
+    "videoRecordingRemovedFromFutureWorkflow": true
   }
 }

@@ -3036,6 +3036,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             activeCase = "prepared_workbench_ownership_setup";
             activeItem = "minecraft:wooden_pickaxe";
             activeCount = 1;
+            requireEngine().config.recoverPlacedStations = false;
             sendCommand("!lk get wooden_pickaxe 1");
             return;
         }
@@ -3049,6 +3050,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         workbenchApproachObserved = false;
         workbenchRecoveryStartedNanos = -1;
         workbenchRecoveryDurationMillis = -1;
+        requireEngine().config.recoverPlacedStations = true;
         sendCommand("!lk get cobblestone 1");
     }
 
