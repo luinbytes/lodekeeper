@@ -1,0 +1,490 @@
+{
+  "recordedAtUtc": "2026-10-07T23:46:01.307432+00:00",
+  "source": {
+    "commit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "scope": "Exact clean frozen main 9cbf94e 1.21.1 jar, unchanged fresh generated Normal Survival seed 483920105; no supplied equipment.",
+  "interpretation": "Fresh gear_diamond completes after 509,245 ms (8:29). Integrated-server receipts confirm five diamond tools retained, all four diamond armor pieces equipped, full health, zero deaths, an empty cursor and idle cancelled navigation. Start position is (1.5,79,33.5), different from earlier same-seed attempts. This is one pass on 1.21.1; the 26.3 run fails during crafting and neither run reproduces the previous zombie death during air recovery. These main results do not replace Preview 11 binaries or establish a speedup.",
+  "nativeEvidencePath": "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/run/verification/evidence/natural-2026-10-07T23-35-35.532932Z-e274a676.json",
+  "nativeEvidenceSha256": "e2f19ddf9b92354889991a2b2869e6e74920b5331871d4ef6b59e7fa58847665",
+  "nativeEvidenceSelection": "All receipt fields except the unrequested inventory diff stream and local screenshot path list; requested target receipts retained. Original native JSON and world retained locally.",
+  "nativeEvidence": {
+    "runId": "2026-10-07T23-35-35.532932Z-e274a676",
+    "status": "passed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "1.21.1",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 541011,
+    "worldLaunchElapsedMillis": 531485,
+    "worldReadyElapsedMillis": 513938,
+    "commandElapsedMillis": 509245,
+    "firstServerMovementElapsedMillis": 1389,
+    "commandServerTick": 118,
+    "serverMovementTicks": 2350,
+    "serverMovementSteps": 2350,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 471.0565168090906,
+    "serverWalkCentimetersSinceCommand": 4448,
+    "deathsAtCommand": 0,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "failure": "",
+    "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+    "renderDistanceChunks": 2,
+    "maxFps": 30,
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": 1.5,
+      "y": 79.0,
+      "z": 33.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverGameMode": "survival",
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverTick": 9637,
+    "serverInventoryCounts": {
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:diamond_hoe": 1,
+      "minecraft:granite": 10,
+      "minecraft:andesite": 3,
+      "minecraft:stone_sword": 1,
+      "minecraft:tuff": 8,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:cobbled_deepslate": 182,
+      "minecraft:cobblestone": 49,
+      "minecraft:crafting_table": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:diorite": 7,
+      "minecraft:diamond_shovel": 1,
+      "minecraft:gravel": 3,
+      "minecraft:birch_planks": 3,
+      "minecraft:diamond_sword": 1,
+      "minecraft:diamond_axe": 1
+    },
+    "serverArmorCounts": {
+      "minecraft:diamond_helmet": 1,
+      "minecraft:diamond_boots": 1,
+      "minecraft:diamond_leggings": 1,
+      "minecraft:diamond_chestplate": 1
+    },
+    "serverHeldCounts": {
+      "minecraft:diamond_hoe": 1,
+      "minecraft:cobbled_deepslate": 182,
+      "minecraft:diamond_helmet": 1,
+      "minecraft:diamond_sword": 1,
+      "minecraft:diorite": 7,
+      "minecraft:diamond_leggings": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:andesite": 3,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:diamond_axe": 1,
+      "minecraft:diamond_chestplate": 1,
+      "minecraft:crafting_table": 1,
+      "minecraft:diamond_boots": 1,
+      "minecraft:granite": 10,
+      "minecraft:cobblestone": 49,
+      "minecraft:stone_sword": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:tuff": 8,
+      "minecraft:gravel": 3,
+      "minecraft:diamond_shovel": 1,
+      "minecraft:birch_planks": 3,
+      "minecraft:diamond_pickaxe": 1
+    },
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": true,
+    "serverTargetReceiptsDropped": 0,
+    "requestedServerTargetReceipts": [
+      {
+        "serverTick": 5146,
+        "elapsedMillisFromCommand": 251387,
+        "item": "minecraft:diamond_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9498,
+        "elapsedMillisFromCommand": 468987,
+        "item": "minecraft:diamond_axe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9509,
+        "elapsedMillisFromCommand": 469547,
+        "item": "minecraft:diamond_boots",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9522,
+        "elapsedMillisFromCommand": 470187,
+        "item": "minecraft:diamond_chestplate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9535,
+        "elapsedMillisFromCommand": 470837,
+        "item": "minecraft:diamond_helmet",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9551,
+        "elapsedMillisFromCommand": 471637,
+        "item": "minecraft:diamond_hoe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9562,
+        "elapsedMillisFromCommand": 472187,
+        "item": "minecraft:diamond_leggings",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9577,
+        "elapsedMillisFromCommand": 472937,
+        "item": "minecraft:diamond_shovel",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 9589,
+        "elapsedMillisFromCommand": 473537,
+        "item": "minecraft:diamond_sword",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      }
+    ]
+  },
+  "runnerStatus": "passed",
+  "runnerEvidenceAuthority": "run-artifact-verification.py exact frozen production jar",
+  "productionJar": {
+    "minecraftDependency": "1.21.1",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-9cbf94e-1.21.1-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/AutomationEngine.class"
+    ],
+    "sha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d"
+  },
+  "runtimeClassLoadProvenance": {
+    "foreignKernelClasses": 0,
+    "generatedClasses": 533,
+    "lodekeeperClasses": 1053,
+    "log": "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/class-load.log",
+    "productionArtifactClasses": 497,
+    "productionJarClasses": 0,
+    "runtimeArtifactTransformation": {
+      "cacheDirectory": "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/run/.fabric/processedMods",
+      "cacheWasFresh": true,
+      "candidateCount": 1,
+      "candidatePaths": [
+        "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+      ],
+      "devLodekeeperEntryCount": 765,
+      "devLodekeeperEntryNamesMatch": true,
+      "fabricModJsonMatches": true,
+      "identityPreservedClasses": {
+        "dev/lodekeeper/core/": {
+          "bytesMatch": true,
+          "classCount": 137,
+          "namesMatch": true
+        },
+        "dev/lodekeeper/nav/": {
+          "bytesMatch": true,
+          "classCount": 40,
+          "namesMatch": true
+        }
+      },
+      "inputArtifact": {
+        "path": "/private/tmp/lodekeeper-main-9cbf94e-1.21.1-frozen.jar",
+        "sha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d"
+      },
+      "loadedClassCount": 497,
+      "loadedClassesPresentInInputAndOutput": true,
+      "manifestMatches": true,
+      "observedSourceCount": 1,
+      "runtimeArtifact": {
+        "filenameMatchesLoaderPattern": true,
+        "path": "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+        "sha256": "1c5741879de43ab53b33f29d7d2314f8eb38ffe222533d77cfa6115550e15882"
+      },
+      "runtimeModId": "lodekeeper",
+      "runtimeModVersion": "0.1.0-preview.11",
+      "transformation": "fabric-loader-runtime-remap",
+      "verified": true
+    },
+    "runtimeRemappedClasses": 497,
+    "sourceCounts": {
+      "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 23,
+      "/private/tmp/lodekeeper-main-9cbf94e-natural-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 497
+    },
+    "verifierClasses": 23,
+    "violations": []
+  },
+  "nativeReceipts": [
+    {
+      "failure": "",
+      "path": "verification/evidence/natural-2026-10-07T23-35-35.532932Z-e274a676.json",
+      "sha256": "e2f19ddf9b92354889991a2b2869e6e74920b5331871d4ef6b59e7fa58847665",
+      "status": "passed",
+      "verificationMode": "natural_world"
+    }
+  ],
+  "airSamples": 0,
+  "airEvents": 0,
+  "defenseEventLines": [
+    "[00:37:49] [Render thread/INFO] (lodekeeper) [Lodekeeper] DEFENSE_DRAIN blockedBy=native-work hasPath=true pathing=true calculating=false ground=true horizontalSpeed=0.003725375205356213",
+    "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] DEFENSE_DRAIN blockedBy=physical-settling hasPath=false pathing=false calculating=false ground=true horizontalSpeed=0.06171972843924298",
+    "[00:37:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] DEFENSE_DRAIN blockedBy=physical-settling hasPath=false pathing=false calculating=false ground=true horizontalSpeed=0.025716874080792453"
+  ],
+  "ci": {
+    "runId": 37702345003,
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37702345003",
+    "headSha": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+    "status": "completed",
+    "conclusion": "success",
+    "successfulJobs": 24,
+    "totalJobs": 24
+  },
+  "screenshots": [
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-phase-running-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "RUNNING_AT_CAPTURE_FINAL_PASS",
+      "caption": "Fresh Survival command and HUD during the gear request, before the completed loadout.",
+      "inline": true,
+      "bytes": 303164,
+      "sha256": "77772abe5276c143ffe4cc3841c4662cf014a2f0843be3270f26faaa085b4ed9",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-phase-running-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-first-movement-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "RUNNING_AT_CAPTURE_FINAL_PASS",
+      "caption": "Fresh Survival command and HUD during the gear request, before the completed loadout.",
+      "inline": false,
+      "bytes": 193692,
+      "sha256": "0628cca35598db3182d14259d46abe8be5da4f52b741cd7063638f8786c0d352",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-first-movement-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_pickaxe-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond pickaxe during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": true,
+      "bytes": 37688,
+      "sha256": "d4918a8b9cc05e1d61f954eda7f74e69dab2386fcfe22e5e6dffba88071690ea",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_pickaxe-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_axe-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond axe during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 70431,
+      "sha256": "ddbd6434823a608c9e46fbe3129b220068c52fdd918847fe761bc146fe6423be",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_axe-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_boots-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond boots during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 123553,
+      "sha256": "085035ba064fbcc9dd6180392e0606d4a3ff21ec89a62509b196ea0d5408c10c",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_boots-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_chestplate-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond chestplate during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 139404,
+      "sha256": "b9d66cb0b6811efc7db7c5aed8305872d9e47a4904cbbb30ee365d74ed940378",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_chestplate-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_helmet-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond helmet during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 138540,
+      "sha256": "b90c65dd7b316a1b8ae629fbbbc8b611cafd41c3e95b2a239a255c07e658a287",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_helmet-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_hoe-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond hoe during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 130773,
+      "sha256": "ed5fbcfd7f5c845f851f31f53f1c75666c9519c2e923aaa03c5f12e769377289",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_hoe-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_leggings-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond leggings during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 129503,
+      "sha256": "dd9defa43ff2fdce6e897d99c521b2b0bdf5cde657a96842597e660b33683e98",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_leggings-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_shovel-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond shovel during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 129968,
+      "sha256": "0b8cb8ac1bbfb3531d31e9227d9889b2602bcf0fe834c16b70caa81d7e25ae0b",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_shovel-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-received-diamond_sword-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_PASS",
+      "caption": "Native frame captured at the first server receipt for diamond sword during the continuing job. The completed-run proof records the final retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 129633,
+      "sha256": "73c54f63ff7dea6e20eb3fe68fb3fde8ad5ad702760f362b16ac239c34eda11f",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-received-diamond_sword-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-final-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "PASS",
+      "caption": "Final native frame with armor and health HUD and diamond tools in the hotbar. The integrated server confirms all five tools retained, four diamond armor pieces equipped, an empty cursor and idle cancelled navigation.",
+      "inline": true,
+      "bytes": 130729,
+      "sha256": "5eee3fc50fcdbaaebd7f5568ce82c90d1b104788186b315306c77a6a6e396d5b",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-final-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-9cbf94e-natural-gear-station-cleanup-window-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+      "buildSha256": "521f5166ea812d5e77f54c4f32020e7e60a4f29b0e5f97a25a539effcd8e9d1d",
+      "testOutcome": "STATION_CLEANUP_AT_CAPTURE_FINAL_PASS",
+      "caption": "Owned Minecraft window with full armor and health HUD and a diamond axe during final station cleanup. The later native receipt establishes completed idle state.",
+      "inline": false,
+      "bytes": 135966,
+      "sha256": "a5a42e7ae0ee474945aa505b4514b1c165ffabf41292fed317104f2c2148e79a",
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-9cbf94e-natural-gear-station-cleanup-window-PASS-original.png"
+    }
+  ],
+  "threatResponseEvidence": {
+    "authority": "native client diagnostics; health and deaths independently checked by integrated server",
+    "responseEventLines": [
+      "[00:37:49] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=8.290707633294291,69.0,34.329022769617275 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.487955729166667,67.0,39.850179036458336/alive=true/removed=false/eligible=true/distance=5.926852211963687]",
+      "[00:37:50] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=1 completedRetreats=0 ticks=18 status=retreating from live threats 1 player=7.668623051835551,70.0,34.52614322540952 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.49192908462562,68.0,39.004964192708336/alive=true/removed=false/eligible=true/distance=4.908264256859433]",
+      "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-prefix-blocked attacks=0 retreatStarts=1 completedRetreats=0 ticks=44 status=stopping retreat before a hostile hazard player=4.07252876394406,70.23152379758702,32.46698384853817 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.496826171875,68.0,37.275634765625/alive=true/removed=false/eligible=true/distance=6.310993173784911]",
+      "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=1 completedRetreats=0 ticks=45 status=stopping retreat before a hostile hazard player=4.004704888492971,70.0,32.46698384853817 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.4970703125,68.0,37.140787760416664/alive=true/removed=false/eligible=true/distance=6.167743449714045]",
+      "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=1 completedRetreats=0 ticks=46 status=stopping retreat before a hostile hazard player=3.9429851600537282,70.0,32.46698384853817 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.497314453125,68.0,37.00594075520833/alive=true/removed=false/eligible=true/distance=6.102080507842654]",
+      "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=1 completedRetreats=0 ticks=47 status=stopping retreat before a hostile hazard player=3.909286184411677,70.0,32.46698384853817 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.49755859375,68.0,36.87109375/alive=true/removed=false/eligible=true/distance=6.02261429179827]",
+      "[00:37:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=2 completedRetreats=0 ticks=47 status=retreating from live threats 2 player=3.909286184411677,70.0,32.46698384853817 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@7.49755859375,68.0,36.87109375/alive=true/removed=false/eligible=true/distance=6.02261429179827]",
+      "[00:37:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-arrived attacks=0 retreatStarts=2 completedRetreats=1 ticks=119 status=verifying current threat clearance player=2.505745790275237,71.0,14.411617468907059 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@5.61181640625,71.0,33.068603515625/alive=true/removed=false/eligible=true/distance=18.91377283935835]",
+      "[00:37:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=2 completedRetreats=1 ticks=120 status=verifying current threat clearance player=2.505745790275237,71.0,14.397914580251822 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@5.61181640625,71.0,33.068603515625/alive=true/removed=false/eligible=true/distance=18.927289821654032]",
+      "[00:37:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=cleared attacks=0 retreatStarts=2 completedRetreats=1 ticks=120 status=live threats cleared player=2.505745790275237,71.0,14.397914580251822 threats=[]",
+      "[00:37:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=0.6593213931506261,69.0,25.69999998807907 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@4.462890625,70.0,30.165283203125/alive=true/removed=false/eligible=true/distance=5.950285126953341]",
+      "[00:37:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=1 completedRetreats=0 ticks=2 status=retreating from live threats 1 player=0.5865040225612074,69.0,25.69999998807907 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@4.47705078125,70.0,29.895914713541664/alive=true/removed=false/eligible=true/distance=5.808791136277643]",
+      "[00:38:02] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-arrived attacks=0 retreatStarts=1 completedRetreats=1 ticks=89 status=verifying current threat clearance player=6.546287208243004,71.0,8.602473504984491 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@3.4892166810848773,70.76081379916934,19.34126157672317/alive=true/removed=false/eligible=true/distance=11.168010543351201]",
+      "[00:38:02] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=1 completedRetreats=1 ticks=90 status=verifying current threat clearance player=6.546287208243004,71.0,8.58940642077947 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@3.489501953125,71.001220703125,19.295166015625/alive=true/removed=false/eligible=true/distance=11.133607954686122]",
+      "[00:38:02] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=2 completedRetreats=1 ticks=90 status=retreating from live threats 2 player=6.546287208243004,71.0,8.58940642077947 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@3.489501953125,71.001220703125,19.295166015625/alive=true/removed=false/eligible=true/distance=11.133607954686122]",
+      "[00:38:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-arrived attacks=0 retreatStarts=2 completedRetreats=2 ticks=134 status=verifying current threat clearance player=7.498633769152244,70.0,-1.227225041777091 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@3.496939445113652,72.0,17.002197265625/alive=true/removed=false/eligible=true/distance=18.770332845334725]",
+      "[00:38:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=2 completedRetreats=2 ticks=135 status=verifying current threat clearance player=7.498633769152244,70.0,-1.2438033676636049 threats=[676fa486-3a2b-4a4b-83fd-7824ee9c6e0e/entity.minecraft.creeper@3.496939445113652,72.0,17.002197265625/alive=true/removed=false/eligible=true/distance=18.786433843947364]",
+      "[00:38:04] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=cleared attacks=0 retreatStarts=2 completedRetreats=2 ticks=135 status=live threats cleared player=7.498633769152244,70.0,-1.2438033676636049 threats=[]"
+    ],
+    "limitation": "Two threat responses clear the observed creeper without melee attacks. This does not verify shield use, dense-crowd retreat or the earlier water failures."
+  },
+  "latestLogSha256": "540146f43a3395b1d226377819bc2f7a2fab06c3c440285b5120cf326099f8da"
+}

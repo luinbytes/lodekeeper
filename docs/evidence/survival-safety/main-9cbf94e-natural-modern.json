@@ -1,0 +1,394 @@
+{
+  "sourceCommit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+  "scope": "Fresh generated Normal Survival full diamond gear attempt fails during a cobblestone crafting drag. The first observed rejection has an empty watched grid and four cobblestone on its cursor; final native server cursor has one cobblestone, with three visible in the client grid. Cause remains under diagnosis. No air action was observed, so this run does not reproduce or resolve the previous zombie death during air recovery.",
+  "runnerSource": {
+    "commit": "9cbf94eaa2e57a2c28c5e04a902026851053ba52",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "runnerStatus": "failed",
+  "runnerFailures": [
+    "native run receipt verification/2026-10-07T23-29-51.892205Z-faab52fc/evidence/natural-2026-10-07T23-29-51.892205Z-faab52fc.json status is 'failed'",
+    "native run receipt verification/2026-10-07T23-29-51.892205Z-faab52fc/evidence/natural-2026-10-07T23-29-51.892205Z-faab52fc.json reports failure 'automation paused: paused \u00b7 Server rejected or modified the full inventory transfer; leaving the container open. The current crafting/furnace transaction is preserved in its open handler. Server rejected or modified the full inventory transfer; leaving the container open \u00b7 8 foreground queued \u00b7 0 maintenance queued'"
+  ],
+  "productionJar": {
+    "minecraftDependency": "26.3",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-9cbf94e-26.3-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+    ],
+    "sha256": "81ff75221046ae185409e150f5b04a9223457ec8fdab6fcf1641402c88227ef2"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadViolations": [],
+  "nativeReceiptSha256": "cc1957ae9c000bbc0e5f37639ccf825cbbf506d4cc82c367d120fda1a9763560",
+  "nativeEvidence": {
+    "runId": "2026-10-07T23-29-51.892205Z-faab52fc",
+    "worldId": "natural-24c162d9c9da4642",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 70705,
+    "worldLaunchElapsedMillis": 64678,
+    "worldReadyElapsedMillis": 48621,
+    "commandElapsedMillis": 45633,
+    "firstServerMovementElapsedMillis": 2298,
+    "commandServerTick": 114,
+    "serverMovementTicks": 51,
+    "serverMovementSteps": 51,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 14.427207870776826,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "minimumHunger": 20,
+    "failure": "automation paused: paused \u00b7 Server rejected or modified the full inventory transfer; leaving the container open. The current crafting/furnace transaction is preserved in its open handler. Server rejected or modified the full inventory transfer; leaving the container open \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Server rejected or modified the full inventory transfer; leaving the container open. The current crafting/furnace transaction is preserved in its open handler. Server rejected or modified the full inventory transfer; leaving the container open \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "81ff75221046ae185409e150f5b04a9223457ec8fdab6fcf1641402c88227ef2",
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -13.5,
+      "y": 64.0,
+      "z": 20.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-07T23-29-51.892205Z-faab52fc-phase-running.png",
+      "screenshots/lodekeeper-2026-10-07T23-29-51.892205Z-faab52fc-first-movement.png",
+      "screenshots/lodekeeper-2026-10-07T23-29-51.892205Z-faab52fc-final.png"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverSurvival": true,
+    "serverCreativeAbility": false,
+    "serverSpectator": false,
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverDeaths": 0,
+    "serverTick": 1024,
+    "serverInventoryCounts": {
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobblestone": 1,
+      "minecraft:birch_log": 2,
+      "minecraft:wildflowers": 4,
+      "minecraft:birch_planks": 3,
+      "minecraft:dirt": 4,
+      "minecraft:stick": 2
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobblestone": 1,
+      "minecraft:birch_log": 2,
+      "minecraft:wildflowers": 4,
+      "minecraft:birch_planks": 3,
+      "minecraft:dirt": 4,
+      "minecraft:stick": 2
+    },
+    "serverLogItems": [
+      "minecraft:birch_log"
+    ],
+    "serverCursor": {
+      "item": "minecraft:cobblestone",
+      "count": 1
+    },
+    "goalSatisfied": false,
+    "serverTargetReceipts": [
+      {
+        "serverTick": 244,
+        "elapsedMillisFromCommand": 6504,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 316,
+        "elapsedMillisFromCommand": 10093,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 384,
+        "elapsedMillisFromCommand": 13489,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 492,
+        "elapsedMillisFromCommand": 18896,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 562,
+        "elapsedMillisFromCommand": 22399,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 577,
+        "elapsedMillisFromCommand": 23152,
+        "item": "minecraft:birch_log",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 581,
+        "elapsedMillisFromCommand": 23375,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 589,
+        "elapsedMillisFromCommand": 23745,
+        "item": "minecraft:stick",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 599,
+        "elapsedMillisFromCommand": 24242,
+        "item": "minecraft:birch_log",
+        "countIncrease": 3,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 603,
+        "elapsedMillisFromCommand": 24437,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 609,
+        "elapsedMillisFromCommand": 24743,
+        "item": "minecraft:birch_log",
+        "countIncrease": 2,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 613,
+        "elapsedMillisFromCommand": 24942,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 10,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 619,
+        "elapsedMillisFromCommand": 25243,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 6,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 623,
+        "elapsedMillisFromCommand": 25445,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 643,
+        "elapsedMillisFromCommand": 26440,
+        "item": "minecraft:wooden_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 736,
+        "elapsedMillisFromCommand": 31091,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 782,
+        "elapsedMillisFromCommand": 33391,
+        "item": "minecraft:wildflowers",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 800,
+        "elapsedMillisFromCommand": 34301,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 821,
+        "elapsedMillisFromCommand": 35345,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 842,
+        "elapsedMillisFromCommand": 36394,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 864,
+        "elapsedMillisFromCommand": 37492,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 892,
+        "elapsedMillisFromCommand": 38900,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 921,
+        "elapsedMillisFromCommand": 40339,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 950,
+        "elapsedMillisFromCommand": 41787,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 993,
+        "elapsedMillisFromCommand": 43939,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1022,
+        "elapsedMillisFromCommand": 45397,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      }
+    ],
+    "serverTargetReceiptsDropped": 0
+  },
+  "inventoryDiagnosticLines": [
+    {
+      "line": 362,
+      "text": "[00:30:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_ack phase=RETURN menu=0 source=36 destination=1 expectedItem=minecraft:birch_log expectedSlotCount=4 expectedCursorCount=0 fullSlots=[4 minecraft:birch_log, 1 minecraft:birch_log] fullCursor=0 minecraft:air contentsBefore=3 contentsSequence=4 outboundRevision=9 contentsRevision=10 localRevision=10 sourceSequence=184 cursorSequence=194 consumptionRequired=false consumptionConfirmed=true itemComponentsAndLiveMatched=true"
+    },
+    {
+      "line": 376,
+      "text": "[00:30:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_ack phase=RETURN menu=0 source=36 destination=1 expectedItem=minecraft:birch_log expectedSlotCount=3 expectedCursorCount=0 fullSlots=[3 minecraft:birch_log, 1 minecraft:birch_log] fullCursor=0 minecraft:air contentsBefore=8 contentsSequence=9 outboundRevision=22 contentsRevision=23 localRevision=23 sourceSequence=427 cursorSequence=437 consumptionRequired=false consumptionConfirmed=true itemComponentsAndLiveMatched=true"
+    },
+    {
+      "line": 393,
+      "text": "[00:30:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_ack phase=RETURN menu=0 source=36 destination=1 expectedItem=minecraft:birch_log expectedSlotCount=2 expectedCursorCount=0 fullSlots=[2 minecraft:birch_log, 1 minecraft:birch_log] fullCursor=0 minecraft:air contentsBefore=11 contentsSequence=12 outboundRevision=28 contentsRevision=29 localRevision=29 sourceSequence=571 cursorSequence=581 consumptionRequired=false consumptionConfirmed=true itemComponentsAndLiveMatched=true"
+    },
+    {
+      "line": 400,
+      "text": "[00:30:42] [Render thread/INFO] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_ack phase=RETURN menu=0 source=44 destination=1 expectedItem=minecraft:birch_planks expectedSlotCount=6 expectedCursorCount=0 fullSlots=[6 minecraft:birch_planks, 1 minecraft:birch_planks, 1 minecraft:birch_planks, 1 minecraft:birch_planks, 1 minecraft:birch_planks, 1 minecraft:birch_planks] fullCursor=0 minecraft:air contentsBefore=14 contentsSequence=15 outboundRevision=37 contentsRevision=38 localRevision=38 sourceSequence=726 cursorSequence=728 consumptionRequired=false consumptionConfirmed=true itemComponentsAndLiveMatched=true"
+    },
+    {
+      "line": 521,
+      "text": "[00:31:02] [Render thread/WARN] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER full_rejected phase=DRAG menu=3 source=41 destination=1 contentsSequence=3 contentsRevision=4 localRevision=4 expectedItem=minecraft:cobblestone expectedSlotCount=0 expectedCursorCount=1 fullSlots=[0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air, 0 minecraft:air] fullCursor=4 minecraft:cobblestone reason=Server rejected or modified the full inventory transfer"
+    },
+    {
+      "line": 522,
+      "text": "[00:31:02] [Render thread/WARN] (lodekeeper) [Lodekeeper] INVENTORY_TRANSFER invalidated phase=DRAG source=41 destination=1 ackSequence=0 reason=Server rejected or modified the full inventory transfer; leaving the container open"
+    },
+    {
+      "line": 528,
+      "text": "[00:31:02] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Paused: Server rejected or modified the full inventory transfer; leaving the container open. The current crafting/furnace transaction is preserved in its open handler. Server rejected or modified the full inventory transfer; leaving the container open. Use resume or stop."
+    }
+  ],
+  "airSampleCount": 0,
+  "airEventCount": 0,
+  "testOutcome": "FAIL",
+  "ciStatus": "pending at proof creation"
+}
