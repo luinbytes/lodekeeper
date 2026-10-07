@@ -178,14 +178,27 @@ def sharedVerificationSources = [
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NavigationSettingsVerification.java'),
     rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/SettingsUiVerification.java')
 ]
+def nativeSettingsUiAccessSource = null
 if (!['1.21.9', '1.21.10'].contains(minecraftVersion)) {
-    sharedVerificationSources.add(clientApiFamily == '1219'
+    nativeSettingsUiAccessSource = clientApiFamily == '1219'
         ? layout.projectDirectory.file('src/verification-1219/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java').asFile
-        : rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java'))
+        : rootProject.file('fabric/src/verification/java/dev/lodekeeper/fabric/NativeSettingsUiAccess.java')
 }
 def generatedVerifierDir = layout.buildDirectory.dir('generated/shared-verification')
 def copySharedVerifier = tasks.register('copySharedVerifier', Sync) {
     from(sharedVerificationSources) { into 'dev/lodekeeper/fabric' }
+    if (nativeSettingsUiAccessSource != null) {
+        from(nativeSettingsUiAccessSource) {
+            into 'dev/lodekeeper/fabric'
+            if (minecraftVersion == '1.21.11') {
+                filter { String line -> line
+                    .replace('client.currentScreen.resize(client, width, height);', 'client.currentScreen.resize(width, height);')
+                    .replace('Screen.resize(client,width,height)', 'Screen.resize(width,height)')
+                }
+            }
+        }
+    }
+    inputs.property('minecraftVersion', minecraftVersion)
     into(generatedVerifierDir)
 }
 tasks.named('compileVerificationJava').configure { dependsOn copySharedVerifier }

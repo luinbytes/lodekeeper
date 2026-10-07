@@ -22,7 +22,7 @@ dependencies {
 
 loom {
     mixin {
-        useLegacyMixinAp = false
+        useLegacyMixinAp = true
     }
 }
 
