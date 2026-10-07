@@ -23,6 +23,7 @@ import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalYLevel;
 import dev.lodekeeper.navigation.kernel.api.utils.BlockOptionalMetaLookup;
 import dev.lodekeeper.core.SelectedToolRequirement;
 import dev.lodekeeper.core.MiningDepthPolicy;
+import dev.lodekeeper.nav.ActionMovementProgress;
 import dev.lodekeeper.nav.ExplorationFrontier;
 import dev.lodekeeper.nav.NavigationSnapshot;
 import dev.lodekeeper.nav.NavigationSceneSnapshot;
@@ -167,8 +168,9 @@ final class MovementController {
     private Boolean ownedPickupProcessActive;
     private int ownedPickupProcessActiveTick;
     private long progressToken, startedNanos, lastDefenseCancellationLog;
-    private double observedX, observedY, observedZ, requestX, requestZ;
-    private boolean positionObserved;
+    private double requestX, requestZ;
+    private ActionMovementProgress movementProgress;
+    private boolean movementProgressAnchored;
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
     private boolean motionLogAnchorInitialized;
     private double motionLogAnchorX, motionLogAnchorZ;
@@ -888,7 +890,7 @@ final class MovementController {
         requestX = client.player.getX(); requestZ = client.player.getZ();
         routeGoal = null; diagnosticGoal = null; mineBlocks = new Block[0]; output = null; tool = null; pickupTarget = null;
         airRecoveryGoal = null; lastAirRecoveryDestination = null; airRecoveryCancellationPending = false;
-        observation = NavigationSnapshot.EMPTY; positionObserved = false; pendingBreakFailure = null;
+        observation = NavigationSnapshot.EMPTY; pendingBreakFailure = null;
         lastLoggedBreakPosition = miningTarget = null; lastLoggedBreakTool = null;
     }
 
@@ -1402,6 +1404,7 @@ final class MovementController {
     }
 
     void suspend() {
+        rebaseMovementProgress();
         stopDefenseHop();
         if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
@@ -1550,6 +1553,7 @@ final class MovementController {
     }
 
     void stop() {
+        rebaseMovementProgress();
         stopDefenseHop();
         boolean stoppingAirRecovery = mode == Mode.AIR || mode == Mode.SUSPENDED && resumeMode == Mode.AIR;
         if (retreatRequest || stoppingAirRecovery || airRecoveryCancellationPending) checkAirRecoveryOwnership();
@@ -1784,13 +1788,40 @@ final class MovementController {
         progressToken++;
         if (mode == Mode.FOLLOW) failedCalculations = 0;
     }
-    void observeConfirmedProgress() {
-        if (client.player == null) return;
+    boolean attachMovementProgress(ActionMovementProgress progress) {
+        if (movementProgress == progress) return false;
+        rebaseMovementProgress();
+        movementProgress = progress;
+        movementProgressAnchored = false;
+        rebaseMovementProgress();
+        return true;
+    }
+
+    private Long movementProgressCell() {
+        if (client.player == null || client.world == null) return null;
         double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
-        if (!positionObserved || Math.abs(x - observedX) + Math.abs(y - observedY) + Math.abs(z - observedZ) >= .05) {
-            if (positionObserved) progressToken++;
-            observedX = x; observedY = y; observedZ = z; positionObserved = true;
-        }
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) return null;
+        x = Math.floor(x); y = Math.floor(y); z = Math.floor(z);
+        if (x < -33_554_432 || x > 33_554_431 || z < -33_554_432 || z > 33_554_431
+                || y < -2_048 || y > 2_047) return null;
+        return dev.lodekeeper.nav.Position.pack((int) x, (int) y, (int) z);
+    }
+
+    private void rebaseMovementProgress() {
+        if (movementProgress == null) return;
+        Long cell = movementProgressCell();
+        movementProgressAnchored = cell != null;
+        if (cell != null) movementProgress.rebase(cell);
+    }
+
+    void observeConfirmedProgress() {
+        if (movementProgress == null) return;
+        Long cell = movementProgressCell();
+        if (cell == null) { movementProgressAnchored = false; return; }
+        if (!movementProgressAnchored || mode == Mode.IDLE || mode == Mode.SUSPENDED || cancelling) {
+            movementProgress.rebase(cell);
+            movementProgressAnchored = true;
+        } else if (movementProgress.observe(cell)) progressToken++;
     }
 
     private void samplePath() {

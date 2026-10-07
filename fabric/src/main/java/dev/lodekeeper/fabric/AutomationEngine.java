@@ -1,6 +1,7 @@
 package dev.lodekeeper.fabric;
 
 import dev.lodekeeper.core.*;
+import dev.lodekeeper.nav.ActionMovementProgress;
 import dev.lodekeeper.nav.ExplorationFrontier;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -69,6 +70,30 @@ final class AutomationEngine {
                            String maintenanceTaskId, ProjectRun project, long jobToken) {
         Request { if (jobToken <= 0) throw new IllegalArgumentException("Job token must be positive"); }
         boolean maintained() { return maintenanceTaskId != null; }
+    }
+
+    private record MovementDemand(PlanKind kind, ItemId output, StationId station, String customType) { }
+
+    private static final class MovementProgressScope {
+        final Request request;
+        final Object world, player;
+        final OwnedStationLedger.Session session;
+        final ActionMovementProgress progress = new ActionMovementProgress();
+        MovementDemand demand;
+
+        MovementProgressScope(Request request, Object world, Object player, OwnedStationLedger.Session session,
+                              MovementDemand demand) {
+            this.request = request;
+            this.world = world;
+            this.player = player;
+            this.session = session;
+            this.demand = demand;
+        }
+
+        boolean matches(Request request, Object world, Object player, OwnedStationLedger.Session session) {
+            return this.request == request && request != null && this.world == world && this.player == player
+                    && this.session.equals(session);
+        }
     }
 
     private enum LocalReachPurpose { LOG_CHOICE, RECIPE_WOOD, GATHER }
@@ -334,6 +359,7 @@ final class AutomationEngine {
     private BlockPos gatherMineTarget;
     private Block gatherMineBlock;
     private long lastMovementProgressToken;
+    private MovementProgressScope parentMovementScope, auxiliaryMovementScope;
     private CraftingAction crafting;
     private static final StationId STONECUTTER = StationId.parse("minecraft:stonecutter");
     private StonecuttingAction stonecutting;
@@ -417,6 +443,7 @@ final class AutomationEngine {
         backfill.tick();
         discoveryBudgetStarted = false;
         discoveryDeadlineNanos = 0;
+        syncMovementProgress();
         if (client.world != world) {
             stopNow(false); requestedBackfillStock.clear(); world = client.world; knownStations.clear(); unreachableStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null; localReachHint = null;
@@ -1245,6 +1272,7 @@ final class AutomationEngine {
 
     private boolean recoverAirIfNeeded() {
         if (!airRecovery.active() && !airRecovery.ready()) return false;
+        useMovementProgress(null);
         try {
             if (stationPlacementWait != null || cleanupRun != null) {
                 cancelStationPlacement();
@@ -1297,6 +1325,7 @@ final class AutomationEngine {
             return true;
         }
         if (healthRecovery == null) {
+            useMovementProgress(null);
             healthRecovery = new HealthRecovery(System.nanoTime());
             if (pendingPlan != null) pendingPlan.cancel(false);
             pendingPlan = null;
@@ -2561,6 +2590,79 @@ final class AutomationEngine {
         }
         return count;
     }
+    private void useMovementProgress(MovementProgressScope scope) {
+        if (movement.attachMovementProgress(scope == null ? null : scope.progress))
+            lastMovementProgressToken = movement.progressToken();
+    }
+
+    private void retireMovementProgressScopes() {
+        useMovementProgress(null);
+        parentMovementScope = auxiliaryMovementScope = null;
+    }
+
+    private OwnedStationLedger.Session validateMovementProgressScopes() {
+        OwnedStationLedger.Session session = placementProvenance.session().orElse(null);
+        boolean retired = false;
+        if (parentMovementScope != null
+                && !parentMovementScope.matches(active, client.world, client.player, session)) {
+            parentMovementScope = null;
+            retired = true;
+        }
+        if (auxiliaryMovementScope != null
+                && !auxiliaryMovementScope.matches(active, client.world, client.player, session)) {
+            auxiliaryMovementScope = null;
+            retired = true;
+        }
+        if (retired) useMovementProgress(null);
+        return session;
+    }
+
+    private void syncMovementProgress() {
+        OwnedStationLedger.Session session = validateMovementProgressScopes();
+        if (active == null || session == null || client.world != world || paused || editingSettings()
+                || config.pauseOnScreen && client.currentScreen != null
+                || airRecovery.active() || healthRecovery != null || threats.active() || food.active()
+                || foodAcquisition.active() || cleanupRun != null || step == null && !exploring) {
+            useMovementProgress(null);
+            return;
+        }
+        MovementProgressScope scope = stepAuxiliaryInvestment ? auxiliaryMovementScope : parentMovementScope;
+        if (scope != null) useMovementProgress(scope);
+        else if (step != null) admitMovementProgress(step, stepAuxiliaryInvestment);
+        else admitExplorationMovementProgress();
+    }
+
+    private void admitMovementProgress(PlanStep next, boolean auxiliary) {
+        OwnedStationLedger.Session session = validateMovementProgressScopes();
+        if (active == null || session == null) { useMovementProgress(null); return; }
+        ItemId output = next.output();
+        List<ItemId> logs = catalog.tags.getOrDefault(LOGS_TAG, List.of());
+        // Prerequisite logs retain their unfinished ingredient scope across species choices.
+        if (next.kind() == PlanKind.GATHER && logs.contains(output)
+                && (active.anyLogs || !logs.contains(active.item))) output = null;
+        MovementDemand demand = new MovementDemand(next.kind(), output,
+                next.kind() == PlanKind.PLACE_STATION ? next.station() : null, next.customType());
+        MovementProgressScope scope = auxiliary ? auxiliaryMovementScope : parentMovementScope;
+        if (scope == null || scope.demand != null && !scope.demand.equals(demand))
+            scope = new MovementProgressScope(active, client.world, client.player, session, demand);
+        else scope.demand = demand;
+        if (auxiliary) auxiliaryMovementScope = scope;
+        else {
+            parentMovementScope = scope;
+            auxiliaryMovementScope = null;
+        }
+        useMovementProgress(scope);
+    }
+
+    private void admitExplorationMovementProgress() {
+        OwnedStationLedger.Session session = validateMovementProgressScopes();
+        if (active == null || session == null) { useMovementProgress(null); return; }
+        if (parentMovementScope == null)
+            parentMovementScope = new MovementProgressScope(active, client.world, client.player, session, null);
+        auxiliaryMovementScope = null;
+        useMovementProgress(parentMovementScope);
+    }
+
     private void begin(PlanStep next, long plannedGeneration, boolean auxiliaryInvestment, long plannedPreferencesVersion,
                        ShieldPlanningIdentity shieldIdentity) {
         if (shieldIdentity != null && !shieldIdentityCurrent(shieldIdentity)) {
@@ -2580,6 +2682,7 @@ final class AutomationEngine {
             miningContinuation = continuation;
         prepareStationAttempts(next);
         stationDiscoveryDone = false;
+        admitMovementProgress(next, auxiliaryInvestment);
         step = next; stepCatalogGeneration = plannedGeneration; actionTicks = 0;
         stepAuxiliaryInvestment = auxiliaryInvestment;
         stepShieldIdentity = shieldIdentity;
@@ -2607,6 +2710,7 @@ final class AutomationEngine {
         if (unavailableSources.isEmpty()) throw new IllegalStateException("No known gathering source is available for this goal");
         if (beginCarryTable()) return;
         resetAction();
+        admitExplorationMovementProgress();
         BlockPos feet = client.player.getBlockPos();
         if (frontier == null) frontier = new ExplorationFrontier(feet.getX(), feet.getZ(),
             config.explorationAttempts, config.explorationDistance);
@@ -3223,6 +3327,9 @@ final class AutomationEngine {
         return false;
     }
     private void completeStep() {
+        if (stepAuxiliaryInvestment) auxiliaryMovementScope = null;
+        else parentMovementScope = null;
+        useMovementProgress(null);
         if (stopAfterStep) { stopNow(true); return; }
         boolean prepareCombatWeapon = step != null && step.kind() == PlanKind.CRAFT
                 && step.output().equals(STONE_SWORD)
@@ -3244,6 +3351,7 @@ final class AutomationEngine {
         ItemId item = active.item();
         Integer replacementTarget = maintainAfterStep.remove(item);
         active = null;
+        retireMovementProgressScopes();
         pendingPlan = null;
         cancelMaintenanceTasks(maintained.unmaintain(item));
         if (replacementTarget != null) {
@@ -3731,6 +3839,7 @@ final class AutomationEngine {
             boolean keepOwnedHandler = hasOwnedStationHandlerOpen();
             resetAction(!keepOwnedHandler);
             active = null;
+            retireMovementProgressScopes();
             observeInventory();
             scheduleMaintenanceRequests(maintained.fail(failed.maintenanceTaskId(), observedInventory));
             status = "maintenance blocked";
@@ -3770,6 +3879,8 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedHandler) {
+        useMovementProgress(null);
+        validateMovementProgressScopes();
         cancelStationPlacement();
         miningContinuation = null;
         stationRoom.stop();
@@ -3802,6 +3913,7 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        useMovementProgress(null);
         cancelStationPlacement();
         stopStationCleanup();
         airRecovery.abandon();
@@ -3817,6 +3929,7 @@ final class AutomationEngine {
     }
 
     void pause(String reason) {
+        useMovementProgress(null);
         cancelStationPlacement();
         stopStationCleanup();
         airRecovery.stop();
@@ -3858,6 +3971,7 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        retireMovementProgressScopes();
         cleanupBudget = null;
         cancelStationPlacement();
         stopStationCleanup();
