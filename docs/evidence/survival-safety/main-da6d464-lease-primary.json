@@ -1,0 +1,605 @@
+{
+  "recordedAtUtc": "2026-10-08T00:38:03.080856+00:00",
+  "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+  "scope": "Frozen clean-main production artifact; documentation-only dirty checkout at launch. Native configuration round trip and 37-setting launch/cancellation lease plus nine controlled gameplay cases. No fresh Survival, traversal, comparative timing or complete interruption claim.",
+  "outcome": "PASS_37_SETTING_LEASE_AND_9_CONTROLLED_CASES",
+  "frozenBuildSourceClean": true,
+  "runnerSourceAtLaunch": {
+    "commit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+    "dirty": true,
+    "dirtyPaths": [
+      "README.md",
+      "docs/COVERAGE.md",
+      "docs/GAME-VERIFICATION.md",
+      "docs/OWNED-PREVIEW-CHECKPOINT.md",
+      "docs/PROCESSING-STATIONS.md",
+      "docs/evidence/survival-safety/main-da6d464-progression.json"
+    ],
+    "gitStatusError": null
+  },
+  "productionJar": {
+    "minecraftDependency": "1.21.1",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-da6d464-1.21.1-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/AutomationEngine.class"
+    ],
+    "sha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97"
+  },
+  "verificationFlags": [
+    "-Dlodekeeper.verify.baritone=true",
+    "-Dlodekeeper.verify.configRoundTrip=true",
+    "-Dlodekeeper.verify.candidateSha256=5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+    "-Dlodekeeper.verify=true"
+  ],
+  "artifactUnchangedDuringRun": true,
+  "runtimeClassLoadProvenance": {
+    "foreignKernelClasses": 0,
+    "generatedClasses": 466,
+    "lodekeeperClasses": 967,
+    "log": "/private/tmp/lodekeeper-main-da6d464-lease-primary/class-load.log",
+    "productionArtifactClasses": 480,
+    "productionJarClasses": 0,
+    "runtimeArtifactTransformation": {
+      "cacheDirectory": "/private/tmp/lodekeeper-main-da6d464-lease-primary/run/.fabric/processedMods",
+      "cacheWasFresh": true,
+      "candidateCount": 1,
+      "candidatePaths": [
+        "/private/tmp/lodekeeper-main-da6d464-lease-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+      ],
+      "devLodekeeperEntryCount": 766,
+      "devLodekeeperEntryNamesMatch": true,
+      "fabricModJsonMatches": true,
+      "identityPreservedClasses": {
+        "dev/lodekeeper/core/": {
+          "bytesMatch": true,
+          "classCount": 137,
+          "namesMatch": true
+        },
+        "dev/lodekeeper/nav/": {
+          "bytesMatch": true,
+          "classCount": 40,
+          "namesMatch": true
+        }
+      },
+      "inputArtifact": {
+        "path": "/private/tmp/lodekeeper-main-da6d464-1.21.1-frozen.jar",
+        "sha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97"
+      },
+      "loadedClassCount": 480,
+      "loadedClassesPresentInInputAndOutput": true,
+      "manifestMatches": true,
+      "observedSourceCount": 1,
+      "runtimeArtifact": {
+        "filenameMatchesLoaderPattern": true,
+        "path": "/private/tmp/lodekeeper-main-da6d464-lease-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+        "sha256": "85c122751d7bfd85bf3bcb5c119e88d2d4c907002cd1af96d11dae545f1cc606"
+      },
+      "runtimeModId": "lodekeeper",
+      "runtimeModVersion": "0.1.0-preview.11",
+      "transformation": "fabric-loader-runtime-remap",
+      "verified": true
+    },
+    "runtimeRemappedClasses": 480,
+    "sourceCounts": {
+      "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 21,
+      "/private/tmp/lodekeeper-main-da6d464-lease-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 480
+    },
+    "verifierClasses": 21,
+    "violations": []
+  },
+  "nativeReceipt": {
+    "receipt": {
+      "failure": "",
+      "path": "verification/evidence/run-2026-10-08T00-31-44-577620Z-2fb6c7d5.json",
+      "sha256": "33ea9b145ce1e5fc37bab5621b465f27477c7dbf8326f75a4091e2fdc51b4d6d",
+      "status": "passed",
+      "verificationMode": "default"
+    },
+    "contents": {
+      "runId": "2026-10-08T00-31-44-577620Z-2fb6c7d5",
+      "status": "passed",
+      "minecraftVersion": "1.21.1",
+      "worldKind": "isolated_superflat_fixture",
+      "preparedWorld": false,
+      "threatWaterRetreat": false,
+      "threatCreeperContact": false,
+      "stationRoomTunnel": false,
+      "stationRoomTunnelProperty": null,
+      "stationRoomSetupScreenshot": null,
+      "preparedSafetyProperty": null,
+      "evidenceAuthority": "integrated_server_inventory",
+      "verificationMode": "default",
+      "shieldScenario": null,
+      "worldPolicy": null,
+      "settingsUiChatEntryConfirmed": false,
+      "settingsUiReceipt": null,
+      "settingsUiScreenshots": null,
+      "settingsUiFinalScreenshot": null,
+      "elapsedMillis": 136467,
+      "clientTicks": 2581,
+      "failure": "",
+      "serverTableOpened": true,
+      "serverFurnaceOpened": true,
+      "serverTableOpenings": 6,
+      "serverFurnaceOpenings": 2,
+      "cases": [
+        {
+          "name": "gather_wood_8",
+          "item": "minecraft:oak_log",
+          "expected": 8,
+          "serverObserved": 8,
+          "inventoryEmptyAtStart": true,
+          "passed": true,
+          "clientTicks": 687,
+          "worldTicks": 688,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            13.251104257044107,
+            64.0,
+            0.5262410921234929
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-gather_wood_8.png"
+        },
+        {
+          "name": "craft_crafting_table",
+          "item": "minecraft:crafting_table",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 45,
+          "worldTicks": 44,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            13.251104257044107,
+            64.0,
+            0.5262410921234929
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-craft_crafting_table.png"
+        },
+        {
+          "name": "craft_sticks_8",
+          "item": "minecraft:stick",
+          "expected": 8,
+          "serverObserved": 8,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 40,
+          "worldTicks": 40,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            13.251104257044107,
+            64.0,
+            0.5262410921234929
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-craft_sticks_8.png"
+        },
+        {
+          "name": "craft_wooden_pickaxe",
+          "item": "minecraft:wooden_pickaxe",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 124,
+          "worldTicks": 124,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": true,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            13.417514274829808,
+            64.0,
+            -0.1408894015010434
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-craft_wooden_pickaxe.png"
+        },
+        {
+          "name": "craft_stone_pickaxe",
+          "item": "minecraft:stone_pickaxe",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 263,
+          "worldTicks": 264,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": true,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            12.300000011920929,
+            64.0,
+            2.502118543806797
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-craft_stone_pickaxe.png"
+        },
+        {
+          "name": "craft_furnace",
+          "item": "minecraft:furnace",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 338,
+          "worldTicks": 337,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": true,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            16.25702712460582,
+            64.0,
+            2.9282428273964403
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-craft_furnace.png"
+        },
+        {
+          "name": "smelt_iron_ingot",
+          "item": "minecraft:iron_ingot",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 337,
+          "worldTicks": 338,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached target and engine returned idle",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": true,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            17.524997377110626,
+            64.0,
+            4.251746978810468
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-smelt_iron_ingot.png"
+        },
+        {
+          "name": "custom_ruby_gear",
+          "item": "lodekeeper_verification:ruby_gear",
+          "expected": 1,
+          "serverObserved": 1,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 332,
+          "worldTicks": 331,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached the custom recipe output after opening the server crafting table",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": true,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            8.462266328276499,
+            64.0,
+            4.248599644396929
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-custom_ruby_gear.png"
+        },
+        {
+          "name": "auto_eat_during_gather",
+          "item": "minecraft:oak_log",
+          "expected": 5,
+          "serverObserved": 5,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 145,
+          "worldTicks": 145,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "server inventory reached the log target; one bread was consumed and hunger rose from 7 to 12",
+          "serverHealth": 20.0,
+          "serverDifficulty": "NORMAL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 7,
+          "serverFoodLevelObserved": 12,
+          "serverBreadAtStart": 1,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            6.492454351379832,
+            64.0,
+            0.7454989733480624
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-08T00-31-44-577620Z-2fb6c7d5-auto_eat_during_gather.png"
+        }
+      ],
+      "explorationFixture": false,
+      "diamondBootsFixture": false,
+      "ironPickaxeFixture": false,
+      "coalRecoveryFixture": false,
+      "bulkWoodFixtureLogCount": 0,
+      "woodToolsFlag": false,
+      "woodToolsEnabled": false,
+      "miningRequestLimit": false,
+      "miningZeroYield": false,
+      "configRoundTripReceipt": {
+        "passed": true,
+        "preferenceEntries": 23,
+        "serializedBytes": 2264,
+        "allowBreakingAfterReload": false,
+        "allOtherSettingsPreserved": true,
+        "nativeNavigationBindings": {
+          "passed": true,
+          "settingsChecked": 37,
+          "advancedOptionsChecked": 23,
+          "nativeLeaseRestored": true,
+          "drainTicks": 0,
+          "scope": "native launch settings and cancellation lease; no movement or hazard traversal claim"
+        }
+      },
+      "threatContact": false,
+      "threatContactManualInput": false,
+      "resourceInitiallyLoaded": false,
+      "explorationAttempts": 0
+    }
+  },
+  "stationDiagnostics": {
+    "left": [],
+    "recovered": [
+      {
+        "line": "2705",
+        "log": "logs/debug.log",
+        "text": "[01:32:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=4 producerJob=4 consumerJob=4 position=BlockPos{x=13, y=64, z=-1}"
+      },
+      {
+        "line": "2795",
+        "log": "logs/debug.log",
+        "text": "[01:33:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=5 producerJob=5 consumerJob=5 position=BlockPos{x=12, y=64, z=1}"
+      },
+      {
+        "line": "2949",
+        "log": "logs/debug.log",
+        "text": "[01:33:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=6 producerJob=6 consumerJob=6 position=BlockPos{x=15, y=64, z=2}"
+      },
+      {
+        "line": "3032",
+        "log": "logs/debug.log",
+        "text": "[01:33:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=7 producerJob=7 consumerJob=7 position=BlockPos{x=17, y=64, z=5}"
+      },
+      {
+        "line": "3140",
+        "log": "logs/debug.log",
+        "text": "[01:33:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=8 producerJob=8 consumerJob=8 position=BlockPos{x=7, y=64, z=4}"
+      },
+      {
+        "line": "419",
+        "log": "logs/latest.log",
+        "text": "[01:32:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=4 producerJob=4 consumerJob=4 position=BlockPos{x=13, y=64, z=-1}"
+      },
+      {
+        "line": "509",
+        "log": "logs/latest.log",
+        "text": "[01:33:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=5 producerJob=5 consumerJob=5 position=BlockPos{x=12, y=64, z=1}"
+      },
+      {
+        "line": "661",
+        "log": "logs/latest.log",
+        "text": "[01:33:18] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=6 producerJob=6 consumerJob=6 position=BlockPos{x=15, y=64, z=2}"
+      },
+      {
+        "line": "738",
+        "log": "logs/latest.log",
+        "text": "[01:33:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=7 producerJob=7 consumerJob=7 position=BlockPos{x=17, y=64, z=5}"
+      },
+      {
+        "line": "846",
+        "log": "logs/latest.log",
+        "text": "[01:33:51] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=8 producerJob=8 consumerJob=8 position=BlockPos{x=7, y=64, z=4}"
+      }
+    ]
+  },
+  "screenshots": [
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-auto_eat_during_gather-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled auto eat during gather gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 74184,
+      "sha256": "9d4e5079cbe2e15bacb816d8596d64cfe399dbe4cafed631958394f952f44673",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-auto_eat_during_gather-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-craft_crafting_table-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled craft crafting table gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 84083,
+      "sha256": "4f308b5a2abc1857919c7a121cdea67192704073c45511f3848390bf98144ab6",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-craft_crafting_table-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-craft_furnace-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled craft furnace gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 80678,
+      "sha256": "689528282a8200dd4242d1a1b4a735f20ff927861aaf55849b07213ff7c4fcb4",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-craft_furnace-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-craft_sticks_8-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled craft sticks 8 gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 87158,
+      "sha256": "ca658fa4221c05555987b8a3608fc80d14aeb6566649b7fc6642f2abb7bbd66b",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-craft_sticks_8-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-craft_stone_pickaxe-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled craft stone pickaxe gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": true,
+      "bytes": 88093,
+      "sha256": "654a6ed21f6180076dcb75673989f8ac18e0b7f34b51891ca18fed8f733f7ef7",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-craft_stone_pickaxe-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-craft_wooden_pickaxe-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled craft wooden pickaxe gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 84577,
+      "sha256": "e8e34b98d9e7ce263976754379270344601239e58ec3fc42a2f9c79eda3baaac",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-craft_wooden_pickaxe-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-custom_ruby_gear-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled custom ruby gear gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 81427,
+      "sha256": "393f9d6442c44a2ce9cea98a6b3efd715202ca770830be92b048e1d18f7abd85",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-custom_ruby_gear-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-gather_wood_8-baritone-route-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled gather wood 8-baritone-route gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": true,
+      "bytes": 133860,
+      "sha256": "b558770b07a74ee8164119e071c26a297b96cbbae6a6e04d417712b4242f08a6",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-gather_wood_8-baritone-route-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-gather_wood_8-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled gather wood 8 gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 80860,
+      "sha256": "562d834e09769a04c81472adf56bff9e50fe355a8c99d51a3e8d8b77606312e4",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-gather_wood_8-PASS-original.png"
+    },
+    {
+      "assetName": "mc1.21.1-main-da6d464-lease-smelt_iron_ingot-PASS-original.png",
+      "minecraftVersion": "1.21.1",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+      "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+      "captureStage": "production_gameplay_before_final_receipt",
+      "caption": "Controlled smelt iron ingot gameplay accompanying the passing 37-setting launch/cancellation lease probe. Final integrated-server receipt confirms this case passed with an idle engine. The frozen jar was built from clean da6d464; the launch checkout had documentation-only changes. Prepared resources, custom recipes and supplied food are fixture inputs. This frame does not show the settings restoration itself.",
+      "inline": false,
+      "bytes": 59347,
+      "sha256": "badfe2a67fd5823eb8d74be5f55c732201780ba01fd9b6d8efe59cb9b178894e",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-lease-smelt_iron_ingot-PASS-original.png"
+    }
+  ],
+  "publicScreenshotVerification": {
+    "anonymousBytesAndHashesVerified": true,
+    "loggedOutBrowserDecoded": 10,
+    "deletedLocalCopies": 20
+  },
+  "latestLogSha256": "b50e6759e20756008ad7e425570e47f342759dee2320f8d48d840a86cb46d165"
+}

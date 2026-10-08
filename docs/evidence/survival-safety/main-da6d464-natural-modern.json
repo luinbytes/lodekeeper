@@ -1,0 +1,633 @@
+{
+  "recordedAtUtc": "2026-10-08T00:30:17.059851+00:00",
+  "source": {
+    "commit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+    "dirty": false,
+    "dirtyPaths": [],
+    "gitStatusError": null
+  },
+  "scope": "Exact frozen main da6d464 26.3 production jar; unchanged fresh generated Normal Survival gear_diamond seed483920105. Source recorded clean at launch; only docs changed during this run. No supplied stock or tools.",
+  "interpretation": [
+    "FAIL582806ms; all four diamond armor pieces equipped, diamond pickaxe/axe/hoe retained; diamond shovel and sword missing. Final birch-log gather0/1 times out underground after27nativepathretries. This is not full-gear acceptance.",
+    "Stone/iron and later diamond/armor crafting continue past the earlier9cb DRAG stage. This run does not prove that exact packet ordering or its originating packet reproduced.",
+    "One air recovery completes in4484ms with five boundedAIR_SAMPLEs and fullhealth20. Loaded entity prefix observations do not prove hostile absence; no THREAT_RESPONSE events. This does not reproduce or resolve the earlier zombie-at-full-air failure.",
+    "Final native screenshot retains the last WORKING HUD/retry27 display. The final server/engine receipt is authoritative and records paused failure. Earlier iron-smelting window remains labelledUNFINISHED at capture.",
+    "Earlier tablepickup20secondlimit leaves an owned drop at(-14,43,61); a later table at(-2,-23,67) is recovered. One table in final inventory does not prove allstations recovered.",
+    "No comparative speed, shield, current primary lease, or complete interruption claim. ReleasedPreview11 unchanged."
+  ],
+  "nativeEvidencePath": "/private/tmp/lodekeeper-main-da6d464-natural-modern/run-verification/verification/2026-10-08T00-17-44.132844Z-7dabc25a/evidence/natural-2026-10-08T00-17-44.132844Z-7dabc25a.json",
+  "nativeEvidenceSha256": "5a2282c9cb00efd8cbae1f29b3a7db06899571140d551efad1bd617c884936f5",
+  "nativeEvidenceSelection": {
+    "allOtherFieldsRetained": true,
+    "requestedTargetReceiptsRetained": 7,
+    "unrequestedInventoryDiffReceiptsOmitted": 406,
+    "originalNativeJsonRetainedLocally": true
+  },
+  "nativeEvidence": {
+    "runId": "2026-10-08T00-17-44.132844Z-7dabc25a",
+    "worldId": "natural-a5974da22a4b4e96",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 608298,
+    "worldLaunchElapsedMillis": 602507,
+    "worldReadyElapsedMillis": 585796,
+    "commandElapsedMillis": 582806,
+    "firstServerMovementElapsedMillis": 1911,
+    "commandServerTick": 120,
+    "serverMovementTicks": 1693,
+    "serverMovementSteps": 1693,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 479.1643534492167,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "minimumHunger": 20,
+    "failure": "automation paused: paused \u00b7 Project gear_diamond blocked: Action timeout: gather:minecraft:birch_log \u00b7 mining and collecting minecraft:birch_log \u00b7 0/1 \u00b7 planning next route. Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Project gear_diamond blocked: Action timeout: gather:minecraft:birch_log \u00b7 mining and collecting minecraft:birch_log \u00b7 0/1 \u00b7 planning next route. Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -5.5,
+      "y": 72.0,
+      "z": 16.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-phase-running.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-first-movement.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_pickaxe.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_axe.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_boots.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_chestplate.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_helmet.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_hoe.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-received-diamond_leggings.png",
+      "screenshots/lodekeeper-2026-10-08T00-17-44.132844Z-7dabc25a-final.png"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverSurvival": true,
+    "serverCreativeAbility": false,
+    "serverSpectator": false,
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverDeaths": 0,
+    "serverTick": 11773,
+    "serverInventoryCounts": {
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:birch_planks": 1,
+      "minecraft:diamond_axe": 1,
+      "minecraft:cobblestone": 72,
+      "minecraft:diamond_hoe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:tuff": 31,
+      "minecraft:cobbled_deepslate": 188,
+      "minecraft:leather": 4,
+      "minecraft:beef": 6,
+      "minecraft:crafting_table": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:diamond": 5,
+      "minecraft:granite": 6
+    },
+    "serverArmorCounts": {
+      "minecraft:diamond_helmet": 1,
+      "minecraft:diamond_chestplate": 1,
+      "minecraft:diamond_leggings": 1,
+      "minecraft:diamond_boots": 1
+    },
+    "serverHeldCounts": {
+      "minecraft:cobblestone": 72,
+      "minecraft:diamond_leggings": 1,
+      "minecraft:diamond_axe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:diamond": 5,
+      "minecraft:diamond_helmet": 1,
+      "minecraft:leather": 4,
+      "minecraft:tuff": 31,
+      "minecraft:beef": 6,
+      "minecraft:diamond_hoe": 1,
+      "minecraft:diamond_pickaxe": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:diamond_boots": 1,
+      "minecraft:birch_planks": 1,
+      "minecraft:diamond_chestplate": 1,
+      "minecraft:cobbled_deepslate": 188,
+      "minecraft:crafting_table": 1,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:granite": 6
+    },
+    "serverLogItems": [],
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "serverTargetReceipts": [
+      {
+        "serverTick": 6147,
+        "elapsedMillisFromCommand": 301311,
+        "item": "minecraft:diamond_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10091,
+        "elapsedMillisFromCommand": 498513,
+        "item": "minecraft:diamond_axe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10105,
+        "elapsedMillisFromCommand": 499212,
+        "item": "minecraft:diamond_boots",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10120,
+        "elapsedMillisFromCommand": 499964,
+        "item": "minecraft:diamond_chestplate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10135,
+        "elapsedMillisFromCommand": 500712,
+        "item": "minecraft:diamond_helmet",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10155,
+        "elapsedMillisFromCommand": 501710,
+        "item": "minecraft:diamond_hoe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 10169,
+        "elapsedMillisFromCommand": 502403,
+        "item": "minecraft:diamond_leggings",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": true,
+        "authority": "integrated_server_inventory_diff"
+      }
+    ],
+    "serverTargetReceiptsDropped": 0
+  },
+  "runnerStatus": "failed",
+  "runnerFailures": [
+    "native run receipt verification/2026-10-08T00-17-44.132844Z-7dabc25a/evidence/natural-2026-10-08T00-17-44.132844Z-7dabc25a.json status is 'failed'",
+    "native run receipt verification/2026-10-08T00-17-44.132844Z-7dabc25a/evidence/natural-2026-10-08T00-17-44.132844Z-7dabc25a.json reports failure 'automation paused: paused \u00b7 Project gear_diamond blocked: Action timeout: gather:minecraft:birch_log \u00b7 mining and collecting minecraft:birch_log \u00b7 0/1 \u00b7 planning next route. Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] \u00b7 0 foreground queued \u00b7 0 maintenance queued'"
+  ],
+  "productionJar": {
+    "minecraftDependency": "26.3",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-da6d464-26.3-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+    ],
+    "sha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871"
+  },
+  "artifactUnchangedDuringRun": true,
+  "runtimeClassLoadProvenance": {
+    "foreignKernelClasses": 0,
+    "generatedClasses": 517,
+    "lodekeeperClasses": 1035,
+    "log": "/private/tmp/lodekeeper-main-da6d464-natural-modern/class-load.log",
+    "productionArtifactClasses": 502,
+    "productionJarClasses": 502,
+    "runtimeArtifactTransformation": null,
+    "runtimeRemappedClasses": 0,
+    "sourceCounts": {
+      "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 16,
+      "/private/tmp/lodekeeper-main-da6d464-26.3-frozen.jar": 502
+    },
+    "verifierClasses": 16,
+    "violations": []
+  },
+  "nativeReceipts": [
+    {
+      "failure": "automation paused: paused \u00b7 Project gear_diamond blocked: Action timeout: gather:minecraft:birch_log \u00b7 mining and collecting minecraft:birch_log \u00b7 0/1 \u00b7 planning next route. Some registered recipes/sources were skipped: [server:minecraft:andesite_slab_from_andesite_stonecutting:19: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_stairs_from_andesite_stonecutting:21: unsupported recipe display StonecutterRecipeDisplay, server:minecraft:andesite_wall_from_andesite_stonecutting:23: unsupported recipe display StonecutterRecipeDisplay] \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "path": "verification/2026-10-08T00-17-44.132844Z-7dabc25a/evidence/natural-2026-10-08T00-17-44.132844Z-7dabc25a.json",
+      "sha256": "5a2282c9cb00efd8cbae1f29b3a7db06899571140d551efad1bd617c884936f5",
+      "status": "failed",
+      "verificationMode": "natural_world"
+    }
+  ],
+  "stationDiagnostics": {
+    "left": [
+      {
+        "line": "3988",
+        "log": "logs/debug.log",
+        "text": "[01:21:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-14, y=43, z=61} reason=station cleanup incomplete; exact crafting table drop retained for a later cleanup run: owned station pickup reached its 20 second limit"
+      },
+      {
+        "line": "1714",
+        "log": "logs/latest.log",
+        "text": "[01:21:35] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-14, y=43, z=61} reason=station cleanup incomplete; exact crafting table drop retained for a later cleanup run: owned station pickup reached its 20 second limit"
+      }
+    ],
+    "recovered": [
+      {
+        "line": "2700",
+        "log": "logs/debug.log",
+        "text": "[01:18:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=69, z=22}"
+      },
+      {
+        "line": "2995",
+        "log": "logs/debug.log",
+        "text": "[01:19:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=2, y=56, z=35}"
+      },
+      {
+        "line": "6117",
+        "log": "logs/debug.log",
+        "text": "[01:26:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-2, y=-23, z=67}"
+      },
+      {
+        "line": "429",
+        "log": "logs/latest.log",
+        "text": "[01:18:40] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=69, z=22}"
+      },
+      {
+        "line": "723",
+        "log": "logs/latest.log",
+        "text": "[01:19:26] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=2, y=56, z=35}"
+      },
+      {
+        "line": "3841",
+        "log": "logs/latest.log",
+        "text": "[01:26:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-2, y=-23, z=67}"
+      }
+    ]
+  },
+  "airSamples": [
+    "[01:18:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=1 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=STOPPING action=1455342926 actionStartNanos=1267055538890350 movement=223920329 ownerPlayer=1027916585 player=1027916585 playerUuid=7e94e5c9-1ae4-352e-9cf6-8305e5b127c7 ownerWorld=1646771358 world=1646771358 input=1116963105 air=200 maxAir=300 submerged=true waterContact=true onGround=false pose=STANDING health=20.0 feet=5.499445172851215,58.753666502943474,22.54440816397872 feetCell=BlockPos{x=5, y=58, z=22} feetFluidAtCell=net.minecraft.world.level.material.WaterFluid$Source@6792f2c6[falling=false] eye=5.499445172851215,60.373666507711846,22.54440816397872 velocity=0.0,-0.025000001490116205,0.0 horizontalCollision=false verticalCollision=false bbox=AABB[5.199445160930286, 58.753666502943474, 22.24440815205779] -> [5.799445184772144, 60.55366645525976, 22.84440817589965] attempts=0 elapsedMs=0 swimIndex=0 routeSize=0 currentTarget=null followingTarget=null nativeTarget=unavailable-read-only-api inputOwned=false inputClass=KeyboardInput ownedInputState=unowned appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=32 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=true nearbyHostiles=",
+    "[01:18:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=2 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=SWIMMING action=1455342926 actionStartNanos=1267055538890350 movement=223920329 ownerPlayer=1027916585 player=1027916585 playerUuid=7e94e5c9-1ae4-352e-9cf6-8305e5b127c7 ownerWorld=1646771358 world=1646771358 input=1116963105 air=180 maxAir=300 submerged=true waterContact=true onGround=false pose=STANDING health=20.0 feet=5.499445172851215,61.43788990707211,22.54440816397872 feetCell=BlockPos{x=5, y=61, z=22} feetFluidAtCell=net.minecraft.world.level.material.WaterFluid$Source@6792f2c6[falling=false] eye=5.499445172851215,63.05788991184048,22.54440816397872 velocity=0.0,0.13315533180120034,0.0 horizontalCollision=false verticalCollision=false bbox=AABB[5.199445160930286, 61.43788990707211, 22.24440815205779] -> [5.799445184772144, 63.237889859388396, 22.84440817589965] attempts=1 elapsedMs=1040 swimIndex=3 routeSize=11 currentTarget=BlockPos{x=5, y=62, z=22} followingTarget=BlockPos{x=5, y=63, z=22} nativeTarget=unavailable-read-only-api inputOwned=true inputClass=BotInput ownedInputState=intendedForward=0.0,intendedSideways=0.0,intendedJump=true,intendedSneak=false,appliedForward=0.0,appliedSideways=0.0,appliedJump=true,appliedSneak=false appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=32 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=true nearbyHostiles=",
+    "[01:18:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=3 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=SWIMMING action=1455342926 actionStartNanos=1267055538890350 movement=223920329 ownerPlayer=1027916585 player=1027916585 playerUuid=7e94e5c9-1ae4-352e-9cf6-8305e5b127c7 ownerWorld=1646771358 world=1646771358 input=1116963105 air=264 maxAir=300 submerged=false waterContact=true onGround=false pose=STANDING health=20.0 feet=5.500002995932909,62.49560009414561,23.514125660899566 feetCell=BlockPos{x=5, y=62, z=23} feetFluidAtCell=net.minecraft.world.level.material.WaterFluid$Source@6792f2c6[falling=false] eye=5.500002995932909,64.11560009891397,23.514125660899566 velocity=2.515980862537622E-5,0.03280971828315232,0.043737714418516815 horizontalCollision=false verticalCollision=false bbox=AABB[5.20000298401198, 62.49560009414561, 23.214125648978637] -> [5.800003007853838, 64.29560004646189, 23.814125672820495] attempts=1 elapsedMs=2048 swimIndex=5 routeSize=11 currentTarget=BlockPos{x=5, y=63, z=23} followingTarget=BlockPos{x=5, y=63, z=24} nativeTarget=unavailable-read-only-api inputOwned=true inputClass=BotInput ownedInputState=intendedForward=0.0,intendedSideways=0.0,intendedJump=true,intendedSneak=false,appliedForward=0.0,appliedSideways=0.0,appliedJump=true,appliedSneak=false appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=32 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=true nearbyHostiles=",
+    "[01:18:58] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=4 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=SWIMMING action=1455342926 actionStartNanos=1267055538890350 movement=223920329 ownerPlayer=1027916585 player=1027916585 playerUuid=7e94e5c9-1ae4-352e-9cf6-8305e5b127c7 ownerWorld=1646771358 world=1646771358 input=1116963105 air=300 maxAir=300 submerged=false waterContact=false onGround=false pose=STANDING health=20.0 feet=5.500039714475384,63.0157702365036,25.00385202693816 feetCell=BlockPos{x=5, y=63, z=25} feetFluidAtCell=net.minecraft.world.level.material.EmptyFluid@4353db40 eye=5.500039714475384,64.63577024127197,25.00385202693816 velocity=-1.3082420699735247E-6,-0.1391814348499492,0.08375107663395845 horizontalCollision=false verticalCollision=false bbox=AABB[5.200039702554455, 63.0157702365036, 24.70385201501723] -> [5.800039726396313, 64.81577018881988, 25.303852038859088] attempts=1 elapsedMs=3080 swimIndex=7 routeSize=11 currentTarget=BlockPos{x=5, y=63, z=25} followingTarget=BlockPos{x=5, y=63, z=26} nativeTarget=unavailable-read-only-api inputOwned=true inputClass=BotInput ownedInputState=intendedForward=1.0,intendedSideways=0.0,intendedJump=true,intendedSneak=false,appliedForward=1.0,appliedSideways=0.0,appliedJump=true,appliedSneak=false appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=32 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=true nearbyHostiles=",
+    "[01:18:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=5 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=SWIMMING action=1455342926 actionStartNanos=1267055538890350 movement=223920329 ownerPlayer=1027916585 player=1027916585 playerUuid=7e94e5c9-1ae4-352e-9cf6-8305e5b127c7 ownerWorld=1646771358 world=1646771358 input=1116963105 air=300 maxAir=300 submerged=false waterContact=true onGround=false pose=STANDING health=20.0 feet=5.50002256314039,62.62495280742704,27.357592993543694 feetCell=BlockPos{x=5, y=62, z=27} feetFluidAtCell=net.minecraft.world.level.material.WaterFluid$Source@6792f2c6[falling=false] eye=5.50002256314039,64.24495281219541,27.357592993543694 velocity=-5.925037411872511E-8,0.05990068147851494,0.086595801532871 horizontalCollision=false verticalCollision=false bbox=AABB[5.200022551219461, 62.62495280742704, 27.057592981622765] -> [5.800022575061319, 64.42495275974332, 27.657593005464623] attempts=1 elapsedMs=4147 swimIndex=9 routeSize=11 currentTarget=BlockPos{x=5, y=63, z=27} followingTarget=BlockPos{x=5, y=63, z=28} nativeTarget=unavailable-read-only-api inputOwned=true inputClass=BotInput ownedInputState=intendedForward=0.0,intendedSideways=0.0,intendedJump=true,intendedSneak=false,appliedForward=1.0,appliedSideways=0.0,appliedJump=true,appliedSneak=false appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=32 inspectedCap=32 hostileCount=1 hostileCap=8 coverageCapped=true nearbyHostiles=uuid=66abca1e-ee0d-42a5-8188-19008fcf4169/type=entity.minecraft.skeleton/xyz=9.7900390625,63.0,40.55322265625/health=20.0/velocity=(0.0, -0.04729589898285442, 0.0)/bbox=AABB[9.490039050579071, 63.0, 40.25322264432907] -> [10.090039074420929, 64.99000000953674, 40.85322266817093]/clientTargetUuid=none/clientTargetsPlayer=false"
+  ],
+  "airEvents": [
+    "[01:18:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=begin phase=DRAINING air=200 maxAir=300 submerged=true attempts=0 elapsedMs=0 swimIndex=0 swimSteps=0 feet=5.499445172851215,58.753666502943474,22.54440816397872",
+    "[01:18:55] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=swim phase=SWIMMING air=200 maxAir=300 submerged=true attempts=1 elapsedMs=37 swimIndex=0 swimSteps=11 feet=5.499445172851215,58.72866650145336,22.54440816397872",
+    "[01:19:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=breathing phase=REFILLING air=300 maxAir=300 submerged=false attempts=1 elapsedMs=4481 swimIndex=10 swimSteps=11 feet=5.5000223658421366,63.0,28.05626560202491",
+    "[01:19:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=complete phase=REFILLING air=300 maxAir=300 submerged=false attempts=1 elapsedMs=4484 swimIndex=10 swimSteps=11 feet=5.5000223658421366,63.0,28.05626560202491"
+  ],
+  "defenseEventLines": [],
+  "ci": {
+    "attempt": 2,
+    "conclusion": "success",
+    "headSha": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+    "jobs": [
+      {
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350076"
+      },
+      {
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350189"
+      },
+      {
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350294"
+      },
+      {
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350312"
+      },
+      {
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350368"
+      },
+      {
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350452"
+      },
+      {
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350496"
+      },
+      {
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350581"
+      },
+      {
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084350947"
+      },
+      {
+        "name": "adapters (1.20, 17, fabric)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351198"
+      },
+      {
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351226"
+      },
+      {
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351252"
+      },
+      {
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351283"
+      },
+      {
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351350"
+      },
+      {
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351355"
+      },
+      {
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351543"
+      },
+      {
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351560"
+      },
+      {
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084351981"
+      },
+      {
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084352462"
+      },
+      {
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084352714"
+      },
+      {
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084353125"
+      },
+      {
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084381901"
+      },
+      {
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084385497"
+      },
+      {
+        "name": "adapters (1.20.1, 17, fabric)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113084390872"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118"
+  },
+  "screenshots": [
+    {
+      "assetName": "mc26.3-main-da6d464-natural-final-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "FINAL_FAIL",
+      "captureStage": "final",
+      "caption": "Final native Survival frame. Read the final proof for the exact completed or failed goal, server inventory, equipped armor, health, cursor and engine state.",
+      "inline": true,
+      "bytes": 31488,
+      "sha256": "5eb0493f000e2be69b69b01870c545f94753bf4e4f6297142446f1aa9448702a",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-final-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-first-movement-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "RUNNING_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "first-movement",
+      "caption": "Command and HUD during the fresh Survival gear request. This frame precedes the final outcome.",
+      "inline": false,
+      "bytes": 84136,
+      "sha256": "aff4bc33997f5d28fc793dc531b50aa38ada170c967b858d8ad530cfa0341663",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-first-movement-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-phase-running-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "RUNNING_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "phase-running",
+      "caption": "Command and HUD during the fresh Survival gear request. This frame precedes the final outcome.",
+      "inline": true,
+      "bytes": 271126,
+      "sha256": "965cea89b34e751d8aa02d0f32533eca4329d5b38c75d772e33a53043b2dcd5b",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-phase-running-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_axe-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_axe",
+      "caption": "Native frame at the first server receipt for diamond axe. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 30240,
+      "sha256": "2e33e03ba8861899928b747b2729128f4fc1b13ae29095286a12804facdf117b",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_axe-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_boots-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_boots",
+      "caption": "Native frame at the first server receipt for diamond boots. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 59241,
+      "sha256": "56bc99d9dd5820945fb4a222651f5e42ec1adb8fe5b2300b96298789956c45a8",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_boots-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_chestplate-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_chestplate",
+      "caption": "Native frame at the first server receipt for diamond chestplate. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": true,
+      "bytes": 50246,
+      "sha256": "46faa2b5924250b23a53db7d6bfa84cf736db03c57e1161416b4cab7c083b58a",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_chestplate-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_helmet-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_helmet",
+      "caption": "Native frame at the first server receipt for diamond helmet. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 38072,
+      "sha256": "3068283608813a5e66a14d2a9165bb82f2bd85e8a6a402114434a8cb2b84d0d7",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_helmet-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_hoe-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_hoe",
+      "caption": "Native frame at the first server receipt for diamond hoe. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 44708,
+      "sha256": "8eee346ec8ba781582129a18d4a0f2d0e0c019cc4743444ffc93b71bf7b25127",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_hoe-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_leggings-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_leggings",
+      "caption": "Native frame at the first server receipt for diamond leggings. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": false,
+      "bytes": 31310,
+      "sha256": "7ac8d8ae5b6e0656b81da578a0feba56dff1ad6cc10a3219b9f3958c9ecd0191",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_leggings-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-received-diamond_pickaxe-FAIL-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "TARGET_RECEIPT_AT_CAPTURE_FINAL_FAIL",
+      "captureStage": "received-diamond_pickaxe",
+      "caption": "Native frame at the first server receipt for diamond pickaxe. The full loadout was still in progress; the final proof records retained tools and equipped armor.",
+      "inline": true,
+      "bytes": 35114,
+      "sha256": "93736e80691a42921e48f21db3c158deec214a771f8132a3305103280efe66b2",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-received-diamond_pickaxe-FAIL-original.png"
+    },
+    {
+      "assetName": "mc26.3-main-da6d464-natural-iron-smelting-window-UNFINISHED-original.png",
+      "minecraftVersion": "26.3",
+      "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+      "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+      "testOutcome": "UNFINISHED",
+      "captureStage": "ongoing_survival_iron_smelting",
+      "caption": "Iron smelting is underway in the fresh Normal Survival world. The HUD shows the continuing gear_diamond command; this frame precedes any final Survival receipt. No stock or tools were supplied.",
+      "inline": true,
+      "bytes": 39482,
+      "sha256": "2389ab302d41d6ebd2481692d6f9433c0886c6e816cdda371096fae783afa65b",
+      "original": true,
+      "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-natural-iron-smelting-window-UNFINISHED-original.png"
+    }
+  ],
+  "publicScreenshotVerification": {
+    "anonymousBytesAndHashesVerified": true,
+    "loggedOutBrowserDecoded": 11,
+    "deletedLocalCopies": 22
+  },
+  "latestLogSha256": "395abf41df9a4c0e06582e330d988bf847c711099aecf1db9ff983e3c67c5cdc"
+}

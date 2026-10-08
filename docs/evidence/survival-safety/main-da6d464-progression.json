@@ -1,0 +1,1100 @@
+{
+  "recordedAtUtc": "2026-10-08T00:18:15.293041+00:00",
+  "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+  "scope": "Two unchanged nine-case controlled progression runs using exact frozen main production artifacts. Prepared resources, custom recipe and supplied food are fixture inputs. No fresh Survival, comparative speed, originating packet or full interruption claim. Modern also runs the existing config round trip and native launch/cancellation lease probe.",
+  "builtChecks": {
+    "core": 159,
+    "navigation": 98,
+    "primary": 48,
+    "modern": 3,
+    "failures": 0,
+    "total": 308
+  },
+  "pairedPureReceiptTests": {
+    "primary": 35,
+    "modern": 35,
+    "newApprovedDragCases": 11,
+    "missingFinalScope": "nonacceptance only; not native adapter timeout lifecycle"
+  },
+  "ci": {
+    "conclusion": "",
+    "headSha": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+    "jobs": [
+      {
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079566894"
+      },
+      {
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567133"
+      },
+      {
+        "name": "adapters (1.20.1, 17, fabric)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567137"
+      },
+      {
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567141"
+      },
+      {
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567142"
+      },
+      {
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567158"
+      },
+      {
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567159"
+      },
+      {
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567171"
+      },
+      {
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567244"
+      },
+      {
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567248"
+      },
+      {
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567253"
+      },
+      {
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567288"
+      },
+      {
+        "name": "adapters (1.20, 17, fabric)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567290"
+      },
+      {
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079567299"
+      },
+      {
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568248"
+      },
+      {
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568334"
+      },
+      {
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568367"
+      },
+      {
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568428"
+      },
+      {
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568447"
+      },
+      {
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568515"
+      },
+      {
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568665"
+      },
+      {
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568667"
+      },
+      {
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568719"
+      },
+      {
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118/job/113079568762"
+      }
+    ],
+    "status": "in_progress",
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37705745118"
+  },
+  "runs": [
+    {
+      "minecraftVersion": "1.21.1",
+      "outcome": "PASS_9_OF_9",
+      "runnerSource": {
+        "commit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-da6d464-1.21.1-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97"
+      },
+      "verificationFlags": [
+        "-Dlodekeeper.verify.baritone=true",
+        "-Dlodekeeper.verify.candidateSha256=5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+        "-Dlodekeeper.verify=true"
+      ],
+      "artifactUnchangedDuringRun": true,
+      "runtimeClassLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 458,
+        "lodekeeperClasses": 956,
+        "log": "/private/tmp/lodekeeper-main-da6d464-progression-primary/class-load.log",
+        "productionArtifactClasses": 480,
+        "productionJarClasses": 0,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-main-da6d464-progression-primary/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-main-da6d464-progression-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 766,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 137,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-main-da6d464-1.21.1-frozen.jar",
+            "sha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97"
+          },
+          "loadedClassCount": 480,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-main-da6d464-progression-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "84fca6e13f69b4990ea6eaac7f84fbfa41a4fd0b2cbdf9b1384980157a1684c0"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        },
+        "runtimeRemappedClasses": 480,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 18,
+          "/private/tmp/lodekeeper-main-da6d464-progression-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 480
+        },
+        "verifierClasses": 18,
+        "violations": []
+      },
+      "nativeReceipts": [
+        {
+          "receipt": {
+            "failure": "",
+            "path": "verification/evidence/run-2026-10-08T00-11-14-402896Z-d00be492.json",
+            "sha256": "216cada0322c6cc6f543fd38063092379deeeaed8e11a51e5bc5e8b1c0447257",
+            "status": "passed",
+            "verificationMode": "default"
+          },
+          "contents": {
+            "runId": "2026-10-08T00-11-14-402896Z-d00be492",
+            "status": "passed",
+            "minecraftVersion": "1.21.1",
+            "worldKind": "isolated_superflat_fixture",
+            "preparedWorld": false,
+            "threatWaterRetreat": false,
+            "threatCreeperContact": false,
+            "stationRoomTunnel": false,
+            "stationRoomTunnelProperty": null,
+            "stationRoomSetupScreenshot": null,
+            "preparedSafetyProperty": null,
+            "evidenceAuthority": "integrated_server_inventory",
+            "verificationMode": "default",
+            "shieldScenario": null,
+            "worldPolicy": null,
+            "settingsUiChatEntryConfirmed": false,
+            "settingsUiReceipt": null,
+            "settingsUiScreenshots": null,
+            "settingsUiFinalScreenshot": null,
+            "elapsedMillis": 137118,
+            "clientTicks": 2621,
+            "failure": "",
+            "serverTableOpened": true,
+            "serverFurnaceOpened": true,
+            "serverTableOpenings": 7,
+            "serverFurnaceOpenings": 2,
+            "cases": [
+              {
+                "name": "gather_wood_8",
+                "item": "minecraft:oak_log",
+                "expected": 8,
+                "serverObserved": 8,
+                "inventoryEmptyAtStart": true,
+                "passed": true,
+                "clientTicks": 705,
+                "worldTicks": 705,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  13.250398831806184,
+                  64.0,
+                  0.5262713192415477
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-gather_wood_8.png"
+              },
+              {
+                "name": "craft_crafting_table",
+                "item": "minecraft:crafting_table",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 43,
+                "worldTicks": 42,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  13.250398831806184,
+                  64.0,
+                  0.5262713192415477
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-craft_crafting_table.png"
+              },
+              {
+                "name": "craft_sticks_8",
+                "item": "minecraft:stick",
+                "expected": 8,
+                "serverObserved": 8,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 40,
+                "worldTicks": 41,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  13.250398831806184,
+                  64.0,
+                  0.5262713192415477
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-craft_sticks_8.png"
+              },
+              {
+                "name": "craft_wooden_pickaxe",
+                "item": "minecraft:wooden_pickaxe",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 142,
+                "worldTicks": 142,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  13.250398831806184,
+                  64.0,
+                  0.5262713192415477
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-craft_wooden_pickaxe.png"
+              },
+              {
+                "name": "craft_stone_pickaxe",
+                "item": "minecraft:stone_pickaxe",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 270,
+                "worldTicks": 270,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  11.300000011920929,
+                  64.0,
+                  2.5020061086722927
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-craft_stone_pickaxe.png"
+              },
+              {
+                "name": "craft_furnace",
+                "item": "minecraft:furnace",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 357,
+                "worldTicks": 357,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  17.242581360692295,
+                  64.0,
+                  1.422650791673352
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-craft_furnace.png"
+              },
+              {
+                "name": "smelt_iron_ingot",
+                "item": "minecraft:iron_ingot",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 356,
+                "worldTicks": 356,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": true,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  17.513962705495945,
+                  64.0,
+                  4.38012335605052
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-smelt_iron_ingot.png"
+              },
+              {
+                "name": "custom_ruby_gear",
+                "item": "lodekeeper_verification:ruby_gear",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 310,
+                "worldTicks": 310,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached the custom recipe output after opening the server crafting table",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  8.745062649945737,
+                  64.0,
+                  4.499404891491982
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-custom_ruby_gear.png"
+              },
+              {
+                "name": "auto_eat_during_gather",
+                "item": "minecraft:oak_log",
+                "expected": 5,
+                "serverObserved": 5,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 144,
+                "worldTicks": 144,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached the log target; one bread was consumed and hunger rose from 7 to 12",
+                "serverHealth": 20.0,
+                "serverDifficulty": "NORMAL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 7,
+                "serverFoodLevelObserved": 12,
+                "serverBreadAtStart": 1,
+                "serverBreadObserved": 0,
+                "serverPosition": [
+                  6.466579969883958,
+                  64.0,
+                  0.7454871118160677
+                ],
+                "screenshot": "screenshots/lodekeeper-2026-10-08T00-11-14-402896Z-d00be492-auto_eat_during_gather.png"
+              }
+            ],
+            "explorationFixture": false,
+            "diamondBootsFixture": false,
+            "ironPickaxeFixture": false,
+            "coalRecoveryFixture": false,
+            "bulkWoodFixtureLogCount": 0,
+            "woodToolsFlag": false,
+            "woodToolsEnabled": false,
+            "miningRequestLimit": false,
+            "miningZeroYield": false,
+            "threatContact": false,
+            "threatContactManualInput": false,
+            "resourceInitiallyLoaded": false,
+            "explorationAttempts": 0
+          }
+        }
+      ],
+      "screenshots": [
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-auto_eat_during_gather-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled auto eat during gather gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 57052,
+          "sha256": "b440f60c77ed0dfc5900bd31887a37637ba3ecb7d41ca61c3e3be3e65087b6dd",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-auto_eat_during_gather-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-craft_crafting_table-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft crafting table gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 90913,
+          "sha256": "bbcf8ee9dde6337e96ada77eedbd0a9b90f409057309125fa1324c62e794c4af",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-craft_crafting_table-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-craft_furnace-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft furnace gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 71615,
+          "sha256": "d65a213928aff7dc72484beef16d28322622bddaa7e1ba3103ce6dd91079e712",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-craft_furnace-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-craft_sticks_8-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft sticks 8 gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 92883,
+          "sha256": "a3d25121c1a9155929493dc7f8ba9c5506c236127c2a1b74bd93ca1fba16642d",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-craft_sticks_8-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-craft_stone_pickaxe-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft stone pickaxe gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": true,
+          "bytes": 82805,
+          "sha256": "65793f6d54156e9b0e3974ee8da2bb099fd23648b17e9c388474773daa3e218f",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-craft_stone_pickaxe-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-craft_wooden_pickaxe-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft wooden pickaxe gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 86651,
+          "sha256": "1247e41d72e56d2f39edcd7f3dae02ba7c342bb6d952c7c65687c1737adf8c25",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-craft_wooden_pickaxe-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-custom_ruby_gear-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled custom ruby gear gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 63914,
+          "sha256": "2835cfdd9eea0e2d574f10f60741f21fe6bdfb67f78356d2fcf0269bfa09f197",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-custom_ruby_gear-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-gather_wood_8-baritone-route-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled gather wood 8-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": true,
+          "bytes": 144296,
+          "sha256": "a4c385b33e1c19d3e5e99cf03356f6705263e96352e5924a7d3b38e2cb9389f9",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-gather_wood_8-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-gather_wood_8-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled gather wood 8 gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 87159,
+          "sha256": "9f7e59734b53f0e0d9bbaa974887cc10e55d7db41687a41016375432d631a8aa",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-gather_wood_8-PASS-original.png"
+        },
+        {
+          "assetName": "mc1.21.1-main-da6d464-progression-smelt_iron_ingot-PASS-original.png",
+          "minecraftVersion": "1.21.1",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "5a1fd06973ab353f1412ea21d79f6391d730b2209ff43b9bfe231cc3c7484e97",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled smelt iron ingot gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": true,
+          "bytes": 50688,
+          "sha256": "5396f4875803e83494aa2c17383c3578ec2a7cac8f592506e8d2faaf2c505043",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-da6d464-progression-smelt_iron_ingot-PASS-original.png"
+        }
+      ],
+      "publicScreenshotVerification": {
+        "anonymousBytesAndHashesVerified": true,
+        "loggedOutBrowserDecoded": 10,
+        "deletedLocalCopies": 20
+      },
+      "latestLogSha256": "a4fc82e803b975d21a42c277708752b9a560c174904276bec345578c3d9b17b9"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "outcome": "PASS_9_OF_9",
+      "runnerSource": {
+        "commit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "productionJar": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-da6d464-26.3-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871"
+      },
+      "verificationFlags": [
+        "-Dlodekeeper.verify.baritone=true",
+        "-Dlodekeeper.verify.configRoundTrip=true",
+        "-Dlodekeeper.verify.candidateSha256=115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+        "-Dlodekeeper.verify=true"
+      ],
+      "artifactUnchangedDuringRun": true,
+      "runtimeClassLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 486,
+        "lodekeeperClasses": 994,
+        "log": "/private/tmp/lodekeeper-main-da6d464-progression-modern/class-load.log",
+        "productionArtifactClasses": 489,
+        "productionJarClasses": 489,
+        "runtimeArtifactTransformation": null,
+        "runtimeRemappedClasses": 0,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 19,
+          "/private/tmp/lodekeeper-main-da6d464-26.3-frozen.jar": 489
+        },
+        "verifierClasses": 19,
+        "violations": []
+      },
+      "nativeReceipts": [
+        {
+          "receipt": {
+            "failure": "",
+            "path": "verification/2026-10-08T00-14-01-809093Z-dccc1ba3/evidence/run-2026-10-08T00-14-01-809093Z-dccc1ba3.json",
+            "sha256": "2fb422abc1fd4c534f85078df5eef5e7c46a169839884fbab828a3ee36a29057",
+            "status": "passed",
+            "verificationMode": "default"
+          },
+          "contents": {
+            "runId": "2026-10-08T00-14-01-809093Z-dccc1ba3",
+            "status": "passed",
+            "minecraftVersion": "26.3",
+            "navigationBackend": "baritone",
+            "baritoneMiningObserved": true,
+            "worldKind": "isolated_superflat_fixture",
+            "preparedWorld": false,
+            "threatWaterRetreat": false,
+            "threatCreeperContact": false,
+            "configRoundTripReceipt": {
+              "passed": true,
+              "preferenceEntries": 23,
+              "serializedBytes": 2264,
+              "allowBreakingAfterReload": false,
+              "allOtherSettingsPreserved": true,
+              "nativeNavigationBindings": {
+                "passed": true,
+                "settingsChecked": 37,
+                "advancedOptionsChecked": 23,
+                "nativeLeaseRestored": true,
+                "drainTicks": 0,
+                "scope": "native launch settings and cancellation lease; no movement or hazard traversal claim"
+              }
+            },
+            "threatContact": false,
+            "threatContactManualInput": false,
+            "stationRoomTunnel": false,
+            "evidenceAuthority": "integrated_server_inventory_menu_and_hunger",
+            "verificationMode": "default",
+            "runDirectory": "/private/tmp/lodekeeper-main-da6d464-progression-modern/run-verification",
+            "worldId": "run-e3e89fa4064c4dba",
+            "elapsedMillis": 169847,
+            "clientTicks": 3181,
+            "failure": "",
+            "serverTableOpened": true,
+            "serverFurnaceOpened": true,
+            "serverTableOpenings": 8,
+            "serverFurnaceOpenings": 2,
+            "ironPickaxeFixture": false,
+            "ironPickaxeEmptyDistantWoodFlag": false,
+            "nearbyWoodFlag": false,
+            "nearbyWoodGoal": "wood",
+            "nearbyWoodTerrain": "flat",
+            "coalRecoveryFixture": false,
+            "cases": [
+              {
+                "name": "gather_wood_8",
+                "item": "minecraft:oak_log",
+                "expected": 8,
+                "serverObserved": 8,
+                "inventoryEmptyAtStart": true,
+                "passed": true,
+                "clientTicks": 695,
+                "worldTicks": 703,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "13.52794576343332,64.0,0.24941923049722592"
+              },
+              {
+                "name": "craft_crafting_table",
+                "item": "minecraft:crafting_table",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 43,
+                "worldTicks": 43,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "13.52794576343332,64.0,0.24941923049722592"
+              },
+              {
+                "name": "craft_sticks_8",
+                "item": "minecraft:stick",
+                "expected": 8,
+                "serverObserved": 8,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 40,
+                "worldTicks": 40,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "13.52794576343332,64.0,0.24941923049722592"
+              },
+              {
+                "name": "craft_wooden_pickaxe",
+                "item": "minecraft:wooden_pickaxe",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 154,
+                "worldTicks": 154,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "13.52794576343332,64.0,0.24941923049722592"
+              },
+              {
+                "name": "craft_stone_pickaxe",
+                "item": "minecraft:stone_pickaxe",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 286,
+                "worldTicks": 286,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "10.531519062596852,64.0,1.6907526264243362"
+              },
+              {
+                "name": "craft_furnace",
+                "item": "minecraft:furnace",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 354,
+                "worldTicks": 354,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "16.69999998807907,64.0,2.495672743408456"
+              },
+              {
+                "name": "smelt_iron_ingot",
+                "item": "minecraft:iron_ingot",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 358,
+                "worldTicks": 358,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached target and the engine returned idle",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": true,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "17.519171149898245,64.0,4.25372006130684"
+              },
+              {
+                "name": "custom_ruby_gear",
+                "item": "lodekeeper_verification:ruby_gear",
+                "expected": 1,
+                "serverObserved": 1,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 908,
+                "worldTicks": 908,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached the custom recipe output after opening the server crafting table",
+                "serverHealth": 20.0,
+                "serverDifficulty": "PEACEFUL",
+                "serverCraftingTableOpenedDuringCase": true,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 20,
+                "serverFoodLevelObserved": 20,
+                "serverBreadAtStart": 0,
+                "serverBreadObserved": 0,
+                "serverPosition": "9.246775406062378,64.0,3.7511318538900893"
+              },
+              {
+                "name": "auto_eat_during_gather",
+                "item": "minecraft:oak_log",
+                "expected": 5,
+                "serverObserved": 5,
+                "inventoryEmptyAtStart": false,
+                "passed": true,
+                "clientTicks": 137,
+                "worldTicks": 137,
+                "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+                "detail": "server inventory reached the log target; bread was consumed and hunger rose from 7 to 12",
+                "serverHealth": 20.0,
+                "serverDifficulty": "NORMAL",
+                "serverCraftingTableOpenedDuringCase": false,
+                "serverFurnaceOpenedDuringCase": false,
+                "serverIronPickaxeCount": 0,
+                "serverFoodLevelAtStart": 7,
+                "serverFoodLevelObserved": 12,
+                "serverBreadAtStart": 1,
+                "serverBreadObserved": 0,
+                "serverPosition": "6.746398670847214,64.0,0.4918181865571082"
+              }
+            ],
+            "explorationFixture": false,
+            "diamondBootsFixture": false,
+            "bulkWoodFixtureLogCount": 0,
+            "woodToolsFlag": false,
+            "woodToolsEnabled": false,
+            "miningRequestLimit": false,
+            "miningZeroYield": false,
+            "resourceInitiallyLoaded": false,
+            "explorationAttempts": 0
+          }
+        }
+      ],
+      "screenshots": [
+        {
+          "assetName": "mc26.3-main-da6d464-progression-auto_eat_during_gather-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled auto eat during gather-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 272569,
+          "sha256": "cf348fc5cf250518651f916ba7866ce734fb3de6be9c4fd6e03a91c98022b9df",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-auto_eat_during_gather-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc26.3-main-da6d464-progression-craft_furnace-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft furnace-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 169191,
+          "sha256": "e86ca02109e983a90d0705d32b7db81a52306fd35946b99859381cdef2a7074a",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-craft_furnace-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc26.3-main-da6d464-progression-craft_stone_pickaxe-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled craft stone pickaxe-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 107096,
+          "sha256": "c07da803d7231c58ec2c91095d5c0a59caf439ab74e67ca26a244bba667d8dcb",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-craft_stone_pickaxe-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc26.3-main-da6d464-progression-custom_ruby_gear-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled custom ruby gear-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 96334,
+          "sha256": "b4113e9ac20cff1a2a7e9a5edfdd12f7d7a25a50cd28d9ac0a1ba31f505367b5",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-custom_ruby_gear-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc26.3-main-da6d464-progression-gather_wood_8-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled gather wood 8-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": true,
+          "bytes": 195588,
+          "sha256": "d340f1b42bd7f90cb690a204c296a51b7b4c4b123836cbce2db18ea37ae37ef1",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-gather_wood_8-baritone-route-PASS-original.png"
+        },
+        {
+          "assetName": "mc26.3-main-da6d464-progression-smelt_iron_ingot-baritone-route-PASS-original.png",
+          "minecraftVersion": "26.3",
+          "sourceCommit": "da6d464d1e70bb8193d809e7f399415117fe41e1",
+          "buildSha256": "115ef8ce4458eac8269d993afd13a285939e26a1f48ecb6a656f634e4547f871",
+          "testOutcome": "INTERMEDIATE_FRAME_FINAL_CASE_PASS",
+          "captureStage": "production_gameplay_before_final_receipt",
+          "caption": "Controlled smelt iron ingot-baritone-route gameplay. The integrated server subsequently confirmed the target and an idle engine. This frame may precede station cleanup; prepared resources and supplied food belong to the fixture.",
+          "inline": false,
+          "bytes": 211517,
+          "sha256": "77a0938f0ed5e3a7adaf1b2d0d055ab994ecc4b8e043926c8a8fcb42822550f8",
+          "original": true,
+          "publicUrl": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-da6d464-progression-smelt_iron_ingot-baritone-route-PASS-original.png"
+        }
+      ],
+      "publicScreenshotVerification": {
+        "anonymousBytesAndHashesVerified": true,
+        "loggedOutBrowserDecoded": 6,
+        "deletedLocalCopies": 12
+      },
+      "latestLogSha256": "9f1f1d59bd25ac3568180b716e9c1c21828f11d82d8fb1a445072d31980a0a6a"
+    }
+  ]
+}
