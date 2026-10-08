@@ -125,7 +125,7 @@ Four of six [prepared controls](docs/OWNED-PREVIEW-CHECKPOINT.md#native-controls
 
 The [saved 26.3 replay](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-active-creeper-membership-at-4aa1cc4) confirms initial active-creeper membership eight blocks below with clearance 20. Gameplay FAILS with no path or full gear, paused at health 20. Exact live bounding-box exclusion was not separately measured. Live refresh, primed retention, cap behavior, fresh Survival, and safe escape remain unproved. Queued screenshots do not prove fence timing.
 
-Bounded stage-one diagnostics have CLEAN source review and passing verifier compiles on both versions; native diagnosis is pending. Production is unchanged. Earlier health-six passes remain historical. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The [diagnostic rerun with verifier `5ceaa65`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-5ceaa65-onset.json) passes the primary health-six case but FAILS on modern: the client lands before observing the accepted server health mutation. Frozen production remains `4aa1cc4`. Earlier onset-fence failures remain unexplained. Earlier health-six passes remain historical. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
