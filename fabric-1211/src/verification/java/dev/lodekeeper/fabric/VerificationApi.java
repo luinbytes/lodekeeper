@@ -861,8 +861,11 @@ final class VerificationApi {
         }
         PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
         fixture.contact = new ContactThreatObservation(second);
+        if ("true".equals(System.getProperty("lodekeeper.verify.threatContactLowHealth")))
+            fixture.contact.lowHealth = new ContactLowHealthObservation(player);
         java.util.function.BiConsumer<net.minecraft.entity.LivingEntity, net.minecraft.entity.damage.DamageSource> confirmSwordDamage = (entity, source) -> {
             ContactThreatObservation contact = fixture.contact;
+            observeContactLowHealthDamage(fixture, entity, source);
             int index = entity == fixture.zombie ? 0 : entity == contact.second ? 1 : -1;
             if (index < 0) return;
             ContactSwordAttempt attempt = contact.pendingSwordDamage[index];
@@ -874,6 +877,12 @@ final class VerificationApi {
         };
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             ContactThreatObservation contact = fixture.contact;
+            ContactLowHealthObservation low = contact.lowHealth;
+            if (low != null) {
+                int target = entity == fixture.zombie ? 0 : entity == contact.second ? 1 : entity == fixture.cow ? 2 : -1;
+                if (target >= 0) low.pending[target] = contact.observing && source.getAttacker() == player
+                        ? new ContactSwordAttempt(!player.isOnGround(), entity.getHealth(), source) : null;
+            }
             int index = entity == fixture.zombie ? 0 : entity == contact.second ? 1 : -1;
             if (index >= 0) {
                 contact.pendingSwordDamage[index] = contact.observing && source.getAttacker() == player
@@ -920,6 +929,11 @@ final class VerificationApi {
         if (fixture.contact == null || !fixture.contact.observing) return;
         ContactThreatObservation contact = fixture.contact;
         contact.observedServerTicks++;
+        ContactLowHealthObservation low = contact.lowHealth;
+        if (low != null && low.fenceTick >= 0 && low.landingTick < 0 && player.isOnGround()
+                && Math.abs(player.getY() - 64.0) <= 0.0625
+                && player.getServerWorld().getBlockCollisions(player, player.getBoundingBox().offset(0.0, -0.05, 0.0)).iterator().hasNext())
+            low.landingTick = serverTick;
         boolean airborne = !player.isOnGround();
         boolean moving = player.getVelocity().horizontalLengthSquared() > 0.0004;
         if (airborne) contact.airborneTicks++;
@@ -944,9 +958,139 @@ final class VerificationApi {
         contact.lastPlayerHealth = player.getHealth();
     }
 
+    private record ContactLowHealthMarker(java.util.UUID session, java.util.UUID fixture, int stage)
+            implements net.minecraft.network.packet.CustomPayload {
+        private static final Id<ContactLowHealthMarker> ID = new Id<>(Identifier.of("lodekeeper-verification", "contact_low_health"));
+        private static final net.minecraft.network.codec.PacketCodec<net.minecraft.network.RegistryByteBuf, ContactLowHealthMarker> CODEC = new net.minecraft.network.codec.PacketCodec<>() {
+            @Override public ContactLowHealthMarker decode(net.minecraft.network.RegistryByteBuf buffer) {
+                return new ContactLowHealthMarker(buffer.readUuid(), buffer.readUuid(), buffer.readInt());
+            }
+            @Override public void encode(net.minecraft.network.RegistryByteBuf buffer, ContactLowHealthMarker marker) {
+                buffer.writeUuid(marker.session()); buffer.writeUuid(marker.fixture()); buffer.writeInt(marker.stage());
+            }
+        };
+        @Override public Id<? extends net.minecraft.network.packet.CustomPayload> getId() { return ID; }
+    }
+
+    static java.util.function.IntConsumer registerContactLowHealthNetworking(
+            java.util.function.Supplier<PreparedSafetyThreatFixture> currentFixture,
+            java.util.function.Supplier<java.util.UUID> originalPlayerId,
+            java.util.function.IntConsumer observeAttackAttempt) {
+        java.util.UUID session = java.util.UUID.randomUUID();
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(ContactLowHealthMarker.ID, ContactLowHealthMarker.CODEC);
+        boolean registered = net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(ContactLowHealthMarker.ID, (marker, context) -> {
+            PreparedSafetyThreatFixture fixture = currentFixture.get();
+            ServerPlayerEntity player = context.player();
+            if (!session.equals(marker.session()) || fixture == null || fixture.contact == null
+                    || fixture.contact.lowHealth == null || !fixture.zombie.getUuid().equals(marker.fixture())
+                    || !player.getUuid().equals(originalPlayerId.get())) return;
+            ContactLowHealthObservation low = fixture.contact.lowHealth;
+            if (low.owner != player || low.connection != player.networkHandler) {
+                low.failure = "low-health marker original player or connection changed";
+                return;
+            }
+            int serverTick = player.getServerWorld().getServer().getTicks();
+            if (marker.stage() == 0) {
+                if (low.mutationTick >= 0 || !fixture.contact.observing || player.isOnGround()) {
+                    low.failure = "low-health mutation missed the first native airborne hop or was repeated";
+                    return;
+                }
+                low.healthBefore = player.getHealth();
+                low.mutationDamageEvents = low.confirmedDamageEvents;
+                player.setHealth(6.0F);
+                low.healthAfter = player.getHealth();
+                low.mutationTick = serverTick;
+                fixture.contact.lastPlayerHealth = player.getHealth();
+            } else if (marker.stage() == 1) {
+                if (low.mutationTick < 0 || low.fenceTick >= 0 || player.isOnGround() || player.getHealth() > 6.0F) {
+                    low.failure = "low-health onset fence missed native airborne health or was repeated";
+                    return;
+                }
+                low.fenceTick = serverTick;
+                low.fenceDamageEvents = low.confirmedDamageEvents;
+            } else if (marker.stage() == 2) {
+                if (low.fenceTick < 0 || low.pauseFenceTick >= 0) {
+                    low.failure = "low-health pause fence preceded onset or was repeated";
+                    return;
+                }
+                low.pauseFenceTick = serverTick;
+                low.pauseFenceDamageEvents = low.confirmedDamageEvents;
+            } else low.failure = "invalid low-health marker stage";
+        });
+        if (!registered) throw new IllegalStateException("low-health marker receiver already registered");
+        class ClientObservation implements java.util.function.IntConsumer {
+            private PreparedSafetyThreatFixture originalFixture;
+            private java.util.UUID fixtureId;
+            private Object player, connection, world;
+            private boolean onset;
+
+            private boolean sameContext(PreparedSafetyThreatFixture fixture, MinecraftClient client) {
+                return fixture == originalFixture && fixture != null && fixtureId.equals(fixture.zombie.getUuid())
+                    && client.player == player && client.getNetworkHandler() == connection && client.world == world
+                    && client.player != null && client.player.getUuid().equals(originalPlayerId.get());
+            }
+
+            @Override public void accept(int stage) {
+                PreparedSafetyThreatFixture fixture = currentFixture.get();
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (fixture == null || fixture.contact == null || fixture.contact.lowHealth == null
+                        || client.player == null || !client.player.getUuid().equals(originalPlayerId.get())
+                        || !net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(ContactLowHealthMarker.ID))
+                    throw new IllegalStateException("low-health marker transport unavailable for current fixture");
+                if (stage == 0 && originalFixture == null) {
+                    originalFixture = fixture;
+                    fixtureId = fixture.zombie.getUuid();
+                    player = client.player;
+                    connection = client.getNetworkHandler();
+                    world = client.world;
+                }
+                if (!sameContext(fixture, client))
+                    throw new IllegalStateException("low-health original client player, connection or fixture changed");
+                if (stage == 1) onset = true;
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new ContactLowHealthMarker(session, fixtureId, stage));
+            }
+        }
+        ClientObservation observation = new ClientObservation();
+        var attackPhase = Identifier.of("lodekeeper-verification", "contact_low_health_attempts");
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.addPhaseOrdering(attackPhase, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register(attackPhase, (player, world, hand, target, hit) -> {
+            if (observation.onset && player instanceof net.minecraft.client.network.ClientPlayerEntity
+                    && (player == observation.player || player.getUuid().equals(originalPlayerId.get())))
+                observeAttackAttempt.accept(player == observation.player && world == observation.world
+                    && observation.sameContext(currentFixture.get(), MinecraftClient.getInstance()) ? 1 : -1);
+            return net.minecraft.util.ActionResult.PASS;
+        });
+        return observation;
+    }
+
+    private static final class ContactLowHealthObservation {
+        private final ServerPlayerEntity owner;
+        private final Object connection;
+        private final ContactSwordAttempt[] pending = new ContactSwordAttempt[3];
+        private int mutationTick = -1, fenceTick = -1, landingTick = -1, pauseFenceTick = -1;
+        private int confirmedDamageEvents, mutationDamageEvents = -1, fenceDamageEvents = -1, pauseFenceDamageEvents = -1;
+        private float healthBefore = Float.NaN, healthAfter = Float.NaN;
+        private String failure = "";
+        private ContactLowHealthObservation(ServerPlayerEntity owner) { this.owner = owner; this.connection = owner.networkHandler; }
+    }
+
+    private static void observeContactLowHealthDamage(PreparedSafetyThreatFixture fixture, net.minecraft.entity.LivingEntity entity, net.minecraft.entity.damage.DamageSource source) {
+        ContactLowHealthObservation low = fixture.contact.lowHealth;
+        if (low == null) return;
+        int index = entity == fixture.zombie ? 0 : entity == fixture.contact.second ? 1 : entity == fixture.cow ? 2 : -1;
+        if (index < 0) return;
+        ContactSwordAttempt attempt = low.pending[index];
+        low.pending[index] = null;
+        if (attempt != null && attempt.source() == source && entity.getHealth() < attempt.healthBefore()) {
+            low.confirmedDamageEvents++;
+            if (low.fenceTick >= 0) low.failure = "native player damage confirmed after client-observed low-health onset";
+        }
+    }
+
     private record ContactSwordAttempt(boolean airborne, float healthBefore, net.minecraft.entity.damage.DamageSource source) { }
 
     private static final class ContactThreatObservation {
+        private ContactLowHealthObservation lowHealth;
         private final ZombieEntity second;
         private final float[] lastHealth = new float[]{20.0F, 20.0F};
         private final int[] playerHits = new int[2];
@@ -1017,6 +1161,22 @@ final class VerificationApi {
         result.put("contactPlayerPosition", player.getX() + "," + player.getY() + "," + player.getZ());
         result.put("contactPlayerYaw", Float.toString(player.getYaw()));
         result.put("contactPlayerPitch", Float.toString(player.getPitch()));
+        ContactLowHealthObservation low = contact.lowHealth;
+        if (low != null) {
+            result.put("lowHealthPlayerUuid", low.owner.getUuid().toString());
+            result.put("lowHealthMutationServerTick", Integer.toString(low.mutationTick));
+            result.put("lowHealthMutationBefore", Float.toString(low.healthBefore));
+            result.put("lowHealthMutationAfter", Float.toString(low.healthAfter));
+            result.put("lowHealthMutationDamageEvents", Integer.toString(low.mutationDamageEvents));
+            result.put("lowHealthFenceServerTick", Integer.toString(low.fenceTick));
+            result.put("lowHealthFenceDamageEvents", Integer.toString(low.fenceDamageEvents));
+            result.put("lowHealthPauseFenceServerTick", Integer.toString(low.pauseFenceTick));
+            result.put("lowHealthPauseFenceDamageEvents", Integer.toString(low.pauseFenceDamageEvents));
+            result.put("lowHealthConfirmedDamageEvents", Integer.toString(low.confirmedDamageEvents));
+            result.put("lowHealthPostFenceDamageEvents", Integer.toString(low.fenceTick < 0 ? -1 : low.confirmedDamageEvents - low.fenceDamageEvents));
+            result.put("lowHealthLandingServerTick", Integer.toString(low.landingTick));
+            result.put("lowHealthMarkerFailure", low.failure);
+        }
     }
 
     static Map<String, String> preparedSafetyThreatReceipt(ServerPlayerEntity player,

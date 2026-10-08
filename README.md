@@ -119,9 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Committed main `1f85aa2` includes the low-health retreat latch, passes 316 build checks, and passes all 24 exact-source CI profiles. Both fresh Normal Survival runs FAIL with no diamond gear, final health 20, zero deaths, empty cursors, and eight paused goals. Primary exhausts four retreat starts after one arrival and three prefix rejections. Modern exhausts the sampled selector domain without a time or probe cutoff. No guard or bounds change is justified by those records.
+Production source `1f85aa2` includes the low-health retreat latch, passes 316 build checks, and passes all 24 exact-source CI profiles. Both fresh Normal Survival runs FAIL with no diamond gear and eight paused goals. Primary exhausts four retreat starts after one arrival and three prefix rejections. Modern exhausts the sampled selector domain. Neither record justifies relaxing guards or bounds.
 
-Prepared ordinary contact defense and independent configuration/native binding leases PASS on both primary versions. Both zombies die from native hits, and the bucket command finishes. Neither run triggers the low-health latch. Modern manual airborne takeover FAILS at the immediate assertion, with production cancellation pending. Its server snapshot is initial state; its screenshot precedes failure. The user-approved exact-health-six case is implemented in the working tree and compiled for both primary versions; independent review and final native acceptance remain pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) holds immutable receipts, hashes, and limits. Preview 11 remains at `88f2b52`. No Preview 12, readiness, or speed claim is made.
+The CLEAN R2 verifier compiles on both primary versions. Its [health-six comparison](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-low-health-r2.json) observes health 6 before the engine tick. Both frozen `7395f59` baselines attempt one native attack and fail as expected. Both `1f85aa2` candidates PASS with zero attempts, supported landing, full native cancellation, restored settings, and the same request retained through an explicit no-route pause. The bucket remains unfinished. This is prepared-fixture coverage.
+
+Ordinary contact and configuration/native binding leases PASS on both versions. Corrected manual controls also PASS, using simulated key state; final physical settling remains unverified. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) preserves historical failures and receipt limits. Preview 11 remains at `88f2b52`. No Preview 12, speed, or broader acceptance claim is made.
 
 ### Historical main evidence
 

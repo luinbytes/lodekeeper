@@ -325,6 +325,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean THREAT_WATER_RETREAT_MODE = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
     private static final String THREAT_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatContact");
     private static final boolean THREAT_CONTACT_MODE = "true".equals(THREAT_CONTACT_PROPERTY);
+    private static final String CONTACT_LOW_HEALTH_PROPERTY = System.getProperty("lodekeeper.verify.threatContactLowHealth");
+    private static final boolean CONTACT_LOW_HEALTH_MODE = "true".equals(CONTACT_LOW_HEALTH_PROPERTY);
     private static final String CONTACT_MANUAL_INPUT_PROPERTY = System.getProperty("lodekeeper.verify.threatContactManualInput");
     private static final boolean CONTACT_MANUAL_INPUT_MODE = "true".equals(CONTACT_MANUAL_INPUT_PROPERTY);
     private static final String THREAT_CREEPER_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatCreeperContact");
@@ -576,6 +578,19 @@ public final class RuntimeVerification implements ClientModInitializer {
     private PreparedSafetyPhase preparedSafetyPhase = PreparedSafetyPhase.NONE;
     private VerificationApi.PreparedSafetyThreatFixture preparedSafetyThreatFixture;
     private Map<String, String> activeInitialThreatReceipt = Map.of();
+    private enum ContactLowHealthPhase { WAIT_FIRST_HOP, HEALTH_REQUESTED, ONSET_SENT, LANDED, PAUSED, COMPLETE }
+    private ContactLowHealthPhase contactLowHealthPhase = ContactLowHealthPhase.WAIT_FIRST_HOP;
+    private java.util.function.IntConsumer contactLowHealthTransport;
+    private int contactLowHealthAttackAttempts = -1;
+    private boolean contactLowHealthAttackObserverValid = true;
+    private BotInput contactLowHealthOwnedInput;
+    private Object contactLowHealthTaskIdentity;
+    private int contactLowHealthTriggerTick = -1, contactLowHealthOnsetTick = -1, contactLowHealthLandingTick = -1;
+    private int contactLowHealthPauseTick = -1, contactLowHealthPauseServerTick = -1;
+    private long contactLowHealthPauseObservationSequence = -1;
+    private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> contactLowHealthOriginalSettings = new LinkedHashMap<>();
+    private final Map<String, Object> contactLowHealthOriginalConfig = new LinkedHashMap<>();
+    private final Map<String, String> contactLowHealthReceipt = new LinkedHashMap<>();
     private Object contactOriginalInput;
     private boolean contactManualKeyInjected;
     private int contactManualInputTick;
@@ -664,6 +679,14 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (invalidStationRoomTunnelMode()) {
                 failure = "stationRoomTunnel must be exactly false, true, or approach and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if (invalidContactLowHealthMode()) {
+                failure = "threatContactLowHealth must be exactly false or true; true requires baritone=true, preparedSafety=threat, threatContact=true on Minecraft 1.21.1 or 26.3, no naturalGoal, manual takeover, water retreat or creeper mode";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -864,6 +887,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 client.scheduleStop();
                 return;
             }
+            registerContactLowHealthTransport();
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
             ClientTickEvents.END_CLIENT_TICK.register(mc -> {
                 if (!BARITONE_MODE || mc.player == null) return;
@@ -3227,6 +3251,37 @@ public final class RuntimeVerification implements ClientModInitializer {
         sendCommand("!lk maintain cooked_beef 1");
     }
 
+    private static boolean invalidContactLowHealthMode() {
+        if (CONTACT_LOW_HEALTH_PROPERTY == null || "false".equals(CONTACT_LOW_HEALTH_PROPERTY)) return false;
+        return !CONTACT_LOW_HEALTH_MODE || !THREAT_CONTACT_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+            || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+            || System.getProperty("lodekeeper.verify.naturalGoal") != null
+            || CONTACT_MANUAL_INPUT_PROPERTY != null && !"false".equals(CONTACT_MANUAL_INPUT_PROPERTY)
+            || THREAT_WATER_RETREAT_PROPERTY != null && !"false".equals(THREAT_WATER_RETREAT_PROPERTY)
+            || THREAT_CREEPER_CONTACT_PROPERTY != null && !"false".equals(THREAT_CREEPER_CONTACT_PROPERTY);
+    }
+
+    private void registerContactLowHealthTransport() {
+        if (!CONTACT_LOW_HEALTH_MODE) return;
+        try {
+            Method method = VerificationApi.class.getDeclaredMethod("registerContactLowHealthNetworking", java.util.function.Supplier.class, java.util.function.Supplier.class, java.util.function.IntConsumer.class);
+            contactLowHealthTransport = (java.util.function.IntConsumer) method.invoke(null,
+                    (java.util.function.Supplier<VerificationApi.PreparedSafetyThreatFixture>) () -> preparedSafetyThreatFixture,
+                    (java.util.function.Supplier<java.util.UUID>) () -> playerId,
+                    (java.util.function.IntConsumer) validity -> {
+                        if (contactLowHealthAttackAttempts < Integer.MAX_VALUE) contactLowHealthAttackAttempts++;
+                        contactLowHealthAttackObserverValid &= validity == 1;
+                        contactLowHealthReceipt.put("nativePostOnsetAttackAttempts", Integer.toString(contactLowHealthAttackAttempts));
+                        contactLowHealthReceipt.put("nativeAttackObserverIdentityValid", Boolean.toString(contactLowHealthAttackObserverValid));
+                    });
+            var phase = GameApi.identifier("lodekeeper-verification:contact_low_health_onset");
+            ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(phase, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+            ClientTickEvents.START_CLIENT_TICK.register(phase, mc -> observeContactLowHealthOnset("START_CLIENT_TICK", clientTicks + 1));
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("low-health verifier transport unavailable for this exact profile", exception);
+        }
+    }
+
     private static boolean invalidThreatContactMode() {
         if (CONTACT_MANUAL_INPUT_PROPERTY != null && !"false".equals(CONTACT_MANUAL_INPUT_PROPERTY)
                 && (!CONTACT_MANUAL_INPUT_MODE || !THREAT_CONTACT_MODE)) return true;
@@ -3386,7 +3441,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             fail("prepared threat command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = CONTACT_MANUAL_INPUT_MODE ? "contact_defense_manual_takeover"
+        activeCase = CONTACT_LOW_HEALTH_MODE ? "contact_defense_low_health_owned_hop"
+            : CONTACT_MANUAL_INPUT_MODE ? "contact_defense_manual_takeover"
             : THREAT_CREEPER_CONTACT_MODE ? "live_creeper_contact_defense_maintained_bucket"
             : THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
             : THREAT_WATER_RETREAT_MODE ? "water_retreat_bucket" : "prepared_threat_sweep_guard_bucket";
@@ -3409,6 +3465,13 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (THREAT_CREEPER_CONTACT_MODE) {
             sendCommand("!lk maintain diamond_sword 1");
             return;
+        }
+        if (CONTACT_LOW_HEALTH_MODE) {
+            var settings = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings();
+            for (var setting : settings.byLowerName.values()) contactLowHealthOriginalSettings.put(setting, setting.value);
+            for (var spec : LodekeeperConfig.specs()) contactLowHealthOriginalConfig.put(spec.key(), requireEngine().config.read(spec.key()));
+            contactLowHealthReceipt.put("submittedBucketTarget", "1");
+            contactLowHealthReceipt.put("threshold", "6.0");
         }
         sendCommand("!lk get bucket 1");
         if (THREAT_CONTACT_MODE) {
@@ -3620,6 +3683,200 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && upstream.getPathingBehavior().getInProgress().isEmpty();
     }
 
+    private boolean contactLowHealthMovementStopped() {
+        return baritoneNavigationStopped() && !ShieldController.isHoldingUse()
+            && !client.options.attackKey.isPressed() && !client.options.useKey.isPressed()
+            && !client.options.forwardKey.isPressed() && !client.options.backKey.isPressed()
+            && !client.options.leftKey.isPressed() && !client.options.rightKey.isPressed()
+            && !client.options.jumpKey.isPressed() && !client.options.sneakKey.isPressed() && !client.options.sprintKey.isPressed();
+    }
+
+    private boolean contactLowHealthSettingsRestored() {
+        for (var entry : contactLowHealthOriginalSettings.entrySet())
+            if (!java.util.Objects.equals(entry.getValue(), entry.getKey().value)) return false;
+        for (var entry : contactLowHealthOriginalConfig.entrySet())
+            if (!java.util.Objects.equals(entry.getValue(), requireEngine().config.read(entry.getKey()))) return false;
+        return requireEngine().config.pauseBelowHealth == 6.0F;
+    }
+
+    private void observeContactLowHealthOnset(String eventPhase, int observedClientTick) {
+        if (!CONTACT_LOW_HEALTH_MODE || contactLowHealthPhase != ContactLowHealthPhase.HEALTH_REQUESTED
+                || state == State.COMPLETE || state == State.FAILED || state == State.DISABLED || client.player == null) return;
+        String status = requireEngine().status();
+        float health = client.player.getHealth();
+        if (requireEngine().diagnosticTaskIdentity() != contactLowHealthTaskIdentity
+                || !playerId.equals(client.player.getUuid()) || status.startsWith("paused")
+                || client.player.isOnGround() || client.player.input != contactLowHealthOwnedInput
+                || observedClientTick - contactLowHealthTriggerTick > 20
+                || !(status.contains("timing a safe airborne defense attack") || status.contains("landing after native defense attack"))) {
+            fail("low-health mutation was not observed during that same owned airborne hop: " + status);
+            return;
+        }
+        if (health > 6.0F) return;
+        contactLowHealthOnsetTick = observedClientTick;
+        contactLowHealthReceipt.put("observedOnsetClientTick", Integer.toString(observedClientTick));
+        contactLowHealthReceipt.put("observedOnsetHealth", Float.toString(health));
+        contactLowHealthReceipt.put("observedOnsetStatus", status);
+        contactLowHealthReceipt.put("observedOnsetEventPhase", eventPhase);
+        contactLowHealthReceipt.put("observedOnsetRequestPreserved", "true");
+        contactLowHealthReceipt.put("onsetOwnedInput", contactLowHealthOwnedInput.diagnosticState());
+        contactLowHealthAttackAttempts = 0;
+        contactLowHealthReceipt.put("nativePostOnsetAttackAttempts", "0");
+        contactLowHealthReceipt.put("nativeAttackObserverIdentityValid", "true");
+        contactLowHealthPhase = ContactLowHealthPhase.ONSET_SENT;
+        contactLowHealthTransport.accept(1);
+    }
+
+    private void evaluateContactLowHealth() {
+        String status = requireEngine().status();
+        Map<String, String> server = latestSnapshot.preparedSafetyThreatReceipt;
+        contactLowHealthReceipt.put("phase", contactLowHealthPhase.name());
+        contactLowHealthReceipt.put("engineStatus", status);
+        for (var entry : server.entrySet()) if (entry.getKey().startsWith("lowHealth")) contactLowHealthReceipt.put(entry.getKey(), entry.getValue());
+        if (requireEngine().config.pauseBelowHealth != 6.0F || clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
+            fail("low-health contact threshold changed or existing case bound expired");
+            return;
+        }
+        if (contactLowHealthAttackAttempts > 0 || !contactLowHealthAttackObserverValid) {
+            fail("native client attack attempted after observed low-health onset or observer identity changed");
+            return;
+        }
+        if (!server.getOrDefault("lowHealthMarkerFailure", "").isEmpty()
+                || Integer.parseInt(server.getOrDefault("lowHealthPostFenceDamageEvents", "-1")) > 0) {
+            fail("low-health native marker failed or player damage was confirmed after observed onset: " + server);
+            return;
+        }
+        if (contactLowHealthPhase == ContactLowHealthPhase.WAIT_FIRST_HOP) {
+            if (status.startsWith("paused") || clientTicks - caseStartedAtTick > 100) {
+                fail("low-health contact missed the first owned airborne hop: " + status);
+                return;
+            }
+            if (!status.contains("timing a safe airborne defense attack") || client.player.isOnGround()
+                    || !(client.player.input instanceof BotInput) || client.player.input == contactOriginalInput) return;
+            contactLowHealthTaskIdentity = requireEngine().diagnosticTaskIdentity();
+            if (contactLowHealthTaskIdentity == null || client.player.getHealth() <= 6.0F) {
+                fail("first owned hop lacked the original bucket request or started at low health");
+                return;
+            }
+            contactLowHealthOwnedInput = (BotInput) client.player.input;
+            contactLowHealthTriggerTick = clientTicks;
+            contactLowHealthReceipt.put("triggerClientTick", Integer.toString(clientTicks));
+            contactLowHealthReceipt.put("triggerHealth", Float.toString(client.player.getHealth()));
+            contactLowHealthReceipt.put("triggerStatus", status);
+            contactLowHealthReceipt.put("triggerOwnedInput", contactLowHealthOwnedInput.diagnosticState());
+            contactLowHealthReceipt.put("injectedWhileOwnedAirborne", "true");
+            contactLowHealthTransport.accept(0);
+            contactLowHealthPhase = ContactLowHealthPhase.HEALTH_REQUESTED;
+            return;
+        }
+        if (requireEngine().diagnosticTaskIdentity() != contactLowHealthTaskIdentity) {
+            fail("low-health contact lost or replaced the original bucket request: " + status);
+            return;
+        }
+        if (contactLowHealthPhase == ContactLowHealthPhase.HEALTH_REQUESTED) {
+            observeContactLowHealthOnset("END_CLIENT_TICK", clientTicks);
+            return;
+        }
+        if (contactLowHealthPhase == ContactLowHealthPhase.ONSET_SENT) {
+            if (status.startsWith("paused") || clientTicks - contactLowHealthOnsetTick > 30) {
+                fail("low-health owned hop missed confirmed native landing: " + status);
+                return;
+            }
+            if (!status.contains("stopping before retreat")) {
+                if (client.player.input != contactLowHealthOwnedInput)
+                    fail("low-health owned hop input was lost before its landing receipt: " + status);
+                return;
+            }
+            if (!client.player.isOnGround() || client.player.input != contactOriginalInput
+                    || !new GameTerrain(client, requireEngine().config).defenseHopLandingSafe(
+                        client.player.getX(), client.player.getY(), client.player.getZ(), GameTerrain.quantizedFeetY16(64.0))) {
+                fail("low-health hop-to-retreat transition lacked native landing support or original input restoration");
+                return;
+            }
+            contactLowHealthLandingTick = clientTicks;
+            contactLowHealthReceipt.put("landingClientTick", Integer.toString(clientTicks));
+            contactLowHealthReceipt.put("nativeLandingSupport", "true");
+            contactLowHealthPhase = ContactLowHealthPhase.LANDED;
+            return;
+        }
+        if (contactLowHealthPhase == ContactLowHealthPhase.LANDED) {
+            if (!status.startsWith("paused")) {
+                if (clientTicks - contactLowHealthLandingTick > 20) fail("low-health landed hop missed the explicit no-route pause");
+                return;
+            }
+            if (!status.contains("No safe dry retreat stance remains within the bounded search")
+                    || client.player.input != contactOriginalInput || !contactLowHealthMovementStopped()
+                    || !contactLowHealthSettingsRestored()) {
+                fail("low-health no-route pause lacked full native cancellation, original input or settings restoration: " + status);
+                return;
+            }
+            contactLowHealthPauseTick = clientTicks;
+            contactLowHealthPauseServerTick = latestSnapshot.serverTick;
+            contactLowHealthPauseObservationSequence = observationRequestSequence;
+            contactLowHealthReceipt.put("pauseClientTick", Integer.toString(clientTicks));
+            contactLowHealthReceipt.put("pauseServerTick", Integer.toString(contactLowHealthPauseServerTick));
+            contactLowHealthReceipt.put("pauseObservationSequence", Long.toString(contactLowHealthPauseObservationSequence));
+            contactLowHealthTransport.accept(2);
+            contactLowHealthPhase = ContactLowHealthPhase.PAUSED;
+        }
+        if (contactLowHealthPhase != ContactLowHealthPhase.PAUSED) return;
+        if (!status.startsWith("paused") || !status.contains("No safe dry retreat stance remains within the bounded search")) {
+            fail("low-health no-route pause was not retained: " + status);
+            return;
+        }
+        if (observationFuture == null) requestObservation();
+        int fenceTick = Integer.parseInt(server.getOrDefault("lowHealthFenceServerTick", "-1"));
+        int landingTick = Integer.parseInt(server.getOrDefault("lowHealthLandingServerTick", "-1"));
+        int pauseFenceTick = Integer.parseInt(server.getOrDefault("lowHealthPauseFenceServerTick", "-1"));
+        if (pauseFenceTick < 0 || latestObservationRequestSequence <= contactLowHealthPauseObservationSequence
+                || latestSnapshot.serverTick <= Math.max(contactLowHealthPauseServerTick, Math.max(pauseFenceTick, landingTick))) {
+            if (clientTicks - contactLowHealthPauseTick > 20) fail("low-health pause missed a fresh post-pause server observation");
+            return;
+        }
+        boolean passed = contactLowHealthAttackAttempts == 0 && contactLowHealthAttackObserverValid
+            && Integer.parseInt(server.getOrDefault("lowHealthMutationServerTick", "-1")) >= 0
+            && "6.0".equals(server.get("lowHealthMutationAfter")) && playerId.toString().equals(server.get("lowHealthPlayerUuid"))
+            && fenceTick >= Integer.parseInt(server.getOrDefault("lowHealthMutationServerTick", "-1"))
+            && landingTick >= fenceTick && pauseFenceTick >= fenceTick
+            && server.get("lowHealthFenceDamageEvents").equals(server.get("lowHealthPauseFenceDamageEvents"))
+            && "0".equals(server.get("lowHealthPostFenceDamageEvents"))
+            && Integer.parseInt(server.getOrDefault("lowHealthFenceDamageEvents", "-1")) >= 0
+            && server.getOrDefault("lowHealthMarkerFailure", "missing").isEmpty()
+            && client.player.input == contactOriginalInput && contactLowHealthMovementStopped() && contactLowHealthSettingsRestored()
+            && requireEngine().diagnosticTaskIdentity() == contactLowHealthTaskIdentity
+            && latestSnapshot.inventory.equals(activeInitialResources) && latestSnapshot.storageInventory.equals(activeInitialResources)
+            && latestSnapshot.equippedItems.equals(activeInitialEquipment) && latestSnapshot.serverCursorEmpty
+            && latestSnapshot.health > 0 && "true".equals(server.get("contactPlayerAlive")) && "0".equals(server.get("contactPlayerDeaths"))
+            && "false".equals(server.get("contactClockFrozen")) && Integer.parseInt(server.getOrDefault("contactClockReleaseServerTick", "-1")) >= 0
+            && contactShellPreserved(server) && "true".equals(server.get("cowAlive"))
+            && activeInitialThreatReceipt.get("cowUuid").equals(server.get("cowUuid"))
+            && activeInitialThreatReceipt.get("cowHealth").equals(server.get("cowHealth"));
+        for (int index = 0; index < 2; index++) {
+            String prefix = "contactZombie" + index;
+            passed &= activeInitialThreatReceipt.get(prefix + "Uuid").equals(server.get(prefix + "Uuid"))
+                && "true".equals(server.get(prefix + "Alive")) && Float.parseFloat(server.getOrDefault(prefix + "Health", "0")) > 0
+                && "0".equals(server.get(prefix + "ForeignDamage"));
+        }
+        contactLowHealthReceipt.put("observedClientTick", Integer.toString(clientTicks));
+        contactLowHealthReceipt.put("observedServerTick", Integer.toString(latestSnapshot.serverTick));
+        contactLowHealthReceipt.put("observedRequestSequence", Long.toString(latestObservationRequestSequence));
+        contactLowHealthReceipt.put("requestPreserved", Boolean.toString(requireEngine().diagnosticTaskIdentity() == contactLowHealthTaskIdentity));
+        contactLowHealthReceipt.put("originalInputRestored", Boolean.toString(client.player.input == contactOriginalInput));
+        contactLowHealthReceipt.put("nativeNavigationStopped", Boolean.toString(contactLowHealthMovementStopped()));
+        contactLowHealthReceipt.put("settingsRestored", Boolean.toString(contactLowHealthSettingsRestored()));
+        contactLowHealthReceipt.put("nativeSettingsChecked", Integer.toString(contactLowHealthOriginalSettings.size()));
+        if (!passed) {
+            fail("low-health post-pause receipt lacked ordered attack suppression, native landing, exact request, settings, stock, shell, cow or survival: " + server);
+            return;
+        }
+        contactLowHealthPhase = ContactLowHealthPhase.COMPLETE;
+        contactLowHealthReceipt.put("phase", contactLowHealthPhase.name());
+        activeCount = 0;
+        addResult(true, latestSnapshot.count(activeItem), "health set exactly 6 during the first owned hop; observed airborne onset fenced native attacks, landed with support, cancelled all native movement and restored settings, then paused for no route with the original bucket request and a fresh preserved-fixture server receipt", capture(activeCase));
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
     private void evaluateContactManualInput() {
         String engineStatus = requireEngine().status();
         if (!contactManualKeyInjected) {
@@ -3664,7 +3921,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     "guardClientTick", Integer.toString(clientTicks),
                     "submittedBucketTarget", "1");
             client.options.forwardKey.setPressed(false);
-            if (!engineStatus.contains("Manual input has priority over defense hop")
+            if (!engineStatus.contains("manual input interrupted defense")
                     || !keyPreserved || !originalInputRestored || !taskPreserved || !nativeStopped) {
                 fail("manual defense takeover lacked immediate physical key, original input, exact request, or native drain: " + engineStatus);
                 return;
@@ -3681,7 +3938,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             return;
         }
         Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
-        boolean passed = engineStatus.contains("Manual input has priority over defense hop")
+        boolean passed = engineStatus.contains("manual input interrupted defense")
                 && requireEngine().diagnosticTaskIdentity() == contactManualTaskIdentity
                 && client.player.input == contactOriginalInput && baritoneNavigationStopped()
                 && latestSnapshot.inventory.equals(activeInitialResources) && latestSnapshot.serverCursorEmpty
@@ -3709,6 +3966,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void evaluatePreparedSafetyCase() {
+        if (CONTACT_LOW_HEALTH_MODE) { evaluateContactLowHealth(); return; }
         if (CONTACT_MANUAL_INPUT_MODE) { evaluateContactManualInput(); return; }
         if (requireEngine().status().startsWith("paused")) {
             fail("prepared safety automation paused during " + activeCase + ": " + requireEngine().status());
@@ -5564,6 +5822,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (configRoundTripReceipt != null) json.append(",\n  \"configRoundTripReceipt\":").append(configRoundTripReceipt);
         json.append(",\n  \"threatContact\":").append(THREAT_CONTACT_MODE);
         json.append(",\n  \"threatContactManualInput\":").append(CONTACT_MANUAL_INPUT_MODE);
+        json.append(",\n  \"threatContactLowHealth\":").append(CONTACT_LOW_HEALTH_MODE);
+        if (CONTACT_LOW_HEALTH_MODE) {
+            json.append(",\n  \"lowHealthReceipt\":");
+            appendStringStringMap(json, contactLowHealthReceipt);
+        }
         if (CONTACT_MANUAL_INPUT_MODE) {
             json.append(",\n  \"manualInputReceipt\":");
             appendStringStringMap(json, contactManualInputReceipt);
@@ -6013,6 +6276,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if ("air".equals(PREPARED_SAFETY_MODE)
                 && (!BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
                     || System.getProperty("lodekeeper.verify.naturalGoal") != null)) return "invalid_prepared_safety_air";
+        if (invalidContactLowHealthMode()) return "invalid_threat_contact_low_health";
         if (invalidThreatContactMode()) return "invalid_threat_contact";
         if (invalidThreatCreeperContactMode()) return "invalid_threat_creeper_contact";
         if (THREAT_WATER_RETREAT_MODE && (!BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
@@ -6042,7 +6306,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
         if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
-        if (PREPARED_SAFETY_MODE != null) return THREAT_CREEPER_CONTACT_MODE ? "prepared_safety_threat_creeper_contact" : CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
+        if (PREPARED_SAFETY_MODE != null) return CONTACT_LOW_HEALTH_MODE ? "prepared_safety_low_health_owned_hop" : THREAT_CREEPER_CONTACT_MODE ? "prepared_safety_threat_creeper_contact" : CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
             ? "prepared_safety_threat_water_retreat" : "prepared_safety_" + PREPARED_SAFETY_MODE;
         if (NAVIGATION_COURSE != null && !MIXED_NAVIGATION_COURSE) return "invalid_navigation_course";
         if (MIXED_NAVIGATION_COURSE && !COAL_RECOVERY_MODE) return "invalid_navigation_course_requires_coal_recovery";
