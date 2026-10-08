@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+Current main adds the [bounded crafting PICKUP observation](#bounded-crafting-pickup-observation) below. Source review is CLEAN; exact-jar replay remains pending.
+
 Exact frozen main `a32cf748db6c3ecc0f7b900c1d37fb363181f1ed` clears the original saved-world stone 0/3 stall in the [shallow-water replay](#shallow-water-mining-preparation). The full command PAUSES at crafting PICKUP with expected cursor three and coherent full cursor four. The existing prepared-air control PASS and physical preparation pause/resume have separate evidence below. The second airborne manual check is incomplete. [CI 37746371132](https://github.com/luinbytes/lodekeeper/actions/runs/37746371132) completes successfully at exact `a32cf74`, with all 24 compile, check, and package profiles passing. Full gear, fresh primary Survival, retreat, complete station recovery, and Preview 12 remain open. Released Preview 11 stays at `88f2b52`.
 
 Historical exact frozen `38b459e` [recomputed mining aim](#recomputed-mining-aim-candidate) FAILS its 26.3 manual saved-world replay at stone 0/3 after 63,300 ms, with normal exit 0. The experiment shows no goal benefit. Removal commit `2c47418` removed its one source line and restored production paths byte-identical to `f7eae44` before `a32cf74`. No local rebuild or native rerun of that removal is claimed; its [CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37742558092) passed all 24 profiles. That source comparison describes the removal state only. Fresh Survival and primary retreat remain open.
@@ -618,3 +620,11 @@ The subsequent main capacity change separates the route-hazard limit from the ac
 [Download Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) for 1.21.1 or 26.3. Its exact source is `88f2b523648e1e35c16db7e652aca1b719f002b3`, and known gameplay failures remain. [Preview 10](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.10) retains older-source jars for all 24 profiles. Its historical full gear timings are 11:59 on 1.21.1 and 9:33 on 26.3; those figures do not describe Preview 11.
 
 Released-source `88f2b52` 26.3 survival fails during the third skeleton retreat; 1.21.1 is inconclusive after an environment abort. The exact released-source GUI passes twenty checks across both primary versions. Shield, the 37-value native lease, other safety, station-cleanup, inventory comparison, and five counted inventory timing trials remain pending. The full release-source matrix failed, and both published primary jars pass CI and packaging with native byte equivalence. The release has thirty public assets, including twenty-three original captures. Compiled coverage, runtime verification, and Lu's acceptance remain separate.
+
+## Bounded crafting PICKUP observation
+
+The modern adapter adds a debug-only trace for PICKUP in the native 46-slot crafting menu. It captures the pre-call source, local prediction, watched partial updates, and applied full replies with separate counts and exact component comparisons. Twelve intermediate records and finite terminal updates bound output. A capture error closes the trace after one incomplete record. Acceptance, sending, cancellation, and timeout rules remain unchanged.
+
+The 26.3 build passes 268 existing checks, with 265 cached and three rerun. Packaging includes all 264 generated classes and 18 owned mixins, with pinned source and LGPL notices. The local jar has 1,772,120 bytes and SHA-256 `072bebc7d0e4797c0953be9693523aeb6a8b2b313d184ad3689aaa44e2f9c63f`. Source review is CLEAN; exact-jar replay remains pending. No new tests were added.
+
+Logging can change timing. This trace cannot establish server state before or after the click, exact wire construction, direct inventory or cursor packet applications, or reply attribution. The cursor-three versus cursor-four failure remains open.

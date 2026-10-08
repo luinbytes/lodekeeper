@@ -4,6 +4,8 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 ## Latest main evidence
 
+Current main adds [bounded crafting PICKUP diagnostics](OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). The 26.3 build passes 268 existing checks, with 265 cached and three rerun. Source review is CLEAN; exact-jar replay is pending. Receipt acceptance is unchanged.
+
 Exact frozen main `a32cf74` passes CLEAN source review and the 26.3 build with 268 existing checks, 265 cached and three rerun. Its [shallow-water saved-world replay](OWNED-PREVIEW-CHECKPOINT.md#shallow-water-mining-preparation) clears the original stone 0/3 stall. Sixteen accepted records are grounded at Y62 with dry eyes, air 300, and health 20. Output reaches 1/3 and 2/3, then satisfies the cobblestone prerequisite with zero native movement timeouts. The full command PAUSES during crafting PICKUP, expecting cursor three but receiving a coherent full cursor four. Server refusal and late-pickup causality remain unproved.
 
 The existing [prepared-air control](OWNED-PREVIEW-CHECKPOINT.md#existing-prepared-air-control-at-a32cf74) PASS crafts one bucket, restores air 300 with zero deaths, and records zero shallow acceptances. The [physical manual check](OWNED-PREVIEW-CHECKPOINT.md#physical-manual-preparation-pause-at-a32cf74) observes persistent pause after Space during preparation. Explicit resume crafts the stone pickaxe, recovers the table, then pursues food. The next airborne observation misses its 25-second window, so no second takeover or stop is sent. Cached `safeToCancel`, forced inputs on each tick, and foreign ownership scope remain unverified.

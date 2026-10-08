@@ -31,6 +31,17 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     private int consumptionProofLogs;
     private String failure;
     private FullClickReceipt<ItemStack> fullReceipt;
+    private PickupObservation pickupObservation;
+
+    private static final class PickupObservation {
+        int button, records;
+        long omitted, partialSourceSequence, partialSourceTime;
+        int partialSourceRevision = -1;
+        boolean incomplete, closed;
+        String terminalOutcome, partialSource = "UNOBSERVED";
+        int[] slots;
+        ItemStack sourceBefore;
+    }
 
     SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int destination, int amount) {
         this(client, menu, source, destination, amount, null);
@@ -155,6 +166,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
 
     @Override public void fullContentsApplied(OwnedClickReceipts.Receipt receipt) {
         if (failed || fullReceipt == null) return;
+        observePickup("FULL_BEFORE_VALIDATION", false, receipt, -1, -1, 0);
         try {
             requireHandler();
             boolean alreadyAccepted = fullReceipt.accepted() != null;
@@ -162,6 +174,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             double progress = consumptionProgress == null ? 0 : consumptionProgress.getAsDouble();
             fullReceipt.applyFull(snapshot, liveSlots(), menu.getCarried(), menu.getStateId(),
                     receipt == receipt() && contextCurrent(), !sending && (pending == null || pendingSent), progress);
+            pickupValidationOutcome(receipt);
             if (fullReceipt.failure() != null) {
                 org.slf4j.LoggerFactory.getLogger("lodekeeper").warn(
                         "[Lodekeeper] INVENTORY_TRANSFER full_rejected phase={} menu={} source={} destination={} contentsSequence={} contentsRevision={} localRevision={} expectedItem={} expectedSlotCount={} expectedCursorCount={} fullSlots={} fullCursor={} reason={}",
@@ -216,6 +229,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     }
 
     @Override public void slotUpdated(int slot, int revision, long sequence) {
+        observePickup("PARTIAL_APPLIED", false, null, slot, revision, sequence);
         if (failed || fullReceipt == null || fullReceipt.accepted() == null) return;
         if (!contextCurrent()) {
             reject("Container or session changed after inventory acknowledgement; leaving the container open");
@@ -246,6 +260,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
 
     private void reject(String reason) {
         if (failed) return;
+        observePickup("REJECTED", true, null, -1, -1, 0);
         failed = true;
         failure = reason;
         if (fullReceipt != null) fullReceipt.reject(reason);
@@ -268,8 +283,10 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             throw exception;
         }
         if (acknowledgement == null) {
-            if (++observations >= MAX_OBSERVATION_TICKS)
+            if (++observations >= MAX_OBSERVATION_TICKS) {
+                observePickup("OBSERVATION_TIMEOUT_PAUSE", true, null, -1, -1, 0);
                 throw new IllegalStateException("Server has not confirmed the issued inventory click; resume to observe it without clicking again");
+            }
             return false;
         }
         if (!confirmedBefore && fullReceipt.consumptionConfirmed()) logAcknowledgement("full_ack_consumption_confirmed");
@@ -282,6 +299,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             phase = remaining == 0 ? Phase.RETURN : Phase.PLACE;
         } else if (pending == Phase.PICKUP) {
             phase = dragDestinations == null ? Phase.PLACE : Phase.DRAG;
+            closePickupObservation();
         } else {
             phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
         }
@@ -425,6 +443,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             requireHandler();
             pendingSent = true;
         } catch (RuntimeException exception) {
+            observePickup("SEND_FAILED", true, null, -1, -1, 0);
             reject("Owned inventory click send failed or was interrupted; leaving the container open: " + exception.getMessage());
             throw exception;
         } finally { sending = false; }
@@ -432,7 +451,156 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
 
     private void click(int slot, int button, int expectedSlotCount, int expectedCursorCount) {
         prepareReceipt(expectedSlotCount, expectedCursorCount);
-        sendClick(() -> OwnedClickReceipts.cursorClick(client, menu.containerId, slot, button, client.player));
+        sendClick(() -> {
+            startPickupObservation(button);
+            OwnedClickReceipts.cursorClick(client, menu.containerId, slot, button, client.player);
+            observePickup("LOCAL_RETURN", false, null, -1, -1, 0);
+        });
+    }
+
+    private void startPickupObservation(int button) {
+        try {
+            if (pickupObservation != null || pending != Phase.PICKUP || !debugLogging()
+                    || !(menu instanceof net.minecraft.world.inventory.CraftingMenu crafting) || menuSize != 46) return;
+            pickupObservation = new PickupObservation();
+            pickupObservation.button = button;
+            if (crafting.getInputGridSlots().size() != 9) {
+                pickupObservation.records++;
+                incompletePickupObservation("BEFORE_NATIVE_CALL", false);
+                return;
+            }
+            pickupObservation.slots = new int[11];
+            pickupObservation.slots[0] = source;
+            pickupObservation.slots[1] = destination;
+            for (int index = 2; index < pickupObservation.slots.length; index++)
+                pickupObservation.slots[index] = menu.slots.indexOf(crafting.getInputGridSlots().get(index - 2));
+            pickupObservation.sourceBefore = menu.getSlot(source).getItem().copy();
+        } catch (Throwable diagnosticFailure) {
+            if (pickupObservation != null) {
+                pickupObservation.records++;
+                incompletePickupObservation("BEFORE_NATIVE_CALL", false);
+            }
+            return;
+        }
+        observePickup("BEFORE_NATIVE_CALL", false, null, -1, -1, 0);
+    }
+
+    private void pickupValidationOutcome(OwnedClickReceipts.Receipt receipt) {
+        if (pickupObservation == null || pickupObservation.closed || pending != Phase.PICKUP) return;
+        try {
+            observePickup(fullReceipt.failure() != null ? "FULL_REJECTED"
+                    : fullReceipt.accepted() != null ? "FULL_ACCEPTED" : "FULL_WAITING",
+                    fullReceipt.failure() != null || fullReceipt.accepted() != null, receipt, -1, -1, 0);
+        } catch (Throwable diagnosticFailure) {
+            if (pickupObservation != null && !pickupObservation.closed)
+                incompletePickupObservation("VALIDATION_OUTCOME", true);
+        }
+    }
+
+    private void closePickupObservation() {
+        if (pickupObservation == null) return;
+        pickupObservation.closed = true;
+        pickupObservation.sourceBefore = null;
+    }
+
+    private void incompletePickupObservation(String event, boolean terminal) {
+        PickupObservation observation = pickupObservation;
+        observation.incomplete = true;
+        try {
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] PICKUP_OBSERVATION event={} timeNanos={} transferTag={} terminal={} capture=INCOMPLETE intermediateRecords={} omitted={}",
+                    event, System.nanoTime(), pickupTag(this), terminal, observation.records, observation.omitted);
+        } catch (Throwable ignoredDiagnosticFailure) {}
+        finally { closePickupObservation(); }
+    }
+
+    private void observePickup(String event, boolean terminal, OwnedClickReceipts.Receipt applied,
+                               int updatedSlot, int updatedRevision, long updatedSequence) {
+        PickupObservation observation = pickupObservation;
+        if (observation == null || observation.closed || pending != Phase.PICKUP) return;
+        boolean emitRecord = false, omitted = false;
+        try {
+            if (updatedSlot >= 0 && observation.slots != null) {
+                boolean watched = false;
+                for (int slot : observation.slots) watched |= slot == updatedSlot;
+                if (!watched) return;
+            }
+            boolean terminalUpdate = observation.terminalOutcome != null;
+            if (terminal) {
+                if (event.equals(observation.terminalOutcome)) return;
+                observation.terminalOutcome = event;
+                emitRecord = true;
+            } else {
+                if (observation.records >= 12) {
+                    observation.omitted++;
+                    observation.incomplete = true;
+                    omitted = true;
+                } else {
+                    observation.records++;
+                    emitRecord = true;
+                }
+            }
+            long time = System.nanoTime();
+            OwnedClickReceipts.Receipt receipt = applied == null ? receipt() : applied;
+            if (updatedSlot == source) {
+                observation.partialSource = pickupStack(receipt.lodekeeper$receivedSlot(source));
+                observation.partialSourceSequence = updatedSequence;
+                observation.partialSourceRevision = updatedRevision;
+                observation.partialSourceTime = time;
+            }
+            if (!emitRecord) return;
+            long fullSequence = receipt.lodekeeper$contentsSequence();
+            boolean fullPresent = fullSequence > 0 && receipt.lodekeeper$contentsSize() == menuSize;
+            List<String> slots = new ArrayList<>();
+            for (int index = 0; index < observation.slots.length; index++) {
+                int slot = observation.slots[index];
+                Slot nativeSlot = menu.getSlot(slot);
+                ItemStack live = nativeSlot.getItem();
+                ItemStack full = fullPresent ? receipt.lodekeeper$receivedContentsSlot(slot) : null;
+                slots.add("role=" + (index == 0 ? "source" : index == 1 ? "destination" : "grid")
+                        + ",menuSlot=" + slot + ",playerInventorySlot="
+                        + (nativeSlot.container == inventory ? nativeSlot.getContainerSlot() : "NONE")
+                        + ",latestUpdateSequence=" + receipt.lodekeeper$slotSequence(slot)
+                        + ",live=" + pickupStack(live) + ",latestFull=" + (full == null ? "ABSENT" : pickupStack(full))
+                        + ",liveSameFullComponents=" + (full == null ? "ABSENT" : ItemStack.isSameItemSameComponents(live, full)));
+            }
+            ItemStack cursor = menu.getCarried();
+            ItemStack fullCursor = fullPresent ? receipt.lodekeeper$receivedCursor() : null;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] PICKUP_OBSERVATION event={} timeNanos={} terminal={} terminalUpdate={} intermediateRecords={} omitted={} incomplete={} transferTag={} menuId={} menuClass={} menuTag={} playerUuid={} playerTag={} worldTag={} networkTag={} connectionTag={} inventoryTag={} contextCurrent={} appliedReceiptMatchesMenu={} phase={} pending={} sending={} pendingSent={} button={} remaining={} expectedConstructorCount={} predictedSourceCount={} predictedCursorCount={} localRevision={} localRevisionBeforePrediction={} baselineFullSequence={} latestFullSequence={} latestFullRevision={} latestFullSize={} latestFullStatus={} latestCursorSequence={} slots={} liveCursor={} latestFullCursor={} liveCursorSameFullComponents={} liveCursorSamePrePickupSourceComponents={} fullCursorSamePrePickupSourceComponents={} latestReceivedSource={} latestPartialSource={} latestPartialSourceSequence={} latestPartialSourceRevision={} latestPartialSourceTimeNanos={} updatedSlot={} updatedRevision={} updatedSequence={} updatedValue={}",
+                    event, time, terminal, terminalUpdate, observation.records, observation.omitted, observation.incomplete,
+                    pickupTag(this), menu.containerId, menu.getClass().getName(), pickupTag(menu),
+                    ((net.minecraft.world.entity.player.Player) player).getUUID(), pickupTag(player), pickupTag(world),
+                    pickupTag(networkHandler), pickupTag(connection), pickupTag(inventory), contextCurrent(), receipt == receipt(),
+                    phase, pending, sending, pendingSent, observation.button, remaining, expected.getCount(), sourceCount,
+                    receiptCursorCount, menu.getStateId(), outboundRevision, contentsBefore, fullSequence,
+                    receipt.lodekeeper$contentsRevision(), receipt.lodekeeper$contentsSize(), fullPresent ? "PRESENT" : "ABSENT",
+                    receipt.lodekeeper$cursorSequence(), slots, pickupStack(cursor), fullCursor == null ? "ABSENT" : pickupStack(fullCursor),
+                    fullCursor == null ? "ABSENT" : ItemStack.isSameItemSameComponents(cursor, fullCursor),
+                    observation.sourceBefore == null ? "INCOMPLETE" : ItemStack.isSameItemSameComponents(cursor, observation.sourceBefore),
+                    fullCursor == null ? "ABSENT" : observation.sourceBefore == null ? "INCOMPLETE"
+                            : ItemStack.isSameItemSameComponents(fullCursor, observation.sourceBefore),
+                    pickupStack(receipt.lodekeeper$receivedSlot(source)), observation.partialSource, observation.partialSourceSequence,
+                    observation.partialSourceRevision, observation.partialSourceTime, updatedSlot, updatedRevision, updatedSequence,
+                    updatedSlot < 0 ? "NONE" : pickupStack(receipt.lodekeeper$receivedSlot(updatedSlot)));
+        } catch (Throwable diagnosticFailure) {
+            if (!omitted) observation.omitted++;
+            incompletePickupObservation(event, terminal || !emitRecord);
+        } finally {
+            try {
+                if (terminal && (event.equals("FULL_REJECTED") || event.equals("REJECTED") || event.equals("SEND_FAILED")))
+                    closePickupObservation();
+            } catch (Throwable diagnosticFailure) { observation.incomplete = true; }
+        }
+    }
+
+    private String pickupStack(ItemStack stack) {
+        return "{empty=" + stack.isEmpty() + ",item=" + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem())
+                + ",count=" + stack.getCount() + ",sameExpectedComponents=" + ItemStack.isSameItemSameComponents(stack, expected) + "}";
+    }
+
+    private static String pickupTag(Object value) {
+        return value == null ? "null" : Integer.toHexString(System.identityHashCode(value));
     }
 
     private void prepareReceipt(int expectedSlotCount, int expectedCursorCount) {

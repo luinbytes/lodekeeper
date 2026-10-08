@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+Current main adds [bounded crafting PICKUP diagnostics](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). The 26.3 build passes 268 existing checks, with 265 cached and three rerun. Source review is CLEAN; exact-jar replay is pending. Receipt acceptance is unchanged.
+
 Frozen main `a32cf74` passes CLEAN source review and the 26.3 build with 268 existing checks, 265 cached and three rerun. Its [shallow-water replay](docs/OWNED-PREVIEW-CHECKPOINT.md#shallow-water-mining-preparation) clears the original stone 0/3 stall. Sixteen accepted records stay grounded at Y62 with air 300 and health 20; cobblestone satisfies the prerequisite with zero native movement timeouts. The full command then PAUSES during crafting PICKUP, expecting cursor 3 but receiving a coherent full cursor 4. Server refusal and late-pickup causality remain unproved.
 
 The existing prepared-air fixture PASS restores air 300, has zero deaths, and crafts one bucket with zero shallow acceptances. Physical Space during shallow preparation pauses persistently. Explicit resume crafts the stone pickaxe, recovers the table, then pursues food. The second airborne check remains incomplete.

@@ -22,6 +22,8 @@ After an exact final cursor return, same-item, same-component growth in the sour
 
 ### PICKUP mismatch at main a32cf74
 
+Current main adds [bounded client-side PICKUP diagnostics](OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation) to investigate this mismatch. Its 26.3 build passes; source review is CLEAN and exact-jar replay remains pending. Strict receipts remain unchanged.
+
 The [saved-world replay](OWNED-PREVIEW-CHECKPOINT.md#saved-world-stone-progress-and-pickup-pause-at-a32cf74) advances from stone gathering to stone-pickaxe crafting, then fails before drag. The first PICKUP expects an empty source and cursor three. The coherent full reply has an empty watched source/grid and cursor four, with full and live revisions both three. Exact validation pauses the preserved open transaction with no accepted pickup, so no DRAG, PLACE, or RETURN is authorized. This is separate from the older hybrid full/partial receipt failure. The pre-drag exception requires a confirmed pickup and cannot apply here.
 
 The read-only diagnosis `/tmp/lodekeeper-main-a32-inventory-rejection-diagnosis.md` finds no proof of server refusal. A server source already grown to four followed by successful whole-stack pickup is plausible. Late pickup timing, authoritative source growth, component equality, and packet attribution remain unproved. Saved endpoints do not prove packet order. The shallow patch does not change receipt code. Strict count, component, identity, send, sequence, and revision checks remain in force.
