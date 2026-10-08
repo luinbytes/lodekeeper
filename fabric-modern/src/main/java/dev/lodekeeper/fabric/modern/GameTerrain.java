@@ -18,6 +18,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.world.level.material.Fluids;
 
 import java.util.Arrays;
 
@@ -733,6 +735,64 @@ final class GameTerrain implements Terrain {
                     && (!tool.isDamageableItem() || tool.getMaxDamage() - tool.getDamageValue() > 2)) return true;
         }
         return false;
+    }
+
+    boolean shallowWaterPreparationSafe(int sourceY) {
+        if (client.level == null || client.player == null || client.player.getPose() != Pose.STANDING) return false;
+        var player = client.player;
+        double feetY = player.getY();
+        AABB box = player.getBoundingBox();
+        AABB standing = player.getDimensions(Pose.STANDING).makeBoundingBox(player.position());
+        double eyeHeight = player.getEyeHeight(Pose.STANDING);
+        double eyeY = player.getEyePosition().y;
+        double settledEyeY = eyeY + (sourceY - feetY);
+        AABB sweep = box.minmax(box.move(0.0, sourceY - feetY, 0.0));
+        if (!Double.isFinite(feetY) || feetY < sourceY || feetY >= sourceY + 1.0
+                || !box.equals(standing) || !Double.isFinite(box.minX) || !Double.isFinite(box.maxX)
+                || !Double.isFinite(box.minZ) || !Double.isFinite(box.maxZ) || !Double.isFinite(box.maxY)
+                || box.maxX <= box.minX || box.maxZ <= box.minZ || box.maxY <= feetY
+                || box.maxX - box.minX > MAX_STANDING_WIDTH || box.maxZ - box.minZ > MAX_STANDING_WIDTH
+                || sweep.minY != sourceY || sweep.maxY > sourceY + 3.0 || Math.abs(box.minX) > 33_554_432.0
+                || Math.abs(box.maxX) > 33_554_432.0 || Math.abs(box.minZ) > 33_554_432.0
+                || Math.abs(box.maxZ) > 33_554_432.0 || !Double.isFinite(eyeHeight)
+                || !(eyeHeight > 1.0 && eyeHeight < 3.0) || !Double.isFinite(eyeY)
+                || !(eyeY >= box.minY && eyeY <= box.maxY)
+                || !(eyeY > sourceY + 1.0 && eyeY < sourceY + 3.0)
+                || !(settledEyeY > sourceY + 1.0 && settledEyeY < sourceY + 3.0)
+                || sourceY - 1 < client.level.getMinY() || sourceY + 2 >= client.level.getMaxY()) return false;
+        int minX = (int) Math.floor(box.minX), maxX = (int) Math.floor(Math.nextDown(box.maxX));
+        int minZ = (int) Math.floor(box.minZ), maxZ = (int) Math.floor(Math.nextDown(box.maxZ));
+        // Match BlockCollisions' expanded cursor, which also covers native fluid-flow reads.
+        int haloMinX = (int) Math.floor(sweep.minX - 1.0e-7) - 1;
+        int haloMaxX = (int) Math.floor(sweep.maxX + 1.0e-7) + 1;
+        int haloMinZ = (int) Math.floor(sweep.minZ - 1.0e-7) - 1;
+        int haloMaxZ = (int) Math.floor(sweep.maxZ + 1.0e-7) + 1;
+        for (int cx = haloMinX >> 4; cx <= haloMaxX >> 4; cx++) for (int cz = haloMinZ >> 4; cz <= haloMaxZ >> 4; cz++) {
+            if (client.level.getChunk(cx, cz, ChunkStatus.FULL, false) == null) return false;
+        }
+        CollisionContext context = CollisionContext.of(player);
+        for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) {
+            BlockPos feet = new BlockPos(x, sourceY, z);
+            BlockState water = client.level.getBlockState(feet);
+            var fluid = water.getFluidState();
+            if (!water.is(Blocks.WATER) || fluid.getType() != Fluids.WATER || !fluid.isSource()
+                    || fluid.getValue(FlowingFluid.FALLING)
+                    || !water.getCollisionShape(client.level, feet, context).isEmpty()) return false;
+            Vec3 flow = fluid.getFlow(client.level, feet);
+            if (flow.x != 0.0 || flow.y != 0.0 || flow.z != 0.0) return false;
+            BlockPos floor = feet.below();
+            BlockState support = client.level.getBlockState(floor);
+            if (!support.getFluidState().isEmpty() || hazardous(support) || support.getBlock() instanceof FallingBlock
+                    || support.getBlock().hasDynamicShape() || support.is(BlockTags.CLIMBABLE)
+                    || !Block.isShapeFullBlock(support.getCollisionShape(client.level, floor, context))) return false;
+            for (int dy = 1; dy <= 2; dy++) {
+                BlockPos above = feet.above(dy);
+                BlockState air = client.level.getBlockState(above);
+                if (!air.isAir() || !air.getFluidState().isEmpty()
+                        || !air.getCollisionShape(client.level, above, context).isEmpty()) return false;
+            }
+        }
+        return client.level.noCollision(player, sweep);
     }
 
     double defenseHopMaxRise(double feetX, double feetY, double feetZ) {

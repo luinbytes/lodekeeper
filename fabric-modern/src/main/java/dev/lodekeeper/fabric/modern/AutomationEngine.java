@@ -2,6 +2,7 @@ package dev.lodekeeper.fabric.modern;
 
 import dev.lodekeeper.navigation.kernel.api.utils.Rotation;
 import dev.lodekeeper.navigation.kernel.pathing.movement.MovementState;
+import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 
 import dev.lodekeeper.core.AcquisitionPlanner;
 import dev.lodekeeper.core.CommandParser;
@@ -477,6 +478,18 @@ final class AutomationEngine {
     }
 
     boolean prepareAutomatedBreak(BlockPos position) { return movement.prepareAutomatedBreak(position); }
+    boolean maySettleWaterPreparation(Movement source, MovementState state, BlockPos block) {
+        if (paused || stopAfterStep || active == null || step == null || step.kind() != PlanKind.GATHER
+                || !moving || movingPickup || world != client.level || client.player == null || client.level == null
+                || editingSettings() || GameApi.screen(client) != null || pendingPlan != null
+                || airRecovery.active() || airRecovery.ready() || healthRecovery != null
+                || threats.active() || threats.ready() || equipment.active() || food.active() || foodAcquisition.active()
+                || openingStation || transactionInProgress() || crafting != null || stonecutting != null || smelting != null
+                || stationPlacementWait != null || cleanupRun != null || stationRecovery.active() || stationRoom.active()
+                || client.player.containerMenu != client.player.inventoryMenu
+                || !client.player.containerMenu.getCarried().isEmpty()) return false;
+        return movement.maySettleWaterPreparation(source, state, block);
+    }
     void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
                             net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
         movement.observeNativeBreak(gameMode, stage, start, value, position, face, target, progress, delay, destroying);
@@ -550,6 +563,12 @@ final class AutomationEngine {
             return;
         }
         if (active != null && !paused && !client.player.isAlive()) { pause("player is no longer alive"); return; }
+        if (!paused && !airRecovery.active() && !airRecovery.ready() && healthRecovery == null
+                && !threats.active() && !equipment.active() && !food.active() && !foodAcquisition.active()
+                && movement.yieldMineToManualInput()) {
+            pause("Mining yielded to player input");
+            return;
+        }
         if (!paused && (stationPlacementWait != null || cleanupRun != null) && manualStationInput()) {
             placementProvenance.manualTakeover();
             pause("Station placement or recovery yielded to player input");

@@ -36,9 +36,11 @@ Lodekeeper maps native smelting, smoking and blasting recipes to their exact fur
 
 ## Station choice and ownership
 
+The [shallow-water preparation candidate](OWNED-PREVIEW-CHECKPOINT.md#shallow-water-mining-preparation) has passed source review and the 26.3 build with 268 existing checks (265 cached, three rerun). Native verification is pending. Fresh Survival, primary retreat, and full station recovery remain open.
+
 Exact frozen `38b459e` [recomputed mining aim](OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) FAILS its 26.3 manual saved-world replay at stone 0/3 after 63,300 ms, with normal exit 0. All 42 original world files and the candidate jar remain unchanged. The captured east target `(12, 63, 17)` differs from baseline `f7eae44` south target `(11, 63, 18)`, so no direct timing or count improvement is claimed.
 
-The experiment shows no goal benefit. Its one source line is removed, and `/tmp/lodekeeper-main-mining-aim-removal.json` records production paths byte-identical to `f7eae44`. No rebuild or native rerun of removal is claimed. Candidate [CI 37740664748](https://github.com/luinbytes/lodekeeper/actions/runs/37740664748) passes all 24 compile, check, and package profiles; the native replay remains FAIL. The checkpoint records exact build and replay proof hashes and three remote 960-by-568 PNGs with recorded anonymous byte/hash read-back and logged-out decoding before six local copies are deleted. Fresh Survival, primary retreat, and complete station recovery remain open. Preview 11 stays at `88f2b52`.
+The experiment shows no goal benefit. Removal commit `2c47418` restored production paths byte-identical to `f7eae44`, as recorded in `/tmp/lodekeeper-main-mining-aim-removal.json`, before the shallow-water candidate. No local rebuild or native rerun of that removal is claimed; its [CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37742558092) passed all 24 profiles. Candidate [CI 37740664748](https://github.com/luinbytes/lodekeeper/actions/runs/37740664748) passes all 24 compile, check, and package profiles; the native replay remains FAIL. The checkpoint records exact build and replay proof hashes and three remote 960-by-568 PNGs with recorded anonymous byte/hash read-back and logged-out decoding before six local copies are deleted. Fresh Survival, primary retreat, and complete station recovery remain open. Preview 11 stays at `88f2b52`.
 
 ### Current station evidence at main 764146a
 

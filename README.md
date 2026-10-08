@@ -119,7 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The exact `38b459e` [recomputed-aim replay](docs/OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) FAILS at stone 0/3 after 63,300 ms, with normal exit 0. No goal benefit was shown. The experimental source line is removed, restoring production paths byte for byte to `f7eae44`. Removal has no rebuild or native rerun. The failed candidate passes all 24 [CI profiles](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-38b459e-ci.json).
+The current [shallow-water preparation candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#shallow-water-mining-preparation) has passed source review and the 26.3 build with 268 existing checks. Gameplay is pending. It aims to let owned mining settle over a proven shallow floor while preserving native swimming elsewhere.
+
+The exact `38b459e` [recomputed-aim replay](docs/OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) FAILS at stone 0/3 after 63,300 ms, with normal exit 0. No goal benefit was shown. Removal commit `2c47418` restored production paths byte for byte to `f7eae44` before the shallow-water candidate. That removal had no local rebuild or native rerun; its [CI run](https://github.com/luinbytes/lodekeeper/actions/runs/37742558092) passed all 24 profiles. The failed candidate passes all 24 [CI profiles](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-38b459e-ci.json).
 
 Frozen main `f7eae44` compiles on 26.3 and passes CLEAN source review. Both mining admission hooks emit native records in its saved-world replay. The command still FAILS at stone 0/3 after 62,772 ms, with normal exit 0. The [admission checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-mining-admission-observer) records exact build and trace proofs, four public screenshots, and observation limits. [Exact-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-f7eae44-ci.json) now passes all 24 profiles after retrying one dependency-download failure.
 

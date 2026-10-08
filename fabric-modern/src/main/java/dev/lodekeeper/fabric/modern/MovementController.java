@@ -14,6 +14,7 @@ import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPath;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPathFinder;
 import dev.lodekeeper.navigation.kernel.api.pathing.path.IPathExecutor;
 import dev.lodekeeper.navigation.kernel.api.pathing.movement.IMovement;
+import dev.lodekeeper.navigation.kernel.api.pathing.movement.MovementStatus;
 import dev.lodekeeper.navigation.kernel.api.utils.input.Input;
 import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 import dev.lodekeeper.navigation.kernel.pathing.movement.movements.MovementParkour;
@@ -277,6 +278,7 @@ final class MovementController {
     private boolean movementProgressAnchored, gatherDiagnosticsEligible;
     private final WaterBreakObserver waterBreak = new WaterBreakObserver();
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
+    private int shallowPreparationSamples;
     private boolean motionLogAnchorInitialized;
     private double motionLogAnchorX, motionLogAnchorZ;
     private int motionLogAnchorRequestTick, motionLogLastRequestTick, motionLogCount;
@@ -1111,6 +1113,7 @@ final class MovementController {
         retreatRequest = false;
         resetRetreatPrefix();
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
+        shallowPreparationSamples = 0;
         motionLogAnchorInitialized = false;
         motionLogAnchorX = motionLogAnchorZ = 0;
         motionLogAnchorRequestTick = motionLogLastRequestTick = motionLogCount = 0;
@@ -1624,6 +1627,101 @@ final class MovementController {
         var controlling = bot.getPathingControlManager().mostRecentInControl();
         return controlling.isPresent() && controlling.get() == expected
                 && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executeBreak(owner, position);
+    }
+
+    boolean maySettleWaterPreparation(Movement movement, MovementState state, BlockPos block) {
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (owner == null || !client.isSameThread() || !owner.isCurrent(session) || session.world() != client.level
+                || client.player == null || client.gameMode == null || bot == null || bot != owner.getPrimaryBaritone()
+                || bot.getPlayerContext().player() != client.player || bot.getPlayerContext().world() != client.level
+                || client.getCameraEntity() != client.player || !client.player.isAlive() || client.player.isRemoved()
+                || mode != Mode.MINE || resumeMode != Mode.IDLE || lease == null || !lease.isCurrent()
+                || cancelling || cancellationProcess != null || retreatRequest || defenseHop != null
+                || followCancellationPending || airRecoveryCancellationPending || defenseSettlingPending
+                || pendingBreakFailure != null || pendingOwnershipFailure != null || pendingRetreatPrefixFailure != null
+                || !config.allowBreaking || output == null || actions.count(output) >= targetCount
+                || tool != null && !actions.hasTool(tool) || defenseHopManualInput()
+                || GameApi.screen(client) != null || client.player.containerMenu != client.player.inventoryMenu
+                || !client.player.containerMenu.getCarried().isEmpty()
+                || !dev.lodekeeper.navigation.kernel.OwnedMutationGuard.safeEquipment(client.player)
+                || !(movement instanceof MovementAscend) || state == null || state.getStatus() != MovementStatus.PREPPING
+                || block == null || !Arrays.asList(movement.toBreakAll()).contains(block)) return false;
+        var expected = bot.getMineProcess();
+        var controlling = bot.getPathingControlManager().mostRecentInControl();
+        if (!expected.isActive() || hasForeignActiveProcess(bot, expected)
+                || controlling.isEmpty() || controlling.get() != expected) return false;
+        var executor = bot.getPathingBehavior().getCurrent();
+        if (executor == null) return false;
+        var path = executor.getPath();
+        int index = executor.getPosition();
+        if (path == null || index < 0 || index >= path.movements().size() || path.movements().get(index) != movement)
+            return false;
+        for (Input key : new Input[] {Input.MOVE_FORWARD, Input.MOVE_BACK, Input.MOVE_LEFT, Input.MOVE_RIGHT,
+                Input.SNEAK, Input.SPRINT, Input.JUMP, Input.CLICK_RIGHT})
+            if (Boolean.TRUE.equals(state.getInputStates().get(key))) return false;
+        var player = client.player;
+        var velocity = player.getDeltaMovement();
+        if (player.isPassenger() || player.isSwimming() || player.isCrouching() || player.getAbilities().flying
+                || player.isFallFlying() || player.onClimbable() || player.isInWall() || player.horizontalCollision
+                || velocity.x != 0.0 || velocity.z != 0.0 || !Double.isFinite(velocity.y)
+                || player.isUnderWater() || player.getAirSupply() <= player.getMaxAirSupply() * 2 / 3
+                || !(player.getHealth() > config.pauseBelowHealth)) return false;
+        if (!client.level.hasChunkAt(block)) return false;
+        BlockState target = client.level.getBlockState(block);
+        if (target.isAir() || target.hasBlockEntity() || target.getBlock().hasDynamicShape() || protectedBlocks.contains(target.getBlock())
+                || OwnedKernelAPI.getSettings().blocksToDisallowBreaking.value.contains(target.getBlock())
+                || target.getDestroySpeed(client.level, block) < 0
+                || target.getCollisionShape(client.level, block, net.minecraft.world.phys.shapes.CollisionContext.of(player)).isEmpty()
+                || !dev.lodekeeper.navigation.kernel.OwnedMutationGuard.executeBreak(owner, block)) return false;
+        if (!terrain.shallowWaterPreparationSafe(movement.getSrc().getY())) return false;
+        observeShallowPreparation(movement, block);
+        return true;
+    }
+
+    private void observeShallowPreparation(Movement movement, BlockPos block) {
+        try {
+            if (!config.debugLogging || shallowPreparationSamples >= 16) return;
+            shallowPreparationSamples++;
+            var player = client.player;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] SHALLOW_PREPARATION sample={} requestNanos={} requestTick={} src={} dest={} target={} decision=OMIT_AUTOMATIC_JUMP onGround={} y={} eye={} settledEyeY={} bbox={} velocity={} air={} health={} flowProof=ALL_FOOTPRINT_SOURCE_ZERO floorProof=FULL_STABLE sweepProof=CLEAR_LOADED_HALO",
+                    shallowPreparationSamples, startedNanos, requestTicks, movement.getSrc(), movement.getDest(), block,
+                    player.onGround(), player.getY(), player.getEyePosition(),
+                    player.getEyePosition().y + (movement.getSrc().getY() - player.getY()),
+                    player.getBoundingBox(), player.getDeltaMovement(), player.getAirSupply(), player.getHealth());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    boolean yieldMineToManualInput() {
+        if (mode != Mode.MINE || !defenseHopManualInput()) return false;
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (owner == null || !client.isSameThread() || !owner.isCurrent(session) || session.world() != client.level
+                || client.player == null || bot == null || bot != owner.getPrimaryBaritone()
+                || bot.getPlayerContext().player() != client.player || bot.getPlayerContext().world() != client.level
+                || lease == null || cancelling || cancellationProcess != null || pendingOwnershipFailure != null)
+            return false;
+        var expected = bot.getMineProcess();
+        var controlling = bot.getPathingControlManager().mostRecentInControl();
+        if (!expected.isActive() || hasForeignActiveProcess(bot, expected)
+                || controlling.isPresent() && controlling.get() != expected) return false;
+        suspend();
+        if (!owner.isCurrent(session) || owner.getPrimaryBaritone() != bot
+                || hasForeignActiveProcess(bot, expected))
+            throw new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST, "Mining owner changed during manual yield");
+        var pathing = bot.getPathingBehavior();
+        pathing.forceCancel();
+        ((dev.lodekeeper.navigation.kernel.Baritone) bot).getInputOverrideHandler().restoreOwnedInput();
+        if (expected.isActive() || pathing.getCurrent() != null || pathing.getNext() != null
+                || pathing.isPathing() || pathing.getInProgress().isPresent()
+                || client.player.input instanceof dev.lodekeeper.navigation.kernel.utils.PlayerMovementInput)
+            throw new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST, "Mining manual yield did not drain native work");
+        for (Input key : Input.values()) if (bot.getInputOverrideHandler().isInputForcedDown(key))
+            throw new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST, "Mining manual yield left forced input");
+        finishCancellation();
+        return true;
     }
 
     boolean backfillInputClear() { return !defenseHopManualInput(); }
@@ -2655,6 +2753,9 @@ final class MovementController {
         }
         @SuppressWarnings("unchecked") <T> T original(Settings.Setting<T> setting) {
             return (T) originals.getOrDefault(setting, setting.value);
+        }
+        boolean isCurrent() {
+            return assigned.entrySet().stream().allMatch(entry -> Objects.equals(entry.getKey().value, entry.getValue()));
         }
         void restore() { originals.forEach((setting, value) -> restoreOne(setting, value)); }
         @SuppressWarnings("unchecked") private <T> void restoreOne(Settings.Setting<T> setting, Object value) {

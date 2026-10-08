@@ -2,6 +2,7 @@ package dev.lodekeeper.fabric.modern;
 
 import dev.lodekeeper.navigation.kernel.api.utils.Rotation;
 import dev.lodekeeper.navigation.kernel.pathing.movement.MovementState;
+import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 
 import dev.lodekeeper.core.CommandParser;
 import net.fabricmc.api.ClientModInitializer;
@@ -48,6 +49,10 @@ public final class LodekeeperClient implements ClientModInitializer {
 
     public static boolean prepareAutomatedBreak(BlockPos position) {
         return engine == null || engine.prepareAutomatedBreak(position);
+    }
+
+    public static boolean maySettleWaterPreparation(Movement movement, MovementState state, BlockPos block) {
+        return engine != null && engine.maySettleWaterPreparation(movement, state, block);
     }
 
     public static void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
