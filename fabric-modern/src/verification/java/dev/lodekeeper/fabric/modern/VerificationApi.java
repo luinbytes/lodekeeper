@@ -817,7 +817,7 @@ final class VerificationApi {
         PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
         fixture.contact = new ContactThreatObservation(second);
         if ("true".equals(System.getProperty("lodekeeper.verify.threatContactLowHealth")))
-            fixture.contact.lowHealth = new ContactLowHealthObservation(player);
+            fixture.contact.lowHealth = new ContactLowHealthObservation(player, world);
         java.util.function.BiConsumer<net.minecraft.world.entity.LivingEntity, net.minecraft.world.damagesource.DamageSource> confirmSwordDamage = (entity, source) -> {
             ContactThreatObservation contact = fixture.contact;
             observeContactLowHealthDamage(fixture, entity, source);
@@ -914,6 +914,8 @@ final class VerificationApi {
         contact.lastPlayerHealth = player.getHealth();
     }
 
+    static final int CONTACT_LOW_HEALTH_RELEASE = 3;
+
     private record ContactLowHealthMarker(java.util.UUID session, java.util.UUID fixture, int stage)
             implements net.minecraft.network.protocol.common.custom.CustomPacketPayload {
         private static final Type<ContactLowHealthMarker> ID = new Type<>(Identifier.fromNamespaceAndPath("lodekeeper-verification", "contact_low_health"));
@@ -933,44 +935,87 @@ final class VerificationApi {
             java.util.function.Supplier<java.util.UUID> originalPlayerId,
             java.util.function.IntConsumer observeAttackAttempt) {
         java.util.UUID session = java.util.UUID.randomUUID();
-        int[] stage0DiagnosticRecords = {0};
-        java.util.function.Consumer<String> stage0Diagnostic = message -> {
-            if (stage0DiagnosticRecords[0] < 32) System.out.println("[Lodekeeper verification] low-health stage0 record="
-                    + (++stage0DiagnosticRecords[0]) + "/32 " + message);
+        int[] markerDiagnosticRecords = {0};
+        java.util.function.Consumer<String> markerDiagnostic = message -> {
+            if (markerDiagnosticRecords[0] < 32) System.out.println("[Lodekeeper verification] low-health marker record="
+                    + (++markerDiagnosticRecords[0]) + "/32 " + message);
         };
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(ContactLowHealthMarker.ID, ContactLowHealthMarker.CODEC);
         boolean registered = net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(ContactLowHealthMarker.ID, (marker, context) -> {
             PreparedSafetyThreatFixture fixture = currentFixture.get();
             ServerPlayer player = context.player();
-            if (!session.equals(marker.session()) || fixture == null || fixture.contact == null
+            java.util.UUID expectedPlayer = originalPlayerId.get();
+            if (!session.equals(marker.session()) || player == null || fixture == null || fixture.contact == null
                     || fixture.contact.lowHealth == null || !fixture.zombie.getUUID().equals(marker.fixture())
-                    || !player.getUUID().equals(originalPlayerId.get())) {
-                if (marker.stage() == 0) {
-                    java.util.UUID expectedPlayer = originalPlayerId.get();
-                    stage0Diagnostic.accept("event=identity-rejected session=" + marker.session() + " expectedSession=" + session
-                        + " fixture=" + marker.fixture() + " currentFixture=" + (fixture == null || fixture.zombie == null ? "unknown" : fixture.zombie.getUUID())
-                        + " contactPresent=" + (fixture != null && fixture.contact != null)
-                        + " lowHealthPresent=" + (fixture != null && fixture.contact != null && fixture.contact.lowHealth != null)
-                        + " player=" + (player == null ? "unknown" : player.getUUID()) + " originalPlayer=" + (expectedPlayer == null ? "unknown" : expectedPlayer)
-                        + " originalPlayerMatch=" + (player == null || expectedPlayer == null ? "unknown" : player.getUUID().equals(expectedPlayer))
-                        + " serverTick=" + (player == null || player.level().getServer() == null ? "unknown" : player.level().getServer().getTickCount())
-                        + " health=" + (player == null ? "unknown" : player.getHealth()) + " onGround=" + (player == null ? "unknown" : player.onGround()));
-                }
+                    || !player.getUUID().equals(expectedPlayer)) {
+                markerDiagnostic.accept("event=identity-rejected stage=" + marker.stage() + " session=" + marker.session() + " expectedSession=" + session
+                    + " fixture=" + marker.fixture() + " currentFixture=" + (fixture == null || fixture.zombie == null ? "unknown" : fixture.zombie.getUUID())
+                    + " contactPresent=" + (fixture != null && fixture.contact != null)
+                    + " lowHealthPresent=" + (fixture != null && fixture.contact != null && fixture.contact.lowHealth != null)
+                    + " player=" + (player == null ? "unknown" : player.getUUID()) + " originalPlayer=" + (expectedPlayer == null ? "unknown" : expectedPlayer)
+                    + " originalPlayerMatch=" + (player == null || expectedPlayer == null ? "unknown" : player.getUUID().equals(expectedPlayer))
+                    + " serverTick=" + (player == null || player.level().getServer() == null ? "unknown" : player.level().getServer().getTickCount())
+                    + " health=" + (player == null ? "unknown" : player.getHealth()) + " onGround=" + (player == null ? "unknown" : player.onGround()));
                 return;
             }
             ContactLowHealthObservation low = fixture.contact.lowHealth;
-            if (marker.stage() == 0) stage0Diagnostic.accept("event=identity-accepted session=" + marker.session()
+            if (marker.stage() == 0 || marker.stage() == CONTACT_LOW_HEALTH_RELEASE) markerDiagnostic.accept("event=identity-accepted stage=" + marker.stage() + " session=" + marker.session()
                 + " fixture=" + fixture.zombie.getUUID() + " player=" + player.getUUID() + " originalPlayerMatch=true"
                 + " ownerMatch=" + (low.owner == player) + " connectionMatch=" + (low.connection == null || player.connection == null ? "unknown" : low.connection == player.connection)
+                + " fixtureIdentity=" + System.identityHashCode(fixture) + " connectionIdentity=" + System.identityHashCode(player.connection)
+                + " originalWorldIdentity=" + System.identityHashCode(low.world) + " playerWorldIdentity=" + System.identityHashCode(player.level())
                 + " serverTick=" + (player.level().getServer() == null ? "unknown" : player.level().getServer().getTickCount())
                 + " health=" + player.getHealth() + " onGround=" + player.onGround());
-            if (low.owner != player || low.connection != player.connection) {
-                low.failure = "low-health marker original player or connection changed";
+            if (!low.failure.isEmpty()) {
+                markerDiagnostic.accept("event=prior-failure-rejected stage=" + marker.stage() + " fixture=" + marker.fixture() + " failure=" + low.failure);
+                return;
+            }
+            if (low.owner != player || low.connection == null || low.connection != player.connection
+                    || low.world == null || player.level() != low.world || fixture.zombie.level() != low.world
+                    || fixture.contact.second.level() != low.world || fixture.cow.level() != low.world) {
+                low.failure = "low-health marker original player, connection or fixture world changed";
+                markerDiagnostic.accept("event=context-rejected stage=" + marker.stage() + " fixture=" + marker.fixture() + " failure=" + low.failure);
+                return;
+            }
+            if (marker.stage() != CONTACT_LOW_HEALTH_RELEASE && marker.stage() != 0 && marker.stage() != 1 && marker.stage() != 2) {
+                low.failure = "invalid low-health marker stage";
+                markerDiagnostic.accept("event=stage-rejected stage=" + marker.stage() + " fixture=" + marker.fixture());
                 return;
             }
             int serverTick = player.level().getServer().getTickCount();
-            if (marker.stage() == 0) {
-                stage0Diagnostic.accept("event=mutation-gate serverTick=" + serverTick + " duplicate=" + (low.mutationTick >= 0)
+            if (marker.stage() == CONTACT_LOW_HEALTH_RELEASE) {
+                ContactThreatObservation contact = fixture.contact;
+                var clock = low.world.getServer().tickRateManager();
+                boolean admitted = clock.isFrozen() && !contact.observing && contact.releaseServerTick == -1
+                    && low.mutationTick == -1 && low.fenceTick == -1 && low.pauseFenceTick == -1
+                    && low.landingTick == -1 && player.onGround();
+                String identity = " stage=" + marker.stage() + " session=" + marker.session() + " fixture=" + marker.fixture()
+                    + " fixtureIdentity=" + System.identityHashCode(fixture) + " player=" + player.getUUID()
+                    + " playerIdentity=" + System.identityHashCode(player) + " connectionIdentity=" + System.identityHashCode(low.connection)
+                    + " world=" + low.world.dimension().identifier() + " worldIdentity=" + System.identityHashCode(low.world)
+                    + " playerWorldIdentity=" + System.identityHashCode(player.level());
+                markerDiagnostic.accept("event=release-before" + identity + " serverTick=" + serverTick
+                    + " frozen=" + clock.isFrozen() + " observing=" + contact.observing + " releaseTick=" + contact.releaseServerTick
+                    + " mutationTick=" + low.mutationTick + " fenceTick=" + low.fenceTick + " pauseFenceTick=" + low.pauseFenceTick
+                    + " failure=" + low.failure + " onGround=" + player.onGround() + " admitted=" + admitted);
+                if (!admitted) {
+                    low.failure = "low-health release requires the original grounded frozen unreleased fixture";
+                    markerDiagnostic.accept("event=release-rejected" + identity + " failure=" + low.failure);
+                    return;
+                }
+                try {
+                    releasePreparedSafetyThreatClock(fixture, player);
+                    if (!contact.observing || clock.isFrozen() || contact.releaseServerTick != serverTick)
+                        low.failure = "low-health release state read-back failed";
+                } catch (RuntimeException exception) {
+                    low.failure = "low-health release failed: " + exception.getClass().getSimpleName();
+                }
+                markerDiagnostic.accept("event=release-after" + identity + " serverTick=" + low.world.getServer().getTickCount()
+                    + " frozen=" + clock.isFrozen() + " observing=" + contact.observing + " releaseTick=" + contact.releaseServerTick
+                    + " mutationTick=" + low.mutationTick + " fenceTick=" + low.fenceTick + " pauseFenceTick=" + low.pauseFenceTick
+                    + " failure=" + low.failure + " onGround=" + player.onGround() + " admitted=" + low.failure.isEmpty());
+            } else if (marker.stage() == 0) {
+                markerDiagnostic.accept("event=mutation-gate serverTick=" + serverTick + " duplicate=" + (low.mutationTick >= 0)
                     + " observing=" + fixture.contact.observing + " onGround=" + player.onGround() + " health=" + player.getHealth()
                     + " admitted=" + (low.mutationTick < 0 && fixture.contact.observing && !player.onGround()));
                 if (low.mutationTick >= 0 || !fixture.contact.observing || player.onGround()) {
@@ -979,13 +1024,13 @@ final class VerificationApi {
                 }
                 low.healthBefore = player.getHealth();
                 low.mutationDamageEvents = low.confirmedDamageEvents;
-                stage0Diagnostic.accept("event=setter-before serverTick=" + player.level().getServer().getTickCount()
+                markerDiagnostic.accept("event=setter-before serverTick=" + player.level().getServer().getTickCount()
                     + " health=" + player.getHealth() + " onGround=" + player.onGround());
                 player.setHealth(6.0F);
                 low.healthAfter = player.getHealth();
                 low.mutationTick = serverTick;
                 fixture.contact.lastPlayerHealth = player.getHealth();
-                stage0Diagnostic.accept("event=mutation-complete serverTick=" + player.level().getServer().getTickCount()
+                markerDiagnostic.accept("event=mutation-complete serverTick=" + player.level().getServer().getTickCount()
                     + " health=" + player.getHealth() + " onGround=" + player.onGround() + " mutationTick=" + low.mutationTick);
             } else if (marker.stage() == 1) {
                 if (low.mutationTick < 0 || low.fenceTick >= 0 || player.onGround() || player.getHealth() > 6.0F) {
@@ -1001,7 +1046,7 @@ final class VerificationApi {
                 }
                 low.pauseFenceTick = serverTick;
                 low.pauseFenceDamageEvents = low.confirmedDamageEvents;
-            } else low.failure = "invalid low-health marker stage";
+            }
         });
         if (!registered) throw new IllegalStateException("low-health marker receiver already registered");
         class ClientObservation implements java.util.function.IntConsumer {
@@ -1011,19 +1056,23 @@ final class VerificationApi {
             private boolean onset;
 
             private boolean sameContext(PreparedSafetyThreatFixture fixture, net.minecraft.client.Minecraft client) {
-                return fixture == originalFixture && fixture != null && fixtureId.equals(fixture.zombie.getUUID())
+                return originalFixture != null && fixture == originalFixture && fixtureId.equals(fixture.zombie.getUUID())
                     && client.player == player && client.getConnection() == connection && client.level == world
                     && client.player != null && client.player.getUUID().equals(originalPlayerId.get());
             }
 
             @Override public void accept(int stage) {
+                if (stage != CONTACT_LOW_HEALTH_RELEASE && stage != 0 && stage != 1 && stage != 2)
+                    throw new IllegalArgumentException("invalid low-health marker stage");
                 PreparedSafetyThreatFixture fixture = currentFixture.get();
                 net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
                 if (fixture == null || fixture.contact == null || fixture.contact.lowHealth == null
-                        || client.player == null || !client.player.getUUID().equals(originalPlayerId.get())
+                        || client.player == null || client.getConnection() == null || client.level == null
+                        || !client.player.getUUID().equals(originalPlayerId.get())
                         || !net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(ContactLowHealthMarker.ID))
                     throw new IllegalStateException("low-health marker transport unavailable for current fixture");
-                if (stage == 0 && originalFixture == null) {
+                if (stage == CONTACT_LOW_HEALTH_RELEASE) {
+                    if (originalFixture != null) throw new IllegalStateException("low-health release was repeated");
                     originalFixture = fixture;
                     fixtureId = fixture.zombie.getUUID();
                     player = client.player;
@@ -1052,12 +1101,17 @@ final class VerificationApi {
     private static final class ContactLowHealthObservation {
         private final ServerPlayer owner;
         private final Object connection;
+        private final ServerLevel world;
         private final ContactSwordAttempt[] pending = new ContactSwordAttempt[3];
         private int mutationTick = -1, fenceTick = -1, landingTick = -1, pauseFenceTick = -1;
         private int confirmedDamageEvents, mutationDamageEvents = -1, fenceDamageEvents = -1, pauseFenceDamageEvents = -1;
         private float healthBefore = Float.NaN, healthAfter = Float.NaN;
         private String failure = "";
-        private ContactLowHealthObservation(ServerPlayer owner) { this.owner = owner; this.connection = owner.connection; }
+        private ContactLowHealthObservation(ServerPlayer owner, ServerLevel world) {
+            this.owner = owner;
+            this.connection = owner.connection;
+            this.world = world;
+        }
     }
 
     private static void observeContactLowHealthDamage(PreparedSafetyThreatFixture fixture, net.minecraft.world.entity.LivingEntity entity, net.minecraft.world.damagesource.DamageSource source) {
@@ -1069,7 +1123,7 @@ final class VerificationApi {
         low.pending[index] = null;
         if (attempt != null && attempt.source() == source && entity.getHealth() < attempt.healthBefore()) {
             low.confirmedDamageEvents++;
-            if (low.fenceTick >= 0) low.failure = "native player damage confirmed after client-observed low-health onset";
+            if (low.fenceTick >= 0 && low.failure.isEmpty()) low.failure = "native player damage confirmed after client-observed low-health onset";
         }
     }
 

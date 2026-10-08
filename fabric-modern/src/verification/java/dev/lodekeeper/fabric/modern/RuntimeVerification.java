@@ -2996,7 +2996,10 @@ public final class RuntimeVerification implements ClientModInitializer {
         sendCommand("!lk get bucket 1");
         if (THREAT_CONTACT_MODE) {
             contactOriginalInput = client.player.input;
-            releasePreparedThreatFixtureClock();
+            if (CONTACT_LOW_HEALTH_MODE) {
+                // Keep release ahead of later hop markers on the same native connection.
+                contactLowHealthTransport.accept(VerificationApi.CONTACT_LOW_HEALTH_RELEASE);
+            } else releasePreparedThreatFixtureClock();
         }
     }
 
