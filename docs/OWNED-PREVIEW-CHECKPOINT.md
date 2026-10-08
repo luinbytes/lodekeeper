@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+Main adds bounded retreat-prefix rejection diagnostics in both adapters. The existing immutable hazard value now retains UUID/type; a private check-site label distinguishes initial and live rejection. Debug-only records identify the exact checked path, segment, hazard, and up to sixteen requested goal cells before cancellation. No hazard predicate, search/response bound, or cancellation order changes. Both exact primary builds pass 316 existing checks. Independent source review is CLEAN. Fresh native runs and exact-source CI are pending for this unit.
+
 Exact production source `1f85aa2b5e6df36afd0b60583d1cf739eb73ae9f` includes the four-file low-health retreat change on `7395f59`. The build receipt records matching reviewed, compiled, and committed source hashes, clean source at freeze, and the same pushed main hash. Independent source review is CLEAN. Sequential primary builds pass 316 checks, split into 167 core, 98 navigation, 48 primary adapter, and three modern adapter checks. Core and navigation retain Java 17 class version 61. These frozen main jars retain internal `0.1.0-preview.11` metadata and are separate from released `88f2b52` artifacts.
 
 | Minecraft | Frozen 1f85aa2 jar SHA-256 |
@@ -13,7 +15,7 @@ Exact production source `1f85aa2b5e6df36afd0b60583d1cf739eb73ae9f` includes the 
 | 1.21.1 | `65bc1c9d94c9f6fc51c2180db4e39c3981a60f1efbde2c508ba44aa4063b4a0c` |
 | 26.3 | `e831d47b8ce879dbbc9611b0ef42a14c97cbf6b12dd01d692f379d014165ea96` |
 
-The R2 verifier build records documentation checkout HEAD `3c9819e55cb2e6ca83d8e657ee8b01ed812e926e`. Production source remains `1f85aa2`; no production edits follow it. R2 verifier compilation and native comparisons are separate from the earlier 316 production checks and 24 CI profiles.
+The R2 verifier build records documentation checkout HEAD `3c9819e55cb2e6ca83d8e657ee8b01ed812e926e`. Production source in that comparison remains `1f85aa2`; later retreat-prefix diagnostics are absent from its frozen jars. R2 verifier compilation and native comparisons are separate from the earlier 316 production checks and 24 CI profiles.
 
 The following immutable public proofs identify the local receipt bytes. Local paths differ from public asset names.
 

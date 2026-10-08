@@ -38,6 +38,8 @@ Lodekeeper maps native smelting, smoking and blasting recipes to their exact fur
 
 ### Current station evidence at main 1f85aa2
 
+Later main adds retreat-prefix diagnostics without changing station recovery. Both exact primary builds pass existing checks; fresh native runs are pending. The station results here remain specific to the frozen sources named below.
+
 Exact frozen [primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-primary.json) and [modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-modern.json) fresh Survival both FAIL before any diamond gear, after 295,741 and 257,932 ms. Each records three unique table recoveries, final health 20, zero deaths, an empty cursor, and eight paused goals. Neither requires strict station cleanup or observes repeated-air removal ordering. Recovery events do not establish complete station recovery.
 
 The unchanged [ordinary contact controls](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-contact.json) PASS on both versions. Supplied iron becomes one bucket after both zombies die from native player hits. Cow and shell remain intact; stations remain in the fixture. Empty cursors and idle stopped navigation establish command completion, with no strict cleanup requirement. Independent configuration/37-setting native binding leases also pass. The low-health latch is absent from those run logs.

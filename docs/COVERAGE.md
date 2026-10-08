@@ -4,6 +4,8 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 ## Latest main evidence
 
+Main adds debug-only `RETREAT_PREFIX_REJECT` records at existing rejection points. Guard arithmetic, hazard limits, and cancellation order are unchanged. Both exact primary builds pass existing checks; fresh native coverage for this diagnostic change is pending. Earlier results below retain their original source.
+
 Exact production source `1f85aa2` includes the low-health retreat latch. Both primary builds pass 316 checks, and [final exact-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-ci.json) passes all 24 profiles at run 37719676790. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) holds the frozen hashes and immutable proof receipts.
 
 Fresh [1.21.1](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-primary.json) and [26.3](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-modern.json) Normal Survival both FAIL, after 295,741 and 257,932 ms respectively. Both end with health 20, zero deaths, an empty cursor, eight paused foreground goals, and no diamond gear. Minimum health is 20 on primary and 16 on modern. Primary consumes four retreat starts through one arrival and three prefix rejections. The exact rejecting segments and mobs are unlogged. Modern visits all 1,212 columns, admits 47, then rejects all 235 sampled heights, including eleven water probes. Its final `OFFSETS_EXHAUSTED`/`EMPTY` outcome occurs before path launch, without a time or probe cutoff. Neither diagnosis justifies changing guards or bounds.

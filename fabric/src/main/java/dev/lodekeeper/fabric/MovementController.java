@@ -7,6 +7,7 @@ import dev.lodekeeper.navigation.kernel.api.event.events.PathEvent;
 import dev.lodekeeper.navigation.kernel.api.event.listener.AbstractGameEventListener;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPath;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPathFinder;
+import dev.lodekeeper.navigation.kernel.api.pathing.path.IPathExecutor;
 import dev.lodekeeper.navigation.kernel.api.pathing.movement.IMovement;
 import dev.lodekeeper.navigation.kernel.api.utils.input.Input;
 import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
@@ -35,6 +36,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.FallingBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
@@ -206,8 +208,10 @@ final class MovementController {
         }
     }
 
-    record RetreatThreat(double x, double y, double z, int clearance, double dangerRadius) { }
+    record RetreatThreat(double x, double y, double z, int clearance, double dangerRadius,
+                         UUID uuid, EntityType<?> type) { }
     enum RetreatPrefixStatus { WAITING, CLEAR, BLOCKED }
+    private enum RetreatPrefixCheckSite { INITIAL, LIVE }
     record RetreatPrefixRejection(BlockPos destination) { }
     record DefenseHop(double x, double y, double z, double maxRise) { }
 
@@ -785,14 +789,23 @@ final class MovementController {
     }
 
     RetreatPrefixStatus checkRetreatPrefix(List<RetreatThreat> threats) {
+        return checkRetreatPrefix(threats, RetreatPrefixCheckSite.LIVE);
+    }
+
+    private RetreatPrefixStatus checkRetreatPrefix(List<RetreatThreat> threats, RetreatPrefixCheckSite site) {
         if (!retreatRequest || mode != Mode.MOVE || bot == null) return RetreatPrefixStatus.WAITING;
         checkAirRecoveryOwnership();
         var current = bot.getPathingBehavior().getCurrent();
         if (current == null || current.getPath() == null) return RetreatPrefixStatus.WAITING;
-        var positions = current.getPath().positions();
+        var path = current.getPath();
+        var positions = path.positions();
         if (positions.isEmpty()) return RetreatPrefixStatus.WAITING;
         int index = current.getPosition();
-        if (index < 0 || index >= positions.size()) return RetreatPrefixStatus.BLOCKED;
+        if (index < 0 || index >= positions.size()) {
+            if (config.debugLogging) logRetreatPrefixRejection(site, "INVALID_INDEX", current, path, index, positions.size(),
+                    "player=" + client.player.getX() + "," + client.player.getY() + "," + client.player.getZ());
+            return RetreatPrefixStatus.BLOCKED;
+        }
 
         double startX = client.player.getX(), startY = client.player.getY(), startZ = client.player.getZ();
         double fromX = startX, fromY = startY, fromZ = startZ;
@@ -805,8 +818,26 @@ final class MovementController {
                 double segmentDistance = distanceToSegment(fromX, fromY, fromZ, toX, toY, toZ,
                         threat.x(), threat.y(), threat.z());
                 if (currentDistance < threat.dangerRadius()) {
-                    if (segmentDistance < currentDistance - .5) return RetreatPrefixStatus.BLOCKED;
+                    if (segmentDistance < currentDistance - .5) {
+                        if (config.debugLogging) logRetreatPrefixRejection(site, "APPROACH_WHILE_INSIDE", current, path, index, positions.size(),
+                                "player=" + startX + "," + startY + "," + startZ
+                                        + " from=" + fromX + "," + fromY + "," + fromZ + " to=" + toX + "," + toY + "," + toZ
+                                        + " nodeIndex=" + i + " segmentOrdinal=" + (checked + 1)
+                                        + " hazardUuid=" + threat.uuid() + " hazardType=" + net.minecraft.registry.Registries.ENTITY_TYPE.getId(threat.type())
+                                        + " hazard=" + threat.x() + "," + threat.y() + "," + threat.z()
+                                        + " dangerRadius=" + threat.dangerRadius() + " currentDistance=" + currentDistance
+                                        + " segmentDistance=" + segmentDistance + " hazardCount=" + threats.size());
+                        return RetreatPrefixStatus.BLOCKED;
+                    }
                 } else if (segmentDistance < threat.dangerRadius()) {
+                    if (config.debugLogging) logRetreatPrefixRejection(site, "ENTER_DANGER_RADIUS", current, path, index, positions.size(),
+                            "player=" + startX + "," + startY + "," + startZ
+                                    + " from=" + fromX + "," + fromY + "," + fromZ + " to=" + toX + "," + toY + "," + toZ
+                                    + " nodeIndex=" + i + " segmentOrdinal=" + (checked + 1)
+                                    + " hazardUuid=" + threat.uuid() + " hazardType=" + net.minecraft.registry.Registries.ENTITY_TYPE.getId(threat.type())
+                                    + " hazard=" + threat.x() + "," + threat.y() + "," + threat.z()
+                                    + " dangerRadius=" + threat.dangerRadius() + " currentDistance=" + currentDistance
+                                    + " segmentDistance=" + segmentDistance + " hazardCount=" + threats.size());
                     return RetreatPrefixStatus.BLOCKED;
                 }
             }
@@ -815,6 +846,29 @@ final class MovementController {
             fromZ = toZ;
         }
         return RetreatPrefixStatus.CLEAR;
+    }
+
+    private void logRetreatPrefixRejection(RetreatPrefixCheckSite site, String reason, IPathExecutor current,
+                                          IPath path, int index, int positionCount, String detail) {
+        var destination = path.getDest();
+        StringBuilder goals = new StringBuilder("[");
+        if (routeGoal instanceof GoalComposite composite) {
+            var requestedGoals = composite.goals();
+            for (int i = 0; i < requestedGoals.length && i < 16; i++) {
+                if (requestedGoals[i] instanceof GoalBlock goal) {
+                    if (goals.length() > 1) goals.append(';');
+                    goals.append(goal.x).append(',').append(goal.y).append(',').append(goal.z);
+                }
+            }
+        }
+        goals.append(']');
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] RETREAT_PREFIX_REJECT site={} reason={} executorIdentity={} pathIdentity={} pathIndex={} positionCount={} destination={},{},{} mode={} retreatRequest={} cancelling={} cancellationProcessIdentity={} leaseIdentity={} botIdentity={} processIdentity={} playerIdentity={} worldIdentity={} routeGoalIdentity={} requestTicks={} requestStartedNanos={} progressToken={} ownershipCheck=PASSED goals={} {}",
+                site, reason, System.identityHashCode(current), System.identityHashCode(path), index, positionCount,
+                destination.getX(), destination.getY(), destination.getZ(), mode, retreatRequest, cancelling,
+                System.identityHashCode(cancellationProcess), System.identityHashCode(lease), System.identityHashCode(bot),
+                System.identityHashCode(bot.getCustomGoalProcess()), System.identityHashCode(client.player),
+                System.identityHashCode(client.world), System.identityHashCode(routeGoal), requestTicks, startedNanos, progressToken, goals, detail);
     }
 
     void resetRetreatPrefix() {
@@ -848,7 +902,7 @@ final class MovementController {
     private void checkInitialRetreatPath() {
         if (!retreatRequest) return;
         try {
-            if (checkRetreatPrefix(retreatHazards) != RetreatPrefixStatus.BLOCKED) return;
+            if (checkRetreatPrefix(retreatHazards, RetreatPrefixCheckSite.INITIAL) != RetreatPrefixStatus.BLOCKED) return;
             BlockPos destination = retreatDestination();
             if (destination == null || routeGoal == null || !routeGoal.isInGoal(destination)) destination = null;
             stopForDefense();

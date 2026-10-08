@@ -26,7 +26,7 @@ final class ThreatResponseAction {
         int clearance() { return creeper ? 20 : 11; }
         double dangerRadius() { return creeper ? 6.0 : 3.5; }
         MovementController.RetreatThreat movementThreat() {
-            return new MovementController.RetreatThreat(x, y, z, clearance(), dangerRadius());
+            return new MovementController.RetreatThreat(x, y, z, clearance(), dangerRadius(), uuid, type);
         }
     }
     private record AttackChoice(Mob target, int slot, double damage, MovementController.DefenseHop hop) { }

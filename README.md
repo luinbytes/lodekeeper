@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+Main adds bounded retreat-prefix diagnostics. With debug logging enabled, rejected routes record the checked segment, captured hazard identity, path destination, and up to sixteen requested goal cells. Both exact primary builds pass existing checks. Fresh gameplay is pending; the results below retain their recorded source.
+
 Production source `1f85aa2` includes the low-health retreat latch, passes 316 build checks, and passes all 24 exact-source CI profiles. Both fresh Normal Survival runs FAIL with no diamond gear and eight paused goals. Primary exhausts four retreat starts after one arrival and three prefix rejections. Modern exhausts the sampled selector domain. Neither record justifies relaxing guards or bounds.
 
 The CLEAN R2 verifier compiles on both primary versions. Its [health-six comparison](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-low-health-r2.json) observes health 6 before the engine tick. Both frozen `7395f59` baselines attempt one native attack and fail as expected. Both `1f85aa2` candidates PASS with zero attempts, supported landing, full native cancellation, restored settings, and the same request retained through an explicit no-route pause. The bucket remains unfinished. This is prepared-fixture coverage.
