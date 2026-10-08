@@ -832,7 +832,8 @@ final class VerificationApi {
         player.getServer().getTickManager().setFrozen(true);
         boolean lowHealthMode = "true".equals(System.getProperty("lodekeeper.verify.threatContactLowHealth"));
         int passageTopY = lowHealthMode ? 66 : 65;
-        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
+        int shellTopY = lowHealthMode ? 76 : 68;
+        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= shellTopY; y++) {
             boolean passage = x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= passageTopY;
             world.setBlockState(new BlockPos(x, y, z), (passage ? Blocks.AIR : Blocks.BEDROCK).getDefaultState(), 3);
         }
@@ -862,7 +863,7 @@ final class VerificationApi {
             throw new IllegalStateException("could not spawn both full-health AI-enabled contact zombies and protected cow");
         }
         PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
-        fixture.contact = new ContactThreatObservation(second, passageTopY);
+        fixture.contact = new ContactThreatObservation(second, passageTopY, shellTopY);
         if (lowHealthMode)
             fixture.contact.lowHealth = new ContactLowHealthObservation(player);
         java.util.function.BiConsumer<net.minecraft.entity.LivingEntity, net.minecraft.entity.damage.DamageSource> confirmSwordDamage = (entity, source) -> {
@@ -1126,7 +1127,7 @@ final class VerificationApi {
     private static final class ContactThreatObservation {
         private ContactLowHealthObservation lowHealth;
         private final ZombieEntity second;
-        private final int passageTopY;
+        private final int passageTopY, shellTopY;
         private final float[] lastHealth = new float[]{20.0F, 20.0F};
         private final int[] playerHits = new int[2];
         private final ContactSwordAttempt[] pendingSwordDamage = new ContactSwordAttempt[2];
@@ -1140,9 +1141,10 @@ final class VerificationApi {
         private int releaseServerTick = -1;
         private boolean observing;
 
-        private ContactThreatObservation(ZombieEntity second, int passageTopY) {
+        private ContactThreatObservation(ZombieEntity second, int passageTopY, int shellTopY) {
             this.second = second;
             this.passageTopY = passageTopY;
+            this.shellTopY = shellTopY;
         }
     }
 
@@ -1171,7 +1173,7 @@ final class VerificationApi {
         }
         int changed = 0, shellCells = 0;
         var world = player.getWorld();
-        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
+        for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= contact.shellTopY; y++) {
             if (x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= contact.passageTopY) continue;
             shellCells++;
             if (!world.getBlockState(new BlockPos(x, y, z)).isOf(Blocks.BEDROCK)) changed++;
@@ -1179,6 +1181,7 @@ final class VerificationApi {
         ItemStack pickaxe = player.getInventory().getStack(1);
         result.put("ironPickaxeDamage", Integer.toString(pickaxe.isOf(Items.IRON_PICKAXE) ? pickaxe.getDamage() : -1));
         result.put("contactShellCells", Integer.toString(shellCells));
+        result.put("contactShellBounds", "-14..14,63.." + contact.shellTopY + ",-14..14");
         result.put("contactShellChangedCells", Integer.toString(changed));
         result.put("contactPassageBounds", "0..6,64.." + contact.passageTopY + ",0..1");
         result.put("contactClockFrozen", Boolean.toString(player.getServer().getTickManager().isFrozen()));
