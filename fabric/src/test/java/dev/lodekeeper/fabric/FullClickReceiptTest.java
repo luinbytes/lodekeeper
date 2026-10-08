@@ -15,6 +15,241 @@ final class FullClickReceiptTest {
     private static final List<Long> BEFORE = List.of(140L, 142L, 142L, 143L);
     private static final List<Long> FRESH = List.of(190L, 151L, 151L, 152L);
 
+    private static final List<Stack> DRAG_BEFORE = List.of(EMPTY, EMPTY, EMPTY, EMPTY, COBBLE, EMPTY);
+    private static final List<Stack> DRAG_FINAL = List.of(EMPTY, COBBLE, COBBLE, COBBLE, COBBLE, EMPTY);
+    private static final Stack DRAG_HELD = new Stack("cobblestone", "ordinary", 4);
+    private static final Stack DRAG_REMAINDER = new Stack("cobblestone", "ordinary", 2);
+    private static final List<Long> DRAG_BASELINE = List.of(140L, 142L, 142L, 143L, 144L, 145L);
+    private static final List<Long> DRAG_FRESH = List.of(190L, 151L, 151L, 152L, 153L, 154L);
+
+    @Test void confirmedPickupPreDragReplyWaitsThenExactFinalAccepts() {
+        FullClickReceipt<Stack> pickup = new FullClickReceipt<>(
+                reply(2, 5, 100, DRAG_BASELINE, DRAG_BEFORE, DRAG_HELD, 46), null, 0, Stack::equals, null);
+        pickup.applyFull(reply(3, 6, 150, DRAG_FRESH, DRAG_BEFORE, DRAG_HELD, 46),
+                DRAG_BEFORE, DRAG_HELD, 6, true, true, 0);
+        var acknowledged = pickup.observe(0);
+        pickup.requireLive(DRAG_BEFORE, DRAG_HELD, true, 0, false);
+        FullClickReceipt<Stack> drag = FullClickReceipt.forDrag(
+                reply(3, 6, 150, DRAG_FRESH, DRAG_FINAL, DRAG_REMAINDER, 46),
+                new FullClickReceipt.PreDragAcknowledgement<>(acknowledged.slots(), acknowledged.cursor()), Stack::equals);
+        List<Long> fresh = List.of(239L, 200L, 200L, 201L, 202L, 203L);
+        drag.applyFull(reply(4, 7, 240, fresh, DRAG_BEFORE, DRAG_HELD, 46),
+                DRAG_BEFORE, DRAG_HELD, 7, true, true, 100);
+
+        assertNull(drag.observe(100));
+        assertNull(drag.accepted());
+        assertNull(drag.failure());
+        assertFalse(drag.consumptionRequired());
+        assertFalse(drag.consumptionConfirmed());
+        drag.applyFull(reply(5, 8, 241, fresh, DRAG_FINAL, DRAG_REMAINDER, 46),
+                DRAG_FINAL, DRAG_REMAINDER, 8, true, true, 0);
+        var finalAck = drag.observe(0);
+        assertEquals(5, finalAck.sequence());
+        assertEquals(DRAG_FINAL, finalAck.slots());
+        assertEquals(DRAG_REMAINDER, finalAck.cursor());
+        assertFalse(drag.consumptionRequired());
+        assertTrue(drag.consumptionConfirmed());
+        assertNull(drag.carryConsumption());
+        assertDoesNotThrow(() -> drag.requireLive(DRAG_FINAL, DRAG_REMAINDER, true, 0, true));
+    }
+
+    @Test void repeatedPreDragRepliesNeverAcceptWithoutFinalContents() {
+        FullClickReceipt<Stack> receipt = dragging();
+        for (int observation = 0; observation < 40; observation++) {
+            receipt.applyFull(reply(4 + observation, 7 + observation, 191 + observation,
+                            DRAG_FRESH, DRAG_BEFORE, DRAG_HELD, 46),
+                    DRAG_BEFORE, DRAG_HELD, 7 + observation, true, true, 100);
+            assertNull(receipt.observe(100));
+            assertNull(receipt.accepted());
+            assertNull(receipt.failure());
+            assertFalse(receipt.consumptionRequired());
+            assertFalse(receipt.consumptionConfirmed());
+        }
+        assertNull(receipt.observe(100));
+        assertThrows(IllegalStateException.class, receipt::carryConsumption);
+    }
+
+    @Test void changedPreDragOrFinalEntriesAndCursorRejectPermanently() {
+        for (List<Stack> shape : List.of(DRAG_BEFORE, DRAG_FINAL)) {
+            Stack cursor = shape == DRAG_BEFORE ? DRAG_HELD : DRAG_REMAINDER;
+            for (int index = 0; index < shape.size(); index++) {
+                for (Stack changed : List.of(new Stack("cobblestone", "ordinary", 2),
+                        new Stack("cobblestone", "custom", 1), new Stack("stone", "ordinary", 1))) {
+                    List<Stack> slots = new ArrayList<>(shape);
+                    slots.set(index, changed);
+                    FullClickReceipt<Stack> receipt = dragging();
+                    applyDrag(receipt, slots, cursor);
+                    assertStickyDragRejection(receipt);
+                }
+            }
+            for (Stack changed : List.of(EMPTY, new Stack("cobblestone", "ordinary", cursor.count() + 1),
+                    new Stack("cobblestone", "custom", cursor.count()), new Stack("stone", "ordinary", cursor.count()),
+                    shape == DRAG_BEFORE ? DRAG_REMAINDER : DRAG_HELD)) {
+                FullClickReceipt<Stack> receipt = dragging();
+                applyDrag(receipt, shape, changed);
+                assertStickyDragRejection(receipt);
+            }
+        }
+    }
+
+    @Test void strictReceiptsRejectThePreDragShape() {
+        var expectation = dragExpectation();
+        List<Stack> consumed = new ArrayList<>(DRAG_FINAL);
+        consumed.set(1, EMPTY);
+        for (FullClickReceipt<Stack> receipt : List.of(
+                new FullClickReceipt<>(expectation, null, 0, Stack::equals, null),
+                new FullClickReceipt<>(expectation, consumed, 0, Stack::equals, null),
+                new FullClickReceipt<>(expectation, new FullClickReceipt.ConsumptionCarry<>(EMPTY, 0),
+                        Stack::equals, FullClickReceiptTest::sameSourceIncrease))) {
+            applyDrag(receipt, DRAG_BEFORE, DRAG_HELD);
+            assertStickyDragRejection(receipt);
+        }
+    }
+
+    @Test void preDragReplyAfterFinalAcknowledgementRejectsPermanently() {
+        FullClickReceipt<Stack> receipt = dragging();
+        applyDrag(receipt, DRAG_FINAL, DRAG_REMAINDER);
+        var acknowledged = receipt.observe(0);
+        receipt.applyFull(reply(5, 8, 240, DRAG_FRESH, DRAG_BEFORE, DRAG_HELD, 46),
+                DRAG_BEFORE, DRAG_HELD, 8, true, true, 0);
+
+        assertSame(acknowledged, receipt.accepted());
+        assertStickyDragRejection(receipt);
+        assertThrows(IllegalStateException.class,
+                () -> receipt.requireLive(DRAG_FINAL, DRAG_REMAINDER, true, 0, true));
+    }
+
+    @Test void stalePreDragAndFinalRepliesCannotConfirmTheDrag() {
+        for (List<Stack> shape : List.of(DRAG_BEFORE, DRAG_FINAL)) {
+            Stack cursor = shape == DRAG_BEFORE ? DRAG_HELD : DRAG_REMAINDER;
+            List<FullClickReceipt.Snapshot<Stack>> stale = new ArrayList<>(List.of(
+                    reply(3, 7, 191, DRAG_FRESH, shape, cursor, 46),
+                    reply(4, 6, 191, DRAG_FRESH, shape, cursor, 46),
+                    reply(4, 7, 150, DRAG_FRESH, shape, cursor, 46)));
+            for (int index = 0; index < DRAG_BASELINE.size(); index++) {
+                List<Long> sequences = new ArrayList<>(DRAG_FRESH);
+                sequences.set(index, DRAG_BASELINE.get(index));
+                stale.add(reply(4, 7, 191, sequences, shape, cursor, 46));
+            }
+            stale.add(reply(4, 7, 191, DRAG_FRESH.subList(0, 5), shape.subList(0, 5), cursor, 46));
+            for (var staleReply : stale) {
+                FullClickReceipt<Stack> receipt = dragging();
+                receipt.applyFull(staleReply, shape, cursor, staleReply.revision(), true, true, 0);
+                assertNull(receipt.observe(0));
+                assertNull(receipt.failure());
+                applyDrag(receipt, DRAG_FINAL, DRAG_REMAINDER);
+                assertEquals(DRAG_FINAL, receipt.observe(0).slots());
+            }
+        }
+    }
+
+    @Test void preDragAndFinalRepliesCannotBypassContextSendSizeRevisionOrLiveEquality() {
+        for (List<Stack> shape : List.of(DRAG_BEFORE, DRAG_FINAL)) {
+            Stack cursor = shape == DRAG_BEFORE ? DRAG_HELD : DRAG_REMAINDER;
+            for (int invalid = 0; invalid < 7; invalid++) {
+                FullClickReceipt<Stack> receipt = dragging();
+                int revision = invalid == 3 ? -1 : 7;
+                receipt.applyFull(reply(4, revision, 191, DRAG_FRESH, shape, cursor, invalid == 2 ? 45 : 46),
+                        invalid == 6 ? shape.subList(0, 5) : shape,
+                        invalid == 5 ? new Stack("cobblestone", "custom", cursor.count()) : cursor,
+                        invalid == 4 ? 8 : revision, invalid != 0, invalid != 1, 100);
+                assertStickyDragRejection(receipt);
+            }
+            for (int index = 0; index < shape.size(); index++) {
+                List<Stack> live = new ArrayList<>(shape);
+                live.set(index, new Stack("cobblestone", "custom", 1));
+                FullClickReceipt<Stack> receipt = dragging();
+                receipt.applyFull(reply(4, 7, 191, DRAG_FRESH, shape, cursor, 46),
+                        live, cursor, 7, true, true, 0);
+                assertStickyDragRejection(receipt);
+            }
+        }
+    }
+
+    @Test void dragAcknowledgementDoesNotPermitConsumptionOrSourceGrowth() {
+        for (boolean sourceGrowth : new boolean[]{false, true}) for (boolean laterFull : new boolean[]{false, true}) {
+            FullClickReceipt<Stack> receipt = dragging();
+            applyDrag(receipt, DRAG_FINAL, DRAG_REMAINDER);
+            var acknowledged = receipt.observe(0);
+            List<Stack> changed = new ArrayList<>(DRAG_FINAL);
+            changed.set(sourceGrowth ? 0 : 1, sourceGrowth ? COBBLE : EMPTY);
+            if (laterFull) receipt.applyFull(reply(5, 8, 240, DRAG_FRESH, changed, DRAG_REMAINDER, 46),
+                    changed, DRAG_REMAINDER, 8, true, true, 100);
+            assertThrows(IllegalStateException.class,
+                    () -> receipt.requireLive(changed, DRAG_REMAINDER, true, 100, true));
+            assertSame(acknowledged, receipt.accepted());
+            assertStickyDragRejection(receipt);
+        }
+    }
+
+    @Test void dragFactoryRequiresBoundedEqualEntryCountsAndDistinctContents() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new FullClickReceipt.PreDragAcknowledgement<>(List.of(), DRAG_HELD));
+        assertThrows(IllegalArgumentException.class,
+                () -> new FullClickReceipt.PreDragAcknowledgement<>(java.util.Collections.nCopies(12, EMPTY), DRAG_HELD));
+        assertThrows(IllegalArgumentException.class,
+                () -> FullClickReceipt.forDrag(dragExpectation(),
+                        new FullClickReceipt.PreDragAcknowledgement<>(DRAG_BEFORE.subList(0, 5), DRAG_HELD), Stack::equals));
+        assertThrows(IllegalArgumentException.class,
+                () -> FullClickReceipt.forDrag(dragExpectation(),
+                        new FullClickReceipt.PreDragAcknowledgement<>(DRAG_FINAL, DRAG_REMAINDER), Stack::equals));
+        for (int entries : new int[]{1, 11}) {
+            List<Stack> slots = java.util.Collections.nCopies(entries, EMPTY);
+            List<Long> sequences = java.util.Collections.nCopies(entries, 140L);
+            assertDoesNotThrow(() -> FullClickReceipt.forDrag(reply(3, 6, 150, sequences, slots, DRAG_REMAINDER, 46),
+                    new FullClickReceipt.PreDragAcknowledgement<>(slots, DRAG_HELD), Stack::equals));
+        }
+    }
+
+    @Test void preDragAcknowledgementOwnsItsListAndPreservesTheFinalExpectation() {
+        List<Stack> borrowed = new ArrayList<>(DRAG_BEFORE);
+        var before = new FullClickReceipt.PreDragAcknowledgement<>(borrowed, DRAG_HELD);
+        List<Stack> finalSlots = new ArrayList<>(DRAG_FINAL);
+        FullClickReceipt<Stack> receipt = FullClickReceipt.forDrag(
+                reply(3, 6, 150, DRAG_BASELINE, finalSlots, DRAG_REMAINDER, 46), before, Stack::equals);
+        borrowed.clear();
+        finalSlots.clear();
+        assertEquals(DRAG_BEFORE, before.slots());
+        assertThrows(UnsupportedOperationException.class, () -> before.slots().set(0, COBBLE));
+        applyDrag(receipt, DRAG_BEFORE, DRAG_HELD);
+        assertNull(receipt.observe(0));
+        applyDrag(receipt, DRAG_FINAL, DRAG_REMAINDER);
+        assertEquals(DRAG_FINAL, receipt.observe(0).slots());
+    }
+
+    @Test void copiedMutablePreDragStacksSurviveChangesToThePickupAcknowledgement() {
+        List<int[]> pickedUp = List.of(new int[]{0, 0, 0}, new int[]{0, 0, 0});
+        int[] held = {1, 2, 4};
+        List<Long> baseline = DRAG_BASELINE.subList(0, 2);
+        List<Long> fresh = DRAG_FRESH.subList(0, 2);
+        FullClickReceipt<int[]> pickup = new FullClickReceipt<>(
+                new FullClickReceipt.Snapshot<>(2, 5, 100, baseline, pickedUp, held, 46),
+                null, 0, java.util.Arrays::equals, null);
+        pickup.applyFull(new FullClickReceipt.Snapshot<>(3, 6, 150, fresh, pickedUp, held, 46),
+                pickedUp, held, 6, true, true, 0);
+        var acknowledged = pickup.observe(0);
+        pickup.requireLive(pickedUp, held, true, 0, false);
+        var before = new FullClickReceipt.PreDragAcknowledgement<>(
+                acknowledged.slots().stream().map(int[]::clone).toList(), acknowledged.cursor().clone());
+        List<int[]> finalSlots = List.of(new int[]{0, 0, 0}, new int[]{1, 2, 1});
+        int[] remainder = {1, 2, 3};
+        FullClickReceipt<int[]> drag = FullClickReceipt.forDrag(
+                new FullClickReceipt.Snapshot<>(3, 6, 150, fresh, finalSlots, remainder, 46), before, java.util.Arrays::equals);
+        acknowledged.slots().get(0)[2] = 9;
+        acknowledged.cursor()[1] = 9;
+        List<int[]> unchanged = List.of(new int[]{0, 0, 0}, new int[]{0, 0, 0});
+        int[] unchangedCursor = {1, 2, 4};
+        List<Long> later = List.of(239L, 200L);
+        drag.applyFull(new FullClickReceipt.Snapshot<>(4, 7, 240, later, unchanged, unchangedCursor, 46),
+                unchanged, unchangedCursor, 7, true, true, 0);
+        assertNull(drag.observe(0));
+        assertNull(drag.failure());
+        drag.applyFull(new FullClickReceipt.Snapshot<>(5, 8, 241, later, finalSlots, remainder, 46),
+                finalSlots, remainder, 8, true, true, 0);
+        assertArrayEquals(new int[]{1, 2, 1}, drag.observe(0).slots().get(1));
+        assertArrayEquals(new int[]{1, 2, 3}, drag.observe(0).cursor());
+    }
+
     @Test void fullReturnRemainsConfirmedAfterALaterPartialSourceUpdate() {
         FullClickReceipt<Stack> receipt = returning();
         List<Stack> packetSlots = new ArrayList<>(RETURNED);
@@ -572,6 +807,27 @@ final class FullClickReceiptTest {
             returned.applyFull(valid, fuelReturnSlots(0), EMPTY, 8, true, true, 4);
             assertThrows(IllegalStateException.class, () -> returned.observe(4));
         }
+    }
+
+    private static FullClickReceipt.Snapshot<Stack> dragExpectation() {
+        return reply(3, 6, 150, DRAG_BASELINE, DRAG_FINAL, DRAG_REMAINDER, 46);
+    }
+
+    private static FullClickReceipt<Stack> dragging() {
+        return FullClickReceipt.forDrag(dragExpectation(),
+                new FullClickReceipt.PreDragAcknowledgement<>(DRAG_BEFORE, DRAG_HELD), Stack::equals);
+    }
+
+    private static void applyDrag(FullClickReceipt<Stack> receipt, List<Stack> slots, Stack cursor) {
+        receipt.applyFull(reply(4, 7, 191, DRAG_FRESH, slots, cursor, 46), slots, cursor, 7, true, true, 100);
+    }
+
+    private static void assertStickyDragRejection(FullClickReceipt<Stack> receipt) {
+        String rejection = receipt.failure();
+        assertNotNull(rejection);
+        applyDrag(receipt, DRAG_FINAL, DRAG_REMAINDER);
+        assertEquals(rejection, receipt.failure());
+        assertThrows(IllegalStateException.class, () -> receipt.observe(100));
     }
 
     private static List<Stack> fuelReturnSlots(int destinationCount) {

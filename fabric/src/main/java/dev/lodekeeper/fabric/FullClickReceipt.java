@@ -22,7 +22,16 @@ final class FullClickReceipt<T> {
         }
     }
 
+    record PreDragAcknowledgement<T>(List<T> slots, T cursor) {
+        PreDragAcknowledgement {
+            slots = List.copyOf(slots);
+            if (slots.isEmpty() || slots.size() > 11)
+                throw new IllegalArgumentException("Pre-drag acknowledgement needs between one and eleven entries");
+        }
+    }
+
     private final Snapshot<T> expected;
+    private final PreDragAcknowledgement<T> preDrag;
     private final List<T> consumedSlots;
     private final double beforeConsumption;
     private final BiPredicate<T, T> same, terminalSourceIncrease;
@@ -32,7 +41,13 @@ final class FullClickReceipt<T> {
 
     FullClickReceipt(Snapshot<T> expected, List<T> consumedSlots, double beforeConsumption, BiPredicate<T, T> same,
                      BiPredicate<T, T> terminalSourceIncrease) {
+        this(expected, consumedSlots, beforeConsumption, same, terminalSourceIncrease, null);
+    }
+
+    private FullClickReceipt(Snapshot<T> expected, List<T> consumedSlots, double beforeConsumption, BiPredicate<T, T> same,
+                             BiPredicate<T, T> terminalSourceIncrease, PreDragAcknowledgement<T> preDrag) {
         this.expected = expected;
+        this.preDrag = preDrag;
         this.consumedSlots = consumedSlots == null ? null : List.copyOf(consumedSlots);
         this.beforeConsumption = beforeConsumption;
         this.same = same;
@@ -43,6 +58,16 @@ final class FullClickReceipt<T> {
                      BiPredicate<T, T> terminalSourceIncrease) {
         this(expected, carry == null ? null : carry.consumedSlots(expected.slots()),
                 carry == null ? 0 : carry.beforeProgress(), same, terminalSourceIncrease);
+    }
+
+    static <T> FullClickReceipt<T> forDrag(Snapshot<T> expected, PreDragAcknowledgement<T> before,
+                                         BiPredicate<T, T> same) {
+        if (expected.slots().size() != before.slots().size())
+            throw new IllegalArgumentException("Pre-drag and final receipt entries differ in size");
+        FullClickReceipt<T> receipt = new FullClickReceipt<>(expected, null, 0, same, null, before);
+        if (receipt.matches(expected.slots(), before.slots()) && same.test(expected.cursor(), before.cursor()))
+            throw new IllegalArgumentException("Pre-drag and final receipt contents must differ");
+        return receipt;
     }
 
     void applyFull(Snapshot<T> reply, List<T> liveSlots, T liveCursor, int liveRevision,
@@ -76,6 +101,7 @@ final class FullClickReceipt<T> {
             }
             return;
         }
+        if (preDrag != null && matches(reply.slots(), preDrag.slots()) && same.test(reply.cursor(), preDrag.cursor())) return;
         boolean exact = matches(reply.slots(), expected.slots());
         boolean consumed = !exact && consumedSlots != null && matches(reply.slots(), consumedSlots);
         if ((!exact && !consumed) || !same.test(reply.cursor(), expected.cursor())) {

@@ -14,7 +14,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     private final Minecraft client;
     private final AbstractContainerMenu menu;
     private final Object player, world, networkHandler, connection, inventory;
-    private final int source, destination;
+    private final int source, destination, menuSize;
     private final int[] receiptSlots;
     private final ItemStack expected;
     private final DoubleSupplier consumptionProgress;
@@ -53,6 +53,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
                          Runnable beforePickup, Runnable beforeDrag) {
         this.client = client;
         this.menu = menu;
+        this.menuSize = menu.slots.size();
         this.player = client.player;
         this.world = client.level;
         this.networkHandler = client.getConnection();
@@ -290,11 +291,13 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     }
 
     private void drag() {
-        ItemStack cursor = menu.getCarried();
-        if (cursor.isEmpty() || !ItemStack.isSameItemSameComponents(cursor, expected) || cursor.getCount() < dragDestinations.length)
-            throw new IllegalStateException("Crafting drag cursor changed; leaving the container open");
+        requireAcknowledgedState(false);
+        requireDragCursor();
         requireSourceCount();
         if (beforeDrag != null) beforeDrag.run();
+        requireAcknowledgedState(false);
+        ItemStack cursor = requireDragCursor();
+        requireSourceCount();
         requireCraftingGrid();
         for (int slot : dragDestinations) {
             Slot target = menu.getSlot(slot);
@@ -308,6 +311,13 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         }
         prepareReceipt(sourceCount, cursor.getCount() - dragDestinations.length);
         sendClick(() -> OwnedClickReceipts.craftingDrag(client, menu.containerId, dragDestinations, client.player));
+    }
+
+    private ItemStack requireDragCursor() {
+        ItemStack cursor = menu.getCarried();
+        if (cursor.isEmpty() || !ItemStack.isSameItemSameComponents(cursor, expected) || cursor.getCount() < dragDestinations.length)
+            throw new IllegalStateException("Crafting drag cursor changed; leaving the container open");
+        return cursor;
     }
 
     void recover() {
@@ -385,7 +395,8 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
                 && client.player == player && client.level == world && world != null
                 && client.getConnection() == networkHandler && networkHandler != null
                 && client.getConnection().getConnection() == connection && connection != null
-                && client.player.getInventory() == inventory && client.player.containerMenu == menu;
+                && client.player.getInventory() == inventory && client.player.containerMenu == menu
+                && menu.slots.size() == menuSize;
     }
 
     private void requireHandler() {
@@ -427,6 +438,14 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     private void prepareReceipt(int expectedSlotCount, int expectedCursorCount) {
         if (pending != null) throw new IllegalStateException("An inventory click is already awaiting its receipt");
         requireAcknowledgedState(false);
+        FullClickReceipt.PreDragAcknowledgement<ItemStack> preDrag = null;
+        if (phase == Phase.DRAG) {
+            if (fullReceipt == null || fullReceipt.accepted() == null)
+                throw new IllegalStateException("Crafting drag requires a confirmed pickup receipt");
+            var pickup = fullReceipt.accepted();
+            preDrag = new FullClickReceipt.PreDragAcknowledgement<>(
+                    pickup.slots().stream().map(ItemStack::copy).toList(), pickup.cursor().copy());
+        }
         OwnedClickReceipts.Receipt receipt = receipt();
         receipt.lodekeeper$watchClick(this);
         pendingSent = false;
@@ -446,8 +465,10 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             consumed.set(1, expected.copyWithCount(expectedSlotCount - 1));
         }
         var expectation = new FullClickReceipt.Snapshot<>(contentsBefore, menu.getStateId(),
-                receipt.lodekeeper$cursorSequence(), sequences, planned, expected.copyWithCount(expectedCursorCount), menu.slots.size());
-        fullReceipt = phase == Phase.RETURN && fullReceipt != null
+                receipt.lodekeeper$cursorSequence(), sequences, planned, expected.copyWithCount(expectedCursorCount), menuSize);
+        fullReceipt = phase == Phase.DRAG
+                ? FullClickReceipt.forDrag(expectation, preDrag, SlotTransfer::sameContents)
+                : phase == Phase.RETURN && fullReceipt != null
                 ? new FullClickReceipt<>(expectation, fullReceipt.carryConsumption(), SlotTransfer::sameContents,
                         remaining == 0 && expectedCursorCount == 0 ? SlotTransfer::sameSourceIncrease : null)
                 : new FullClickReceipt<>(expectation, consumed, beforeConsumptionProgress, SlotTransfer::sameContents, null);
