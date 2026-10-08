@@ -3719,7 +3719,6 @@ public final class RuntimeVerification implements ClientModInitializer {
         contactLowHealthReceipt.put("observedOnsetStatus", status);
         contactLowHealthReceipt.put("observedOnsetEventPhase", eventPhase);
         contactLowHealthReceipt.put("observedOnsetRequestPreserved", "true");
-        contactLowHealthReceipt.put("onsetOwnedInput", contactLowHealthOwnedInput.diagnosticState());
         contactLowHealthAttackAttempts = 0;
         contactLowHealthReceipt.put("nativePostOnsetAttackAttempts", "0");
         contactLowHealthReceipt.put("nativeAttackObserverIdentityValid", "true");
@@ -3763,7 +3762,6 @@ public final class RuntimeVerification implements ClientModInitializer {
             contactLowHealthReceipt.put("triggerClientTick", Integer.toString(clientTicks));
             contactLowHealthReceipt.put("triggerHealth", Float.toString(client.player.getHealth()));
             contactLowHealthReceipt.put("triggerStatus", status);
-            contactLowHealthReceipt.put("triggerOwnedInput", contactLowHealthOwnedInput.diagnosticState());
             contactLowHealthReceipt.put("injectedWhileOwnedAirborne", "true");
             contactLowHealthTransport.accept(0);
             contactLowHealthPhase = ContactLowHealthPhase.HEALTH_REQUESTED;

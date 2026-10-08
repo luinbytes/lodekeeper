@@ -36,9 +36,19 @@ Lodekeeper maps native smelting, smoking and blasting recipes to their exact fur
 
 ## Station choice and ownership
 
+### Current station evidence at main 764146a
+
+Exact frozen [primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-primary.json) and [modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-modern.json) fresh Normal Survival both FAIL. Primary takes 360,356 ms and retains one diamond pickaxe, five diamonds, no other diamond gear or armor, and seven queued goals. Modern takes 133,899 ms and pauses at stone 0/3 with no diamond targets. Both retain minimum and final health 20, zero deaths, and empty cursors. Modern minimum and final hunger is 20.
+
+Primary records two unique recovered tables at `(16, 78, 20)` and `(19, 57, 23)`. Repeated copies across logs do not count as extra recoveries. The station at `(17, 64, 25)` remains after `native mining refused: PLAYER_SUPPORT`. Modern records one recovered table at `(0, 69, 22)` and no station-left event. Neither run requires strict station cleanup. The support refusal does not establish the cause of the later primary retreat failure.
+
+Primary's single creeper retreat ends after a fourteen-node, 308-move A* open-set exhaustion in 3 ms, with no executor, arrival, or prefix rejection record. Modern completes air recovery and one threat response, then repeats one water ascend through seven 149-tick movement timeouts before its preserved action deadline pauses stone gathering. Physical connectivity and aim and attack causes remain unproved. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) records frozen hashes, public proofs, and all eight remote PNGs. Recorded byte and SHA-256 read-back and logged-out decoding precede deletion of sixteen local copies. These runs have no videos.
+
+Both primary builds pass 316 checks. [Frozen-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-ci.json) ends with fourteen passing profiles and ten shared `fabric-1212` verifier compile failures at optional `diagnosticState()` calls. The CLEAN four-line compatibility repair changes only optional receipt strings, preserving all acceptance guards and bounds and adding no production API. Local 1212 and both primary verifier compiles pass. Both [prepared health-six reruns](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-verifier-compat.json) pass with the new verifier and unchanged frozen764 jars. These cases retain their supplied stock and do not prove station recovery. New CI remains pending. Complete station recovery and Lu's acceptance remain open. Preview 11 stays at `88f2b52`. No Preview 12, readiness, or speed claim follows.
+
 ### Current station evidence at main 1f85aa2
 
-Later main adds retreat-prefix diagnostics without changing station recovery. Both exact primary builds pass existing checks; fresh native runs are pending. The station results here remain specific to the frozen sources named below.
+This historical station record applies to frozen `1f85aa2`. The later `764146a` results are recorded above.
 
 Exact frozen [primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-primary.json) and [modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1f85aa2-natural-modern.json) fresh Survival both FAIL before any diamond gear, after 295,741 and 257,932 ms. Each records three unique table recoveries, final health 20, zero deaths, an empty cursor, and eight paused goals. Neither requires strict station cleanup or observes repeated-air removal ordering. Recovery events do not establish complete station recovery.
 

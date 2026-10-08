@@ -119,15 +119,21 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Main adds bounded retreat-prefix diagnostics. With debug logging enabled, rejected routes record the checked segment, captured hazard identity, path destination, and up to sixteen requested goal cells. Both exact primary builds pass existing checks. Fresh gameplay is pending; the results below retain their recorded source.
+Frozen main `764146a` adds bounded retreat-prefix diagnostics and passes 316 build checks across both primary adapters. Exact-source CI finishes with fourteen passing profiles and ten `fabric-1212` verifier failures at optional `diagnosticState()` calls.
+
+Fresh Normal Survival FAILS on both versions. Primary stops after 360,356 ms with one diamond pickaxe, five diamonds, no armor, and seven queued goals. A single creeper retreat exhausts A* in 3 ms across fourteen nodes and 308 considered moves. No prefix rejection emits. Modern stops after 133,899 ms at stone 0/3. Seven native movement timeouts repeat the same water ascend. The action deadline remains effective. Both retain health 20, zero deaths, and empty cursors.
+
+Primary recovers two unique tables and retains a player-supporting station. Modern recovers one. Strict cleanup is not required. A CLEAN verifier compatibility repair removes four optional receipt lines. Local 1212, primary, and modern verifier compiles pass. Both repaired-verifier health-six cases pass. New CI remains pending.
+
+The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) records frozen hashes, public proofs, remote screenshots, and diagnosis limits. Preview 11 remains at `88f2b52`. No Preview 12, readiness, or speed claim follows.
+
+### Historical main evidence
 
 Production source `1f85aa2` includes the low-health retreat latch, passes 316 build checks, and passes all 24 exact-source CI profiles. Both fresh Normal Survival runs FAIL with no diamond gear and eight paused goals. Primary exhausts four retreat starts after one arrival and three prefix rejections. Modern exhausts the sampled selector domain. Neither record justifies relaxing guards or bounds.
 
 The CLEAN R2 verifier compiles on both primary versions. Its [health-six comparison](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-low-health-r2.json) observes health 6 before the engine tick. Both frozen `7395f59` baselines attempt one native attack and fail as expected. Both `1f85aa2` candidates PASS with zero attempts, supported landing, full native cancellation, restored settings, and the same request retained through an explicit no-route pause. The bucket remains unfinished. This is prepared-fixture coverage.
 
 Ordinary contact and configuration/native binding leases PASS on both versions. Corrected manual controls also PASS, using simulated key state; final physical settling remains unverified. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) preserves historical failures and receipt limits. Preview 11 remains at `88f2b52`. No Preview 12, speed, or broader acceptance claim is made.
-
-### Historical main evidence
 
 Historical `7395f59` [fresh primary Survival](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-7395f59-natural-primary.json) passes all nine diamond targets in 459,721 ms, including worn armor. Five tables recover; one furnace remains beyond range at `(39, 16, 50)`. Material promotion is observed at that source in two birch acquisitions plus replans. Fresh modern `7395f59` has not run. Its [four workbench controls](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-7395f59-workbench.json) and [all 24 CI profiles](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-7395f59-ci.json) pass. These results apply to its older frozen artifacts.
 

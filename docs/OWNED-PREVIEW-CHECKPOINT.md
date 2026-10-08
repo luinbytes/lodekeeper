@@ -6,7 +6,68 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
-Main adds bounded retreat-prefix rejection diagnostics in both adapters. The existing immutable hazard value now retains UUID/type; a private check-site label distinguishes initial and live rejection. Debug-only records identify the exact checked path, segment, hazard, and up to sixteen requested goal cells before cancellation. No hazard predicate, search/response bound, or cancellation order changes. Both exact primary builds pass 316 existing checks. Independent source review is CLEAN. Fresh native runs and exact-source CI are pending for this unit.
+Exact frozen main `764146a531f4bead851a994ade0501a203730ab8` adds bounded retreat-prefix rejection diagnostics in both adapters. Debug records identify the checked segment, captured hazard UUID and type, path destination, and up to sixteen requested goal cells. Guard arithmetic, hazard limits, search and response bounds, and cancellation order remain unchanged. Independent source review is CLEAN. Both primary adapters compile and pass 316 existing checks, split into 167 core, 98 navigation, 48 primary adapter, and three modern adapter checks. Core and navigation retain Java 17 class version 61.
+
+| Minecraft | Frozen 764146a jar SHA-256 |
+| --- | --- |
+| 1.21.1 | `43ff4290ed9616c5e1b9dd8d9a7e32deff73675a2e3701b29393ff63e5fa6c6d` |
+| 26.3 | `0c8c3de4f98d921fecde231fba2e4490e66f57f3ba38746fa1377c5ee50d06e3` |
+
+The build receipt records clean source at freeze and matching reviewed, compiled, committed, and pushed source hashes. These jars retain internal `0.1.0-preview.11` metadata. Released Preview 11 remains at `88f2b52`.
+
+The immutable public proofs match these local bytes. Their sibling upload receipts record anonymous HTTP 200, byte count, and SHA-256 read-back.
+
+| Public proof | Exact local proof | Bytes | SHA-256 |
+| --- | --- | --- | --- |
+| [build](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-build.json) | `/tmp/lodekeeper-main-764146a-build-receipt.json` | 4,267 | `a8f585fdc72f317b68f621ae67ef4f99a416d44a08d4514b12c741f0213f1424` |
+| [ci](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-ci.json) | `/tmp/lodekeeper-main-764146a-ci-proof.json` | 100,251 | `2e220a093329f297b791d05cd2aaa3971195c33a0c2ddefe0c9c07b527d6b43d` |
+| [natural-primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-primary.json) | `/tmp/lodekeeper-main-764146a-natural-primary-proof.json` | 122,424 | `8ee05369e4b6753c1a5e3ee40c365b225d7f7eb959abfc90e6f4fd7649a1d106` |
+| [natural-modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-modern.json) | `/tmp/lodekeeper-main-764146a-natural-modern-proof.json` | 94,937 | `239d773a7bff1d16732fa5fe3f09cb8ef29d87cb58880ea97c2d1b68234da6aa` |
+
+Earlier embedded pending fields remain creation snapshots. The final CI supplement records [run 37726764885](https://github.com/luinbytes/lodekeeper/actions/runs/37726764885) completed with fourteen passing profiles and ten failures. Every failed profile uses `fabric-1212`; shared verifier compilation fails at the two optional `BotInput.diagnosticState()` receipt strings. Both primary jobs pass. This result establishes no full-matrix success or CI/local artifact byte equivalence.
+
+### Fresh Survival failures at 764146a
+
+Both exact frozen Normal Survival runs FAIL after one ordinary `!lk project gear_diamond` command. Each starts with an empty inventory in a normal generated world on seed `483920105`, Normal difficulty, no cheats, and no bonus chest. Primary starts at `(10.5, 77, 24.5)`. Modern starts at `(-6.5, 72, 16.5)`. Different same-seed starts and failed completion prevent a comparative speed claim.
+
+| Native outcome | 1.21.1 | 26.3 |
+| --- | --- | --- |
+| Command elapsed | 360,356 ms | 133,899 ms |
+| Minimum/final health | 20 / 20 | 20 / 20 |
+| Deaths/cursor count | 0 / 0 | 0 / 0 |
+| Diamond targets | One diamond pickaxe, five loose diamonds; no other diamond gear or armor | None. Stone gather remains 0/3 |
+| Final foreground goals | Seven, paused | Zero, project paused on action timeout |
+| Unique table recoveries | Two | One |
+
+Both launches record clean exact source, unchanged production jars, 504 loaded production classes, zero class-provenance violations, and no foreign kernel classes. Primary uses Fabric Loader's verified remap. Modern loads directly from its frozen jar. Strict station cleanup is not required in either run. Recovery events do not prove complete cleanup.
+
+Primary recovers tables at `(16, 78, 20)` and `(19, 57, 23)`. Duplicate log copies are not additional recoveries. A station at `(17, 64, 25)` is retained after `native mining refused: PLAYER_SUPPORT`. This guard refusal is separate from the later retreat failure. Modern recovers one table at `(0, 69, 22)` and records no station-left event.
+
+### Primary retreat diagnosis at 764146a
+
+One live creeper triggers one retreat start, with zero completed retreats and zero attacks. Selection exhausts all 1,212 allowed columns and admits five dry endpoint goals. A* considers 308 moves across fourteen expanded nodes and fourteen map nodes, then reports `open_set_exhausted` with open count zero in 3 ms. Two first moves have finite costs. Every retained fallback is the start, so no fallback meets the existing displacement requirement. `CALC_FAILED` precedes the native process-ended error and pause. No retreat executor starts, no arrival occurs, and zero `RETREAT_PREFIX_REJECT` records emit.
+
+The calculated graph reaches none of the selected endpoints. The full edge rejection reasons and correspondence between live and frozen collision cells are unlogged. Physical escape impossibility, terrain disconnection, and snapshot or movement-cost defects remain unproved. The displayed retry count does not establish a second launched search. The local full diagnosis is `/tmp/lodekeeper-main-764146a-primary-retreat-diagnosis.md`. These observations justify no hazard, ownership, fallback, radius, or timeout relaxation.
+
+### Modern stone progress diagnosis at 764146a
+
+Air recovery completes, followed by one cleared live-threat response. The later stone stall repeats native `MovementAscend` from `(11, 62, 17)` to `(12, 63, 17)` at path index zero. Eight motion samples show water bobbing at fixed X and Z, jump applied, no applied forward or sideways input, and progress token 71 with zero output. Seven native movement deadlines cancel at 149 ticks, then equivalent paths recalculate. The logical action counter survives those replacements and pauses at `Action timeout: gather:minecraft:stone`, cobblestone 0/3. Minimum and final health and hunger are 20, with zero deaths and an empty cursor.
+
+The preserved action deadline bounds the stall. Samples do not establish continuous identical position or a multi-cell route cycle. Preparation, physical aim, raycast, attack, damage continuity, and break-guard decisions are insufficiently logged to prove the physical or controller cause. The local full diagnosis is `/tmp/lodekeeper-main-764146a-modern-stone-progress-diagnosis.md`. This run does not establish a general swimming defect or justify a source fix from the snapshot alone.
+
+### Public evidence and capture limits at 764146a
+
+The primary manifests cover [two early frames](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-primary-early-screenshots.json), [one pickaxe frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-primary-pickaxe-screenshots.json), and [one final frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-primary-final-screenshots.json). Modern covers [two early frames](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-modern-early-screenshots.json), [one water-window frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-modern-water-screenshots.json), and [one final frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-764146a-natural-modern-final-screenshots.json). The embedded upload/browser receipts confirm anonymous byte and SHA-256 read-back and logged-out decoding of all eight original PNGs before sixteen local originals and staging copies are deleted. Media remain remote. No videos were recorded for these runs. Early, milestone, and water-window images precede terminal failure. Native server and engine receipts establish outcomes.
+
+### Verifier compatibility repair after frozen 764146a
+
+The parent repair deletes only `onsetOwnedInput` and `triggerOwnedInput` optional receipt strings from each Runtime verifier, four lines total. Static review in `/tmp/lodekeeper-main-low-health-verifier-compatibility-review-r1.md` is CLEAN. It adds no production API and changes no acceptance decision, ownership guard, server freshness gate, cancellation or restoration check, or timeout bound. The frozen production jars above remain unchanged.
+
+Local `1212`, primary, and modern verifier compiles pass, recorded in `/tmp/lodekeeper-main-verifier-compat-build-receipt.json`, 2,652 bytes, SHA-256 `f712cf75fc073d011a3ce75b404041c60c5dc51ba3bd1a29d56bbb7f39e08bd4`. The logs are `/tmp/lodekeeper-main-verifier-compat-1212-compile.log`, `/tmp/lodekeeper-main-verifier-compat-primary-compile.log`, and `/tmp/lodekeeper-main-verifier-compat-modern-compile.log`. These verifier compiles are separate from the 316 production checks and failed frozen-source CI. Both prepared native reruns with these exact repaired-verifier bytes PASS against unchanged frozen764 production jars. The [public repair proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-verifier-compat.json) is 55,023 bytes, SHA-256 `2d738747254ba58e4dd0f0103a11a42ac87e3170ea7b0f73c8477395e2cb797a`, from `/tmp/lodekeeper-main-verifier-compat-proof.json`. It records 529 command ms on 1.21.1 and 509 ms on 26.3. Both observe health 6 at START-client-tick onset, zero subsequent native attack attempts and confirmed damage, supported landing, full movement cancellation, preserved request and restored settings (249 primary, 248 modern). Fresh post-pause server receipts preserve stock, cursor, equipment and fixture. Both configuration round trips pass. Production provenance confirms 333 primary and 337 modern classes without violations or foreign kernel classes. Primary uses the verified loader remap. These prepared cases leave the bucket unfinished and do not close either fresh Survival failure. Historical R1/R2 results remain scoped to their own verifier bytes. New exact-source CI remains pending.
+
+The [two original gameplay captures](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-verifier-compat-captures.json) retain exact build and outcome labels. Anonymous byte/hash checks and logged-out 640-by-360 browser decoding precede deletion of four local original/staging copies. Chat and HUD show the no-route pause; the flashing health display is not the health-six oracle. The native receipts provide that evidence. Lu's acceptance remains open. No Preview 12, readiness, or speed claim is made.
+
+### Historical main source at 1f85aa2
 
 Exact production source `1f85aa2b5e6df36afd0b60583d1cf739eb73ae9f` includes the four-file low-health retreat change on `7395f59`. The build receipt records matching reviewed, compiled, and committed source hashes, clean source at freeze, and the same pushed main hash. Independent source review is CLEAN. Sequential primary builds pass 316 checks, split into 167 core, 98 navigation, 48 primary adapter, and three modern adapter checks. Core and navigation retain Java 17 class version 61. These frozen main jars retain internal `0.1.0-preview.11` metadata and are separate from released `88f2b52` artifacts.
 
