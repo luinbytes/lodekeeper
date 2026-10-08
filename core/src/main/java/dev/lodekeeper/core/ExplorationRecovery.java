@@ -25,7 +25,7 @@ public final class ExplorationRecovery {
         if (!isLogicalFailure(filteredPlan) || !fullPlan.success() || excludedGatherSourceIds.isEmpty()
                 || !filteredPlan.target().equals(fullPlan.target())
                 || filteredPlan.requestedCount() != fullPlan.requestedCount()
-                || fullPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.CUSTOM)) {
+                || fullPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.CUSTOM || step.kind() == PlanKind.NATIVE)) {
             return false;
         }
         return fullPlan.steps().stream().anyMatch(step -> step.kind() == PlanKind.GATHER

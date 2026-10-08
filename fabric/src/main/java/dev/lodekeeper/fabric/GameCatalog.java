@@ -118,6 +118,7 @@ final class GameCatalog {
     private void finishLoad() {
         loadStonecuttingRecipes();
         gatherSources();
+        sources.addAll(AnimalHarvestAction.supportedSources());
         ExtensionCatalog.append(this);
         cachedSnapshot = null;
         ready = true;

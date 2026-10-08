@@ -65,7 +65,7 @@ final class ProjectGatherBatchTest {
                 later.outputCount(), later.operationCount(),
                 List.of(new SelectedToolRequirement(ItemId.parse("test:better_pickaxe"), 2, "mine material")),
                 later.candidateBlocks(), later.recipeType(), later.recipeWidth(), later.recipeHeight(),
-                later.station(), later.customType(), later.attributes());
+                later.station(), later.customType(), later.attributes(), later.nativeWork());
 
         assertSame(first, batch(catalog, inventory, List.of(first, upgraded)));
     }
@@ -353,14 +353,14 @@ final class ProjectGatherBatchTest {
         PlanStep later = gather(catalog, inventory, 32);
         List<PlanStep> barriers = List.of(
                 new PlanStep(first.kind(), "test:wood", first.output(), 1, 1, first.requirements(),
-                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes()),
+                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes(), first.nativeWork()),
                 new PlanStep(first.kind(), first.sourceId(), ItemId.parse("test:other_material"), 1, 1,
-                        first.requirements(), first.candidateBlocks(), null, 0, 0, null, null, first.attributes()),
+                        first.requirements(), first.candidateBlocks(), null, 0, 0, null, null, first.attributes(), first.nativeWork()),
                 new PlanStep(first.kind(), first.sourceId(), first.output(), 1, 1, first.requirements(),
-                        first.candidateBlocks(), null, 0, 0, null, null, Map.of("species", "other")),
+                        first.candidateBlocks(), null, 0, 0, null, null, Map.of("species", "other"), first.nativeWork()),
                 new PlanStep(first.kind(), first.sourceId(), first.output(), 1, 1,
                         List.of(new SelectedToolRequirement(PICKAXE, 3, "mine material")),
-                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes()));
+                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes(), first.nativeWork()));
 
         for (PlanStep barrier : barriers) {
             PlanStep batch = batch(catalog, inventory, List.of(first, matching, barrier, later));

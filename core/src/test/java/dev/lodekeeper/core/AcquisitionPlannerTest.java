@@ -32,9 +32,9 @@ final class AcquisitionPlannerTest {
         PlanResult six = planner().planFast(catalog, empty, relic, 6);
 
         assertTrue(three.success(), three.blockedReasons().toString());
-        assertEquals(List.of(PlanKind.CUSTOM), three.steps().stream().map(PlanStep::kind).toList());
+        assertEquals(List.of(PlanKind.NATIVE), three.steps().stream().map(PlanStep::kind).toList());
         assertEquals(List.of(3), three.steps().stream().map(PlanStep::outputCount).toList());
-        assertEquals("storage", three.steps().get(0).customType());
+        assertEquals(new NativeWork.Retrieve("chest-slot-4", 17), three.steps().get(0).nativeWork());
         assertEquals(Map.of("stockReference", "chest-slot-4", "stockGeneration", "17", "observedCount", "5"),
                 three.steps().get(0).attributes());
         assertThrows(UnsupportedOperationException.class, () -> three.steps().get(0).attributes().put("observedCount", "99"));
@@ -257,7 +257,7 @@ final class AcquisitionPlannerTest {
                 assertEquals(List.of("storage:shared_logs", "craft:first_stock_goal", "storage:shared_logs", "craft:second_stock_goal"),
                         result.steps().stream().map(PlanStep::sourceId).toList());
                 assertEquals(List.of(2, 1, 2, 1), result.steps().stream().map(PlanStep::outputCount).toList());
-                assertEquals(0, 4 - result.steps().stream().filter(step -> step.customType() != null)
+                assertEquals(0, 4 - result.steps().stream().filter(step -> step.nativeWork() instanceof NativeWork.Retrieve)
                         .mapToInt(PlanStep::outputCount).sum());
             }
         }
@@ -324,7 +324,7 @@ final class AcquisitionPlannerTest {
                             new SelectedItemRequirement(a, 2, true, "later exact material", -1)),
                     result.steps().get(result.steps().size() - 1).requirements());
             assertEquals(Map.of(a, 2, b, 1, c, 1), result.steps().stream()
-                    .filter(step -> step.kind() == PlanKind.CUSTOM).collect(java.util.stream.Collectors.toMap(
+                    .filter(step -> step.nativeWork() instanceof NativeWork.Retrieve).collect(java.util.stream.Collectors.toMap(
                             PlanStep::output, PlanStep::outputCount, Integer::sum)));
         }
     }
@@ -351,7 +351,7 @@ final class AcquisitionPlannerTest {
                                 new SelectedItemRequirement(a, 1, true, "later exact material", -1)),
                         result.steps().get(result.steps().size() - 1).requirements());
                 assertEquals(Map.of(a, 2, b, 1), result.steps().stream()
-                        .filter(step -> step.kind() == PlanKind.CUSTOM).collect(java.util.stream.Collectors.toMap(
+                        .filter(step -> step.nativeWork() instanceof NativeWork.Retrieve).collect(java.util.stream.Collectors.toMap(
                                 PlanStep::output, PlanStep::outputCount, Integer::sum)));
             }
             assertFalse(planner().plan(catalog, inventory, goal, 2).success());

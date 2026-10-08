@@ -12,7 +12,7 @@ public record StoredItemSource(
         String stockReference,
         long generation,
         InventoryToolLot toolLot
-) implements AcquisitionSource {
+) implements NativeAcquisitionSource {
     public StoredItemSource {
         sourceId = SourceValidation.sourceId(sourceId);
         output = SourceValidation.output(output);
@@ -28,6 +28,9 @@ public record StoredItemSource(
     public StoredItemSource(String sourceId, ItemId output, int availableCount, String stockReference, long generation) {
         this(sourceId, output, availableCount, stockReference, generation, null);
     }
+
+    @Override public NativeWork.Retrieve work() { return new NativeWork.Retrieve(stockReference, generation); }
+    @Override public int worldEffortPerOperation() { return 0; }
 
     @Override public int outputCount() { return 1; }
     @Override public List<Requirement> requirements() { return List.of(); }

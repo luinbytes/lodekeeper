@@ -6,5 +6,6 @@ public enum PlanKind {
     CRAFT,
     SMELT,
     CUSTOM,
+    NATIVE,
     PLACE_STATION
 }

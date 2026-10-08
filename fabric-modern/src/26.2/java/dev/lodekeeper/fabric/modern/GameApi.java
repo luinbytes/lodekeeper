@@ -23,6 +23,19 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean animalAttackWindow(net.minecraft.world.entity.LivingEntity animal) {
+        return animal.hurtTime <= 0;
+    }
+
+    static boolean supportsAnimalHarvest() { return false; }
+    static dev.lodekeeper.core.ItemId sheepWool(net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        return dev.lodekeeper.core.ItemId.parse("minecraft:" + sheep.getColor().getName() + "_wool");
+    }
+    static void shearAnimal(net.minecraft.client.Minecraft client, net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        throw new IllegalStateException("Animal shearing is unsupported in this API family");
+    }
+
+
 
     static boolean ordinaryShield(ItemStack stack) {
         if (stack.isEmpty() || !stack.is(net.minecraft.world.item.Items.SHIELD) || stack.getCount() != 1

@@ -246,7 +246,7 @@ final class AutomationEngine {
     private final ThreatResponseAction threats;
     private final AutoEquipmentAction equipment;
     private final StationRoomAction stationRoom;
-    private final PassiveFoodAction foodAcquisition;
+    private final AnimalHarvestAction animalAcquisition;
     private final PlacementProvenance placementProvenance;
     private final BackfillController backfill;
     private final Map<ItemId, Integer> requestedBackfillStock = new HashMap<>();
@@ -320,6 +320,16 @@ final class AutomationEngine {
     private HealthRecovery healthRecovery;
     private final AirRecoveryAction airRecovery;
     private CompletableFuture<PlanningOutcome> pendingPlan;
+    private record NativePlanningIdentity(Request request, Object world, Object player,
+                                          OwnedStationLedger.Session session, long offerGeneration) { }
+    private NativePlanningIdentity pendingNativeIdentity;
+    private static final class AnimalQuota {
+        int attempts;
+        long activeNanos;
+    }
+    private final Map<Long, AnimalQuota> animalQuotas = new HashMap<>();
+    private long animalQuotaTickNanos;
+
     private record StationStockHint(CompletableFuture<PlanningOutcome> future, PlanStep step,
                                     MovementProgressScope scope, long generation) { }
     private StationStockHint stationStockHint;
@@ -381,9 +391,9 @@ final class AutomationEngine {
     private int actionTicks, baseline, verifyTicks, lastObservedCount;
     private int stationOpenTicks;
     private int inventorySampleTicks, foodCooldown;
-    private boolean foodReplanPending, foodAcquisitionPending;
+    private boolean foodReplanPending, animalAcquisitionPending;
     private Boolean loggedFoodPreparationDeferred;
-    private int foodAcquisitionCooldown, stationAccessFailures;
+    private int animalAcquisitionCooldown, stationAccessFailures;
     private boolean inventoryFingerprintInitialized;
     private volatile boolean recipeRefreshPending;
     private long lastInventoryFingerprint;
@@ -406,7 +416,7 @@ final class AutomationEngine {
         equipment = new AutoEquipmentAction(client);
         stationRoom = new StationRoomAction(client, actions);
         threats = new ThreatResponseAction(client, actions, movement);
-        foodAcquisition = new PassiveFoodAction(client, config, actions, movement);
+        animalAcquisition = new AnimalHarvestAction(client, config, actions, movement, protection, placementProvenance);
         backfill = new BackfillController(client, config, protection, actions, placementProvenance,
                 () -> active == null || paused || client.currentScreen != null || !movement.backfillInputClear()
                         ? 0 : active.jobToken());
@@ -437,6 +447,7 @@ final class AutomationEngine {
 
     void claim(CommandParser.ClaimCommand command) { message(protection.execute(command)); }
     void dispose() {
+        animalAcquisition.abandonSession();
         try { stopNow(false); }
         finally { placementProvenance.dispose(); plannerWorker.shutdownNow(); movement.shutdownOwnedNavigation(); }
     }
@@ -450,6 +461,7 @@ final class AutomationEngine {
         discoveryDeadlineNanos = 0;
         syncMovementProgress();
         if (client.world != world) {
+            animalAcquisition.abandonSession(); animalQuotas.clear();
             stopNow(false); requestedBackfillStock.clear(); world = client.world; knownStations.clear(); unreachableStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null; localReachHint = null;
             recipeRefreshPending = false;
@@ -464,7 +476,8 @@ final class AutomationEngine {
                 message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
             }
         }
-        if (client.player == null || client.world == null) { cancelStationPlacement(); stopStationCleanup(); stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+        if (animalAcquisition.active() && tickAnimalRun()) return;
+        if (client.player == null || client.world == null) { cancelStationPlacement(); stopStationCleanup(); stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (editingSettings()) {
             if (stationPlacementWait != null || cleanupRun != null) {
                 pause("Station placement or recovery yielded to automation settings");
@@ -474,7 +487,7 @@ final class AutomationEngine {
             stopStationCleanup();
             healthRecovery = null;
             airRecovery.stop(); stationRoom.stop(); threats.stop(); equipment.stop();
-            foodAcquisition.stop(); food.stop(); movement.suspend(); input.release();
+            animalAcquisition.stop(); food.stop(); movement.suspend(); input.release();
             if (active != null && !paused) status = "Editing automation settings";
             return;
         }
@@ -514,7 +527,7 @@ final class AutomationEngine {
         if (active != null || !queue.isEmpty()) nearbyStations.advance(protection.capture(), catalog);
         if (preferenceRefreshCooldown > 0) preferenceRefreshCooldown--;
         if (foodCooldown > 0) foodCooldown--;
-        if (foodAcquisitionCooldown > 0) foodAcquisitionCooldown--;
+        if (animalAcquisitionCooldown > 0) animalAcquisitionCooldown--;
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
             inventorySampleTicks = 0;
             observeInventory();
@@ -523,7 +536,7 @@ final class AutomationEngine {
             if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
             if (active == null && !paused) startNextRequest();
             if (active == null || paused) {
-                stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
+                stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop();
                 movement.suspend(); input.release();
                 if (config.backfill && !paused && queue.isEmpty() && maintenanceQueue.isEmpty() && projects.isEmpty()
                         && step == null && pendingPlan == null && !openingStation && !transactionInProgress()
@@ -534,7 +547,7 @@ final class AutomationEngine {
                 return;
             }
             if (!client.player.isAlive()) { pause("player is no longer alive"); return; }
-            if (config.pauseOnScreen && client.currentScreen != null && cleanupRun == null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
+            if (config.pauseOnScreen && client.currentScreen != null && cleanupRun == null && crafting == null && stonecutting == null && smelting == null && !openingStation) { healthRecovery = null; stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
             threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
             if (!airRecovery.active() && config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
@@ -570,31 +583,12 @@ final class AutomationEngine {
                 else if (food.tick()) requestPlan();
                 return;
             }
-            if (foodAcquisition.active()) {
-                foodAcquisition.updateProtection(foodReservations());
-                status = foodAcquisition.status();
-                try {
-                    if (foodAcquisition.tick()) {
-                        foodAcquisitionCooldown = 20;
-                        observeInventory();
-                        requestPlan();
-                    }
-                } catch (RuntimeException failure) {
-                    if (failure instanceof MovementController.NavigationFailure navigation
-                            && navigation.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw navigation;
-                    foodAcquisition.stop();
-                    foodAcquisitionCooldown = 200;
-                    message("Food acquisition is replanning: " + failure.getMessage());
-                    requestPlan();
-                }
-                return;
-            }
-            if (foodAcquisitionPending) {
+            if (animalAcquisitionPending) {
                 if (config.autoEat && beginCarryTable()) return;
-                foodAcquisitionPending = false;
-                foodAcquisition.updateProtection(foodReservations());
-                if (config.autoEat && foodAcquisition.begin(healthRecovery != null)) status = foodAcquisition.status();
-                else { foodAcquisitionCooldown = 200; requestPlan(); }
+                animalAcquisitionPending = false;
+                animalAcquisition.updateProtection(foodReservations());
+                if (config.autoEat && animalAcquisition.begin(healthRecovery != null, active.jobToken(), catalog.generation(), this::reserveAnimalAttempt)) status = animalAcquisition.status();
+                else { animalAcquisitionCooldown = 200; requestPlan(); }
                 return;
             }
             if (foodReplanPending) { requestPlan(); return; }
@@ -613,22 +607,22 @@ final class AutomationEngine {
                 else requestPlan();
                 return;
             }
-            if (config.autoEat && foodAcquisitionCooldown == 0 && !stopAfterStep
+            if (config.autoEat && animalAcquisitionCooldown == 0 && !stopAfterStep
                     && !transactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()
                     && client.currentScreen == null && !food.ready()
                     && (client.player.getHungerManager().getFoodLevel() <= 14
                         || healthRecovery != null || needsMiningFoodStock())
-                    && foodAcquisition.ready(healthRecovery != null)) {
+                    && animalAcquisition.ready(healthRecovery != null)) {
                 if (beginCarryTable()) return;
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
                 resetAction();
-                foodAcquisitionPending = true;
+                animalAcquisitionPending = true;
                 status = "finishing movement before acquiring food";
                 return;
             }
             if (config.autoEquipArmor && !stopAfterStep && !transactionInProgress() && !openingStation
-                    && !hasOwnedStationHandlerOpen() && !food.active() && !foodAcquisition.active()
+                    && !hasOwnedStationHandlerOpen() && !food.active() && !animalAcquisition.active()
                     && !stationRecovery.active() && !stationRoom.active() && client.currentScreen == null) {
                 try {
                     if (equipment.tick()) {
@@ -672,6 +666,9 @@ final class AutomationEngine {
             }
             if (pendingPlan != null && (pendingPlan.isDone() || !pendingPreferencePlan || step == null)) {
                 if (!pendingPlan.isDone()) return;
+                if (!nativePlanningCurrent()) {
+                    pendingPlan.cancel(false); pendingPlan = null; requestPlan(); return;
+                }
                 PlanningOutcome outcome = pendingPlan.join();
                 if (outcome.shieldIdentity() != null && !shieldIdentityCurrent(outcome.shieldIdentity())) {
                     deferShieldPreparation = true;
@@ -706,7 +703,7 @@ final class AutomationEngine {
                         return;
                     }
                     if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
-                    if (goalCount() >= active.count) { finishGoal(); return; }
+                    if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
                     if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(r -> r.code() == BlockedReason.Code.TIME_LIMIT)) { requestPlan(); return; }
                     if (!result.success() && tryNextLogPlan(result)) return;
                     if (!result.success() && canExplore(outcome)) { beginExploration(); return; }
@@ -852,7 +849,7 @@ final class AutomationEngine {
                 throw new IllegalStateException("Action timeout: " + step.sourceId()
                         + " · " + status + (target == null ? "" : " · target " + target.getX() + "," + target.getY() + "," + target.getZ()));
             }
-            if (step.output() != null && crafting == null && stonecutting == null && smelting == null
+            if (step.kind() != PlanKind.NATIVE && step.output() != null && crafting == null && stonecutting == null && smelting == null
                     && !openingStation
                     && actions.count(GameCatalog.item(step.output())) >= baseline + step.outputCount()) {
                 movement.stop();
@@ -916,6 +913,7 @@ final class AutomationEngine {
                 case PLACE_STATION -> placeStation();
                 case CRAFT -> craft();
                 case SMELT -> smelt();
+                case NATIVE -> beginAnimalStep();
                 case CUSTOM -> throw new IllegalStateException("No executor registered for " + step.customType());
             }
         } catch (RuntimeException ex) {
@@ -1087,13 +1085,137 @@ final class AutomationEngine {
             recipeRefreshPending = true;
         }
     }
+    private boolean nativePlanningCurrent() {
+        NativePlanningIdentity identity = pendingNativeIdentity;
+        return identity != null && active == identity.request() && identity.world() == client.world
+                && identity.player() == client.player && catalog != null && catalog.ready()
+                && identity.offerGeneration() == catalog.generation()
+                && Objects.equals(identity.session(), placementProvenance.session().orElse(null));
+    }
+
+    private int ordinaryCount(ItemId item) {
+        return placementProvenance.confirmedOrdinaryInventoryReceipt(item).map(receipt -> receipt.count()).orElse(0);
+    }
+    private boolean ordinaryShearsRequired(ItemId target) {
+        if (!GameApi.supportsAnimalHarvest() || target == null) return false;
+        CatalogSnapshot snapshot = catalog.snapshot();
+        Deque<ItemId> pending = new ArrayDeque<>(); pending.add(target);
+        if (active != null && active.project() != null) pending.addAll(active.project().spec.goals().keySet());
+        Set<ItemId> visited = new HashSet<>(); int sources = 0;
+        while (!pending.isEmpty() && visited.size() < 256 && sources < 1_024) {
+            ItemId item = pending.removeFirst();
+            if (!visited.add(item)) continue;
+            for (AcquisitionSource source : snapshot.sourcesFor(item)) {
+                if (++sources > 1_024) return true;
+                if (source instanceof AnimalHarvestSource animal && animal.work().method() == NativeWork.HarvestMethod.SHEAR) return true;
+                List<Ingredient> ingredients = new ArrayList<>();
+                if (source instanceof CraftingSource craft) craft.slots().forEach(slot -> ingredients.add(slot.ingredient()));
+                if (source instanceof SmeltingSource smelt) ingredients.add(smelt.input());
+                for (Requirement requirement : source.requirements())
+                    if (requirement instanceof ItemRequirement material) ingredients.add(material.ingredient());
+                for (Ingredient ingredient : ingredients) for (ItemSelector selector : ingredient.alternatives())
+                    for (ItemId candidate : snapshot.expand(selector)) if (!visited.contains(candidate) && pending.size() < 256)
+                        pending.addLast(candidate);
+            }
+        }
+        return !pending.isEmpty();
+    }
+    private boolean reserveAnimalAttempt() {
+        if (active == null || paused || stopAfterStep) return false;
+        Set<Long> live = new HashSet<>(); live.add(active.jobToken());
+        queue.forEach(request -> live.add(request.jobToken()));
+        maintenanceQueue.forEach(request -> live.add(request.jobToken()));
+        projects.forEach(run -> live.add(run.jobToken));
+        animalQuotas.keySet().removeIf(job -> !live.contains(job));
+        AnimalQuota quota = animalQuotas.computeIfAbsent(active.jobToken(), ignored -> new AnimalQuota());
+        if (quota.attempts >= 32 || quota.activeNanos >= 600_000_000_000L) return false;
+        quota.attempts++; animalQuotaTickNanos = System.nanoTime(); return true;
+    }
+    private void beginAnimalStep() {
+        if (!nativePlanningCurrent() || stepCatalogGeneration != catalog.generation()) { resetAction(); requestPlan(); return; }
+        if (!(step.nativeWork() instanceof NativeWork.AnimalHarvest))
+            throw new IllegalStateException("No native actor for " + step.nativeWork());
+        animalAcquisition.updateProtection(foodReservations());
+        if (!animalAcquisition.begin(step, false, false, active.jobToken(), stepCatalogGeneration, this::reserveAnimalAttempt)) {
+            pause(animalAcquisition.status());
+        }
+    }
+    private boolean tickAnimalRun() {
+        if (client.player == null || client.world == null) { animalAcquisition.abandonSession(); return false; }
+        long now = System.nanoTime();
+        AnimalQuota quota = animalQuotas.get(animalAcquisition.jobToken());
+        if (quota != null && !paused && animalAcquisition.quotaClockActive()) {
+            quota.activeNanos = Math.min(600_000_000_000L,
+                    quota.activeNanos + Math.max(0, now - animalQuotaTickNanos));
+            if (quota.activeNanos >= 600_000_000_000L)
+                animalAcquisition.requestDrain(NativeRun.DrainReason.FAILURE);
+        }
+        animalQuotaTickNanos = now;
+        if (paused || editingSettings()) {
+            airRecovery.stop();
+            if (animalAcquisition.airObserver() && movement.finishCancellation()) animalAcquisition.finishAirObservation();
+            animalAcquisition.pause(); input.release(); return true;
+        }
+        if (stopAfterStep && airRecovery.active()) airRecovery.stop();
+        if (!stopAfterStep && (airRecovery.active() || airRecovery.ready())
+                && animalAcquisition.handOffMovementForAir()) {
+            // The animal observes its retained receipt; AIR alone owns movement until its cancellation finishes.
+            animalAcquisition.tick();
+            recoverAirIfNeeded();
+            return true;
+        }
+        if (animalAcquisition.airObserver()) {
+            if (!movement.finishCancellation()) {
+                animalAcquisition.tick(); status = "finishing air cancellation with retained animal evidence"; return true;
+            }
+            animalAcquisition.finishAirObservation();
+        }
+        if (active == null || active.jobToken() != animalAcquisition.jobToken() || stopAfterStep
+                || foregroundYieldPending || catalog == null || !catalog.ready()
+                || catalog.generation() != animalAcquisition.offerGeneration() || client.currentScreen != null
+                || airRecovery.ready() || client.player.getHealth() <= config.pauseBelowHealth
+                    && (!animalAcquisition.urgent() || healthRecovery == null)
+                || animalAcquisition.urgent() && !config.autoEat || config.autoDefend && threats.ready()
+                || !animalAcquisition.urgent() && config.autoEat && client.player.getHungerManager().getFoodLevel() <= 14 && food.ready())
+            animalAcquisition.requestDrain(NativeRun.DrainReason.PREEMPT);
+        animalAcquisition.updateProtection(foodReservations());
+        NativeRun.Outcome outcome = animalAcquisition.tick();
+        status = animalAcquisition.status();
+        if (!animalAcquisition.safeToRelease()) {
+            if (outcome instanceof NativeRun.Outcome.Blocked blocked) pause(blocked.reason());
+            return true;
+        }
+        if (outcome instanceof NativeRun.Outcome.Blocked blocked) {
+            if (stopAfterStep) { stopNow(true); return true; }
+            pause(blocked.reason()); return true;
+        }
+        NativeRun.ObservedStock observed = outcome instanceof NativeRun.Outcome.Delivered delivered ? delivered.stock()
+                : outcome instanceof NativeRun.Outcome.Yielded yielded ? yielded.stock() : null;
+        if (observed != null && (active == null || active.jobToken() != observed.jobToken()
+                || !placementProvenance.session().filter(observed.session()::equals).isPresent())) {
+            resetAction(); pause("Native animal result belonged to an expired request or session"); return true;
+        }
+        observeInventory();
+        if (stopAfterStep) { stopNow(true); return true; }
+        if (quota != null && quota.activeNanos >= 600_000_000_000L) {
+            resetAction(); pause("Animal job reached ten minutes of active work; acquired stock is preserved"); return true;
+        }
+        if (animalAcquisition.urgent()) animalAcquisitionCooldown = 20;
+        completeStep();
+        return true;
+    }
+
     private InventorySnapshot inventorySnapshot(ItemId activeTarget) {
         Map<ItemId, Integer> counts = new HashMap<>(), durability = new HashMap<>();
         actions.inventory().forEach((name, count) -> counts.put(ItemId.parse(name), count));
+        counts.replaceAll((item, count) -> AnimalHarvestAction.ordinaryCommodity(item) ? ordinaryCount(item) : count);
+        boolean ordinaryShears = ordinaryShearsRequired(activeTarget);
+
         Map<ItemId, List<Integer>> durabilityLots = new HashMap<>();
         Map<ItemId, List<InventoryToolLot>> toolLots = new HashMap<>();
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (!stack.isEmpty() && stack.isDamageable()) {
             ItemId item = GameCatalog.id(stack.getItem());
+            if (ordinaryShears && stack.isOf(Items.SHEARS) && !AnimalHarvestAction.ordinary(stack)) continue;
             int remaining = stack.getMaxDamage() - stack.getDamage();
             durability.merge(item, remaining, Math::max);
             durabilityLots.computeIfAbsent(item, ignored -> new ArrayList<>()).add(remaining);
@@ -1178,6 +1300,10 @@ final class AutomationEngine {
     }
 
     private boolean transactionInProgress() {
+        return animalAcquisition.active() || otherTransactionInProgress();
+    }
+
+    private boolean otherTransactionInProgress() {
         return step != null && (step.kind() == PlanKind.CRAFT || step.kind() == PlanKind.SMELT)
                 && (crafting != null || stonecutting != null || smelting != null);
     }
@@ -1195,6 +1321,7 @@ final class AutomationEngine {
     }
 
     private void requestActiveTransactionDrain() {
+        animalAcquisition.requestDrain(NativeRun.DrainReason.PREEMPT);
         if (crafting != null) crafting.requestDrain();
         if (stonecutting != null) stonecutting.requestDrain();
         if (smelting != null) smelting.requestDrain();
@@ -1225,6 +1352,9 @@ final class AutomationEngine {
         Set<String> cancelled = Set.copyOf(taskIds);
         maintenanceQueue.removeIf(request -> cancelled.contains(request.maintenanceTaskId()));
         if (active != null && cancelled.contains(active.maintenanceTaskId())) {
+            if (animalAcquisition.active()) {
+                unmaintainAfterStep.add(active.item()); requestActiveTransactionDrain(); return;
+            }
             if (pendingPlan != null) pendingPlan.cancel(false);
             pendingPlan = null;
             active = null;
@@ -1272,7 +1402,7 @@ final class AutomationEngine {
                 && client.world == world && config.allowBreaking && catalog.ready()
                 && stepCatalogGeneration == catalog.generation() && !exploring && !foregroundYieldPending
                 && !airRecovery.active() && healthRecovery == null && !threats.active() && !food.active()
-                && !foodAcquisition.active() && !foodAcquisitionPending && !foodReplanPending && !equipment.active()
+                && !animalAcquisition.active() && !animalAcquisitionPending && !foodReplanPending && !equipment.active()
                 && !stationRecovery.active() && !stationRoom.active() && stationPlacementWait == null && cleanupRun == null
                 && !openingStation && !transactionInProgress() && crafting == null && stonecutting == null && smelting == null
                 && !hasOwnedStationHandlerOpen() && client.currentScreen == null && !manualStationInput()
@@ -1306,7 +1436,8 @@ final class AutomationEngine {
     private void observeInventory() {
         if (client.player == null) return;
         long fingerprint = inventoryFingerprint();
-        if (inventoryFingerprintInitialized && fingerprint == lastInventoryFingerprint) return;
+        if (inventoryFingerprintInitialized && fingerprint == lastInventoryFingerprint
+                && observedInventory.equals(captureInventoryCounts())) return;
         inventoryFingerprintInitialized = true;
         lastInventoryFingerprint = fingerprint;
         observedInventory = captureInventoryCounts();
@@ -1339,6 +1470,7 @@ final class AutomationEngine {
     private Map<ItemId, Integer> captureInventoryCounts() {
         Map<ItemId, Integer> counts = new TreeMap<>();
         actions.heldInventory().forEach((name, count) -> counts.put(ItemId.parse(name), count));
+        counts.replaceAll((item, count) -> AnimalHarvestAction.ordinaryCommodity(item) ? ordinaryCount(item) : count);
         return Map.copyOf(counts);
     }
 
@@ -1381,13 +1513,14 @@ final class AutomationEngine {
 
     private boolean recoverAirIfNeeded() {
         if (!airRecovery.active() && !airRecovery.ready()) return false;
+        boolean observingAnimal = animalAcquisition.active() && animalAcquisition.airObserver();
         useMovementProgress(null);
         try {
             if (stationPlacementWait != null || cleanupRun != null) {
                 cancelStationPlacement();
                 stopStationCleanup();
             }
-            if (client.currentScreen != null && !transactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()) {
+            if (client.currentScreen != null && !otherTransactionInProgress() && !openingStation && !hasOwnedStationHandlerOpen()) {
                 airRecovery.stop();
                 pause("air recovery is blocked by the open player screen");
                 return true;
@@ -1398,21 +1531,23 @@ final class AutomationEngine {
                 pendingPlan = null;
                 healthRecovery = null;
                 stationRoom.stop(); stopStationCleanup();
-                threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
-                foodAcquisitionPending = foodReplanPending = false;
+                threats.stop(); equipment.stop();
+                if (!observingAnimal) animalAcquisition.stop();
+                food.stop();
+                animalAcquisitionPending = foodReplanPending = false;
                 airRecovery.begin();
             }
-            if (transactionInProgress() || openingStation) {
+            if (otherTransactionInProgress() || !observingAnimal && animalAcquisition.active() || openingStation) {
                 requestActiveTransactionDrain();
                 status = "draining the owned transaction before air escape";
                 return false;
             }
-            if (step != null || exploring || explorationMoving) resetAction();
+            if (!observingAnimal && (step != null || exploring || explorationMoving)) resetAction();
             input.release();
             if (airRecovery.tick()) {
                 healthRecovery = null;
                 observeInventory();
-                if (active != null) requestPlan();
+                if (!observingAnimal && active != null) requestPlan();
             } else status = airRecovery.status();
             return true;
         } catch (RuntimeException failure) {
@@ -1458,9 +1593,9 @@ final class AutomationEngine {
             status = "resting for natural health recovery · " + Math.round(health) + "/" + Math.round(recovered);
             return true;
         }
-        if (foodAcquisition.active() || !transactionInProgress() && !openingStation
-                && !hasOwnedStationHandlerOpen() && client.currentScreen == null && foodAcquisition.ready(true)) {
-            foodAcquisitionCooldown = 0;
+        if (animalAcquisition.active() || !transactionInProgress() && !openingStation
+                && !hasOwnedStationHandlerOpen() && client.currentScreen == null && animalAcquisition.ready(true)) {
+            animalAcquisitionCooldown = 0;
             return false;
         }
         pause("health safeguard; no available food for healing");
@@ -1485,7 +1620,7 @@ final class AutomationEngine {
         }
         int cookedPotential = food.availableCookedNutrition();
         boolean urgent = healthRecovery != null || client.player.getHungerManager().getFoodLevel() <= 14;
-        boolean deferred = !urgent && cookedPotential < 36 && foodAcquisition.ready(false);
+        boolean deferred = !urgent && cookedPotential < 36 && animalAcquisition.ready(false);
         if (config.debugLogging && !Boolean.valueOf(deferred).equals(loggedFoodPreparationDeferred)) {
             org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                     "[Lodekeeper] FOOD_PREPARATION decision={} nutrition={} cooked_potential={} target=36",
@@ -1539,7 +1674,7 @@ final class AutomationEngine {
             if (active == null || paused) { threats.stop(); return true; }
             if (config.pauseOnScreen && client.currentScreen != null) {
                 healthRecovery = null;
-                stationRoom.stop(); threats.stop(); equipment.stop(); foodAcquisition.stop(); food.stop();
+                stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop();
                 movement.suspend(); input.release();
                 return true;
             }
@@ -1565,11 +1700,13 @@ final class AutomationEngine {
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         full.itemDefinitions().values().forEach(builder::item);
         catalog.tags.forEach(builder::tag);
-        catalog.sources.stream().filter(source -> !(source instanceof GatherSource)).forEach(builder::source);
+        full.knownItems().stream().flatMap(item -> full.sourcesFor(item).stream())
+                .filter(source -> !(source instanceof GatherSource)).forEach(builder::source);
         return builder.build();
     }
 
     private void requestPlan() {
+        if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         dropStationStockHint();
         if (airRecovery.active()) return;
         if (paused || active == null) return;
@@ -1580,7 +1717,7 @@ final class AutomationEngine {
         if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
         if (!nearbyStations.ready()) { status = "checking nearby crafting stations"; return; }
         observeInventory();
-        if (goalCount() >= active.count) { finishGoal(); return; }
+        if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
         if (active.anyLogs && !config.allowBreaking) {
             pause("Wood gathering requires allowBreaking=true");
             return;
@@ -1600,7 +1737,7 @@ final class AutomationEngine {
         CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
         if (!unavailableSources.isEmpty()) {
             full.itemDefinitions().values().forEach(builder::item); catalog.tags.forEach(builder::tag);
-            catalog.sources.stream().filter(source -> !unavailableSources.contains(source.sourceId())
+            full.knownItems().stream().flatMap(output -> full.sourcesFor(output).stream()).filter(source -> !unavailableSources.contains(source.sourceId())
                     && (gatheringEnabled || !(source instanceof GatherSource))).forEach(builder::source);
         }
         CatalogSnapshot snapshot = unavailableSources.isEmpty() ? full : builder.build();
@@ -1638,6 +1775,8 @@ final class AutomationEngine {
                 : protectedFoodInventory(knownInventory);
         boolean debugPlanning = config.debugLogging;
         Set<ItemId> logMaterials = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
+        pendingNativeIdentity = new NativePlanningIdentity(active, client.world, client.player,
+                placementProvenance.session().orElse(null), catalog.generation());
         pendingPlan = CompletableFuture.supplyAsync(() -> {
             ProjectPlanResult joint = project == null ? null : planner.planProjectFast(filteredSnapshot, inventory, project,
                     PlannerLimits.DEFAULT, preferences);
@@ -1654,7 +1793,7 @@ final class AutomationEngine {
                 PlanResult cooking = planWithStationFallback(cookingCatalog, protectedCooking, protectedKnownCooking,
                         preparation.item(), preparation.targetCount(), preferences);
                 if (cooking.success() && !cooking.steps().isEmpty()
-                        && cooking.steps().stream().noneMatch(candidate -> candidate.kind() == PlanKind.GATHER)) {
+                        && cooking.steps().stream().noneMatch(candidate -> (candidate.kind() == PlanKind.GATHER || candidate.kind() == PlanKind.NATIVE))) {
                     List<PlanStep> safeCooking = cooking.steps().stream().map(candidate -> {
                         Map<String, String> attributes = new HashMap<>(candidate.attributes());
                         attributes.put("foodPreparation", "true");
@@ -1663,7 +1802,7 @@ final class AutomationEngine {
                         return new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(),
                                 candidate.outputCount(), candidate.operationCount(), candidate.requirements(),
                                 candidate.candidateBlocks(), candidate.recipeType(), candidate.recipeWidth(),
-                                candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes);
+                                candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes, candidate.nativeWork());
                     }).toList();
                     return new PlanningOutcome(new PlanResult(cooking.target(), cooking.requestedCount(), safeCooking,
                             cooking.blockedReasons(), cooking.optimal(), cooking.expandedNodes(), cooking.elapsedNanos()), false, true);
@@ -1847,7 +1986,7 @@ final class AutomationEngine {
                 future.forEach((item, count) -> attributes.put("shieldFuture:" + item, Integer.toString(count)));
                 marked.add(new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(), candidate.outputCount(),
                         candidate.operationCount(), candidate.requirements(), candidate.candidateBlocks(), candidate.recipeType(),
-                        candidate.recipeWidth(), candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes));
+                        candidate.recipeWidth(), candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes, candidate.nativeWork()));
             }
             return new PlanningOutcome(new PlanResult(plan.target(), plan.requestedCount(), marked, plan.blockedReasons(),
                     plan.optimal(), plan.expandedNodes(), plan.elapsedNanos()), false, true, null, offer.identity());
@@ -1987,7 +2126,7 @@ final class AutomationEngine {
                 return new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(),
                         candidate.outputCount(), candidate.operationCount(), candidate.requirements(),
                         candidate.candidateBlocks(), candidate.recipeType(), candidate.recipeWidth(),
-                        candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes);
+                        candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes, candidate.nativeWork());
             }).toList();
             PlanResult markedPlan = new PlanResult(preparation.target(), preparation.requestedCount(), markedSteps,
                     preparation.blockedReasons(), preparation.optimal(), preparation.expandedNodes(), preparation.elapsedNanos());
@@ -2028,7 +2167,7 @@ final class AutomationEngine {
                 case PLACE_STATION -> {
                     if (!canPlaceStations || !CRAFTING_TABLE.equals(step.station())) return false;
                 }
-                case SMELT, CUSTOM -> { return false; }
+                case SMELT, CUSTOM, NATIVE -> { return false; }
             }
         }
         return true;
@@ -2352,7 +2491,7 @@ final class AutomationEngine {
                     if (WOODEN_AXE.equals(step.output()) && !offer.allowedAxeCraftSources().contains(step.sourceId())) return false;
                 }
                 case PLACE_STATION -> { if (!CRAFTING_TABLE.equals(step.station())) return false; }
-                case SMELT, CUSTOM -> { return false; }
+                case SMELT, CUSTOM, NATIVE -> { return false; }
             }
         }
         return true;
@@ -2691,7 +2830,8 @@ final class AutomationEngine {
     }
 
     private int goalCount() {
-        if (!active.anyLogs) return actions.heldCount(GameCatalog.item(active.item));
+        if (!active.anyLogs) return AnimalHarvestAction.ordinaryCommodity(active.item)
+                ? ordinaryCount(active.item) : actions.heldCount(GameCatalog.item(active.item));
         int count = 0;
         for (ItemStack stack : ClientAccess.main(client.player.getInventory())) if (stack.isIn(ItemTags.LOGS)) count += stack.getCount();
         for (var slot : GOAL_EQUIPMENT_SLOTS) {
@@ -2734,7 +2874,7 @@ final class AutomationEngine {
         if (active == null || session == null || client.world != world || paused || editingSettings()
                 || config.pauseOnScreen && client.currentScreen != null
                 || airRecovery.active() || healthRecovery != null || threats.active() || food.active()
-                || foodAcquisition.active() || cleanupRun != null || step == null && !exploring) {
+                || animalAcquisition.active() || cleanupRun != null || step == null && !exploring) {
             useMovementProgress(null);
             return;
         }
@@ -2786,6 +2926,13 @@ final class AutomationEngine {
             if (catalog.ready()) requestPlan();
             else status = "waiting for recipe catalog";
             return;
+        }
+        if (next.kind() == PlanKind.SMELT && AnimalHarvestAction.ordinaryCommodity(next.output())) {
+            Map<String, String> attributes = new HashMap<>(next.attributes());
+            attributes.put("ordinaryInputOnly", "true");
+            next = new PlanStep(next.kind(), next.sourceId(), next.output(), next.outputCount(), next.operationCount(),
+                    next.requirements(), next.candidateBlocks(), next.recipeType(), next.recipeWidth(), next.recipeHeight(),
+                    next.station(), next.customType(), attributes, next.nativeWork());
         }
         MiningContinuation continuation = miningContinuation;
         resetAction();
@@ -2841,7 +2988,7 @@ final class AutomationEngine {
     }
     private void explore() {
         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
-        if (goalCount() >= active.count) { finishGoal(); return; }
+        if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
         movement.observeConfirmedProgress();
         long movementProgress = movement.progressToken();
         if (movementProgress != lastMovementProgressToken) {
@@ -3548,7 +3695,7 @@ final class AutomationEngine {
                 || previousCommandTableCheck != null && previousCommandTableCheck.jobToken() == active.jobToken()) return false;
         previousCommandTableCheck = new PreviousCommandTableCheck(active.jobToken(), null);
         if (paused || stopAfterStep || healthRecovery != null || airRecovery.active()
-                || threats.active() || threats.ready() || food.active() || foodAcquisition.active() || equipment.active()
+                || threats.active() || threats.ready() || food.active() || animalAcquisition.active() || equipment.active()
                 || client.player.getHealth() <= config.pauseBelowHealth || client.player.getHungerManager().getFoodLevel() <= 14
                 || !config.recoverPlacedStations || !config.allowBreaking || !config.allowBuilding
                 || config.stationRecoveryRange < 1 || manualStationInput() || client.currentScreen != null
@@ -3861,6 +4008,7 @@ final class AutomationEngine {
     }
 
     private void finishGoal() {
+        if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         Request finished = active;
         if (finished == null) return;
         if (config.autoEquipArmor && !paused && !transactionInProgress() && !openingStation) {
@@ -3983,6 +4131,7 @@ final class AutomationEngine {
         pause(reason);
     }
     private String recoverTransactions() {
+        animalAcquisition.pause();
         String warning = "";
         try { if (crafting != null) crafting.pause(); }
         catch (RuntimeException ex) { warning = describe(ex); }
@@ -4003,6 +4152,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedHandler) {
+        if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         dropStationStockHint();
         useMovementProgress(null);
         validateMovementProgressScopes();
@@ -4010,12 +4160,12 @@ final class AutomationEngine {
         miningContinuation = null;
         stationRoom.stop();
         stopStationCleanup();
-        try { foodAcquisition.stop(); }
+        try { animalAcquisition.stop(); }
         catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
             pauseAfterOwnershipLoss(failure);
         }
-        foodAcquisitionPending = false;
+        animalAcquisitionPending = false;
         threats.stop(); equipment.stop(); food.stop(); foodReplanPending = false;
         ScreenHandler stationHandler = ownedStationHandler;
         boolean closeThisHandler = closeOwnedHandler && hasOwnedStationHandlerOpen();
@@ -4043,11 +4193,11 @@ final class AutomationEngine {
         cancelStationPlacement();
         stopStationCleanup();
         airRecovery.abandon();
-        foodAcquisition.abandonNavigationOwnership();
+        animalAcquisition.abandonNavigationOwnership();
         if (pendingPlan != null) pendingPlan.cancel(false);
         pendingPlan = null;
         pendingPreferencePlan = false;
-        foodAcquisitionPending = false;
+        animalAcquisitionPending = false;
         paused = true;
         input.release();
         status = failure.getMessage() + "; resume to reclaim navigation";
@@ -4062,13 +4212,14 @@ final class AutomationEngine {
         airRecovery.stop();
         healthRecovery = null;
         stationRoom.stop();
-        try { foodAcquisition.stop(); }
+        try { animalAcquisition.pause(); }
         catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
             pauseAfterOwnershipLoss(failure);
         }
-        foodAcquisitionPending = false;
-        threats.stop(); equipment.stop(); food.stop(); movement.suspend();
+        animalAcquisitionPending = false;
+        threats.stop(); equipment.stop(); food.stop();
+        if (!animalAcquisition.active()) movement.suspend();
         if (stopAfterStep) reason += ". The safe stop is paused; resume to finish draining the current transaction";
         paused = true;
         String warning;
@@ -4079,12 +4230,18 @@ final class AutomationEngine {
         message("Paused: " + reason + ". Use resume or stop."); status = reason;
     }
     void resume() {
+        animalQuotaTickNanos = System.nanoTime();
         paused = false; actionTicks = 0; lastMovementProgressToken = movement.progressToken();
         if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
     }
     void stop() {
         cancelStationPlacement();
+        if (animalAcquisition.active()) {
+            stopAfterStep = true; paused = false; airRecovery.stop();
+            animalAcquisition.requestDrain(NativeRun.DrainReason.STOP);
+            status = "stopping after native animal evidence and cancellation drain"; return;
+        }
         if (stopAfterStep) return;
         if (transactionInProgress() || openingStation) {
             stopAfterStep = true;
@@ -4098,6 +4255,10 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        if (animalAcquisition.active()) {
+            stopAfterStep = true; paused = false; airRecovery.stop();
+            animalAcquisition.requestDrain(NativeRun.DrainReason.STOP); return;
+        }
         retireMovementProgressScopes();
         cleanupBudget = null;
         cancelStationPlacement();
@@ -4142,7 +4303,7 @@ final class AutomationEngine {
     BlockPos visualizationTarget() { return visualizationActive() && !visualizationPaused() ? diagnosticTarget() : null; }
     dev.lodekeeper.nav.NavigationSnapshot visualizationNavigation(boolean includeNodes) {
         if (visualizationPaused()) return dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
-        var snapshot = visualizationActive() && (moving || explorationMoving || foodAcquisition.active()
+        var snapshot = visualizationActive() && (moving || explorationMoving || animalAcquisition.active()
                 || stationRecovery.active() || threats.active())
                 ? movement.visualization(includeNodes) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
         return snapshot.withScene(snapshot.scene().withAdditionalMarkers(visualizationMarkers()));
@@ -4169,13 +4330,16 @@ final class AutomationEngine {
                 .limit(dev.lodekeeper.nav.NavigationSceneSnapshot.MAX_MARKERS)
                 .toArray(dev.lodekeeper.nav.NavigationSceneSnapshot.Marker[]::new);
     }
+    boolean placementStockReady() { return placementProvenance.confirmedInventoryReady(); }
+    AnimalHarvestAction.Observation nativeAnimalObservation() { return animalAcquisition.observation(); }
+
     Object diagnosticTaskIdentity() {
         if (active != null) return active.project() == null ? active : active.project();
         Request next = queue.peekFirst();
         return next == null || next.project() == null ? null : next.project();
     }
     dev.lodekeeper.nav.NavigationSnapshot diagnosticNavigation() {
-        return (moving || explorationMoving || foodAcquisition.active() || stationRecovery.active() || threats.active()) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
+        return (moving || explorationMoving || animalAcquisition.active() || stationRecovery.active() || threats.active()) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
     }
     BlockPos diagnosticTarget() { return stationRecovery.active() ? stationRecovery.position() : stationRoom.active() ? stationRoom.site() : target != null ? target : movement.miningTarget(); }
     dev.lodekeeper.nav.Goal diagnosticRouteGoal() { return movement.diagnosticGoal(); }

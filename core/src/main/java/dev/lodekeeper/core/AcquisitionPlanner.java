@@ -663,8 +663,8 @@ public final class AcquisitionPlanner {
             }
             State result = state.copy();
             result.addStored(source, amount);
-            result.steps.add(new PlanStep(PlanKind.CUSTOM, source.sourceId(), source.output(), amount, 1,
-                    List.of(), List.of(), null, 0, 0, null, source.sourceType(), source.attributes()));
+            result.steps.add(new PlanStep(PlanKind.NATIVE, source.sourceId(), source.output(), amount, 1,
+                    List.of(), List.of(), null, 0, 0, null, null, source.attributes(), source.work()));
             result.operations++;
             return result;
         }
@@ -681,7 +681,13 @@ public final class AcquisitionPlanner {
             if (stationBootstrapRanks == null) return List.of();
             if (orderSources) {
                 Comparator<AcquisitionSource> sourceOrder = Comparator
-                        .comparingInt((AcquisitionSource source) -> sourceScope == SourceScope.ALL && source instanceof GatherSource ? 0
+                        .comparingLong((AcquisitionSource source) -> {
+                            int effort = source instanceof GatherSource ? 1
+                                    : source instanceof NativeAcquisitionSource nativeSource ? nativeSource.worldEffortPerOperation() : 0;
+                            return (long) effort * ceilDiv(missing, source.outputCount());
+                        })
+                        .thenComparingInt((AcquisitionSource source) -> sourceScope == SourceScope.ALL && (source instanceof GatherSource
+                                || source instanceof NativeAcquisitionSource nativeSource && nativeSource.worldEffortPerOperation() > 0) ? 0
                                 : source instanceof SmeltingSource ? 1 : source instanceof CraftingSource ? 2 : 3)
                         .thenComparingInt(source -> stationBootstrapRanks.getOrDefault(source.sourceId(), 0));
                 if (!preferences.isEmpty()) {
@@ -759,7 +765,11 @@ public final class AcquisitionPlanner {
                     PlanStep step = makeStep(source, operations, outputCount, candidate.selected);
                     completed.steps.add(step);
                     completed.operations += operations;
-                    if (source instanceof GatherSource) completed.gatherOperations += operations;
+                    long effort = source instanceof GatherSource ? operations
+                            : source instanceof NativeAcquisitionSource nativeSource
+                            ? (long) operations * nativeSource.worldEffortPerOperation() : 0;
+                    completed.worldAcquisitionEffort = effort > Long.MAX_VALUE - completed.worldAcquisitionEffort
+                            ? Long.MAX_VALUE : completed.worldAcquisitionEffort + effort;
                     results.add(completed);
                     if (firstFeasible) return List.of(completed);
                 }
@@ -1497,6 +1507,9 @@ public final class AcquisitionPlanner {
                 return new PlanStep(PlanKind.SMELT, source.sourceId(), source.output(), outputCount, operations, selected,
                         List.of(), null, 0, 0, station, null, Map.of("cook_ticks", Long.toString(smelt.cookTicks())));
             }
+            if (source instanceof NativeAcquisitionSource nativeSource) {
+                return PlanStep.nativeAction(source.sourceId(), source.output(), outputCount, operations, selected, nativeSource.work());
+            }
             if (source instanceof CustomSource custom) {
                 StationId station = selected.stream().filter(SelectedStationRequirement.class::isInstance)
                         .map(SelectedStationRequirement.class::cast).map(SelectedStationRequirement::station).findFirst().orElse(null);
@@ -1576,7 +1589,7 @@ public final class AcquisitionPlanner {
 
         private Comparator<State> stateOrder() {
             if (preferences.isEmpty()) return STATE_ORDER;
-            return Comparator.comparingLong((State state) -> state.gatherOperations)
+            return Comparator.comparingLong((State state) -> state.worldAcquisitionEffort)
                     .thenComparingLong(state -> state.operations)
                     .thenComparingInt(state -> state.steps.size())
                     .thenComparing(Search::comparePreferenceTrail)
@@ -1617,7 +1630,7 @@ public final class AcquisitionPlanner {
     }
 
     private static final Comparator<State> STATE_ORDER = Comparator
-            .comparingLong((State state) -> state.gatherOperations)
+            .comparingLong((State state) -> state.worldAcquisitionEffort)
             .thenComparingLong(state -> state.operations)
             .thenComparingInt(state -> state.steps.size())
             .thenComparing(State::tieKey);
@@ -1633,7 +1646,7 @@ public final class AcquisitionPlanner {
         private final List<PlanStep> steps;
         private final List<Integer> preferenceTrail;
         private long operations;
-        private long gatherOperations;
+        private long worldAcquisitionEffort;
 
         private State(InventorySnapshot snapshot, CatalogSnapshot catalog) {
             inventory = new HashMap<>(snapshot.counts());
@@ -1659,7 +1672,7 @@ public final class AcquisitionPlanner {
             steps = new ArrayList<>(source.steps);
             preferenceTrail = new ArrayList<>(source.preferenceTrail);
             operations = source.operations;
-            gatherOperations = source.gatherOperations;
+            worldAcquisitionEffort = source.worldAcquisitionEffort;
         }
 
         private State copy() { return new State(this); }

@@ -39,6 +39,20 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean animalAttackWindow(net.minecraft.world.entity.LivingEntity animal) {
+        return animal.damageCooldownTime <= 10 && animal.hurtTime <= 0;
+    }
+
+    static boolean supportsAnimalHarvest() { return true; }
+    static dev.lodekeeper.core.ItemId sheepWool(net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        return dev.lodekeeper.core.ItemId.parse("minecraft:" + sheep.getColor().getName() + "_wool");
+    }
+    static void shearAnimal(net.minecraft.client.Minecraft client, net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        client.gameMode.interact(client.player, sheep, new net.minecraft.world.phys.EntityHitResult(sheep),
+                net.minecraft.world.InteractionHand.MAIN_HAND);
+    }
+
+
 
     static boolean ordinaryShield(ItemStack stack) {
         if (stack.isEmpty() || !stack.is(net.minecraft.world.item.Items.SHIELD) || stack.getCount() != 1

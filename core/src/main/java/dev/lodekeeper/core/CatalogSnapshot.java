@@ -187,8 +187,8 @@ public final class CatalogSnapshot {
             if (selected.getClass() != original.getClass()) {
                 throw new IllegalArgumentException("Restricted source type must match its catalog source");
             }
-            if (selected instanceof StoredItemSource && !selected.equals(original)) {
-                throw new IllegalArgumentException("Restricted storage must preserve its observed stock metadata");
+            if (selected instanceof NativeAcquisitionSource && !selected.equals(original)) {
+                throw new IllegalArgumentException("Restricted native sources must preserve their operation and stock metadata");
             }
             if (!seen.add(selected.sourceId())) {
                 throw new IllegalArgumentException("Restricted source IDs must be unique");
@@ -411,7 +411,7 @@ public final class CatalogSnapshot {
             Objects.requireNonNull(source, "source");
             if (!(source instanceof GatherSource) && !(source instanceof CraftingSource)
                     && !(source instanceof SmeltingSource) && !(source instanceof CustomSource)
-                    && !(source instanceof StoredItemSource)) {
+                    && !(source instanceof NativeAcquisitionSource)) {
                 source = new CustomSource(source.sourceId(), source.sourceType(), source.output(), source.outputCount(),
                         source.requirements(), source.attributes());
             }

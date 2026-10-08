@@ -77,6 +77,44 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private static final String ANIMAL_SCENARIO = System.getProperty("lodekeeper.verify.animalScenario");
+    private static final boolean ANIMAL_MODE = ANIMAL_SCENARIO != null && !"false".equals(ANIMAL_SCENARIO);
+    private volatile Object nativeAnimalFixture;
+    private volatile Map<String, String> nativeAnimalPublishedReceipt = Map.of();
+    private Map<String, String> nativeAnimalInitialReceipt = Map.of();
+    private final JsonObject nativeAnimalEvidence = new JsonObject();
+    private int nativeAnimalStopTick = -1, nativeAnimalStopSends = -1;
+    private Object nativeAnimalOriginalInput, nativeAnimalTaskIdentity;
+    private long nativeAnimalStopJob;
+    private UUID nativeAnimalStopTarget;
+    private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> nativeAnimalOriginalSettings = new LinkedHashMap<>();
+    private String nativeAnimalClaim;
+    private CompletableFuture<Void> nativeAnimalSubmersion;
+    private boolean nativeAnimalAirRouteObserved, nativeAnimalAirMovementObserved, nativeAnimalAirReadyObserved;
+    private int nativeAnimalPendingSendTick = -1;
+
+    private static Object nativeAnimalApi(String name, Object... arguments) {
+        try {
+            for (Method method : VerificationApi.class.getDeclaredMethods())
+                if (method.getName().equals(name)) return method.invoke(null, arguments);
+            throw new IllegalStateException("native animal fixture unavailable for this artifact");
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("native animal fixture failed in " + name, failure);
+        }
+    }
+    private static boolean invalidAnimalScenario() {
+        if (!ANIMAL_MODE) return false;
+        if (!List.of("beef", "beef_partial", "porkchop", "mutton", "leather", "cooking", "white_wool", "red_wool",
+                "white_wool_inventory", "wrong_components", "protected", "stop_after_interaction", "air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)
+                || !BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())) return true;
+        for (String property : System.getProperties().stringPropertyNames()) {
+            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone",
+                    "lodekeeper.verify.animalScenario", "lodekeeper.verify.candidateSha256").contains(property)) continue;
+            if (!"false".equals(System.getProperty(property))) return true;
+        }
+        return false;
+    }
+
 
     private static final String SHIELD_SCENARIO = System.getProperty("lodekeeper.verify.shieldScenario");
     private static final boolean SHIELD_MODE = SHIELD_SCENARIO != null && !"false".equals(SHIELD_SCENARIO);
@@ -457,7 +495,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private enum State { DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT, WORLD_POLICY,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK, CRAFTING_FURNACE,
         SMELTING_IRON, COOKING, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
-        GATHERING_COAL_RECOVERY, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
+        GATHERING_COAL_RECOVERY, NATIVE_ANIMAL, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
 
     private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY, HELD_FUEL_SMELTING, HELD_FUEL_STICKS }
     private enum WorldPolicyPhase { NONE, ADD_CLAIM, CLAIM_BREAK, STOP_CLAIM_BREAK, PREPARE_TABLE,
@@ -653,7 +691,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (THREAT_STAIRCASE_PROPERTY == null || "false".equals(THREAT_STAIRCASE_PROPERTY))
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
-                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE) {
+                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE && !ANIMAL_MODE) {
             NaturalWorldVerification.start(MinecraftClient.getInstance());
             return;
         }
@@ -680,6 +718,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (invalidAnimalScenario()) {
+                failure = "animalScenario needs an admitted focused case, baritone=true, an exact 1.21.1 or 26.3 artifact, and no other verifier mode";
+                state = State.FAILED; writeEvidence("failed"); client.scheduleStop(); return;
+            }
             if (invalidShieldScenario()) {
                 failure = "shieldScenario must be exactly false, default, off, spare, queued, iron_short, planks_short, worn, occupied, or manual; active cases require baritone=true on Minecraft 1.21.1 or 26.3 and no other verifier mode";
                 state = State.FAILED;
@@ -935,6 +977,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (preparedSafetyAirFixture != null) {
                     VerificationApi.observePreparedSafetyAirTick(preparedSafetyAirFixture, player, server.getTicks());
                 }
+                if (ANIMAL_MODE && nativeAnimalFixture != null) {
+                    @SuppressWarnings("unchecked") Map<String, String> receipt = (Map<String, String>) nativeAnimalApi(
+                            "nativeAnimalReceipt", nativeAnimalFixture, player, server.getTicks());
+                    nativeAnimalPublishedReceipt = receipt;
+                }
                 observeShieldServer(player, server.getTicks());
                 observeFirstServerMovement(player);
                 net.minecraft.screen.ScreenHandler handler = player.currentScreenHandler;
@@ -1098,6 +1145,18 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (ANIMAL_MODE) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
+                            && !nativeAnimalPublishedReceipt.isEmpty() && nativeAnimalInt("effects") == 0
+                            && nativeAnimalInt("sheared") == 0 && latestSnapshot.health == 20.0F
+                            && latestSnapshot.foodLevel == 20 && latestSnapshot.serverCursorEmpty
+                            && requireEngine().placementStockReady()) {
+                        if (++readyTicks >= 20) startNativeAnimalCase();
+                    } else readyTicks = 0;
+                    return;
+                }
+
                 if (SHIELD_MODE) {
                     shieldServerReceipt = shieldPublishedReceipt;
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
@@ -1239,6 +1298,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 return;
             }
+            if (state == State.NATIVE_ANIMAL) { tickNativeAnimalCase(); return; }
             if (state == State.WORLD_POLICY) {
                 if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                 tickWorldPolicyScenario();
@@ -1333,6 +1393,12 @@ public final class RuntimeVerification implements ClientModInitializer {
             engine.config.debugLogging = true;
         }
         engine.config.autoEat = true;
+        if (ANIMAL_MODE) {
+            engine.config.autoEat = false; engine.config.autoDefend = false; engine.config.autoEquipArmor = false;
+            engine.config.allowBreaking = false; engine.config.allowExploration = false;
+            engine.config.backfill = false; engine.config.debugLogging = true;
+        }
+
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
         if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE || THREAT_STAIRCASE_MODE) engine.config.debugLogging = true;
         if (STATION_ROOM_APPROACH_MODE) engine.config.debugLogging = true;
@@ -1794,6 +1860,228 @@ public final class RuntimeVerification implements ClientModInitializer {
         return mismatches;
     }
 
+    private boolean nativeAnimalInputsReleased() {
+        var options = client.options;
+        return !options.attackKey.isPressed() && !options.useKey.isPressed()
+                && !options.forwardKey.isPressed() && !options.backKey.isPressed()
+                && !options.leftKey.isPressed() && !options.rightKey.isPressed()
+                && !options.jumpKey.isPressed() && !options.sneakKey.isPressed() && !options.sprintKey.isPressed()
+                && !client.player.isUsingItem();
+    }
+    private boolean nativeAnimalSettingsRestored() {
+        return !nativeAnimalOriginalSettings.isEmpty() && nativeAnimalOriginalSettings.entrySet().stream()
+                .allMatch(entry -> java.util.Objects.equals(entry.getValue(), entry.getKey().value));
+    }
+    private int nativeAnimalInt(String key) {
+        return Integer.parseInt(nativeAnimalPublishedReceipt.getOrDefault(key, "-1"));
+    }
+    private static JsonObject nativeAnimalJson(Map<String, String> values) {
+        JsonObject json = new JsonObject(); values.forEach(json::addProperty); return json;
+    }
+    private void startNativeAnimalCase() {
+        AutomationEngine engine = requireEngine();
+        if (!engine.status().startsWith("idle") || !baritoneNavigationStopped()) {
+            fail("native animal command requires idle production navigation"); return;
+        }
+        nativeAnimalInitialReceipt = Map.copyOf(nativeAnimalPublishedReceipt);
+        nativeAnimalOriginalInput = client.player.input;
+        for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
+            nativeAnimalOriginalSettings.put(setting, setting.value);
+        activeCase = "native_animal_" + ANIMAL_SCENARIO;
+        activeItem = "minecraft:" + (List.of("white_wool_inventory", "air_pending_transfer").contains(ANIMAL_SCENARIO) ? "white_wool"
+                : "cooking".equals(ANIMAL_SCENARIO) ? "cooked_beef"
+                : List.of("beef_partial", "wrong_components", "protected", "stop_after_interaction", "air_pending_attack").contains(ANIMAL_SCENARIO)
+                ? "beef" : ANIMAL_SCENARIO);
+        activeCount = ANIMAL_SCENARIO.startsWith("beef") ? 8 : ANIMAL_SCENARIO.contains("_wool") ? 4
+                : "porkchop".equals(ANIMAL_SCENARIO) || "mutton".equals(ANIMAL_SCENARIO) ? 5
+                : "wrong_components".equals(ANIMAL_SCENARIO) ? 3 : "protected".equals(ANIMAL_SCENARIO)
+                || "stop_after_interaction".equals(ANIMAL_SCENARIO) || "air_pending_attack".equals(ANIMAL_SCENARIO) || "air_pending_transfer".equals(ANIMAL_SCENARIO) ? 1 : 4;
+        activeRequiresEmpty = List.of("beef", "porkchop", "mutton", "leather").contains(ANIMAL_SCENARIO);
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        if ("protected".equals(ANIMAL_SCENARIO)) {
+            nativeAnimalClaim = "native-animal-" + runId;
+            engine.protection.setCorner(true, 3, 63, -5); engine.protection.setCorner(false, 16, 67, 4);
+            String result = engine.protection.createClaim(nativeAnimalClaim, false);
+            if (!result.contains("created")) { fail("native animal protection fixture failed: " + result); return; }
+        }
+        nativeAnimalEvidence.addProperty("scenario", ANIMAL_SCENARIO);
+        nativeAnimalEvidence.addProperty("command", "!lk get " + activeItem + " " + activeCount);
+        nativeAnimalEvidence.addProperty("fixtureGrants", "air_pending_attack".equals(ANIMAL_SCENARIO)
+                ? "bounded bedrock pad; one adult NoAI invulnerable vanilla cow rejects the real native attack; after exactly one send is retained without damage, server fixture builds a roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air to 170; no granted items, output, damage or actor/receipt state; real AIR movement and refill follow; full starting health and hunger"
+                : "air_pending_transfer".equals(ANIMAL_SCENARIO)
+                ? "bounded bedrock pad; one ordinary adult NoAI white sheep; one ordinary shears in main slot20 and one ordinary stick in selected slot0 force staging into alternate hotbar1; after the real owned PICKUP click puts shears on the cursor with pendingEvidence=true and zero animal sends, server fixture builds the roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air170; no granted wool, animal interaction, damage or actor/receipt state; AIR owns movement, then real stop requires exact shears return20, unchanged wear0, empty hotbar1 and original selection0"
+                : "bounded bedrock pad; adult NoAI vanilla animals; no supplied requested output except 2 ordinary beef for beef_partial or 3 named beef for wrong_components; wool cases have one ordinary shears in hotbar 7 (inventory case uses main slot 20 and requires return there) and one nearer wrong-color sheep; cooking has one furnace and 2 coal; full health and hunger; no fixture mutation after command");
+        nativeAnimalEvidence.addProperty("autoEat", false);
+        nativeAnimalEvidence.addProperty("allowBreaking", false);
+        beginCaseClock(); readyTicks = 0; state = State.NATIVE_ANIMAL;
+        sendCommand("!lk get " + activeItem + " " + activeCount);
+    }
+    private void tickNativeAnimalCase() {
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (clientTicks - caseStartedAtTick > 2_400 || System.nanoTime() - caseStartedAtNanos > 120_000_000_000L) {
+            fail("native animal case exceeded 120 seconds; receipt=" + nativeAnimalPublishedReceipt); return;
+        }
+        if (latestSnapshot == null || nativeAnimalPublishedReceipt.isEmpty()) return;
+        AutomationEngine engine = requireEngine();
+        boolean refusal = List.of("wrong_components", "protected").contains(ANIMAL_SCENARIO);
+        boolean stopping = "stop_after_interaction".equals(ANIMAL_SCENARIO);
+        AnimalHarvestAction.Observation action = engine.nativeAnimalObservation();
+        if (List.of("air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)) { tickNativeAnimalAirCase(engine, action); return; }
+        if (stopping && nativeAnimalTaskIdentity == null && action.active()) nativeAnimalTaskIdentity = engine.diagnosticTaskIdentity();
+        if (stopping && nativeAnimalStopTick < 0 && nativeAnimalInt("effects") > 0) {
+            if (!action.active() || nativeAnimalTaskIdentity == null || engine.diagnosticTaskIdentity() != nativeAnimalTaskIdentity
+                    || action.sentEffects() < nativeAnimalInt("effects") || action.sentEffects() - nativeAnimalInt("effects") > 1) {
+                fail("stop fixture did not witness the original active animal action and its bounded pending effect"); return;
+            }
+            nativeAnimalStopTick = clientTicks; nativeAnimalStopSends = action.sentEffects();
+            nativeAnimalStopJob = action.jobToken(); nativeAnimalStopTarget = action.target();
+            nativeAnimalEvidence.addProperty("stopAfterFirstObservedInteractionClientTick", nativeAnimalStopTick);
+            nativeAnimalEvidence.addProperty("effectsObservedAtStop", nativeAnimalInt("effects"));
+            nativeAnimalEvidence.addProperty("effectsSentAtStop", nativeAnimalStopSends);
+            nativeAnimalEvidence.addProperty("alreadySentPendingEffectsAtStop", nativeAnimalStopSends - nativeAnimalInt("effects"));
+            nativeAnimalEvidence.addProperty("originalNativeActionActiveAtStop", true);
+            sendCommand("!lk stop");
+            return;
+        }
+        if (stopping && nativeAnimalStopTick >= 0 && (action.jobToken() != nativeAnimalStopJob
+                || !java.util.Objects.equals(action.target(), nativeAnimalStopTarget) || action.sentEffects() != nativeAnimalStopSends
+                || nativeAnimalInt("effects") > nativeAnimalStopSends)) {
+            fail("native animal action sent a new effect or exceeded its pending-effect fence after stop"); return;
+        }
+        boolean stopped = baritoneNavigationStopped() && nativeAnimalInputsReleased()
+                && client.player.input == nativeAnimalOriginalInput && nativeAnimalSettingsRestored()
+                && nativeAnimalInt("selectedSlot") == 0 && latestSnapshot.serverCursorEmpty
+                && "true".equals(nativeAnimalPublishedReceipt.get("cursorEmpty"));
+        boolean result = refusal ? engine.status().startsWith("paused") && nativeAnimalInt("effects") == 0
+                        && nativeAnimalInt("sheared") == 0 && latestSnapshot.inventory.equals(activeInitialResources)
+                        && (!"wrong_components".equals(ANIMAL_SCENARIO) || nativeAnimalInt("ordinaryBeef") == 0)
+                : stopping ? nativeAnimalStopTick >= 0 && clientTicks - nativeAnimalStopTick >= 60
+                        && engine.status().startsWith("idle") && nativeAnimalStopSends > 0
+                        && nativeAnimalInt("effects") == nativeAnimalStopSends
+                : latestSnapshot.count(activeItem) >= activeCount && engine.status().startsWith("idle")
+                        && (ANIMAL_SCENARIO.contains("_wool") ? nativeAnimalInt("effects") == 0 && nativeAnimalInt("dead") == 0
+                            && nativeAnimalInt("wrongColorSheared") == 0
+                            && nativeAnimalInt("sheared") > 0 && "true".equals(nativeAnimalPublishedReceipt.get("shearsPresent"))
+                            && nativeAnimalInt("shearsDamage") == nativeAnimalInt("sheared")
+                        : nativeAnimalInt("dead") > 0)
+                        && (!"cooking".equals(ANIMAL_SCENARIO) || serverFurnaceOpenings > activeFurnaceOpeningsAtStart);
+        if (result && stopped && latestSnapshot.health == 20.0F && engine.placementStockReady()) {
+            if (++readyTicks < 20) return;
+            nativeAnimalEvidence.addProperty("restorationObserved", true);
+            nativeAnimalEvidence.addProperty("originalInputRestored", client.player.input == nativeAnimalOriginalInput);
+            nativeAnimalEvidence.addProperty("nativeSettingsRestored", nativeAnimalSettingsRestored());
+            nativeAnimalEvidence.addProperty("nativeSettingsChecked", nativeAnimalOriginalSettings.size());
+            nativeAnimalEvidence.addProperty("result", refusal ? "refused_without_effect" : stopping ? "drained_after_interaction" : "requested_server_stock_observed");
+            if (nativeAnimalClaim != null) { engine.protection.removeClaim(nativeAnimalClaim); nativeAnimalClaim = null; }
+            addResult(true, latestSnapshot.count(activeItem), "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt=" + nativeAnimalPublishedReceipt, capture(activeCase));
+            state = State.CAPTURING; captureStartedAtTick = clientTicks;
+        } else readyTicks = 0;
+    }
+
+    private void tickNativeAnimalAirCase(AutomationEngine engine, AnimalHarvestAction.Observation action) {
+        boolean transferCase = "air_pending_transfer".equals(ANIMAL_SCENARIO);
+        int expectedSends = transferCase ? 0 : 1;
+        if (nativeAnimalPendingSendTick < 0) {
+            if (transferCase && action.sentEffects() > 0) { fail("AIR transfer fixture sent an animal interaction before submersion"); return; }
+            if (!action.active() || !action.pendingEvidence() || (!transferCase && action.sentEffects() == 0)) return;
+            if (transferCase && !client.player.currentScreenHandler.getCursorStack().isOf(Items.SHEARS)) return;
+            if (transferCase && (ClientAccess.selectedSlot(client.player.getInventory()) != 1 || !client.player.getInventory().getStack(20).isEmpty())) {
+                fail("AIR transfer did not witness the exact main20 pickup and alternate selected hand1"); return;
+            }
+            if (action.sentEffects() != expectedSends || nativeAnimalInt("effects") != 0) {
+                fail("AIR fixture needs its exact retained interaction or hand-transfer click without damage"); return;
+            }
+            nativeAnimalPendingSendTick = clientTicks;
+            nativeAnimalTaskIdentity = engine.diagnosticTaskIdentity();
+            nativeAnimalStopJob = action.jobToken(); nativeAnimalStopTarget = action.target(); nativeAnimalStopSends = expectedSends;
+            nativeAnimalEvidence.addProperty("pendingInteractionObservedClientTick", clientTicks);
+            nativeAnimalEvidence.addProperty("pendingInteractionJob", action.jobToken());
+            nativeAnimalEvidence.addProperty("pendingInteractionTarget", action.target().toString());
+            nativeAnimalEvidence.addProperty("pendingInteractionSentEffects", action.sentEffects());
+            nativeAnimalSubmersion = new CompletableFuture<>();
+            var scheduled = nativeAnimalSubmersion;
+            var server = requireServer();
+            server.execute(() -> {
+                try {
+                    nativeAnimalApi("submergeNativeAnimal", nativeAnimalFixture, requireServerPlayer(server), server.getOverworld(), server.getTicks());
+                    scheduled.complete(null);
+                } catch (Throwable failure) { scheduled.completeExceptionally(failure); }
+            });
+        }
+        if ((!transferCase || nativeAnimalStopTick < 0) && !action.active()
+                || !transferCase && !action.pendingEvidence() || action.sentEffects() != expectedSends
+                || action.jobToken() != nativeAnimalStopJob || !java.util.Objects.equals(action.target(), nativeAnimalStopTarget)
+                || (nativeAnimalStopTick < 0 || action.active()) && engine.diagnosticTaskIdentity() != nativeAnimalTaskIdentity
+                || nativeAnimalInt("effects") != 0
+                || nativeAnimalInt("dead") != 0 || nativeAnimalInt("sheared") != 0
+                || nativeAnimalInt("ordinaryBeef") != 0) {
+            fail("AIR observer lost its original interaction or sent/credited another effect"); return;
+        }
+        if (!nativeAnimalSubmersion.isDone()) return;
+        nativeAnimalSubmersion.join();
+        if (nativeAnimalInt("submersionTick") < 0) return;
+        if ("true".equals(nativeAnimalPublishedReceipt.get("headInWater"))
+                && nativeAnimalInt("airSupply") <= nativeAnimalInt("maxAirSupply") * 2 / 3) nativeAnimalAirReadyObserved = true;
+        boolean airRoute = action.airObserver() && engine.status().startsWith("recovering air")
+                && (engine.status().contains(" · swimming") || engine.status().contains(" · escaping"));
+        if (airRoute) {
+            if (!nativeAnimalAirRouteObserved) {
+                nativeAnimalEvidence.addProperty("airRouteObservedClientTick", clientTicks);
+                nativeAnimalEvidence.add("airRouteServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
+                nativeAnimalEvidence.addProperty("pendingEvidenceAtAirRoute", action.pendingEvidence());
+            }
+            nativeAnimalAirRouteObserved = true;
+            double dx = Double.parseDouble(nativeAnimalPublishedReceipt.get("playerX")) - 0.5;
+            double dy = Double.parseDouble(nativeAnimalPublishedReceipt.get("playerY")) - 64;
+            double dz = Double.parseDouble(nativeAnimalPublishedReceipt.get("playerZ")) - 0.5;
+            if (dx * dx + dy * dy + dz * dz >= 0.25) nativeAnimalAirMovementObserved = true;
+        }
+        boolean airRestored = baritoneNavigationStopped() && nativeAnimalInputsReleased()
+                && client.player.input == nativeAnimalOriginalInput && nativeAnimalSettingsRestored();
+        boolean restored = airRestored && nativeAnimalInt("selectedSlot") == 0 && latestSnapshot.serverCursorEmpty
+                && "true".equals(nativeAnimalPublishedReceipt.get("cursorEmpty"));
+        boolean breathable = "false".equals(nativeAnimalPublishedReceipt.get("headInWater"))
+                && nativeAnimalInt("airSupply") >= nativeAnimalInt("maxAirSupply") * 9 / 10;
+        if (nativeAnimalStopTick < 0 && nativeAnimalAirReadyObserved && nativeAnimalAirRouteObserved
+                && nativeAnimalAirMovementObserved && !action.airObserver() && breathable && airRestored
+                && (transferCase || restored)) {
+            nativeAnimalStopTick = clientTicks;
+            nativeAnimalEvidence.add("airCompletionServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
+            nativeAnimalEvidence.addProperty("stopAfterAirCompletionClientTick", clientTicks);
+            nativeAnimalEvidence.addProperty("effectsSentAtStop", action.sentEffects());
+            nativeAnimalEvidence.addProperty("originalNativeActionActiveAtStop", true);
+            sendCommand("!lk stop"); return;
+        }
+        if (nativeAnimalStopTick >= 0 && clientTicks - nativeAnimalStopTick >= 60 && restored && breathable
+                && (transferCase ? engine.status().startsWith("idle") && !action.active()
+                    && latestSnapshot.count(activeItem) == 0
+                    && "true".equals(nativeAnimalPublishedReceipt.get("shearsPresent"))
+                    && "true".equals(nativeAnimalPublishedReceipt.get("shearsOrdinary")) && nativeAnimalInt("shearsDamage") == 0
+                    && "true".equals(nativeAnimalPublishedReceipt.get("stagedHotbarEmpty"))
+                    && latestSnapshot.inventory.equals(activeInitialResources)
+                    : engine.status().startsWith("paused") && engine.status().contains("safe stop")
+                        && latestSnapshot.inventory.equals(activeInitialResources))
+                && latestSnapshot.health == 20.0F
+                && engine.placementStockReady()) {
+            if (++readyTicks < 20) return;
+            nativeAnimalEvidence.addProperty("airReadyObservedWithRetainedInteraction", nativeAnimalAirReadyObserved);
+            nativeAnimalEvidence.addProperty("airRouteObservedWithRetainedEvidence", nativeAnimalAirRouteObserved);
+            nativeAnimalEvidence.addProperty("airMovementObserved", nativeAnimalAirMovementObserved);
+            nativeAnimalEvidence.addProperty("restorationObserved", true);
+            nativeAnimalEvidence.addProperty("originalInputRestored", client.player.input == nativeAnimalOriginalInput);
+            nativeAnimalEvidence.addProperty("nativeSettingsRestored", nativeAnimalSettingsRestored());
+            nativeAnimalEvidence.addProperty("nativeSettingsChecked", nativeAnimalOriginalSettings.size());
+            nativeAnimalEvidence.addProperty("borrowedShearsReturnedToMain20", transferCase && "true".equals(nativeAnimalPublishedReceipt.get("shearsPresent")));
+            nativeAnimalEvidence.addProperty("result", transferCase ? "air_recovered_transfer_drained_shears_returned_selection_restored_stop_fenced"
+                    : "air_recovered_unknown_attack_retained_stop_fenced");
+            addResult(true, latestSnapshot.count(activeItem), "AIR escape observed with retained native evidence, exact hand restoration and the stop send fence; receipt=" + nativeAnimalPublishedReceipt, capture(activeCase));
+            state = State.CAPTURING; captureStartedAtTick = clientTicks;
+        } else readyTicks = 0;
+    }
+
     private void beginFixtureSetup() {
         state = State.SETTING_UP;
         preparedSafetyPhase = PREPARED_SAFETY_MODE == null ? PreparedSafetyPhase.NONE
@@ -1861,7 +2149,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     world.setBlockState(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.getDefaultState(), 3);
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
-                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE) {
+                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE && !ANIMAL_MODE) {
                     int oakLogStartX = NEARBY_WOOD_LOCAL_DECOY_MODE ? NEARBY_WOOD_LOCAL_VISIBLE_LOG.getX()
                         : IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
                         : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
@@ -1940,6 +2228,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 player.setHealth(player.getMaxHealth());
                 player.getHungerManager().setFoodLevel(20);
+                if (ANIMAL_MODE) nativeAnimalFixture = nativeAnimalApi("seedNativeAnimal", player, world, ANIMAL_SCENARIO);
                 if (SHIELD_MODE) {
                     server.setDifficulty(Difficulty.NORMAL, true);
                     shieldFixture = shieldApi("seedShieldScenario", player, world, SHIELD_SCENARIO);
@@ -5563,7 +5852,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             latestSnapshot == null ? List.of() : latestSnapshot.woodenAxeRemainingDurability,
             clientTicks, latestSnapshot == null ? 0 : latestSnapshot.worldTime,
             PROCESSING_MODE ? PROCESSING_STATION_MODE : "", PROCESSING_MODE ? cookingRecipeType() : "",
-            PROCESSING_MODE || IRON_PICKAXE_MODE || PREPARED_SAFETY_MODE != null ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
+            ANIMAL_MODE || PROCESSING_MODE || IRON_PICKAXE_MODE || PREPARED_SAFETY_MODE != null ? activeInitialResources : Map.of(), PROCESSING_MODE && correctCookingStationMenuOpened(),
             PROCESSING_MODE ? activeInitialResources.getOrDefault(cookingRawItemId(), 0) : 0,
             PROCESSING_MODE && latestSnapshot != null ? latestSnapshot.count(cookingRawItemId()) : 0,
             PROCESSING_MODE ? activeInitialResources.getOrDefault("minecraft:coal", 0) : 0,
@@ -5659,7 +5948,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
+        int expectedCases = ANIMAL_MODE || SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : NEARBY_WOOD_MODE || EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
@@ -5687,6 +5976,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void fail(String reason) {
+        if (nativeAnimalClaim != null) { requireEngine().protection.removeClaim(nativeAnimalClaim); nativeAnimalClaim = null; }
         if (state == State.FAILED || state == State.COMPLETE) return;
         if (WORLD_POLICY_MODE) {
             boolean restored = restoreWorldPolicyClaims();
@@ -6216,6 +6506,11 @@ public final class RuntimeVerification implements ClientModInitializer {
         json.append(",\n  \"resourceInitiallyLoaded\":").append(resourceInitiallyLoaded)
             .append(",\n  \"explorationAttempts\":")
             .append(LodekeeperClient.engine == null ? 0 : LodekeeperClient.engine.explorationAttemptsMade());
+        if (ANIMAL_MODE) {
+            nativeAnimalEvidence.add("initialServerReceipt", nativeAnimalJson(nativeAnimalInitialReceipt));
+            nativeAnimalEvidence.add("finalServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
+            json.append(",\n  \"nativeAnimal\":").append(nativeAnimalEvidence);
+        }
         return json.append("\n}\n").toString();
     }
 
@@ -6438,6 +6733,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (ANIMAL_MODE) return "native_animal_" + ANIMAL_SCENARIO;
         if (invalidShieldScenario()) return "invalid_shield_scenario";
         if (SHIELD_MODE) return "native_shield_" + SHIELD_SCENARIO;
         if (WORLD_POLICY_MODE) return "native_world_policy";
@@ -6508,7 +6804,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static int selectedFixtureModes() {
-        return (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+        return (ANIMAL_MODE ? 1 : 0) + (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
             + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
             + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0) + (PREPARED_SAFETY_MODE != null ? 1 : 0);
     }

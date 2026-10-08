@@ -44,6 +44,122 @@ import java.util.Map;
 final class VerificationApi {
     private VerificationApi() {}
 
+    private static final class NativeAnimalFixture {
+        final String scenario;
+        final java.util.List<net.minecraft.world.entity.animal.Animal> animals = new java.util.ArrayList<>();
+        final java.util.Map<java.util.UUID, Float> health = new java.util.HashMap<>();
+        int effects, submersionTick = -1;
+        NativeAnimalFixture(String scenario) { this.scenario = scenario; }
+    }
+
+    static Object seedNativeAnimal(ServerPlayer player, ServerLevel world, String scenario) {
+        NativeAnimalFixture fixture = new NativeAnimalFixture(scenario);
+        boolean airTransfer = "air_pending_transfer".equals(scenario);
+        boolean wool = scenario.contains("_wool") || airTransfer, wrong = "wrong_components".equals(scenario);
+        boolean air = "air_pending_attack".equals(scenario) || airTransfer;
+        if (wool) player.getInventory().setItem("white_wool_inventory".equals(scenario) || airTransfer ? 20 : 7, new ItemStack(Items.SHEARS));
+        if (airTransfer) player.getInventory().setItem(0, new ItemStack(Items.STICK));
+        if ("beef_partial".equals(scenario)) player.getInventory().setItem(5, new ItemStack(Items.BEEF, 2));
+        if (wrong) {
+            ItemStack named = new ItemStack(Items.BEEF, 3);
+            named.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("fixture named beef"));
+            player.getInventory().setItem(5, named);
+        }
+        if ("cooking".equals(scenario)) {
+            player.getInventory().setItem(5, new ItemStack(Items.FURNACE));
+            player.getInventory().setItem(6, new ItemStack(Items.COAL, 2));
+        }
+        int count = air ? 1 : wool ? 4 : "protected".equals(scenario) || wrong || "stop_after_interaction".equals(scenario) ? 1 : 12;
+        for (int i = 0; i < count; i++) {
+            net.minecraft.world.entity.animal.Animal animal;
+            if (wool) {
+                var sheep = (net.minecraft.world.entity.animal.sheep.Sheep) preparedMob(world, "minecraft:sheep");
+                sheep.setColor("red_wool".equals(scenario) ? net.minecraft.world.item.DyeColor.RED : net.minecraft.world.item.DyeColor.WHITE);
+                sheep.setSheared(false); animal = sheep;
+            } else if ("porkchop".equals(scenario) || wrong) {
+                animal = (net.minecraft.world.entity.animal.pig.Pig) preparedMob(world, "minecraft:pig");
+            } else if ("mutton".equals(scenario)) {
+                animal = (net.minecraft.world.entity.animal.sheep.Sheep) preparedMob(world, "minecraft:sheep");
+            } else animal = (net.minecraft.world.entity.animal.Animal) preparedMob(world, "minecraft:cow");
+            animal.setBaby(false); animal.setNoAi(true);
+            if ("air_pending_attack".equals(scenario)) animal.setPermanentlyInvulnerable(true);
+            animal.setPos(air ? 1.5 : 3.5 + i % 4 * 3, 64, air ? 0.5 : -3.5 + i / 4 * 3);
+            if (!world.addFreshEntity(animal)) throw new IllegalStateException("native animal fixture spawn failed");
+            fixture.animals.add(animal); fixture.health.put(animal.getUUID(), animal.getHealth());
+        }
+        if (wool && !airTransfer) {
+            var other = (net.minecraft.world.entity.animal.sheep.Sheep) preparedMob(world, "minecraft:sheep");
+            other.setColor("red_wool".equals(scenario) ? net.minecraft.world.item.DyeColor.WHITE : net.minecraft.world.item.DyeColor.RED);
+            other.setNoAi(true); other.setBaby(false); other.setPos(1.5, 64, 2.5);
+            if (!world.addFreshEntity(other)) throw new IllegalStateException("wrong-color fixture sheep spawn failed");
+            fixture.animals.add(other); fixture.health.put(other.getUUID(), other.getHealth());
+        }
+        player.getInventory().setChanged();
+        return fixture;
+    }
+
+    static void submergeNativeAnimal(Object handle, ServerPlayer player, ServerLevel world, int tick) {
+        NativeAnimalFixture fixture = (NativeAnimalFixture) handle;
+        if (!java.util.List.of("air_pending_attack", "air_pending_transfer").contains(fixture.scenario) || fixture.submersionTick >= 0
+                || fixture.animals.size() != 1 || fixture.effects != 0 || !fixture.animals.get(0).isAlive()
+                || fixture.animals.get(0).getHealth() != fixture.health.get(fixture.animals.get(0).getUUID()))
+            throw new IllegalStateException("native animal air fixture must retain its one undamaged target");
+        for (int x = -3; x <= 3; x++) for (int z = -3; z <= 3; z++) {
+            if (Math.abs(x) != 3 && Math.abs(z) != 3) continue;
+            for (int y = 64; y <= 65; y++) world.setBlock(new BlockPos(x, y, z), Blocks.BEDROCK.defaultBlockState(), 3);
+        }
+        for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+            world.setBlock(new BlockPos(x, 64, z), Blocks.WATER.defaultBlockState(), 3);
+            world.setBlock(new BlockPos(x, 65, z), Blocks.WATER.defaultBlockState(), 3);
+            if (x != 2 || z != 0) world.setBlock(new BlockPos(x, 66, z), Blocks.BEDROCK.defaultBlockState(), 3);
+        }
+        player.teleportTo(0.5, 64, 0.5);
+        player.setAirSupply(170);
+        fixture.submersionTick = tick;
+    }
+
+    static java.util.Map<String, String> nativeAnimalReceipt(Object handle, ServerPlayer player, int tick) {
+        NativeAnimalFixture fixture = (NativeAnimalFixture) handle;
+        int dead = 0, sheared = 0, wrongColorSheared = 0;
+        StringBuilder identities = new StringBuilder();
+        for (var animal : fixture.animals) {
+            float health = animal.getHealth();
+            if (health < fixture.health.get(animal.getUUID())) fixture.effects++;
+            fixture.health.put(animal.getUUID(), health);
+            if (!animal.isAlive() || health <= 0) dead++;
+            if (animal instanceof net.minecraft.world.entity.animal.sheep.Sheep sheep && sheep.isSheared()) {
+                sheared++;
+                if (fixture.scenario.contains("_wool") && !GameApi.sheepWool(sheep).toString().equals("minecraft:" + ("white_wool_inventory".equals(fixture.scenario) ? "white_wool" : fixture.scenario))) wrongColorSheared++;
+            }
+            identities.append(animal.getUUID()).append('/').append(animal.getType()).append('/').append(health).append(';');
+        }
+        ItemStack shears = player.getInventory().getItem(java.util.List.of("white_wool_inventory", "air_pending_transfer").contains(fixture.scenario) ? 20 : 7);
+        int ordinaryBeef = 0;
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (stack.is(Items.BEEF) && AnimalHarvestAction.ordinary(stack)) ordinaryBeef += stack.getCount();
+        }
+        return java.util.Map.ofEntries(java.util.Map.entry("serverTick", Integer.toString(tick)),
+                java.util.Map.entry("effects", Integer.toString(fixture.effects)), java.util.Map.entry("dead", Integer.toString(dead)),
+                java.util.Map.entry("sheared", Integer.toString(sheared)), java.util.Map.entry("wrongColorSheared", Integer.toString(wrongColorSheared)),
+                java.util.Map.entry("ordinaryBeef", Integer.toString(ordinaryBeef)),
+                java.util.Map.entry("shearsPresent", Boolean.toString(shears.is(Items.SHEARS))),
+                java.util.Map.entry("shearsOrdinary", Boolean.toString(AnimalHarvestAction.ordinary(shears))),
+                java.util.Map.entry("shearsDamage", Integer.toString(shears.is(Items.SHEARS) ? shears.getDamageValue() : -1)),
+                java.util.Map.entry("stagedHotbarEmpty", Boolean.toString(player.getInventory().getItem(1).isEmpty())),
+                java.util.Map.entry("selectedSlot", Integer.toString(player.getInventory().getSelectedSlot())),
+                java.util.Map.entry("cursorEmpty", Boolean.toString(player.containerMenu.getCarried().isEmpty())),
+                java.util.Map.entry("targets", identities.toString()),
+                java.util.Map.entry("submersionTick", Integer.toString(fixture.submersionTick)),
+                java.util.Map.entry("airSupply", Integer.toString(player.getAirSupply())),
+                java.util.Map.entry("maxAirSupply", Integer.toString(player.getMaxAirSupply())),
+                java.util.Map.entry("headInWater", Boolean.toString(player.isUnderWater())),
+                java.util.Map.entry("playerX", Double.toString(player.getX())),
+                java.util.Map.entry("playerY", Double.toString(player.getY())),
+                java.util.Map.entry("playerZ", Double.toString(player.getZ())));
+    }
+
+
     static String minecraftVersion() {
         return net.minecraft.SharedConstants.getCurrentVersion().name();
     }

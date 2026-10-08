@@ -612,6 +612,31 @@ public final class PlacementProvenance {
                 inventoryIncreaseSequences.getOrDefault(item, 0L)));
     }
 
+    Optional<ServerInventoryReceipt> confirmedOrdinaryInventoryReceipt(ItemId item) {
+        if (item == null || !refreshBinding() || !inventoryComplete || inventoryIncreaseTrackingOverflowed
+                || !inventoryMatchesLocal()) return Optional.empty();
+        return Optional.of(new ServerInventoryReceipt(countOrdinary(item, serverMainInventory),
+                ordinaryInventoryIncreaseSequences.getOrDefault(item, 0L)));
+    }
+
+    Optional<ItemStack> confirmedOrdinaryStack(int slot) {
+        if (slot < 0 || slot >= serverMainInventory.length || !refreshBinding() || !inventoryComplete
+                || !inventoryMatchesLocal()) return Optional.empty();
+        StackCount known = serverMainInventory[slot];
+        return known.count > 0 && AnimalHarvestAction.ordinary(known.stack)
+                ? Optional.of(known.stack.copy()) : Optional.empty();
+    }
+
+    private static int countOrdinary(ItemId item, StackCount[] inventory) {
+        int count = 0;
+        for (StackCount slot : inventory) {
+            if (slot == null) throw new IllegalStateException("authoritative inventory is incomplete");
+            if (item.equals(slot.itemId) && AnimalHarvestAction.ordinary(slot.stack))
+                count = Math.addExact(count, slot.count);
+        }
+        return count;
+    }
+
     private boolean sourceCurrent(ClientPacketListener source) {
         if (!refreshBinding() || binding.networkHandler != source) return false;
         Connection sourceConnection = source.getConnection();
@@ -690,11 +715,22 @@ public final class PlacementProvenance {
         return count;
     }
 
+    private final java.util.Map<ItemId, Long> ordinaryInventoryIncreaseSequences = new java.util.HashMap<>();
+
     private void rememberInventoryIncreases(StackCount[] previous, StackCount[] next, long sequence) {
         Set<ItemId> itemIds = new HashSet<>();
         for (StackCount slot : previous) if (slot.itemId != null) itemIds.add(slot.itemId);
         for (StackCount slot : next) if (slot.itemId != null) itemIds.add(slot.itemId);
         for (ItemId itemId : itemIds) {
+            if (countOrdinary(itemId, next) > countOrdinary(itemId, previous)) {
+                if (!ordinaryInventoryIncreaseSequences.containsKey(itemId)
+                        && ordinaryInventoryIncreaseSequences.size() >= MAX_TRACKED_INVENTORY_ITEMS) {
+                    inventoryIncreaseTrackingOverflowed = true;
+                    ordinaryInventoryIncreaseSequences.clear();
+                    return;
+                }
+                ordinaryInventoryIncreaseSequences.put(itemId, sequence);
+            }
             if (countItem(itemId, next) > countItem(itemId, previous)) {
                 if (!inventoryIncreaseSequences.containsKey(itemId)
                         && inventoryIncreaseSequences.size() >= MAX_TRACKED_INVENTORY_ITEMS) {
@@ -716,6 +752,7 @@ public final class PlacementProvenance {
         recentStationBlocks.forEach((cell, receipt) -> removalDiagnostic("inventory-or-session-clear", cell, receipt));
         recentStationBlocks.clear();
         inventoryIncreaseSequences.clear();
+        ordinaryInventoryIncreaseSequences.clear();
         inventoryIncreaseTrackingOverflowed = false;
         java.util.Arrays.fill(serverMainInventory, null);
         inventoryComplete = false;

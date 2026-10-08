@@ -107,6 +107,28 @@ final class WorldProtection {
         return policy;
     }
 
+    boolean mayInteractEntity(net.minecraft.world.entity.Entity entity) {
+        sync();
+        PolicySnapshot current = policy;
+        if (entity == null || boundWorld == null || client.level != boundWorld || current.locked()
+                || current.scope() == null || boundWorld.getEntity(entity.getId()) != entity) return false;
+        var box = entity.getBoundingBox();
+        if (!Double.isFinite(box.minX) || !Double.isFinite(box.minY) || !Double.isFinite(box.minZ)
+                || !Double.isFinite(box.maxX) || !Double.isFinite(box.maxY) || !Double.isFinite(box.maxZ)
+                || box.maxX - box.minX > 8 || box.maxY - box.minY > 8 || box.maxZ - box.minZ > 8) return false;
+        for (ClaimBox claim : current.claims().forScope(current.scope())) {
+            if (box.maxX > claim.minX() && box.minX < (double) claim.maxX() + 1
+                    && box.maxY > claim.minY() && box.minY < (double) claim.maxY() + 1
+                    && box.maxZ > claim.minZ() && box.minZ < (double) claim.maxZ() + 1) return false;
+        }
+        for (int x = (int) Math.floor(box.minX); x <= (int) Math.floor(box.maxX); x++)
+            for (int z = (int) Math.floor(box.minZ); z <= (int) Math.floor(box.maxZ); z++) {
+                BlockPos position = new BlockPos(x, (int) Math.floor(box.minY), z);
+                if (!boundWorld.hasChunkAt(position)) return false;
+            }
+        return true;
+    }
+
     boolean mayBreak(BlockPos position) {
         return mayEdit(position, true);
     }

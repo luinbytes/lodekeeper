@@ -529,6 +529,7 @@ final class GameCatalog {
 
     private void appendExtensions() {
         // ExtensionCatalog is deliberately separate because arbitrary modded block drops cannot be inferred from an item form.
+        sources.addAll(AnimalHarvestAction.supportedSources());
         ExtensionCatalog.append(this);
     }
 

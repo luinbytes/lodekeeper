@@ -103,7 +103,7 @@ public final class HarvestInvestment {
                         if (!allowedStations.contains(step.station())) return rejected("station placement is not allowed", benefit);
                         rate = estimates.stationPlacementTicks();
                     }
-                    case SMELT, CUSTOM -> { return rejected("tool investment requires unsupported auxiliary work", benefit); }
+                    case SMELT, CUSTOM, NATIVE -> { return rejected("tool investment requires unsupported auxiliary work", benefit); }
                     default -> { return rejected("tool investment contains an unsupported step", benefit); }
                 }
                 cost = Math.addExact(cost, Math.multiplyExact((long) operations, rate));

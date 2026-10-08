@@ -8,7 +8,7 @@ Each unit needs a reachable command or acquisition source, guarded native execut
 
 | Audit group | Required behavior | Dependencies | Current gate |
 | --- | --- | --- | --- |
-| Requested food and resource breadth | Requested meat, wool, crops, fluids, and ordinary mob drops contribute confirmed quantities to `get` and projects. | Native action dispatch, reservations, receipts, protected interaction policy | Open |
+| Requested food and resource breadth | Requested meat, wool, crops, fluids, and ordinary mob drops contribute confirmed quantities to `get` and projects. | Native action dispatch, reservations, receipts, protected interaction policy | Typed animal acquisition compiles on 1.21.1 and 26.3; focused native cases pending. Crops, fluids, and hostile drops open |
 | Renewable farms and harvests | Harvest mature crops, retain seed stock, replant, and finish repeated cycles. Support bounded milk, egg, shearing, and honey workflows. | Resource actors, inventory capacity, permitted terrain | Open |
 | Fluid buckets and bucket falls | Fill and use buckets with server confirmation. Offer bucket falls only when the selected adapter can execute them. | Native interaction actors, remainder accounting, protected terrain, survival cancellation | Open |
 | Containers and inventory overflow | Learn permitted containers from observed menus, withdraw exact stock, deposit, and recover capacity without discarding protected items. | Owned menu transactions, stock generations, cancellation drain | Open |
@@ -28,9 +28,23 @@ The first unit fixes the evidenced stale retreat lifecycle without interrupting 
 
 Implementation uses one writer in the main checkout. Independent agents inspect designs and diffs without changing shared source. Builds use one Gradle worker with no persistent daemon. Native verification uses one isolated game client at a time, with no build running beside it.
 
-Existing checks run for each completed unit. New test cases require Lu's approval. Lu approved focused cases in the existing native verifier for requested meat quantities and cooking, wool and shears, protected or wrong-item refusal, and cancellation after interaction. Approval also covers exact container withdrawal/deposit, full-inventory stash, stale/protected stock, revocation and stop; coordinate travel, moving-player follow and item handoff with a full recipient inventory; and unsigned or replayed remote-command refusal. Real certified signed-peer success remains a separate gate. Air recovery during an unresolved animal interaction and crop/fluid replanting, seed retention, remainders, milk/eggs/honey, refusal and cancellation are also approved. These approvals were given on 2026-10-08 UTC. Other new cases still need approval. Logs and game receipts must identify the production artifact, supplied fixture state, outcome, cancellation state, and any unverified behavior.
+Existing checks run for each completed unit. New test cases require Lu's approval. On 2026-10-08 UTC, Lu approved these focused groups in the existing native verifier:
+
+- Requested meat quantities and cooking, wool and shears, protected or wrong-item refusal, and cancellation after interaction.
+- Exact container withdrawal/deposit, full-inventory stash, stale/protected stock, revocation and stop.
+- Coordinate travel, moving-player follow, item handoff with a full recipient inventory, and unsigned or replayed remote-command refusal. Real certified signed-peer success remains separate.
+- Air recovery during unresolved animal work; crop/fluid replanting, seed retention, remainders, milk/eggs/honey, refusal and cancellation.
+- A small supplied schematic/tunnel; flight launch, fuel, landing and equipment return; projectile/fire/fall reactions; sleep/wake and one explicit respawn; refusal, interruption and ownership restoration.
+- Portal round trips and ignition, dimension resources and return, stronghold/temple discovery, and guarded End entry/combat/exit. A natural progression attempt remains separate from prepared fixtures.
+- Netherite upgrades and explicit armor trims, exact components and template/input leftovers, insufficient room or protected-input refusal, and stop/stale-session recovery.
+
+Other new cases still need approval. No new test files are authorised. Logs and game receipts must identify the production artifact, supplied fixture state, outcome, cancellation state, and any unverified behavior.
 
 The selected shared design uses typed native work and an adapter-owned lifecycle with explicit observed outcomes. [Native acquisition boundaries](NATIVE-ACTIONS.md) records the contract and the alternatives considered.
+
+The first acquisition unit publishes requested beef, porkchop, mutton, leather, and all sixteen wool colors on 1.21.1 and 26.3. Cooking uses the existing recipe and furnace path. The actor refuses protected, named, tame, juvenile, leashed, mounted, burning, or otherwise unsafe targets. It observes each attack before another send, retains uncertain effects through cancellation, and returns borrowed ordinary shears through the owned inventory transaction. Ordinary stock can satisfy a request after drain; it does not prove which pickup caused that gain.
+
+Pending animal effects and inventory receipts can yield movement to AIR recovery while retaining their evidence. Every later nonobserver drain checks actual movement ownership before stopping a route or restoring the hand. Static reviews pass, and both target builds and existing checks pass. Fourteen approved animal cases are present in the existing native verifier; none has run at this source checkpoint. This unit does not establish the remaining resource workflows or fresh Survival reliability.
 
 ## Evidence rules
 
