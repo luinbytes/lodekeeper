@@ -6,7 +6,11 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
-The [late-table stock reconsideration](#late-table-stock-reconsideration) adds one coalesced storage-table gain hint per ordinary project log-gather scope. Both local builds PASS, with 315 primary and 268 modern existing checks all executed. Independent source review is CLEAN. Exact-jar native verification and current CI remain pending. Extra-birch-trip elimination remains unproved. The two `454fd46` failures below remain the latest completed gameplay. The `24a00bb` CI result covers the prior scan unit.
+Exact main `0cbe78a` [late-table stock reconsideration](#late-table-stock-reconsideration) has CLEAN source review and passing local builds, with all 315 primary and 268 modern existing checks executed. [CI 37779110443](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443) finishes SUCCESS with all 24 compile, check, and package profiles passing. CI ZIP bytes were not independently hashed or equated with the frozen local jars.
+
+The latest fresh Normal Survival runs on those local jars both FAIL. [Primary](#fresh-1211-normal-survival-failure-at-0cbe78a) fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Minimum and final health are 18.080002. Its defense reaches the existing 15-second budget failure at tick 301. [Modern](#fresh-263-normal-survival-failure-at-0cbe78a) fails after 336,722 ms with only a diamond pickaxe, no armor, and health and hunger 20. Its 27 route hazards exclude all 1,212 columns at clearance before any terrain probe or path launch, at defense tick 1.
+
+Both record zero deaths, an empty cursor, zero inventory-transfer invalidations, and zero dropped target receipts. Primary logs four unique recoveries and no left event. Modern logs two unique recoveries and one `PLAYER_SUPPORT` left event. Complete cleanup remains unproved. Neither run emits `STATION_STOCK`, so the trigger and extra-birch-trip elimination remain unverified. The checkpoint records 17 verified public original PNGs and 34 deleted local copies. Preview 11 stays at `88f2b52`; no Preview 12 is published. The `454fd46` results below retain their historical scope.
 
 The [nearest live snapshot scan repair](#nearest-live-snapshot-admission) is implemented across all fourteen kernel families. Local 1.21.1 and 26.3 builds pass. All [24 CI profiles at `24a00bb`](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) PASS. Fresh 1.21.1 `454fd46` [FAILS after 709,736 ms](#fresh-1211-normal-survival-failure-at-454fd46), with one diamond pickaxe, 23 diamonds, no equipped armor, health 3, and seven paused foreground goals. Both retreat selections exhaust their sampled domain before path launch. The native target buffer dropped 134 entries. Fresh 26.3 `454fd46` [FAILS after 357,501 ms](#fresh-263-normal-survival-failure-at-454fd46), after a diamond pickaxe and four rejected retreat starts. Final health is 20, with zero deaths. Preview 11 stays at `88f2b52`; Preview 12 remains blocked. The older frozen results below retain their scope.
 
@@ -806,16 +810,70 @@ The change uses the existing asynchronous `requestPlan` as a hint. `StationStock
 
 Only a successful, nonempty plan with a changed first source requests a handoff. Ownership checks and movement stop propagate ownership loss. The engine resets the action and returns; a later normal tick drains cancellation before fresh execution planning. The hint never becomes an execution plan. Failed, cancelled, blocked, empty, unchanged-source, or stale hints spend the dispatched allowance and leave gathering active. No stock retry is scheduled. Output receipts, world-action accounting, same-demand logical edge history, and inactivity accounting stay unchanged. Native numeric caps remain per request; no cumulative cap is claimed.
 
-The local build snapshot `/tmp/lodekeeper-main-late-station-stock-build-snapshot.json` records both builds PASS, with every listed existing check executed and none skipped:
+#### Exact-source builds and CI at 0cbe78a
 
-| Local build | Executed existing checks | Kernel status |
+Source is `0cbe78a4b0ed0121eb5bf188dca7efa3f1cf4c52` on clean canonical `main` at freeze and both native launches. The reviewed production files were built before commit and committed unchanged. Independent source review is CLEAN. Sequential local builds PASS with one Gradle worker and no persistent daemon. All listed existing checks execute without skips.
+
+| Local build | Executed existing checks | Frozen jar bytes | Frozen jar SHA-256 |
+| --- | --- | --- | --- |
+| 1.21.1 | 315 = 167 core + 98 navigation + 48 adapter + 2 kernel | 1,724,679 | `a99ad9710679c519801b840c22cb38ba7a68f178c5e119c936a3cce370cea073` |
+| 26.3 | 268 = 167 core + 98 navigation + 3 adapter | 1,796,523 | `86b7d32ec520044f7966b248a6d3fe776f728e0161b58509b06190ea0707ac1b` |
+
+Modern kernel tests are `NO-SOURCE`. Kernel and host-jar inspectors PASS, including primary named and intermediary inspection. Both jars retain internal `0.1.0-preview.11` metadata as unreleased development artifacts. The frozen inputs are `/tmp/lodekeeper-main-0cbe78a-1.21.1-frozen.jar` and `/tmp/lodekeeper-main-0cbe78a-26.3-frozen.jar`. Native receipts record both artifacts unchanged and no class-origin violations. Primary uses verified Fabric runtime remapping; modern loads directly from its frozen jar. No new test was added.
+
+| Reviewed production file | SHA-256 |
+| --- | --- |
+| `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java` | `10deceed735bd49528031f86ac07925e8fbca828a654bbc182d331be6aedc395` |
+| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java` | `9ea56413be1d4b2657097368d22d5ec11ce194d9bfbbc7cf3f1a7b07f95dbe21` |
+
+[CI 37779110443](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443) completes SUCCESS at this exact source, with all 24 compile, check, and package profiles passing. CI artifact payloads were not downloaded, and ZIP bytes were not independently hashed. No equality with either frozen local jar is established. This compile matrix establishes no runtime coverage across all 24 profiles.
+
+| Public proof | Bytes | SHA-256 |
 | --- | --- | --- |
-| 1.21.1 | 315 = 167 core + 98 navigation + 48 adapter + 2 kernel | Two primary kernel checks PASS |
-| 26.3 | 268 = 167 core + 98 navigation + 3 adapter | Modern kernel tests `NO-SOURCE` |
+| [Build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-builds.json) | 16,160 | `d77f39219e2136389892356af96372a99eb017a4ba4bb96a261a9cfe11ee8c22` |
+| [Final CI proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-ci.json) | 97,176 | `1eb8058ef4b148d598160c4525a832f25cf030506d44c0c5cd8e041798aa0928` |
+| [Primary native proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-natural-primary.json) | 194,696 | `d940316842db20dc0b977e4b780f0a26465fcc676c0e21e6dcc361e60540d579` |
+| [Modern native proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-natural-modern.json) | 123,799 | `6d52ccd8a22a5f8ae2599c42c16855058d9cca1e96ca4932002424ab0108d77c` |
 
-Both production source hashes still match the snapshot. The local 1.21.1 jar SHA-256 is `a99ad9710679c519801b840c22cb38ba7a68f178c5e119c936a3cce370cea073`; the 26.3 jar is `86b7d32ec520044f7966b248a6d3fe776f728e0161b58509b06190ea0707ac1b`. Both retain internal version `0.1.0-preview.11` as unreleased development artifacts. No new test was added.
+All four proof-upload receipts record anonymous HTTP 200 and matching byte/hash read-back. Local proofs use `/tmp/lodekeeper-main-0cbe78a-{build,ci,natural-primary,natural-modern}-proof.json`, each with a sibling `-upload-receipt.json`. The build proof's pending CI/native qualification and the CI proof's modern-in-progress scope describe their recording times. The final native proofs below supply both completed failures.
 
-Independent source review is CLEAN. There is no current native or CI result and no new public proof link. Native verification must cover one dispatch per scope, ineffective hint continuation, changed-source drainage and fresh planning, same-demand return, superseded futures, interruption and ownership loss, and cursor, offhand, and protected stock. The exact counterfactual plan and elimination of the captured extra birch trip remain unproved. The [primary](#fresh-1211-normal-survival-failure-at-454fd46) and [modern](#fresh-263-normal-survival-failure-at-454fd46) `454fd46` FAILs remain the latest completed gameplay. All 24 CI passes at `24a00bb` belong to the earlier scan unit. No speed, complete cleanup, receipt fix, release readiness, or Preview 12 claim follows. Released Preview 11 remains at `88f2b52`.
+#### Fresh 1.21.1 Normal Survival failure at 0cbe78a
+
+The [primary native proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-natural-primary.json) records fresh generated Normal Survival `!lk project gear_diamond` FAIL after 603,636 command ms on seed `483920105`. Final integrated-server counts confirm one diamond pickaxe, axe, and hoe, plus four equipped diamond armor pieces. Diamond shovel and sword remain missing. Minimum and final health are 18.080002, hunger is 17, deaths are zero, and the cursor is empty. The engine is paused with one foreground request queued. The client exits normally with code 0 without reaching the runner timeout.
+
+The terminal error says `defense exceeded its 15 second budget`. The read-only diagnosis `/tmp/lodekeeper-main-0cbe78a-primary-defense-limit-diagnosis.md` traces seven native stone-pickaxe attacks killing the first tracked skeleton. A second live skeleton receives no attack. One retreat selection at tick 148 exhausts 396 columns, rejecting 394 at clearance and all ten attempted heights at `FEET_FULL`; there are zero stance probes, zero goals, and no path launch. The response returns to contact waiting with `retreatBlocked=true`, suppressing further retreat attempts. The remaining skeleton stays eligible and inside eight blocks until the cap fails at tick 301. This proves the tick predicate in the dual 15-second wall-time and 300-tick cap, without measuring an exact 15.000-second interval.
+
+The logs do not separate sight and native reach refusals, weapon refusals, or shield readiness per tick. No line-of-sight, reach, or weapon-ranking cause is established. No safe escape outside the sampled domain is proved. The diagnosis supports bounded decision logging before a behavior fix; it supplies no basis to increase the timeout or relax safety guards.
+
+Four unique `OWNED_STATION_RECOVERED` records and zero `OWNED_STATION_LEFT` records do not prove complete cleanup. Recovery counts are deduplicated across latest and debug logs. Zero inventory-transfer invalidations, zero `serverTargetReceiptsDropped`, and zero `STATION_STOCK` events occur. The new late-table trigger is unexercised. The primary proof's earlier pending-diagnosis limitation predates the read-only report above.
+
+#### Fresh 26.3 Normal Survival failure at 0cbe78a
+
+The [modern native proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-natural-modern.json) records fresh generated Normal Survival `!lk project gear_diamond` FAIL after 336,722 command ms on the same seed. Only one diamond pickaxe is produced; the other eight targets and all diamond armor remain missing. Minimum and final health and hunger are 20, deaths are zero, and the cursor is empty. The engine pauses with seven foreground goals. The client exits normally with code 0 without reaching the runner timeout.
+
+At defense tick 1, `RETREAT_SELECTOR` captures 27 route hazards and visits all 1,212 columns. Every column fails horizontal hazard clearance. There are zero attempted heights, terrain probes, or goals, with `OFFSETS_EXHAUSTED`, outcome `EMPTY`, and `pathLaunch=NOT_STARTED`. `retreatStarts=1` counts a selection attempt; no retreat path launches or completes. The bounded failure does not establish that no safe escape exists outside the sampled domain.
+
+Two unique `OWNED_STATION_RECOVERED` records and one `OWNED_STATION_LEFT` whose reason ends with `native mining refused: PLAYER_SUPPORT` do not prove complete cleanup. Zero inventory-transfer invalidations, zero `serverTargetReceiptsDropped`, and zero `STATION_STOCK` events occur. The late-table trigger and extra-birch-trip elimination remain unverified.
+
+#### Public captures and remaining gates at 0cbe78a
+
+The manifests below use the asset names and URLs recorded in the upload receipts. PNG hashes remain in those manifests and receipts.
+
+| Public screenshot manifest | Original PNGs | Deleted local copies | Manifest bytes | Manifest SHA-256 |
+| --- | --- | --- | --- | --- |
+| [Primary early](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-primary-early-screenshots.json) | 1 | 2 | 1,105 | `5b097bbb93c61369019d6f3c8dab3df61f2c026c05c1396e7edb7ff60ed98c70` |
+| [Primary armor route](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-primary-armor-route-screenshots.json) | 1 | 2 | 1,077 | `5554bd472518767aa11f1663bc73b83647e3e0208caec11b3365a4e453372fcd` |
+| [Primary final](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-primary-final-screenshots.json) | 10 | 20 | 9,629 | `99c588570ec9fc655cdcd6b057538eb088648a956f76fc7ffe7883b52f0f9508` |
+| [Modern early](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-modern-early-screenshots.json) | 1 | 2 | 1,037 | `127b7bf8be36c3b0d063605ff69d5b0c7b83d4050b0211f54647e68666fcaa3d` |
+| [Modern final](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-modern-final-screenshots.json) | 4 | 8 | 3,519 | `887eebb6d6fd9cbf57976d471ca89ee08e89423164d65f66f85d1d676d5fd800` |
+
+Primary totals twelve originals and 24 deleted local original/staging copies across early, armor-route, and final sets. Modern totals five originals and ten deleted copies across early and final sets. All seventeen public PNGs have recorded anonymous HTTP 200, matching bytes and SHA-256, and logged-out browser decoding before deletion of all 34 local copies. No pending local copies remain. Early and armor-route window captures decode at 640 by 388; native final-manifest frames decode at 640 by 360. Public originals remain available; no media or evidence blobs are added here.
+
+Native milestone screenshots are queued and render later. `MILESTONE_PASS_RUN_FAIL` records an item milestone inside a failed run; it does not establish its first-receipt instant. Early `IN_PROGRESS` labels describe capture time only. First-movement and running frames retain `IN_PROGRESS_LATER_FAIL`. The primary final image still shows stale `WORKING`; pause chat and the final native JSON establish FAIL. The modern final image shows `PAUSED`. Server receipts establish item timing and final counts.
+
+Local screenshot upload receipts use `/tmp/lodekeeper-main-0cbe78a-{primary-early,primary-armor-route,primary-final,modern-early,modern-final}-screenshot-upload-receipt.json`. Each records its browser receipt and the later deletion timestamp. These are completed failed gameplay runs on the exact local artifacts, separate from source review and build PASS.
+
+Native verification still must exercise one dispatch per scope, ineffective hint continuation, changed-source drainage and fresh planning, same-demand return, superseded futures, interruption and ownership loss, and cursor, offhand, and protected stock. Zero stock events close none of those trigger-specific gates. The exact counterfactual plan and elimination of the captured extra birch trip remain unproved. No comparative speed, general reliability, complete cleanup, receipt fix, or release-readiness claim follows. Preview 11 remains at released `88f2b52`; no Preview 12 is published.
 
 No retreat policy change was chosen or implemented in this unit. Duplicate partial-retreat retry remains open. An earlier pause offers no observed escape benefit in the captured run; reducing its retry allowance does not establish a safe escape.
 

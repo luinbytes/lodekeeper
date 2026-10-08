@@ -119,9 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [late-table stock change](docs/OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) lets an ordinary project log gather reconsider its source once when a crafting table reaches storage. A changed first source stops movement, drains cancellation, then requests a fresh normal plan. Ineffective or stale hints leave gathering active without a stock retry. Local 1.21.1 and 26.3 builds PASS. Independent source review is CLEAN. Exact-jar native verification and current CI are pending.
+Exact main `0cbe78a` has passing local 1.21.1 and 26.3 builds, CLEAN source review, and [24/24 successful CI jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443). Fresh Normal Survival `gear_diamond` FAILS on both frozen local jars. Primary fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Modern fails after 336,722 ms with only a diamond pickaxe and no armor.
 
-The latest completed gameplay remains frozen `454fd46`: [1.21.1 FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-1211-normal-survival-failure-at-454fd46) and [26.3 FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-failure-at-454fd46). Earlier [24-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) covers the prior scan repair at `24a00bb`. Eliminating the extra birch trip remains unproved. Preview 11 stays at released `88f2b52`; the new local jars retain its internal version and are unreleased.
+Both runs record zero `STATION_STOCK` events. The late-table trigger and extra-birch-trip elimination remain unverified. Complete cleanup remains unproved; CI ZIP bytes have no independent hash read-back or local-jar equality proof. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) records exact hashes, public captures, and defense failures. Preview 11 stays at released `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
