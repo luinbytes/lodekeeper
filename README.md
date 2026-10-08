@@ -119,7 +119,7 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review and both primary builds. A fresh 26.3 run on production and verifier `d0a62ef` emits eight descent samples, then stops at the cap. Sampling proves no return route.
+The [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review and both primary builds. A fresh 26.3 run on production and verifier `d0a62ef` emits eight descent samples, then stops at the cap. Sampling proves no return route. A [saved-world baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission.
 
 The run **FAILS after 559,590 ms** with one diamond pickaxe and eight gear targets absent. Final health is 5.666666, with no deaths, an empty cursor, no timeout, and clean client exit 0. The low-health guard blocks further attacks. Both retreat selections exhaust their terrain candidates without launching a path. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d0a62ef-no-downward-modern-screenshots.json) show the command and final pause.
 
