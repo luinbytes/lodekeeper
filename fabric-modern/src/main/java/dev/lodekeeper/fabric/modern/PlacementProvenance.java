@@ -30,6 +30,7 @@ import java.util.Optional;
 public final class PlacementProvenance {
     private static final long PLACEMENT_TIMEOUT_TICKS = 40;
     private static final int MAX_TRACKED_INVENTORY_ITEMS = 8_192;
+    private static final ItemId AIR = ItemId.parse("minecraft:air");
     private static volatile PlacementProvenance active;
 
     private final Minecraft client;
@@ -47,6 +48,7 @@ public final class PlacementProvenance {
     private boolean inventoryComplete;
     private int receiptDiagnostics;
     private int stationBlockDiagnostics;
+    private int retainedStationDiagnostics;
     private final java.util.Map<OwnedStationLedger.BlockPosition, BlockReceipt> recentStationBlocks = new java.util.LinkedHashMap<>();
     private boolean placementQuarantined;
     record ServerBlockReceipt(OwnedStationLedger.Session session, long sequence, BlockPos position, BlockState state) { }
@@ -112,6 +114,7 @@ public final class PlacementProvenance {
     void tick() {
         clientTicks = Math.addExact(clientTicks, 1);
         refreshBinding();
+        refreshRemovalContinuity();
         if (pending != null && (!pendingContextCurrent(pending) || clientTicks >= pending.deadlineTick)) {
             cancelPending();
         }
@@ -205,6 +208,7 @@ public final class PlacementProvenance {
     }
 
     void manualTakeover() {
+        recentStationBlocks.replaceAll((cell, receipt) -> revokeRemovalContinuity(cell, receipt, "manual-takeover"));
         cancelPending();
     }
 
@@ -221,8 +225,14 @@ public final class PlacementProvenance {
     }
 
     void forgetChunk(ClientLevel sourceWorld, int chunkX, int chunkZ) {
-        if (binding == null || binding.world != sourceWorld || ledger == null
-                || !ledger.currentSession().equals(binding.session)) return;
+        if (binding == null || binding.world != sourceWorld) return;
+        recentStationBlocks.entrySet().removeIf(entry -> {
+            var cell = entry.getKey();
+            if ((cell.x() >> 4) != chunkX || (cell.z() >> 4) != chunkZ) return false;
+            removalDiagnostic("chunk-unload", cell, entry.getValue());
+            return true;
+        });
+        if (ledger == null || !ledger.currentSession().equals(binding.session)) return;
         if (pending != null) {
             OwnedStationLedger.BlockPosition position = pending.ticket.intent().position();
             if ((position.x() >> 4) == chunkX && (position.z() >> 4) == chunkZ) cancelPending();
@@ -267,25 +277,31 @@ public final class PlacementProvenance {
 
     private void applyBlockUpdate(BlockPos position, BlockState state) {
         if (position == null || state == null || binding == null) return;
+        refreshRemovalContinuity();
         long sequence = nextReceiptSequence();
         ItemId observedBlockId = ItemId.parse(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
         var cell = new OwnedStationLedger.BlockPosition(position.getX(), position.getY(), position.getZ());
         boolean tracked = recentStationBlocks.containsKey(cell)
                 || pending != null && pending.ticket.intent().position().equals(cell)
-                || ledger.records().stream().anyMatch(record -> record.position().equals(cell));
+                || ledger.records().stream().anyMatch(record -> record.position().equals(cell))
+                || retainsStationReceipt(cell);
         if (tracked) {
-            if (LodekeeperClient.engine != null && LodekeeperClient.engine.config.debugLogging
-                    && stationBlockDiagnostics < 24) {
-                stationBlockDiagnostics++;
-                BlockReceipt previous = recentStationBlocks.get(cell);
+            BlockReceipt previous = recentStationBlocks.get(cell);
+            BlockReceipt observed = BlockReceipt.observed(previous, binding.session, observedBlockId, sequence,
+                    removalContextCurrent(cell));
+            if (stationDiagnosticAllowed(cell)) {
                 org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                        "[Lodekeeper] STATION_BLOCK_RECEIPT generation={} position={} previousBlock={} previousSequence={} observedBlock={} observedSequence={}",
+                        "[Lodekeeper] STATION_BLOCK_RECEIPT generation={} position={} previousBlock={} previousSequence={} previousRemovalSequence={} observedBlock={} observedSequence={} stableRemovalSequence={}",
                         generation, position, previous == null ? "none" : previous.block(),
-                        previous == null ? -1 : previous.sequence(), observedBlockId, sequence);
+                        previous == null ? -1 : previous.sequence(),
+                        previous == null ? 0 : previous.stableRemovalSequence(),
+                        observedBlockId, sequence, observed.stableRemovalSequence());
             }
-            if (!recentStationBlocks.containsKey(cell) && recentStationBlocks.size() >= 256)
-                recentStationBlocks.remove(recentStationBlocks.keySet().iterator().next());
-            recentStationBlocks.put(cell, new BlockReceipt(binding.session, observedBlockId, sequence));
+            if (previous == null && recentStationBlocks.size() >= 256) {
+                var evicted = recentStationBlocks.keySet().iterator().next();
+                removalDiagnostic("cache-eviction", evicted, recentStationBlocks.remove(evicted));
+            }
+            recentStationBlocks.put(cell, observed);
         }
         ledger.onServerBlockUpdate(binding.session, cell, observedBlockId, sequence);
         reconcilePending();
@@ -450,20 +466,23 @@ public final class PlacementProvenance {
         placementQuarantined = false;
         receiptDiagnostics = 0;
         stationBlockDiagnostics = 0;
+        retainedStationDiagnostics = 0;
         receiptDiagnostic("binding established");
         clearInventory();
         return true;
     }
 
     OptionalLong confirmedStationRemovalSequence(OwnedStationLedger.StationRecord record) {
-        if (!refreshBinding() || record == null || !record.session().equals(binding.session)) {
+        if (!refreshBinding()) return OptionalLong.empty();
+        refreshRemovalContinuity();
+        if (record == null || !record.session().equals(binding.session)) {
             return OptionalLong.empty();
         }
         BlockReceipt receipt = recentStationBlocks.get(record.position());
         if (receipt == null || !receipt.session().equals(record.session())
-                || receipt.sequence() <= record.blockReceiptSequence()
-                || !receipt.block().equals(ItemId.parse("minecraft:air"))) return OptionalLong.empty();
-        return OptionalLong.of(receipt.sequence());
+                || receipt.stableRemovalSequence() <= record.blockReceiptSequence()
+                || !receipt.block().equals(AIR)) return OptionalLong.empty();
+        return OptionalLong.of(receipt.stableRemovalSequence());
     }
 
     boolean confirmedStationRemoved(OwnedStationLedger.StationRecord record) {
@@ -473,10 +492,82 @@ public final class PlacementProvenance {
     void recovered(OwnedStationLedger.StationRecord record) {
         if (record == null || ledger == null || binding == null) return;
         ledger.removeAfterPickup(binding.session, record);
-        recentStationBlocks.remove(record.position());
+        BlockReceipt removed = recentStationBlocks.remove(record.position());
+        if (removed != null) removalDiagnostic("recovered", record.position(), removed);
     }
 
-    private record BlockReceipt(OwnedStationLedger.Session session, ItemId block, long sequence) { }
+    private record BlockReceipt(OwnedStationLedger.Session session, ItemId block, long sequence,
+                                long stableRemovalSequence) {
+        private BlockReceipt {
+            Objects.requireNonNull(session, "session");
+            Objects.requireNonNull(block, "block");
+            if (sequence <= 0 || stableRemovalSequence < 0 || stableRemovalSequence > sequence
+                    || !block.equals(AIR) && stableRemovalSequence != 0) {
+                throw new IllegalArgumentException("invalid station block receipt");
+            }
+        }
+
+        private static BlockReceipt observed(BlockReceipt previous, OwnedStationLedger.Session session,
+                                             ItemId block, long sequence, boolean continuityAllowed) {
+            long removal = 0;
+            if (block.equals(AIR) && continuityAllowed) {
+                removal = previous != null && previous.session().equals(session)
+                        && previous.block().equals(AIR) && previous.stableRemovalSequence() > 0
+                        ? previous.stableRemovalSequence() : sequence;
+            }
+            return new BlockReceipt(session, block, sequence, removal);
+        }
+
+        private BlockReceipt withoutRemovalContinuity() {
+            return stableRemovalSequence == 0 ? this : new BlockReceipt(session, block, sequence, 0);
+        }
+    }
+
+    private void refreshRemovalContinuity() {
+        recentStationBlocks.replaceAll((cell, receipt) -> receipt.stableRemovalSequence() > 0
+                && !removalContextCurrent(cell) ? revokeRemovalContinuity(cell, receipt, "native-context-unavailable")
+                : receipt);
+    }
+
+    private boolean removalContextCurrent(OwnedStationLedger.BlockPosition cell) {
+        LocalPlayer player = client.player;
+        if (binding == null || player == null || client.gameMode == null
+                || !player.isAlive() || player.isCreative() || player.isSpectator()
+                || GameApi.screen(client) != null || player.containerMenu != player.inventoryMenu
+                || player.containerMenu == null || !player.containerMenu.getCarried().isEmpty()) return false;
+        BlockPos position = new BlockPos(cell.x(), cell.y(), cell.z());
+        return client.level != null && client.level.hasChunkAt(position)
+                && client.level.getBlockState(position).isAir();
+    }
+
+    private BlockReceipt revokeRemovalContinuity(OwnedStationLedger.BlockPosition cell, BlockReceipt receipt,
+                                                 String reason) {
+        if (receipt.stableRemovalSequence() > 0) removalDiagnostic(reason, cell, receipt);
+        return receipt.withoutRemovalContinuity();
+    }
+
+    private boolean retainsStationReceipt(OwnedStationLedger.BlockPosition cell) {
+        return binding != null && LodekeeperClient.engine != null
+                && LodekeeperClient.engine.retainsOwnedStationReceipt(this, binding.session, cell);
+    }
+
+    private boolean stationDiagnosticAllowed(OwnedStationLedger.BlockPosition cell) {
+        if (LodekeeperClient.engine == null || !LodekeeperClient.engine.config.debugLogging) return false;
+        if (retainsStationReceipt(cell)) {
+            if (retainedStationDiagnostics >= 48) return false;
+            retainedStationDiagnostics++;
+            return true;
+        }
+        if (stationBlockDiagnostics >= 24) return false;
+        stationBlockDiagnostics++;
+        return true;
+    }
+
+    private void removalDiagnostic(String reason, OwnedStationLedger.BlockPosition cell, BlockReceipt receipt) {
+        if (stationDiagnosticAllowed(cell)) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] STATION_REMOVAL_DISCARDED generation={} position={} reason={} latestRawSequence={} discardedStableRemovalSequence={}",
+                receipt.session().generation(), cell, reason, receipt.sequence(), receipt.stableRemovalSequence());
+    }
 
     String inventoryReadiness() {
         long known = java.util.Arrays.stream(serverMainInventory).filter(Objects::nonNull).count();
@@ -490,7 +581,9 @@ public final class PlacementProvenance {
     }
 
     private void receiptDiagnostic(String message) {
-        if (receiptDiagnostics++ < 48) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+        if (receiptDiagnostics >= 48) return;
+        receiptDiagnostics++;
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] STATION_RECEIPT generation={} {}", generation, message);
     }
 
@@ -620,6 +713,7 @@ public final class PlacementProvenance {
     }
 
     private void clearInventory() {
+        recentStationBlocks.forEach((cell, receipt) -> removalDiagnostic("inventory-or-session-clear", cell, receipt));
         recentStationBlocks.clear();
         inventoryIncreaseSequences.clear();
         inventoryIncreaseTrackingOverflowed = false;

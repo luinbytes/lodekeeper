@@ -36,9 +36,11 @@ Lodekeeper maps native smelting, smoking and blasting recipes to their exact fur
 
 ## Station choice and ownership
 
-### Required material priority on subsequent main source
+### Required material priority at main d2bb2f4
 
-The subsequent main material-priority change has fresh `R1 CLEAN` source review and both full builds passing 316 checks. All 19 `ProjectGatherBatchTest` cases pass, including eight approved additions. The same cases produce three failures against byte-identical frozen59 core. It moves the earliest required log gather before leading ore only after an exact one-step held-stock proof. Species, quantity, selected tools, and other relative order stay intact. Station or consumable requirements and missing, worn, or unsuitable prerequisites refuse promotion. Optional proof work has a bounded fallback, and batching stops at a different gather. Public APIs and the Java 17 core target stay unchanged. Native material behavior and resulting-source CI remain pending. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) records the receipts and distinct artifact hashes.
+At committed `d2bb2f4`, the planner moves a required log gather before ore only after an exact one-step held-stock proof. Batching stops at a different gather. The [build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d2bb2f4-build.json) records 316 passing checks, including nineteen material cases; three of those cases fail against frozen59 core. The material-promotion branch remains unexercised in native gameplay.
+
+The failed fresh [primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d2bb2f4-natural-primary.json) and [modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d2bb2f4-natural-modern.json) runs each record five unique table recoveries. These events do not verify complete station recovery or the later receipt correction. [Final exact-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d2bb2f4-ci.json) passes all 24 profiles. The [checkpoint](OWNED-PREVIEW-CHECKPOINT.md#separate-future-source-unit) describes the reviewed stable-removal correction and selector diagnostics. Both adapters compile with 316 checks, but native acceptance and resulting-commit CI remain pending. The correction retains first-air identity separately from latest raw sequence, preserves invalidation boundaries, and leaves the consumer's exact guards unchanged.
 
 ### Exact owned pickup at main 59e3403
 
@@ -52,7 +54,7 @@ The [fresh 26.3 frozen59 run](evidence/survival-safety/main-59e3403-natural-mode
 
 Two later tables have recovery receipts. An earlier different table at `(-7, 68, 34)` fails recovery when its removal receipt changes from sequence 7094 to 7096. The diagnosis traces a second same-cell, same-session air receipt replacing the first removal sequence, after observed inventory gain and drop disappearance. `OWNED_STATION_LEFT` is a failure label; it alone does not prove a physical table remains. Later recoveries do not close that exact-record failure. The dry-retreat failure occurs during goal selection, before a path launches; its terminal rejection cause remains unproved. These diagnoses do not establish an implemented correction.
 
-The public fresh-modern proof matches the repository receipt. Three final-run originals and an early iron PNG pass anonymous byte and SHA-256 read-back and logged-out decoding; eight local copies are deleted. The final HUD retains prior `WORKING`; pause chat and server/engine receipts establish FAIL. Complete station recovery, unresolved slab, ledge, or floating-drop geometry, and interruption handling remain separate gates. Native material behavior remains pending. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The public fresh-modern proof matches the repository receipt. Three final-run originals and an early iron PNG pass anonymous byte and SHA-256 read-back and logged-out decoding; eight local copies are deleted. The final HUD retains prior `WORKING`; pause chat and server/engine receipts establish FAIL. Complete station recovery, unresolved slab, ledge, or floating-drop geometry, and interruption handling remain separate gates. Native material promotion at `d2bb2f4` remains unexercised. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Station selection and project carry
 

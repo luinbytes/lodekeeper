@@ -3563,6 +3563,15 @@ final class AutomationEngine {
         return true;
     }
 
+    boolean retainsOwnedStationReceipt(PlacementProvenance source, OwnedStationLedger.Session session,
+                                      OwnedStationLedger.BlockPosition cell) {
+        if (source != placementProvenance) return false;
+        if (cleanupRun != null && cleanupRun.session.equals(session) && cleanupRun.current != null
+                && cleanupRun.current.session().equals(session) && cleanupRun.current.position().equals(cell)) return true;
+        return pendingStationPickup != null && stationRecovery.pickupRetained()
+                && pendingStationPickup.session().equals(session) && pendingStationPickup.position().equals(cell);
+    }
+
     private boolean mayRecoverOwnedStation(BlockPos position) {
         CleanupRun cleanup = cleanupRun;
         if (cleanup == null || cleanup.current == null || active != cleanup.request
