@@ -156,7 +156,7 @@ The air proof corrects the initial uploaded manifest caption. The primary native
 
 ## Current main evidence
 
-The [bounded bulk-descent sampler](OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) has CLEAN source review. Both adapter builds and existing core/navigation/adapter checks pass, 313 on 1.21.1 and 268 on 26.3. Native capture is pending; it supplies no return-path or retreat fix.
+The [bounded bulk-descent sampler](OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) has CLEAN source review and passing builds: 313 existing checks on 1.21.1 and 268 on 26.3. Fresh 26.3 `d0a62ef` emits eight extra samples within its cap, then FAILS at dry-retreat selection after 559,590 ms. It retains one diamond pickaxe and ends at health 5.666666 with no deaths. Primary native sampling is unrun. No return-path or retreat fix is established.
 
 Exact production `4aa1cc4` [active-threat snapshot correction](OWNED-PREVIEW-CHECKPOINT.md#active-threats-in-retreat-hazard-snapshots) has CLEAN source review and passing 1.21.1 and 26.3 builds, with 315 and 268 existing checks. [CI run 37809197303](https://github.com/luinbytes/lodekeeper/actions/runs/37809197303) finishes SUCCESS with all 24 jobs passing, rechecked on 8 October 2026 at 16:52 UTC. CI does not prove local-jar byte equality or gameplay across all profiles.
 

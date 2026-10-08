@@ -119,13 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-A [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review. Builds pass on 1.21.1 and 26.3; native capture remains pending. It changes diagnostics only.
+The [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review and both primary builds. A fresh 26.3 run on production and verifier `d0a62ef` emits eight descent samples, then stops at the cap. Sampling proves no return route.
 
-Fresh 26.3 Normal Survival with isolated `allowDownward=false` [completed with native FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-fresh-263-no-direct-downward-experiment) after 500,299 ms. Frozen production `4aa1cc4`, verifier `579c2e3`, and seed `483920105` produced one diamond pickaxe; eight targets remain absent. Health stayed 20, with no deaths, an empty cursor, no timeout, and clean exit 0.
+The run **FAILS after 559,590 ms** with one diamond pickaxe and eight gear targets absent. Final health is 5.666666, with no deaths, an empty cursor, no timeout, and clean client exit 0. The low-health guard blocks further attacks. Both retreat selections exhaust their terrain candidates without launching a path. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d0a62ef-no-downward-modern-screenshots.json) show the command and final pause.
 
-At retreat center `(-36,-12,21)`, all 1,212 columns failed clearance against nineteen hazards before terrain checks or path launch. The bounded saved sample found no escape witness satisfying every guard. The preference supplies no return guarantee; policy is unchanged. [Four original captures](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-4aa1cc4-no-downward-modern-screenshots.json) accompany the proof.
-
-The latest [health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS. [Exact verifier CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-579c2e3-ci.json) passes all 24 jobs. Earlier FAILs retain their scopes below. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+Isolated `allowDownward=false` remains an experiment; default policy is unchanged. The [earlier full-health failure](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-fresh-263-no-direct-downward-experiment) retains its separate evidence. The latest [prepared health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
