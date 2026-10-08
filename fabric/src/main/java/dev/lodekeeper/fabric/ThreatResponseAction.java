@@ -358,14 +358,7 @@ final class ThreatResponseAction {
                             log("retreat-prefix-blocked");
                             movement.stopForDefense();
                             phase = Phase.FINISHING;
-                        } else if (movement.tick()) {
-                            boolean arrived = retreatRoute.goals().contains(client.player.getBlockPos());
-                            status = arrived ? "verifying current threat clearance" : "draining interrupted retreat";
-                            if (arrived) completedRetreats++;
-                            log(arrived ? "retreat-arrived" : "retreat-interrupted");
-                            movement.stopForDefense();
-                            phase = Phase.FINISHING;
-                        } else {
+                        } else if (!tickRetreat(threats)) {
                             double rx = client.player.getX() - retreatProgressX, rz = client.player.getZ() - retreatProgressZ;
                             if (rx * rx + rz * rz >= .25) {
                                 retreatProgressX = client.player.getX();
@@ -398,6 +391,27 @@ final class ThreatResponseAction {
         } catch (RuntimeException failure) {
             throw abort(failure);
         }
+    }
+
+    private boolean tickRetreat(List<MobEntity> threats) {
+        boolean arrived;
+        String outcome;
+        try {
+            if (!movement.tick()) return false;
+            arrived = retreatRoute.goals().contains(client.player.getBlockPos());
+            outcome = arrived ? "retreat-arrived" : "retreat-interrupted";
+        } catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.PROCESS_ENDED || !threats.isEmpty())
+                throw failure;
+            arrived = false;
+            outcome = "retreat-ended-after-clearance";
+        }
+        status = arrived ? "verifying current threat clearance" : "draining interrupted retreat";
+        if (arrived) completedRetreats++;
+        log(outcome);
+        movement.stopForDefense();
+        phase = Phase.FINISHING;
+        return true;
     }
 
     void stop() {
