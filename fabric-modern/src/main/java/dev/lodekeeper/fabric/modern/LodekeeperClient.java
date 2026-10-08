@@ -1,5 +1,8 @@
 package dev.lodekeeper.fabric.modern;
 
+import dev.lodekeeper.navigation.kernel.api.utils.Rotation;
+import dev.lodekeeper.navigation.kernel.pathing.movement.MovementState;
+
 import dev.lodekeeper.core.CommandParser;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -50,6 +53,24 @@ public final class LodekeeperClient implements ClientModInitializer {
     public static void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
                                           net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
         if (engine != null) engine.observeNativeBreak(gameMode, stage, start, value, position, face, target, progress, delay, destroying);
+    }
+
+    public enum PreparationStage {
+        HEAD, REACHABILITY, LOOKING_AT, ROTATION_CLOSE, WAITING, FALLING_WAIT, REACHABLE, FALLBACK, UNREACHABLE, CLEAR
+    }
+    public enum BreakHelperStage { HEAD, RAY, GUARD, CHOICE, DELAY, GUARD_DENIED, NORMAL }
+
+    public static void observePreparation(Object source, PreparationStage stage, boolean result,
+                                          MovementState state,
+                                          BlockPos block, java.util.Optional<Rotation> reachable,
+                                          Rotation effective,
+                                          Rotation desired) {
+        if (engine != null) engine.observePreparation(source, stage, result, state, block, reachable, effective, desired);
+    }
+
+    public static void observeBreakHelper(Object source, BreakHelperStage stage, boolean result,
+                                          net.minecraft.world.phys.HitResult ray, boolean leftClick, int delay, boolean wasHitting) {
+        if (engine != null) engine.observeBreakHelper(source, stage, result, ray, leftClick, delay, wasHitting);
     }
 
     @Override public void onInitializeClient() {

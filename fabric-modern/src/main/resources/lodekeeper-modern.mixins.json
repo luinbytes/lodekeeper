@@ -8,6 +8,8 @@
     "ContainerInputReceiptMixin",
     "OwnedClickPacketMixin",
     "NavigationMiningMixin",
+    "MovementPreparationMixin",
+    "BlockBreakObservationMixin",
     "PlacementProvenanceMixin",
     "RetreatCalculationContextMixin",
     "RetreatWorldSnapshotsMixin"

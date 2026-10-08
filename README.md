@@ -125,7 +125,7 @@ Frozen `764146a` passes 316 local build checks. Its historical CI remains fourte
 
 Saved-world replays preserve the original save and frozen jars. Both `764146a` and diagnostic build `47c972c` pause at cobblestone 0/3. The latter captures five native calls with increasing progress before its observation window closes early. The full stall cause remains unproved. Its final screenshot is public and the client exits normally.
 
-Frozen `a30df80` keeps the ascent observable across water bobbing. Its manual saved-world replay FAILS at stone 0/3 after 63,038 ms, with a bounded trace, public final capture, and normal exit 0. Root-cause investigation and primary retreat remain open. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) records exact hashes, trace limits, and all 24 passing exact-source CI profiles. Both fresh `764146a` failures remain open. Preview 11 stays at `88f2b52`.
+Frozen `a30df80` keeps the ascent observable across water bobbing. Its manual saved-world replay FAILS at stone 0/3 after 63,038 ms, with a bounded trace, public final capture, and normal exit 0. Root-cause investigation and primary retreat remain open. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) records exact hashes, trace limits, and all 24 passing exact-source CI profiles. Both fresh `764146a` failures remain open. Preview 11 stays at `88f2b52`. The [next admission diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-mining-admission-observer) compiles on 26.3 and passes independent source review; native verification remains pending.
 
 ### Historical main evidence
 

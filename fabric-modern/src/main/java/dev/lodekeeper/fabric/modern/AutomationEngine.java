@@ -1,5 +1,8 @@
 package dev.lodekeeper.fabric.modern;
 
+import dev.lodekeeper.navigation.kernel.api.utils.Rotation;
+import dev.lodekeeper.navigation.kernel.pathing.movement.MovementState;
+
 import dev.lodekeeper.core.AcquisitionPlanner;
 import dev.lodekeeper.core.CommandParser;
 import dev.lodekeeper.core.AcquisitionSource;
@@ -477,6 +480,17 @@ final class AutomationEngine {
     void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
                             net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
         movement.observeNativeBreak(gameMode, stage, start, value, position, face, target, progress, delay, destroying);
+    }
+    void observePreparation(Object source, LodekeeperClient.PreparationStage stage, boolean result,
+                            MovementState state,
+                            BlockPos block, java.util.Optional<Rotation> reachable,
+                            Rotation effective,
+                            Rotation desired) {
+        movement.observePreparation(source, stage, result, state, block, reachable, effective, desired);
+    }
+    void observeBreakHelper(Object source, LodekeeperClient.BreakHelperStage stage, boolean result,
+                            net.minecraft.world.phys.HitResult ray, boolean leftClick, int delay, boolean wasHitting) {
+        movement.observeBreakHelper(source, stage, result, ray, leftClick, delay, wasHitting);
     }
     private long allocateJobToken() {
         if (lastJobToken == Long.MAX_VALUE) throw new IllegalStateException("Job token capacity reached");

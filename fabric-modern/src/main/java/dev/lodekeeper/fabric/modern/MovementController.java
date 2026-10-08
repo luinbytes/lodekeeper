@@ -1,5 +1,9 @@
 package dev.lodekeeper.fabric.modern;
 
+import dev.lodekeeper.fabric.modern.LodekeeperClient.PreparationStage;
+import dev.lodekeeper.fabric.modern.LodekeeperClient.BreakHelperStage;
+import dev.lodekeeper.navigation.kernel.api.utils.Rotation;
+import dev.lodekeeper.navigation.kernel.pathing.movement.MovementState;
 import dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI;
 import dev.lodekeeper.navigation.kernel.api.IBaritone;
 import dev.lodekeeper.navigation.kernel.api.Settings;
@@ -2072,6 +2076,22 @@ final class MovementController {
         catch (RuntimeException failure) { waterBreak.close("DIAGNOSTIC_FAILURE"); }
     }
 
+    void observePreparation(Object source, PreparationStage stage, boolean result, MovementState state,
+                            BlockPos block, Optional<Rotation> reachable, Rotation effective, Rotation desired) {
+        try { waterBreak.preparation(source, stage, result, state, block, reachable, effective, desired); }
+        catch (RuntimeException failure) {
+            try { waterBreak.close("DIAGNOSTIC_FAILURE"); } catch (RuntimeException ignored) { }
+        }
+    }
+
+    void observeBreakHelper(Object source, BreakHelperStage stage, boolean result,
+                            net.minecraft.world.phys.HitResult ray, boolean leftClick, int delay, boolean wasHitting) {
+        try { waterBreak.helper(source, stage, result, ray, leftClick, delay, wasHitting); }
+        catch (RuntimeException failure) {
+            try { waterBreak.close("DIAGNOSTIC_FAILURE"); } catch (RuntimeException ignored) { }
+        }
+    }
+
     private final class WaterBreakObserver {
         private enum State { CLOSED, WAITING, CAPTURING }
         private State state = State.CLOSED;
@@ -2092,17 +2112,204 @@ final class MovementController {
         private int index;
         private NativeFrame outer, child;
 
+        private Object breakHelper;
+        private PreparationFrame preparation;
+        private HelperFrame helper;
+        private int preparationCalls, helperCalls, preparationOrdinal, helperOrdinal;
+        private boolean admissionUnknown;
+
+        private static final class PreparationFrame {
+            final int ordinal;
+            PreparationFrame(int ordinal) { this.ordinal = ordinal; }
+            String before, after = "UNKNOWN", block = "UNKNOWN", desired, effective;
+            Boolean reachable, looking, close, returned;
+            int reaches, looks, comparisons;
+            PreparationStage exit;
+            boolean unknown;
+
+            String summary() {
+                String branch = exit == null || unknown ? "UNKNOWN" : exit.name();
+                if (exit == PreparationStage.REACHABLE && !unknown) {
+                    branch += "/" + (Boolean.TRUE.equals(looking) ? "LOOKING"
+                            : Boolean.TRUE.equals(close) ? "ROTATION_CLOSE" : "WAIT_ROTATION");
+                }
+                return "ordinal=" + ordinal + "/" + branch + "/" + (exit == null ? "INCOMPLETE" : "FINISHED")
+                        + " status=" + before + "/" + after + " block=" + block
+                        + " queries=" + reaches + "/" + looks + "/" + comparisons
+                        + " reachable=" + observed(reachable, exit != null && !unknown && reaches == 0)
+                        + " looking=" + observed(looking, exit != null && !unknown && looks == 0)
+                        + " close=" + observed(close, exit != null && !unknown && comparisons == 0)
+                        + " desired=" + (desired != null ? desired : exit != null && !unknown ? "NOT_EVALUATED" : "UNKNOWN")
+                        + " effective=" + (effective != null ? effective : exit != null && !unknown ? "NOT_EVALUATED" : "UNKNOWN")
+                        + " returned=" + observed(returned, false);
+            }
+        }
+
+        private static final class HelperFrame {
+            final int ordinal;
+            HelperFrame(int ordinal) { this.ordinal = ordinal; }
+            boolean leftClick, beforeHitting, afterHitting, blockRay, ordered, unknown;
+            int beforeDelay, afterDelay, rays, guards, choices;
+            String ray, branch = "UNKNOWN";
+            Boolean guard, choice;
+            BreakHelperStage exit;
+
+            String summary() {
+                return "ordinal=" + ordinal + "/" + (unknown || exit == null ? "UNKNOWN" : branch)
+                        + "/" + (exit == null ? "INCOMPLETE" : "FINISHED") + " leftClick=" + leftClick
+                        + " delay=" + beforeDelay + "/" + (exit == null ? "UNKNOWN" : afterDelay)
+                        + " wasHitting=" + beforeHitting + "/" + (exit == null ? "UNKNOWN" : afterHitting)
+                        + " queries=" + rays + "/" + guards + "/" + choices
+                        + " ray=" + (ray != null ? ray : exit == BreakHelperStage.DELAY && !unknown ? "NOT_EVALUATED" : "UNKNOWN")
+                        + " guard=" + observed(guard, exit != null && !unknown && guards == 0)
+                        + " choice=" + observed(choice, exit != null && !unknown && choices == 0);
+            }
+        }
+
+        private static String observed(Boolean value, boolean notEvaluated) {
+            return value != null ? value.toString() : notEvaluated ? "NOT_EVALUATED" : "UNKNOWN";
+        }
+        private String angles(Rotation rotation) { return rotation.getYaw() + "/" + rotation.getPitch(); }
+
+        private boolean admissionActive() {
+            if (state != State.CAPTURING) return false;
+            if (owner != dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() || !owner.isCurrent(session)
+                    || world != client.level || player != client.player || gameMode != client.gameMode
+                    || ledger != movementProgress || observedBot != bot || observedLease != lease || cancelling
+                    || cancellationProcess != null || retreatRequest || mode == Mode.IDLE || mode == Mode.SUSPENDED
+                    || pendingOwnershipFailure != null) {
+                close("CONTEXT_INVALID"); return false;
+            }
+            return true;
+        }
+
+        void preparation(Object source, PreparationStage stage, boolean result, MovementState state,
+                         BlockPos block, Optional<Rotation> reachable, Rotation effective, Rotation desired) {
+            if (this.state != State.CAPTURING || source != movement || !admissionActive()) return;
+            if (stage == PreparationStage.HEAD) {
+                admissionUnknown |= preparation != null && preparation.exit == null || helper != null;
+                preparation = null;
+                preparationCalls++;
+                preparation = new PreparationFrame(++preparationOrdinal); preparation.before = state.getStatus().name();
+                return;
+            }
+            PreparationFrame frame = preparation;
+            if (frame == null) { admissionUnknown = true; return; }
+            if (frame.exit != null) { admissionUnknown = true; return; }
+            switch (stage) {
+                case REACHABILITY -> {
+                    frame.unknown |= ++frame.reaches != 1 || frame.looks != 0 || frame.comparisons != 0;
+                    frame.block = Long.toString(block.asLong()); frame.reachable = reachable.isPresent();
+                    if (frame.reachable) frame.desired = angles(reachable.get());
+                }
+                case LOOKING_AT -> {
+                    frame.unknown |= ++frame.looks != 1 || !Boolean.TRUE.equals(frame.reachable) || frame.comparisons != 0
+                            || !frame.block.equals(Long.toString(block.asLong()));
+                    frame.looking = result;
+                }
+                case ROTATION_CLOSE -> {
+                    frame.unknown |= ++frame.comparisons != 1 || !Boolean.FALSE.equals(frame.looking);
+                    frame.close = result; frame.effective = angles(effective); frame.desired = angles(desired);
+                }
+                default -> {
+                    frame.exit = stage; frame.returned = result; frame.after = state.getStatus().name();
+                    frame.unknown |= switch (stage) {
+                        case WAITING, UNREACHABLE, CLEAR -> !result || frame.reaches != 0 || frame.looks != 0 || frame.comparisons != 0;
+                        case FALLING_WAIT -> result || frame.reaches != 0 || frame.looks != 0 || frame.comparisons != 0;
+                        case FALLBACK -> result || frame.reaches != 1 || !Boolean.FALSE.equals(frame.reachable)
+                                || frame.looks != 0 || frame.comparisons != 0;
+                        case REACHABLE -> result || frame.reaches != 1 || !Boolean.TRUE.equals(frame.reachable)
+                                || frame.looks != 1 || frame.comparisons != (Boolean.TRUE.equals(frame.looking) ? 0 : 1);
+                        default -> true;
+                    };
+                    if (stage == PreparationStage.FALLBACK) {
+                        var fallback = state.getTarget().getRotation();
+                        frame.desired = fallback.isPresent() ? angles(fallback.get()) : "UNKNOWN";
+                        frame.unknown |= fallback.isEmpty();
+                    }
+                }
+            }
+        }
+
+        void helper(Object source, BreakHelperStage stage, boolean result, net.minecraft.world.phys.HitResult ray,
+                    boolean leftClick, int delay, boolean wasHitting) {
+            if (state != State.CAPTURING || source != breakHelper || !admissionActive()) return;
+            if (stage == BreakHelperStage.HEAD) {
+                admissionUnknown |= helper != null && helper.exit == null;
+                helper = null;
+                helperCalls++;
+                helper = new HelperFrame(++helperOrdinal); helper.leftClick = leftClick;
+                helper.beforeDelay = delay; helper.beforeHitting = wasHitting;
+                helper.ordered = preparationCalls == 1 && preparation != null && preparation.exit != null && !preparation.unknown;
+                return;
+            }
+            HelperFrame frame = helper;
+            if (frame == null) { admissionUnknown = true; return; }
+            if (frame.exit != null) { admissionUnknown = true; return; }
+            switch (stage) {
+                case RAY -> {
+                    frame.unknown |= ++frame.rays != 1 || frame.beforeDelay > 0 || frame.guards != 0 || frame.choices != 0;
+                    frame.blockRay = ray != null && ray.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK;
+                    frame.ray = ray == null ? "EVALUATED_NULL" : ray instanceof net.minecraft.world.phys.BlockHitResult hit
+                            ? ray.getType() + "/" + hit.getBlockPos().asLong() + "/" + hit.getDirection() : ray.getType().name();
+                }
+                case GUARD -> {
+                    frame.unknown |= ++frame.guards != 1 || frame.rays != 1 || !frame.leftClick || !frame.blockRay || frame.choices != 0;
+                    frame.guard = result;
+                }
+                case CHOICE -> {
+                    frame.unknown |= ++frame.choices != 1 || !Boolean.TRUE.equals(frame.guard);
+                    frame.choice = result;
+                }
+                default -> {
+                    frame.exit = stage; frame.afterDelay = delay; frame.afterHitting = wasHitting;
+                    frame.unknown |= leftClick != frame.leftClick;
+                    if (stage == BreakHelperStage.DELAY) {
+                        frame.branch = "DELAY";
+                        frame.unknown |= frame.beforeDelay <= 0 || frame.rays != 0 || frame.guards != 0 || frame.choices != 0;
+                    } else if (stage == BreakHelperStage.GUARD_DENIED) {
+                        frame.branch = "GUARD_REJECTED";
+                        frame.unknown |= frame.guards != 1 || !Boolean.FALSE.equals(frame.guard) || frame.choices != 0;
+                    } else if (stage == BreakHelperStage.NORMAL) {
+                        frame.branch = !frame.leftClick ? "INPUT_RELEASED" : !frame.blockRay ? "RAY_MISS"
+                                : Boolean.TRUE.equals(frame.choice) ? "START" : "CONTINUE";
+                        frame.unknown |= frame.beforeDelay > 0 || frame.rays != 1 || (frame.leftClick && frame.blockRay
+                                ? frame.guards != 1 || !Boolean.TRUE.equals(frame.guard) || frame.choices != 1
+                                : frame.guards != 0 || frame.choices != 0);
+                    } else frame.unknown = true;
+                }
+            }
+        }
+
+        private String helperOverlap() {
+            return helperCalls == 1 && helper != null && helper.exit == null && !helper.unknown
+                    && !admissionUnknown && helper.choices == 1 ? "OPEN/" + helper.ordinal + "/" + (helper.choice ? "START" : "CONTINUE") : "UNKNOWN";
+        }
+
+        private String admissionSummary() {
+            String pairing = admissionUnknown || preparationCalls > 1 || helperCalls > 1 ? "UNKNOWN/MULTIPLE"
+                    : preparation == null || helper == null || preparation.exit == null || helper.exit == null
+                    || preparation.unknown || helper.unknown || !helper.ordered ? "UNKNOWN" : callbacks == 0 ? "PARTIAL" : "ORDERED";
+            return " admissionPair=" + pairing + " preparationCalls=" + preparationCalls + " helperCalls=" + helperCalls
+                    + " preparation={" + (preparation == null ? "NOT_OBSERVED" : preparation.summary())
+                    + "} helper={" + (helper == null ? "NOT_OBSERVED" : helper.summary()) + "}";
+        }
+
+        private void clearAdmissionInterval() {
+            preparation = null; helper = null; preparationCalls = helperCalls = 0; admissionUnknown = false;
+        }
+
         private final class NativeFrame {
             final boolean start;
             final int sequence, parent, depth, adapterTick = requestTicks;
             final long nanos = System.nanoTime();
-            final String call, input, entry, gap;
+            final String call, input, entry, gap, helperContext;
             String before = "UNKNOWN", gate = "UNKNOWN";
             float baseline = Float.NaN;
             boolean completed, nested;
             NativeFrame(boolean start, int sequence, BlockPos position, net.minecraft.core.Direction face,
                         BlockPos target, float progress, int delay, boolean destroying) {
-                this.start = start; this.sequence = sequence;
+                this.start = start; this.sequence = sequence; helperContext = helperOverlap();
                 parent = outer == null ? 0 : outer.sequence; depth = outer == null ? 1 : 2;
                 call = position + "/" + face;
                 input = call + " inWater=" + client.player.isInWater() + " nativeY=" + client.player.getY()
@@ -2174,7 +2381,9 @@ final class MovementController {
                 path = executor.getPath(); index = executor.getPosition();
                 if (index != 0 || path.movements().isEmpty() || !(path.movements().get(0) instanceof MovementAscend)
                         || !client.player.isInWater()) { close("NEXT_CONTEXT_INELIGIBLE"); return; }
-                movement = path.movements().get(0); state = State.CAPTURING;
+                movement = path.movements().get(0);
+                breakHelper = ((dev.lodekeeper.navigation.kernel.Baritone) observedBot).getInputOverrideHandler().getBlockBreakHelper();
+                clearAdmissionInterval(); preparationOrdinal = helperOrdinal = 0; state = State.CAPTURING;
                 // The path event precedes the update; the first call interval has no late-PRE boundary yet.
                 partial = true;
             } catch (RuntimeException failure) { close("DIAGNOSTIC_FAILURE"); }
@@ -2195,7 +2404,9 @@ final class MovementController {
                         + " attack=" + observedBot.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)
                         + " clientStoredHit=" + storedClientHit()
                         + " executor=" + System.identityHashCode(executor) + " index=" + index + " movement=" + System.identityHashCode(movement)
-                        + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " coverage=" + (partial ? "PARTIAL" : "COMPLETE"));
+                        + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " coverage=" + (partial ? "PARTIAL" : "COMPLETE")
+                        + admissionSummary());
+                clearAdmissionInterval();
                 lastCount = event.getCount(); intervalStart = entries;
                 if (++callbacks >= 160) close("TICK_BUDGET");
                 else if (entries >= 200) close("TRUNCATED_CALL_BUDGET");
@@ -2245,21 +2456,26 @@ final class MovementController {
                     + " entry=" + frame.entry + " postGate=" + frame.before + " after=" + after + " gate=" + frame.gate
                     + " body=" + body + " returned=" + result + " delta=" + (progress - frame.baseline)
                     + " overlap=" + (frame.nested || frame.parent != 0 ? "NESTED" : "NONE")
-                    + " gapProgress=" + frame.gap + " gapCause=UNKNOWN damageIncrement=UNKNOWN");
+                    + " gapProgress=" + frame.gap + " gapCause=UNKNOWN damageIncrement=UNKNOWN helperOverlap=" + (body.equals("INCOMPLETE") ? "UNKNOWN" : frame.helperContext));
         }
 
         void close(String reason) {
             if (state == State.CLOSED) return;
-            if (child != null && !child.completed) finish(child, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
-            if (outer != null && !outer.completed) finish(outer, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
             state = State.CLOSED;
-            owner = null; session = null; world = player = gameMode = null; ledger = null;
-            observedBot = null; observedLease = null; process = null; executor = null; path = null; movement = null; outer = child = null;
-            emit("TERMINAL reason=" + reason + " entries=" + entries + " callbacks=" + callbacks
-                    + " coverage=" + (partial || reason.startsWith("TRUNCATED") ? "PARTIAL" : "UNKNOWN")
-                    + " callsSinceLastLatePre=" + (entries - intervalStart) + " remainder=UNKNOWN");
-            partial = previousReturn = unmatched = false; triggeredNanos = 0; previousProgress = 0;
-            entries = callbacks = intervalStart = index = 0; lastCount = -1;
+            clearAdmissionInterval(); breakHelper = null; preparationOrdinal = helperOrdinal = 0;
+            try {
+                if (child != null && !child.completed) finish(child, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
+                if (outer != null && !outer.completed) finish(outer, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
+                emit("TERMINAL reason=" + reason + " entries=" + entries + " callbacks=" + callbacks
+                        + " coverage=" + (partial || reason.startsWith("TRUNCATED") ? "PARTIAL" : "UNKNOWN")
+                        + " callsSinceLastLatePre=" + (entries - intervalStart) + " remainder=UNKNOWN");
+            } catch (RuntimeException ignored) {
+            } finally {
+                owner = null; session = null; world = player = gameMode = null; ledger = null;
+                observedBot = null; observedLease = null; process = null; executor = null; path = null; movement = null; outer = child = null;
+                partial = previousReturn = unmatched = false; triggeredNanos = 0; previousProgress = 0;
+                entries = callbacks = intervalStart = index = 0; lastCount = -1;
+            }
         }
 
         private void emit(String record) {
