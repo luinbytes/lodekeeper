@@ -119,9 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Frozen main `af185d8` passes the 26.3 [server pickup observer and default-disabled controls](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation). The enabled replay emits three complete server records with zero capture errors or omissions; the disabled replay emits none. Both craft the stone pickaxe and recover one table, then quit normally before full gear completes. The first server-local pair moves four cobblestone to the cursor with matching native components. Strict cross-side attribution is refused; the old `a32cf74` mismatch remains unresolved.
+Frozen main `af185d8` passes one fresh 26.3 Normal Survival `gear_diamond` run in 597,056 ms. The integrated server confirms five diamond tools, four equipped armor pieces, final health 20, minimum health 17, zero deaths, an empty cursor, and idle cancelled navigation. The pickup observer is off by default; zero transfer invalidations occur. Seven unique stations recover; one remains beyond range, so complete cleanup is unproved.
 
-The formatter fix passes independent review and 268 existing checks, with 265 cached and three rerun. A fresh 26.3 Survival run is in progress. [Exact-source CI](https://github.com/luinbytes/lodekeeper/actions/runs/37761885585) is running, with 11 of 24 jobs completed at last check. The earlier `54b2a36` capture failures remain documented. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+All 24 exact-source CI profiles pass. Docs-only `430029f` builds the separate 1.21.1 artifact with all 313 existing checks executed; its fresh Survival run FAILS after 221,815 ms before retreat path launch, retaining an iron pickaxe with no diamond gear. [The checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-pass-at-af185d8) records hashes, public proof, twelve verified PNGs, historical failures, and observer attribution limits. This single pass establishes no general reliability or speedup. Preview 11 remains at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
