@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+The [bounded contact diagnostic](#bounded-contact-decision-capture) has CLEAN independent source review and passing local builds in both adapters. Native verification and current CI are pending. It captures the actual contact predicate without changing combat policy. The completed evidence below remains scoped to exact `0cbe78a`.
+
 Exact main `0cbe78a` [late-table stock reconsideration](#late-table-stock-reconsideration) has CLEAN source review and passing local builds, with all 315 primary and 268 modern existing checks executed. [CI 37779110443](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443) finishes SUCCESS with all 24 compile, check, and package profiles passing. CI ZIP bytes were not independently hashed or equated with the frozen local jars.
 
 The latest fresh Normal Survival runs on those local jars both FAIL. [Primary](#fresh-1211-normal-survival-failure-at-0cbe78a) fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Minimum and final health are 18.080002. Its defense reaches the existing 15-second budget failure at tick 301. [Modern](#fresh-263-normal-survival-failure-at-0cbe78a) fails after 336,722 ms with only a diamond pickaxe, no armor, and health and hunger 20. Its 27 route hazards exclude all 1,212 columns at clearance before any terrain probe or path launch, at defense tick 1.
@@ -801,6 +803,20 @@ Both proofs have recorded anonymous HTTP 200 and matching byte/hash read-back. T
 All nineteen originals pass recorded anonymous byte/hash checks and logged-out decoding at 640 by 360. Cleanup receipts confirm four creeper and 34 progression local original/staging PNG copies removed, with zero pending copies. Local proof, proof-upload, screenshot-upload and browser receipts share `/tmp/lodekeeper-main-af430-creeper-contact` and `/tmp/lodekeeper-main-af430-progression-lease` prefixes. Public originals remain available. No media or evidence blobs are added here.
 
 These prepared results preserve the separate fresh modern PASS and primary FAIL below. They establish no fresh-world comparison, comparative speed, general reliability, or complete cleanup. They precede the nearest-scan repair below and establish no scan-fix result. Preview 11 remains at `88f2b52`; no Preview 12 is published.
+
+### Bounded contact decision capture
+
+The two `ThreatResponseAction` mirrors add a private debug capture around contact selection. Each UUID records its last actual ordered gate: `NOT_EVALUATED`, `INELIGIBLE`, `NO_SIGHT`, `OUT_OF_REACH`, or `HIT`. `NO_SIGHT` leaves native reach unevaluated. The normal selection result and revalidation/fallback stage remain separate. Fallback reseeds the rows; UUID order, rather than distance order, controls comparison.
+
+Capture is limited to sixteen UUID rows and 600 attempts per response. Output allows eleven nonterminal records plus one reserved budget-terminal record. That terminal record uses cached evidence with attempt age and incomplete/overflow/capture-limit flags; it performs no fresh world queries. Debug-disabled hooks allocate no buffers or strings. Logger time still counts against the unchanged defense budget.
+
+The diagnostic adds no sight, reach, inventory, shield, sweep, or hop queries. Existing predicate order, target and weapon choice, attack and retreat caps, low-health landing, reservations, ownership, and cancellation remain unchanged. A `HIT` row with `NO_CHOICE` leaves downstream weapon/collateral causes unresolved. A stale terminal sample cannot identify an intervening shield or cancellation blocker.
+
+Independent source review is CLEAN. Sequential local 1.21.1 and 26.3 builds PASS, with 315 and 268 existing checks respectively, all executed without failures or skips. Modern kernel tests are `NO-SOURCE`; the primary kernel has two passing checks. Artifact inspectors pass. Exact-jar native verification and current CI are pending. No new tests were added. Retention depends on useful native contact evidence and a small private implementation. No defense fix, safe escape, late-table trigger, or Preview 12 result is claimed.
+
+The reviewed and built source hashes are `f20c6d9fb6d769dfa29bb083dfef58359909d2dacb00bccb4ba10d8eddbf5d76` for primary and `cffdba22c069dc0f223b3b61a86fb9ba3d5f9f8f096de293b5fe38b9974d4731` for modern. Local jars are 1,731,133 and 1,803,081 bytes, with SHA-256 `5b51d57f709bcc04b40e8ffd424006aeae18c0a209b5b027a675551c94a88ac3` and `2bfa18d013a10e43ce75e6ed9cd90d0cd8e07085abcbb4c5584ab6d74db6ea12`. They retain unreleased `0.1.0-preview.11` metadata. The private capture adds 128 net lines per mirror; permanent retention still needs useful native evidence.
+
+The [read-only retreat analysis at `0cbe78a`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-0cbe78a-retreat-analysis.json) contains the primary contact-wait diagnosis, modern empty-domain geometry, and saved-terrain census. It is 38,561 bytes, SHA-256 `30ee93ab21cb0ec7b307696fe33d5866851776f4c039ca3243c2341d41198032`, with anonymous byte/hash read-back. Three captured creepers cover all 1,212 modern candidate columns. The later saved terrain has a five-block upward shaft, solid side walls, and a nearby north drop that fails both direct-threat approach guards. A bounded 300-stance census finds no supported local egress witness. This post-failure evidence proves neither global impossibility nor calculation-time terrain, and supports no radius or hazard relaxation.
 
 ### Late-table stock reconsideration
 

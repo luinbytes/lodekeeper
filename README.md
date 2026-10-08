@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+A bounded [contact diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-contact-decision-capture) has CLEAN source review and passing builds for both adapters. It captures actual sight/reach decisions without extra native queries. Runtime verification is pending; combat behavior is unchanged.
+
 Exact main `0cbe78a` has passing local 1.21.1 and 26.3 builds, CLEAN source review, and [24/24 successful CI jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443). Fresh Normal Survival `gear_diamond` FAILS on both frozen local jars. Primary fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Modern fails after 336,722 ms with only a diamond pickaxe and no armor.
 
 Both runs record zero `STATION_STOCK` events. The late-table trigger and extra-birch-trip elimination remain unverified. Complete cleanup remains unproved; CI ZIP bytes have no independent hash read-back or local-jar equality proof. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) records exact hashes, public captures, and defense failures. Preview 11 stays at released `88f2b52`; no Preview 12 is published.

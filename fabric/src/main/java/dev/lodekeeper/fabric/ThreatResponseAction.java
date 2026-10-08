@@ -30,6 +30,31 @@ final class ThreatResponseAction {
     private record AttackChoice(MobEntity target, int slot, double damage, MovementController.DefenseHop hop) { }
     private enum Phase { IDLE, STOPPING, MELEE, HOP_ASCENT, HOP_LANDING, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
     private enum ResponseIntent { ALLOWED, RETREAT_REQUIRED }
+    private enum HitGate { NOT_EVALUATED, INELIGIBLE, NO_SIGHT, OUT_OF_REACH, HIT }
+    private enum SelectionGate { GUARD_REJECTED, CHOICE, NO_CHOICE }
+    private enum SelectionStage { NOT_ATTEMPTED, REVALIDATE, FALLBACK }
+    private static final class ContactCapture {
+        final UUID[] uuids = new UUID[16];
+        final HitGate[] hits = new HitGate[16];
+        final StringBuilder rows = new StringBuilder(1024);
+        int size, attemptTick, responseOrdinal, emitted, suppressed;
+        boolean collecting, complete, overflow, capturedRetreatBlocked, limited;
+        SelectionStage stage;
+        SelectionGate gate;
+        Phase capturedPhase;
+        String fingerprint;
+
+        void put(UUID uuid, HitGate hit) {
+            int row = 0;
+            while (row < size && uuids[row].compareTo(uuid) < 0) row++;
+            if (row < size && uuids[row].equals(uuid)) { hits[row] = hit; return; }
+            if (size == uuids.length) { overflow = true; return; }
+            for (int i = size; i > row; i--) { uuids[i] = uuids[i - 1]; hits[i] = hits[i - 1]; }
+            uuids[row] = uuid;
+            hits[row] = hit;
+            size++;
+        }
+    }
     private static final long MAX_NANOS = 15_000_000_000L;
     private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREAT_STARTS = 4,
             MAX_COMPLETED_RETREATS = 2, MAX_THREATS = 16;
@@ -55,6 +80,7 @@ final class ThreatResponseAction {
     private final Set<BlockPos> rejectedRetreatGoals = new HashSet<>();
     private double retreatProgressX, retreatProgressZ;
     private int retreatProgressTick;
+    private ContactCapture contactCapture;
 
 
     ThreatResponseAction(MinecraftClient client, PlayerActions actions, MovementController movement) {
@@ -102,6 +128,7 @@ final class ThreatResponseAction {
         selectedSlot = -1;
         ticks = attacks = retreatStarts = completedRetreats = lastContactTick = hopLaunchWaitTicks = 0;
         retreatBlocked = false;
+        contactCapture = null;
         responseIntent = ResponseIntent.ALLOWED;
         startedAt = System.nanoTime();
         tracked.clear();
@@ -132,8 +159,10 @@ final class ThreatResponseAction {
             if (reason != null) throw new IllegalStateException(reason);
             if (client.player != ownerPlayer || client.world != ownerWorld)
                 throw new IllegalStateException("defense player or world changed");
-            if (++ticks > MAX_TICKS || System.nanoTime() - startedAt >= MAX_NANOS)
+            if (++ticks > MAX_TICKS || System.nanoTime() - startedAt >= MAX_NANOS) {
+                emitContactCapture(true);
                 throw new IllegalStateException("defense exceeded its 15 second budget");
+            }
             double dx = client.player.getX() - originX, dy = client.player.getY() - originY, dz = client.player.getZ() - originZ;
             if (!(dx * dx + dy * dy + dz * dz <= 32.0 * 32.0))
                 throw new IllegalStateException("defense exceeded 32 blocks from its start");
@@ -404,27 +433,117 @@ final class ThreatResponseAction {
     }
 
     private boolean selectContactTarget(List<MobEntity> threats) {
-        if (responseIntent == ResponseIntent.RETREAT_REQUIRED || attacks >= MAX_ATTACKS
-                || threats.stream().anyMatch(ThreatResponseAction::creeper)) {
-            plannedChoice = null;
-            return false;
-        }
-        if (plannedChoice != null) {
-            AttackChoice previous = plannedChoice;
-            ItemStack weapon = client.player.getInventory().getStack(previous.slot());
-            if (safeStack(weapon)) {
-                MovementController.DefenseHop hop = previous.hop() == null ? null : movement.planDefenseHop();
-                MobEntity nextTarget = canChooseTarget(previous.target(), weapon, hop)
-                        ? previous.target() : chooseTargetForSlot(threats, weapon, hop);
-                if (nextTarget != null) {
-                    plannedChoice = new AttackChoice(nextTarget, previous.slot(), previous.damage(), hop);
-                    return true;
-                }
+        captureContact(threats, false);
+        SelectionGate gate = null;
+        try {
+            if (responseIntent == ResponseIntent.RETREAT_REQUIRED || attacks >= MAX_ATTACKS
+                    || threats.stream().anyMatch(ThreatResponseAction::creeper)) {
+                plannedChoice = null;
+                if (contactCapture != null && contactCapture.collecting) gate = SelectionGate.GUARD_REJECTED;
+                return false;
             }
-            plannedChoice = null;
+            if (plannedChoice != null) {
+                if (contactCapture != null && contactCapture.collecting) contactCapture.stage = SelectionStage.REVALIDATE;
+                AttackChoice previous = plannedChoice;
+                ItemStack weapon = client.player.getInventory().getStack(previous.slot());
+                if (safeStack(weapon)) {
+                    MovementController.DefenseHop hop = previous.hop() == null ? null : movement.planDefenseHop();
+                    MobEntity nextTarget = canChooseTarget(previous.target(), weapon, hop)
+                            ? previous.target() : chooseTargetForSlot(threats, weapon, hop);
+                    if (nextTarget != null) {
+                        plannedChoice = new AttackChoice(nextTarget, previous.slot(), previous.damage(), hop);
+                        if (contactCapture != null && contactCapture.collecting) gate = SelectionGate.CHOICE;
+                        return true;
+                    }
+                }
+                plannedChoice = null;
+            }
+            captureContact(threats, true);
+            plannedChoice = chooseAttackChoice(threats);
+            if (contactCapture != null && contactCapture.collecting)
+                gate = plannedChoice != null ? SelectionGate.CHOICE : SelectionGate.NO_CHOICE;
+            return plannedChoice != null;
+        } finally { finishContactCapture(gate); }
+    }
+
+    private void captureContact(List<MobEntity> threats, boolean fallback) {
+        try {
+            if (!movement.debugLogging()) { if (contactCapture != null) contactCapture.collecting = false; return; }
+            if (!fallback) {
+                if (contactCapture == null) contactCapture = new ContactCapture();
+                if (contactCapture.responseOrdinal >= 600) { contactCapture.limited = true; return; }
+                contactCapture.responseOrdinal++;
+                contactCapture.collecting = true;
+                contactCapture.attemptTick = ticks;
+                contactCapture.capturedPhase = phase;
+                contactCapture.capturedRetreatBlocked = retreatBlocked;
+            }
+            if (contactCapture == null || !contactCapture.collecting) return;
+            contactCapture.complete = contactCapture.overflow = false;
+            contactCapture.gate = null;
+            contactCapture.stage = fallback ? SelectionStage.FALLBACK : SelectionStage.NOT_ATTEMPTED;
+            contactCapture.size = 0;
+            for (MobEntity mob : threats) {
+                contactCapture.put(mob.getUuid(), HitGate.NOT_EVALUATED);
+                if (contactCapture.overflow) break;
+            }
+        } catch (RuntimeException ignored) {
+            if (contactCapture != null) contactCapture.collecting = contactCapture.complete = false;
         }
-        plannedChoice = chooseAttackChoice(threats);
-        return plannedChoice != null;
+    }
+
+    private boolean captureHit(MobEntity mob, HitGate hit) {
+        try {
+            if (contactCapture != null && contactCapture.collecting) {
+                if (!movement.debugLogging()) contactCapture.collecting = contactCapture.complete = false;
+                else contactCapture.put(mob.getUuid(), hit);
+            }
+        } catch (RuntimeException ignored) {
+            if (contactCapture != null) contactCapture.collecting = contactCapture.complete = false;
+        }
+        return hit == HitGate.HIT;
+    }
+
+    private void finishContactCapture(SelectionGate gate) {
+        ContactCapture capture = contactCapture;
+        if (capture == null || !capture.collecting) return;
+        capture.collecting = false;
+        try {
+            capture.complete = gate != null && movement.debugLogging();
+            capture.gate = gate;
+            if (capture.complete) emitContactCapture(false);
+        } catch (RuntimeException ignored) { capture.complete = false; }
+    }
+
+    private void emitContactCapture(boolean terminal) {
+        try {
+            if (!movement.debugLogging()) return;
+            ContactCapture capture = contactCapture;
+            if (!terminal && (capture == null || !capture.complete
+                    || capture.gate == SelectionGate.CHOICE && capture.capturedPhase != Phase.CONTACT_WAIT)) return;
+            String rows = "[]", fingerprint = null;
+            if (capture != null) {
+                capture.rows.setLength(0);
+                for (int i = 0; i < capture.size; i++)
+                    capture.rows.append(capture.uuids[i]).append('/').append(capture.hits[i]).append(';');
+                rows = capture.rows.toString();
+                fingerprint = capture.gate + "/" + capture.stage + "/" + capture.capturedRetreatBlocked
+                        + "/" + capture.overflow + "/" + rows;
+            }
+            if (!terminal && fingerprint.equals(capture.fingerprint)) return;
+            if (!terminal && capture.emitted >= 11) { capture.suppressed++; return; }
+            if (!terminal) { capture.emitted++; capture.fingerprint = fingerprint; }
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] DEFENSE_CONTACT event={} gate={} stage={} attemptTick={} ordinal={} emissionTick={} age={} phase={} retreatBlocked={} complete={} overflow={} coverage={} captureLimited={} suppressed={} rows={}",
+                    terminal ? "TERMINAL" : capture.gate == SelectionGate.CHOICE ? "RECOVERY" : "REFUSAL",
+                    capture == null ? null : capture.gate, capture == null ? null : capture.stage,
+                    capture == null ? -1 : capture.attemptTick, capture == null ? 0 : capture.responseOrdinal,
+                    ticks, capture == null ? -1 : ticks - capture.attemptTick,
+                    capture == null ? null : capture.capturedPhase, capture != null && capture.capturedRetreatBlocked,
+                    capture != null && capture.complete, capture != null && capture.overflow,
+                    capture == null ? "ABSENT" : capture.complete && !capture.overflow ? "COMPLETE" : "INCOMPLETE",
+                    capture != null && capture.limited, capture == null ? 0 : capture.suppressed, rows);
+        } catch (RuntimeException ignored) { }
     }
 
     private void stopForRetreat() {
@@ -567,7 +686,15 @@ final class ThreatResponseAction {
     private static double clearanceSquared(MobEntity mob) { return creeper(mob) ? 100.0 : 64.0; }
 
     private boolean canHit(MobEntity mob) {
-        return eligible(mob) && client.player.canSee(mob) && GameApi.defenseWithinReach(client.player, mob);
+        if (contactCapture == null || !contactCapture.collecting || !movement.debugLogging()) {
+            if (contactCapture != null && contactCapture.collecting)
+                contactCapture.collecting = contactCapture.complete = false;
+            return eligible(mob) && client.player.canSee(mob) && GameApi.defenseWithinReach(client.player, mob);
+        }
+        if (!eligible(mob)) return captureHit(mob, HitGate.INELIGIBLE);
+        if (!client.player.canSee(mob)) return captureHit(mob, HitGate.NO_SIGHT);
+        if (!GameApi.defenseWithinReach(client.player, mob)) return captureHit(mob, HitGate.OUT_OF_REACH);
+        return captureHit(mob, HitGate.HIT);
     }
 
     private boolean canAttackTarget(MobEntity mob, ItemStack weapon) {
@@ -685,6 +812,7 @@ final class ThreatResponseAction {
     }
 
     private void clearOwnership() {
+        contactCapture = null;
         responseIntent = ResponseIntent.ALLOWED;
         tracked.clear();
         retreatRoute = null;

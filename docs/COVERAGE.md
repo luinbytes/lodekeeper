@@ -4,6 +4,8 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 ## Latest main evidence
 
+The [bounded contact diagnostic](OWNED-PREVIEW-CHECKPOINT.md#bounded-contact-decision-capture) has CLEAN independent source review and passing local builds in both adapters. All 315 primary and 268 modern existing checks execute without failures or skips. It records actual ordered sight/reach decisions during contact selection, with fixed capture and output limits. Native evidence and current CI are pending. It changes no combat policy.
+
 Exact main `0cbe78a` [late-table stock reconsideration](OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) has CLEAN source review and passing local builds, with all 315 primary and 268 modern existing checks executed. [CI 37779110443](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443) finishes SUCCESS with all 24 compile, check, and package profiles passing. CI ZIP bytes were not independently hashed or equated with the frozen local jars.
 
 The latest fresh Normal Survival runs on those local jars both FAIL. [Primary](OWNED-PREVIEW-CHECKPOINT.md#fresh-1211-normal-survival-failure-at-0cbe78a) fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Minimum and final health are 18.080002. Its defense reaches the existing 15-second budget failure at tick 301. [Modern](OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-failure-at-0cbe78a) fails after 336,722 ms with only a diamond pickaxe, no armor, and health and hunger 20. Its 27 route hazards exclude all 1,212 columns at clearance before any terrain probe or path launch, at defense tick 1.
