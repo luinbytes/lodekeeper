@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,7 +20,8 @@ abstract class OwnedClickPacketMixin {
     @Shadow @Final private int containerId;
     @Shadow @Final @Mutable private int stateId;
     @Shadow @Final @Mutable private Int2ObjectMap<?> changedSlots;
-    @Inject(method = "<init>", at = @At("RETURN"))
+    @Unique private static boolean lodekeeper$pickupObservationDisabled;
+    @Inject(method = "<init>(IISBLnet/minecraft/world/inventory/ContainerInput;Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;Lnet/minecraft/network/HashedStack;)V", at = @At("RETURN"))
     private void lodekeeper$reconcileOwnedInput(CallbackInfo callback) {
         if (OwnedClickReceipts.claimInputReconciliation(containerId)) {
             // Native revisions are nonnegative. This requests a full post-click cursor receipt.
@@ -28,6 +30,12 @@ abstract class OwnedClickPacketMixin {
             if (OwnedClickReceipts.reconcileInputSlot(containerId)) copy.remove(0);
             copy.keySet().removeIf((int slot) -> OwnedClickReceipts.reconcileStorageSlot(containerId, slot));
             changedSlots = Int2ObjectMaps.unmodifiable(copy);
+            try {
+                if (!lodekeeper$pickupObservationDisabled && OwnedClickReceipts.pickupBoundaryEnabled())
+                    OwnedClickReceipts.observeFinalizedPickupPacket((ServerboundContainerClickPacket) (Object) this);
+            } catch (Throwable diagnosticFailure) {
+                lodekeeper$pickupObservationDisabled = true;
+            }
         }
     }
 }

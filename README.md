@@ -119,11 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Frozen main `75a66bb` adds [bounded crafting PICKUP diagnostics](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). The 26.3 build passes 268 existing checks, with 265 cached and three rerun; source review is CLEAN. Three original-world clone replays accept five, two, and two transfers. The first PICKUP starts with four cobblestone in live and prior full state in replays one and two, then predicts and receives four. Replay three starts, predicts, and receives three. Exact receipt acceptance is unchanged.
+The opt-in [native server PICKUP boundary diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation) is implemented. Its 26.3 build passes 268 existing checks, with 265 cached and three rerun; independent source review is CLEAN. Receipt acceptance is unchanged. Exact-artifact runtime and CI evidence remain pending.
 
-Replay one later exhausts retreat selection across 23 hazards, 1,212 columns, and 265 heights, with zero goals. It pauses at health 20 at 09:42:14; a zombie kills the player twenty seconds later. Replays two and three end through deliberate normal quits after stone crafting and table carry. Each has sixteen accepted shallow rows, zero native movement timeouts, unchanged original world and jar, and no provenance violations. Nine PNGs pass recorded upload and browser checks; eighteen local copies are deleted.
+Frozen `75a66bb` remains the latest verified production evidence. Its 26.3 build passes 268 existing checks, source review is CLEAN, and [exact-source CI](https://github.com/luinbytes/lodekeeper/actions/runs/37751123849) passes all 24 profiles. Three [saved-world clone replays](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation) accept five, two, and two transfers. Their first pickups predict and receive matching counts of four, four, and three. Replay one later exhausts retreat selection, pauses at health 20, then dies to a zombie twenty seconds later. Replays two and three deliberately quit normally after stone crafting and table carry.
 
-The earlier `a32cf74` expected-three/full-four failure remains unresolved. Server refusal, source growth, and packet attribution remain unproved. Full gear, fresh Survival, retreat, and complete station recovery remain open. [Exact-source CI 37751123849](https://github.com/luinbytes/lodekeeper/actions/runs/37751123849) passes all 24 compile, check, and package profiles. Preview 11 stays at `88f2b52`.
+Those passing pickups do not explain the earlier `a32cf74` expected-three/full-four failure. Server refusal, source growth, and packet attribution remain unproved. Full gear, fresh Survival, retreat, and complete station recovery remain open. Preview 11 stays at `88f2b52`.
 
 ### Historical main evidence
 

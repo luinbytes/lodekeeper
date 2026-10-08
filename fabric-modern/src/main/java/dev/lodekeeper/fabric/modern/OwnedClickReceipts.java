@@ -27,6 +27,12 @@ public final class OwnedClickReceipts {
         }
         default void lodekeeper$unwatchClick(FullReceiptObserver observer) {}
     }
+    private static final boolean PICKUP_BOUNDARY_ENABLED = pickupBoundaryProperty();
+    private static final String PICKUP_BOUNDARY_RUN = pickupBoundaryRunLabel();
+    private static PickupConstructors pickupConstructors;
+    private static boolean pickupConstructorsDisabled;
+    private static int pickupConstructorErrors;
+    private static boolean pickupConstructorIncompleteEmitted;
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
     private static final class Scope {
         final int containerId;
@@ -133,5 +139,125 @@ public final class OwnedClickReceipts {
         if (scope == null || scope.claimed || scope.containerId != containerId || !scope.contextCurrent()) return false;
         scope.claimed = true;
         return true;
+    }
+
+    public static boolean pickupBoundaryEnabled() {
+        return PICKUP_BOUNDARY_ENABLED && PICKUP_BOUNDARY_RUN != null;
+    }
+
+    public static String pickupBoundaryRun() { return PICKUP_BOUNDARY_RUN; }
+
+    private static boolean pickupBoundaryProperty() {
+        try { return Boolean.parseBoolean(System.getProperty("lodekeeper.debug.pickupBoundary", "false")); }
+        catch (Throwable diagnosticFailure) { return false; }
+    }
+
+    private static String pickupBoundaryRunLabel() {
+        if (!PICKUP_BOUNDARY_ENABLED) return null;
+        try { return java.util.UUID.randomUUID().toString(); }
+        catch (Throwable diagnosticFailure) { return null; }
+    }
+
+    public static void observeFinalizedPickupPacket(
+            net.minecraft.network.protocol.game.ServerboundContainerClickPacket packet) {
+        if (!pickupBoundaryEnabled()) return;
+        try {
+            Scope scope = CURRENT.get();
+            if (scope == null || !scope.claimed || scope.client == null || !scope.client.isSameThread()
+                    || !scope.contextCurrent() || LodekeeperClient.engine == null
+                    || !LodekeeperClient.engine.config.debugLogging) return;
+            if (!pickupConstructorsDisabled) {
+                if (pickupConstructors == null) pickupConstructors = new PickupConstructors();
+                pickupConstructors.observe(scope, packet);
+            }
+        } catch (Throwable diagnosticFailure) {
+            pickupConstructorsDisabled = true;
+            if (pickupConstructorErrors < Integer.MAX_VALUE) pickupConstructorErrors++;
+            if (pickupConstructors != null) pickupConstructors.menu = null;
+        }
+        try {
+            if (!pickupConstructorIncompleteEmitted && (pickupConstructorsDisabled
+                    || pickupConstructors != null && pickupConstructors.omitted > 0)) {
+                pickupConstructorIncompleteEmitted = true;
+                org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] PICKUP_BOUNDARY side=CLIENT event=INCOMPLETE run={} admitted={} omitted={} errors={}",
+                        PICKUP_BOUNDARY_RUN, pickupConstructors == null ? 0 : pickupConstructors.admitted,
+                        pickupConstructors == null ? 0 : pickupConstructors.omitted, pickupConstructorErrors);
+            }
+        } catch (Throwable diagnosticFailure) {
+            pickupConstructorsDisabled = true;
+            if (pickupConstructorErrors < Integer.MAX_VALUE) pickupConstructorErrors++;
+            if (pickupConstructors != null) pickupConstructors.menu = null;
+        }
+    }
+
+    private static final class PickupConstructors {
+        final String[] summaries = new String[4];
+        net.minecraft.world.inventory.AbstractContainerMenu menu;
+        int admitted;
+        int omitted;
+        long epoch;
+        long contextFirstSeen;
+        long contextLastSeen;
+
+        void observe(Scope scope, net.minecraft.network.protocol.game.ServerboundContainerClickPacket packet) {
+            if (packet.containerInput() != net.minecraft.world.inventory.ContainerInput.PICKUP
+                    || packet.buttonNum() < 0 || packet.buttonNum() > 1) return;
+            if (admitted == summaries.length) {
+                if (omitted < Integer.MAX_VALUE) omitted++;
+                menu = null;
+                return;
+            }
+            long constructorReturn = System.nanoTime();
+            if (menu != scope.menu) {
+                menu = scope.menu;
+                if (epoch < Long.MAX_VALUE) epoch++;
+                contextFirstSeen = constructorReturn;
+            }
+            contextLastSeen = constructorReturn;
+            if (!(menu instanceof net.minecraft.world.inventory.CraftingMenu crafting) || menu.slots.size() != 46
+                    || packet.containerId() != scope.containerId || packet.slotNum() < 0
+                    || packet.slotNum() >= menu.slots.size()) {
+                if (omitted < Integer.MAX_VALUE) omitted++;
+                return;
+            }
+            var source = menu.getSlot(packet.slotNum());
+            int inventorySlot = source.getContainerSlot();
+            if (source.container != scope.inventory || inventorySlot < 0 || inventorySlot >= 36) return;
+            var grid = crafting.getInputGridSlots();
+            if (grid.size() != 9) {
+                if (omitted < Integer.MAX_VALUE) omitted++;
+                return;
+            }
+            for (int i = 0; i < 9; i++) {
+                var slot = grid.get(i);
+                if (slot != menu.getSlot(i + 1) || slot.container != grid.getFirst().container
+                        || slot.getContainerSlot() != i || slot.container.getContainerSize() != 9) {
+                    if (omitted < Integer.MAX_VALUE) omitted++;
+                    return;
+                }
+            }
+            int candidate = admitted++;
+            var network = scope.client.getConnection();
+            String summary = "side=CLIENT event=CONSTRUCTOR_FINALIZED run=" + PICKUP_BOUNDARY_RUN
+                    + " candidate=" + (candidate + 1) + " playerUuid=" + scope.player.getUUID()
+                    + " menuTag=" + tag(menu) + " playerTag=" + tag(scope.player)
+                    + " worldTag=" + tag(scope.client.level) + " networkTag=" + tag(network)
+                    + " connectionTag=" + tag(network == null ? null : network.getConnection())
+                    + " inventoryTag=" + tag(scope.inventory) + " epoch=" + epoch
+                    + " contextFirstSeenNanos=" + contextFirstSeen + " contextLastSeenNanos=" + contextLastSeen
+                    + " menuSize=46 menuId=" + packet.containerId() + " stateId=" + packet.stateId()
+                    + " slot=" + packet.slotNum() + " button=" + packet.buttonNum()
+                    + " input=" + packet.containerInput() + " inventorySlot=" + inventorySlot
+                    + " localRevision=" + menu.getStateId() + " constructorReturnNanos=" + constructorReturn
+                    + " omitted=" + omitted + " errors=" + pickupConstructorErrors;
+            summaries[candidate] = summary;
+            if (admitted == summaries.length) menu = null;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] PICKUP_BOUNDARY {}", summary);
+        }
+
+        private static String tag(Object value) {
+            return value == null ? "null" : Integer.toHexString(System.identityHashCode(value));
+        }
     }
 }

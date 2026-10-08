@@ -22,6 +22,8 @@ After an exact final cursor return, same-item, same-component growth in the sour
 
 ### PICKUP mismatch at main a32cf74
 
+The opt-in [native server PICKUP boundary diagnostic](OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation) is implemented. Its 26.3 build passes 268 existing checks, with 265 cached and three rerun; independent source review is CLEAN. It changes no receipt acceptance rules and has no new runtime or CI evidence. `75a66bb` remains the latest verified production evidence.
+
 Exact main `75a66bb` adds [bounded client-side PICKUP diagnostics](OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). Its 26.3 build passes and source review is CLEAN. Three original-world clone replays accept five, two, and two transfers. The first PICKUP has live and prior full source four before prediction in replays one and two, then predicts and receives four. Replay three has source three in both states, predicts three, and receives three. These positive pre-click full-source observations apply only to the passing comparisons. The observer remains debug-only; strict receipt validation is unchanged.
 
 Replay one later fails retreat selection and pauses at health 20, then dies to a zombie twenty seconds later. Replays two and three deliberately quit normally after stone crafting and table carry, with food and further cobblestone gathering also observed in replay three. None establishes full gear, fresh Survival, retreat acceptance, or complete station recovery. These results do not fix or disprove the historical mismatch below.
