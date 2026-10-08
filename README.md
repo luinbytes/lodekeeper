@@ -119,15 +119,21 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+Fresh 26.3 Normal Survival with isolated `allowDownward=false` [completed with native FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-fresh-263-no-direct-downward-experiment) after 500,299 ms. Frozen production `4aa1cc4`, verifier `579c2e3`, and seed `483920105` produced one diamond pickaxe; eight targets remain absent. Health stayed 20, with no deaths, an empty cursor, no timeout, and clean exit 0.
+
+At retreat center `(-36,-12,21)`, all 1,212 columns failed clearance against nineteen hazards before terrain checks or path launch. The bounded saved sample found no escape witness satisfying every guard. The preference supplies no return guarantee; policy is unchanged. [Four original captures](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-4aa1cc4-no-downward-modern-screenshots.json) accompany the proof.
+
+The latest [health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS. [Exact verifier CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-579c2e3-ci.json) passes all 24 jobs. Earlier FAILs retain their scopes below. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+
+### Historical main evidence
+
 Exact production `4aa1cc4` has [CLEAN review and passing builds](docs/OWNED-PREVIEW-CHECKPOINT.md#active-threats-in-retreat-hazard-snapshots), with 315 primary and 268 modern checks. [CI](https://github.com/luinbytes/lodekeeper/actions/runs/37809197303) finishes SUCCESS with all 24 jobs passing, rechecked on 8 October at 16:52 UTC.
 
 Four of the initial six [prepared controls](docs/OWNED-PREVIEW-CHECKPOINT.md#native-controls-and-saved-replay-at-4aa1cc4) PASS. Both creeper and water pairs complete one bucket at health 20 with protected resources; all four tables remain LEFT. Both health-six controls FAIL at the native onset fence after accepted server mutation from 17 to 6. Zero recorded later attacks or outgoing damage proves neither accepted fences nor full restoration.
 
 The [historical diagnostic verifier `5ceaa65`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-5ceaa65-onset.json) passes primary health-six and FAILS on modern, which lands before observing the accepted health mutation. Earlier failures remain unresolved. The reviewed [health-six headroom change](docs/OWNED-PREVIEW-CHECKPOINT.md#health-six-fixture-headroom) now passes one complete native case on each version using frozen production `4aa1cc4`, including landing, zero later attacks, cancellation, restoration, and the preserved request. These expected no-route pauses do not prove escape.
 
-The [earlier saved replay](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-active-creeper-membership-at-4aa1cc4) proves initial active-creeper membership eight blocks below with clearance 20. The second [saved 26.3 replay](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-5ceaa65-close-and-mining.json) exits through normal window close and retains its inventory, including the diamond pickaxe. Gameplay remains FAIL with no retreat route at health 20. [Executed underfoot mining](docs/OWNED-PREVIEW-CHECKPOINT.md#recorded-mining-descent-and-non-default-experiment) produced the lower shaft; return safety remains unproved. A fresh non-default `allowDownward=false` experiment is running; its outcome is pending. Preview 11 stays at `88f2b52`; no Preview 12 is published.
-
-### Historical main evidence
+The [earlier saved replay](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-active-creeper-membership-at-4aa1cc4) proves initial active-creeper membership eight blocks below with clearance 20. The second [saved 26.3 replay](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-5ceaa65-close-and-mining.json) exits through normal window close and retains its inventory, including the diamond pickaxe. Gameplay remains FAIL with no retreat route at health 20. [Executed underfoot mining](docs/OWNED-PREVIEW-CHECKPOINT.md#recorded-mining-descent-and-non-default-experiment) produced the lower shaft; return safety remains unproved. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 The modern [health-six rerun with verifier `d41f41f`](docs/OWNED-PREVIEW-CHECKPOINT.md#health-six-fixture-clock-ordering) is a historical PASS for that prepared case on unchanged frozen production `98b1709`. It observes airborne health 6, zero later attacks or damage, supported landing, full cancellation and restoration, then the expected no-route pause with the bucket request preserved. Source review is CLEAN and the 26.3 verifier compile passes; `d41f41f` [final CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d41f41f-ci.json) is CANCELLED with 17 successful and seven cancelled jobs.
 
