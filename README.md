@@ -119,13 +119,13 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Exact-source [CI at `e39ebe0`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-e39ebe0-ci.json), run [37729522342](https://github.com/luinbytes/lodekeeper/actions/runs/37729522342), passes all 24 compile, check, and package profiles. Runtime coverage remains scoped to the recorded native cases.
+Historical exact-source [CI at `e39ebe0`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-e39ebe0-ci.json), run [37729522342](https://github.com/luinbytes/lodekeeper/actions/runs/37729522342), passes all 24 compile, check, and package profiles. Runtime coverage remains scoped to the recorded native cases.
 
 Frozen `764146a` passes 316 local build checks. Its historical CI remains fourteen passes and ten verifier failures. Both fresh Normal Survival runs FAIL. Primary retains one diamond pickaxe but fails creeper retreat. Modern pauses at stone 0/3 after repeated water ascends.
 
 Saved-world replays preserve the original save and frozen jars. Both `764146a` and diagnostic build `47c972c` pause at cobblestone 0/3. The latter captures five native calls with increasing progress before its observation window closes early. The full stall cause remains unproved. Its final screenshot is public and the client exits normally.
 
-A small follow-on keeps the same ascent observable across water bobbing. Its 26.3 build passes; independent review is CLEAN and replay is pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) holds exact hashes, checks, public proofs, and screenshots. Preview 11 stays at `88f2b52`.
+Frozen `a30df80` keeps the ascent observable across water bobbing. Its manual saved-world replay FAILS at stone 0/3 after 63,038 ms, with a bounded trace, public final capture, and normal exit 0. Root-cause investigation and primary retreat remain open. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) records exact hashes, trace limits, and all 24 passing exact-source CI profiles. Both fresh `764146a` failures remain open. Preview 11 stays at `88f2b52`.
 
 ### Historical main evidence
 
