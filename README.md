@@ -119,15 +119,21 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [live snapshot scan repair](docs/OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) is implemented across all fourteen kernel families. It retains nearby raw matches before the result cap. Later safety filters still decide eligibility. Local 1.21.1 and 26.3 builds pass; wider CI and gameplay verification remain pending.
+The [live snapshot scan repair](docs/OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) has passing local 1.21.1 and 26.3 builds. All [24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) PASS at `24a00bb`.
+
+Fresh 1.21.1 Survival on frozen `454fd46` [FAILS after 709,736 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-1211-normal-survival-failure-at-454fd46). Final inventory holds one diamond pickaxe and 23 diamonds, with no equipped armor. Health ends at 3, with no deaths and an empty cursor. Seven foreground goals remain paused. Two retreat selections exhaust their sampled domain without launching a path. The receipt buffer dropped 134 entries. Complete station cleanup remains unproved.
+
+Fresh 26.3 `454fd46` [FAILS after 357,501 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-failure-at-454fd46), after a diamond pickaxe and four rejected retreat starts. Final health is 20, with zero deaths. The checkpoint records public captures and the late-table stock diagnosis. Cleanup remains unproved. Preview 11 stays at `88f2b52`; Preview 12 remains blocked.
+
+### Historical main evidence
+
+At the initial scan-repair checkpoint, the repair is implemented across all fourteen kernel families. It retains nearby raw matches before the result cap. Later safety filters still decide eligibility. Local 1.21.1 and 26.3 builds pass; wider CI and gameplay verification remain pending at that checkpoint.
 
 Frozen 1.21.1 `430029f` and 26.3 `af185d8` jars PASS all eighteen existing prepared [shield cases](docs/OWNED-PREVIEW-CHECKPOINT.md#prepared-shield-matrix-at-af185d8-and-430029f) and all twenty [native GUI checks](docs/OWNED-PREVIEW-CHECKPOINT.md#native-settings-gui-at-af185d8-and-430029f). Manual takeover uses simulated input and leaves its bucket unfinished.
 
 Both PASS [prepared creeper contact, nine progression cases and the settings lease](docs/OWNED-PREVIEW-CHECKPOINT.md#prepared-creeper-contact-progression-and-native-settings-lease). The checkpoint separates in-progress screenshots from later PASS receipts.
 
 Separately, fresh 26.3 Normal Survival PASS completes all nine diamond targets in 597,056 ms. Fresh 1.21.1 Survival FAILS after 221,815 ms before retreat path launch. These earlier jars do not verify the scan repair. Cleanup and general reliability remain unproved. Preview 11 remains at `88f2b52`; no Preview 12 is published.
-
-### Historical main evidence
 
 Production source `1f85aa2` includes the low-health retreat latch, passes 316 build checks, and passes all 24 exact-source CI profiles. Both fresh Normal Survival runs FAIL with no diamond gear and eight paused goals. Primary exhausts four retreat starts after one arrival and three prefix rejections. Modern exhausts the sampled selector domain. Neither record justifies relaxing guards or bounds.
 
