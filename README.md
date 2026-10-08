@@ -119,13 +119,13 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Frozen main `764146a` adds bounded retreat-prefix diagnostics and passes 316 build checks across both primary adapters. Exact-source CI finishes with fourteen passing profiles and ten `fabric-1212` verifier failures at optional `diagnosticState()` calls.
+Exact-source [CI at `e39ebe0`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-e39ebe0-ci.json), run [37729522342](https://github.com/luinbytes/lodekeeper/actions/runs/37729522342), passes all 24 compile, check, and package profiles. Runtime coverage remains scoped to the recorded native cases.
 
-Fresh Normal Survival FAILS on both versions. Primary stops after 360,356 ms with one diamond pickaxe, five diamonds, no armor, and seven queued goals. A single creeper retreat exhausts A* in 3 ms across fourteen nodes and 308 considered moves. No prefix rejection emits. Modern stops after 133,899 ms at stone 0/3. Seven native movement timeouts repeat the same water ascend. The action deadline remains effective. Both retain health 20, zero deaths, and empty cursors.
+Frozen `764146a` passes 316 local build checks. Its historical CI remains fourteen passes and ten verifier failures. Both fresh Normal Survival runs FAIL. Primary retains one diamond pickaxe but fails creeper retreat. Modern pauses at stone 0/3 after repeated water ascends.
 
-Primary recovers two unique tables and retains a player-supporting station. Modern recovers one. Strict cleanup is not required. A CLEAN verifier compatibility repair removes four optional receipt lines. Local 1212, primary, and modern verifier compiles pass. Both repaired-verifier health-six cases pass. New CI remains pending.
+A manual replay uses a copy-on-write clone of the unchanged saved world and unchanged frozen764 jar, with the verifier disabled. It reproduces the stall. The command pauses after 63,878 ms at cobblestone 0/3. The supervisor times out at 360 seconds with SIGTERM, exit 143. No final screenshot or clean exit was recorded. The stall remains unresolved.
 
-The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) records frozen hashes, public proofs, remote screenshots, and diagnosis limits. Preview 11 remains at `88f2b52`. No Preview 12, readiness, or speed claim follows.
+The narrow modern native break observer has a CLEAN independent source review and passes the 26.3 build and 268 existing checks; runtime is pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) holds proofs and five replay captures. Preview 11 stays at `88f2b52`. No fix, root cause, readiness, or speed claim follows.
 
 ### Historical main evidence
 

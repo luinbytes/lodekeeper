@@ -4,6 +4,7 @@ import dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI;
 import dev.lodekeeper.navigation.kernel.api.IBaritone;
 import dev.lodekeeper.navigation.kernel.api.Settings;
 import dev.lodekeeper.navigation.kernel.api.event.events.PathEvent;
+import dev.lodekeeper.navigation.kernel.api.event.events.TickEvent;
 import dev.lodekeeper.navigation.kernel.api.event.listener.AbstractGameEventListener;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPath;
 import dev.lodekeeper.navigation.kernel.api.pathing.calc.IPathFinder;
@@ -12,6 +13,7 @@ import dev.lodekeeper.navigation.kernel.api.pathing.movement.IMovement;
 import dev.lodekeeper.navigation.kernel.api.utils.input.Input;
 import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 import dev.lodekeeper.navigation.kernel.pathing.movement.movements.MovementParkour;
+import dev.lodekeeper.navigation.kernel.pathing.movement.movements.MovementAscend;
 import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalBlock;
 import dev.lodekeeper.navigation.kernel.api.pathing.goals.GoalComposite;
 import dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess;
@@ -268,7 +270,8 @@ final class MovementController {
     private long progressToken, startedNanos, lastDefenseCancellationLog;
     private double requestX, requestZ;
     private ActionMovementProgress movementProgress;
-    private boolean movementProgressAnchored;
+    private boolean movementProgressAnchored, gatherDiagnosticsEligible;
+    private final WaterBreakObserver waterBreak = new WaterBreakObserver();
     private int requestTicks, failedCalculations, lastBreakTick, phaseStartedTick;
     private boolean motionLogAnchorInitialized;
     private double motionLogAnchorX, motionLogAnchorZ;
@@ -1085,6 +1088,7 @@ final class MovementController {
             bot.getGameEventHandler().registerEventListener(new AbstractGameEventListener() {
                 @Override public void onPathEvent(PathEvent event) {
                     RetreatSnapshotDiagnostics.pathEvent(MovementController.this, bot, event);
+                    if (event == PathEvent.CALC_FINISHED_NOW_EXECUTING) waterBreak.select();
                     if (mode == Mode.IDLE && !cancelling) return;
                     if (event == PathEvent.CALC_FAILED) failedCalculations++;
                     if (event == PathEvent.CALC_FINISHED_NOW_EXECUTING) checkInitialRetreatPath();
@@ -1096,6 +1100,7 @@ final class MovementController {
                                 "[Lodekeeper] NAV calcTool={} slot={}",
                                 GameCatalog.id(client.player.getMainHandItem().getItem()), client.player.getInventory().getSelectedSlot());
                 }
+                @Override public void onTick(TickEvent event) { waterBreak.coverage(event); }
             });
         }
         input.release(); actions.cancel();
@@ -1624,6 +1629,7 @@ final class MovementController {
     }
 
     void suspend() {
+        waterBreak.close("SUSPEND");
         rebaseMovementProgress();
         stopDefenseHop();
         if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
@@ -1773,6 +1779,7 @@ final class MovementController {
     }
 
     void stop() {
+        waterBreak.close("STOP");
         RetreatSnapshotDiagnostics.clear(this);
         rebaseMovementProgress();
         stopDefenseHop();
@@ -1858,6 +1865,7 @@ final class MovementController {
     }
 
     private NavigationFailure releaseLostAirRecoveryOwnership() {
+        waterBreak.close("OWNERSHIP_LOST");
         stopDefenseHop();
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] AIR event=ownership-lost mode={} destination={}", mode, lastAirRecoveryDestination);
@@ -1889,6 +1897,7 @@ final class MovementController {
     }
 
     private NavigationFailure releaseLostFollowOwnership() {
+        waterBreak.close("OWNERSHIP_LOST");
         stopDefenseHop();
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] FOLLOW event=ownership-lost mode={} target={}", mode, followTargetId);
@@ -1985,6 +1994,7 @@ final class MovementController {
     }
 
     void shutdownOwnedNavigation() {
+        waterBreak.close("SHUTDOWN");
         stopDefenseHop();
         dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.shutdown();
     }
@@ -2010,7 +2020,9 @@ final class MovementController {
         progressToken++;
         if (mode == Mode.FOLLOW) failedCalculations = 0;
     }
-    boolean attachMovementProgress(ActionMovementProgress progress) {
+    boolean attachMovementProgress(ActionMovementProgress progress, boolean gather) {
+        gatherDiagnosticsEligible = gather;
+        if (!gather || movementProgress != progress) waterBreak.close("DEMAND_CHANGED");
         if (movementProgress == progress) return false;
         rebaseMovementProgress();
         movementProgress = progress;
@@ -2044,6 +2056,213 @@ final class MovementController {
             movementProgress.rebase(cell);
             movementProgressAnchored = true;
         } else if (movementProgress.observe(cell)) progressToken++;
+    }
+
+    private String storedClientHit() {
+        var hit = client.hitResult;
+        return hit instanceof net.minecraft.world.phys.BlockHitResult block
+                && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK
+                ? "BLOCK/" + block.getBlockPos() + "/" + block.getDirection()
+                : hit == null ? "NONE" : hit.getType().name();
+    }
+
+    void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
+                            net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
+        try { waterBreak.nativeCall(gameMode, stage, start, value, position, face, target, progress, delay, destroying); }
+        catch (RuntimeException failure) { waterBreak.close("DIAGNOSTIC_FAILURE"); }
+    }
+
+    private final class WaterBreakObserver {
+        private enum State { CLOSED, WAITING, CAPTURING }
+        private State state = State.CLOSED;
+        private boolean spent, partial, previousReturn, unmatched;
+        private long triggeredNanos;
+        private int entries, callbacks, lastCount = -1, intervalStart;
+        private float previousProgress;
+        private dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner;
+        private dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session;
+        private Object world, player, gameMode;
+        private ActionMovementProgress ledger;
+        private IBaritone observedBot;
+        private SettingsLease observedLease;
+        private IBaritoneProcess process;
+        private IPathExecutor executor;
+        private IPath path;
+        private IMovement movement;
+        private int index;
+        private NativeFrame outer, child;
+
+        private final class NativeFrame {
+            final boolean start;
+            final int sequence, parent, depth, adapterTick = requestTicks;
+            final long nanos = System.nanoTime();
+            final String call, input, entry, gap;
+            String before = "UNKNOWN", gate = "UNKNOWN";
+            float baseline = Float.NaN;
+            boolean completed, nested;
+            NativeFrame(boolean start, int sequence, BlockPos position, net.minecraft.core.Direction face,
+                        BlockPos target, float progress, int delay, boolean destroying) {
+                this.start = start; this.sequence = sequence;
+                parent = outer == null ? 0 : outer.sequence; depth = outer == null ? 1 : 2;
+                call = position + "/" + face;
+                input = call + " attack=" + observedBot.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)
+                        + " clientStoredHit=" + storedClientHit() + " executor=" + System.identityHashCode(executor)
+                        + " path=" + System.identityHashCode(path) + " index=" + index + " movement=" + System.identityHashCode(movement)
+                        + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " requestNanos=" + startedNanos;
+                entry = snapshot(target, progress, delay, destroying);
+                gap = parent == 0 && previousReturn ? Float.toString(progress - previousProgress) : "UNKNOWN";
+            }
+        }
+
+        private boolean eligible() {
+            var runtime = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+            if (!config.debugLogging || !gatherDiagnosticsEligible || movementProgress == null
+                    || runtime == null || runtime.isClosed() || client.player == null || client.level == null
+                    || client.gameMode == null || GameApi.screen(client) != null || bot == null || lease == null
+                    || cancelling || cancellationProcess != null || retreatRequest || mode == Mode.IDLE || mode == Mode.SUSPENDED
+                    || pendingOwnershipFailure != null) return false;
+            var currentSession = runtime.captureSession();
+            var expected = expectedProcessForMode(bot, mode);
+            var controlling = bot.getPathingControlManager().mostRecentInControl();
+            return runtime.isCurrent(currentSession) && currentSession.world() == client.level
+                    && runtime.getPrimaryBaritone() == bot && expected != null && expected.isActive()
+                    && !hasForeignActiveProcess(bot, expected) && controlling.isPresent() && controlling.get() == expected;
+        }
+
+        private boolean valid() {
+            if (state == State.CLOSED) return false;
+            String reason = System.nanoTime() - triggeredNanos >= 20_000_000_000L ? "WALL_TIME" : null;
+            if (reason == null && (!eligible() || owner != dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current()
+                    || !owner.isCurrent(session) || world != client.level || player != client.player || gameMode != client.gameMode
+                    || ledger != movementProgress || observedBot != bot || observedLease != lease
+                    || process != expectedProcessForMode(bot, mode))) reason = "CONTEXT_INVALID";
+            if (reason == null && state == State.CAPTURING && (executor != bot.getPathingBehavior().getCurrent()
+                    || executor.getPath() != path || executor.getPosition() != index
+                    || index >= path.movements().size() || path.movements().get(index) != movement
+                    || !client.player.isInWater())) reason = "MOVEMENT_ENDED";
+            if (reason != null) { close(reason); return false; }
+            return true;
+        }
+
+        void trigger() {
+            if (spent) return;
+            try {
+                if (!eligible()) return;
+                var current = bot.getPathingBehavior().getCurrent();
+                if (current == null || current.getPosition() < 0 || current.getPosition() >= current.getPath().movements().size()
+                        || !(current.getPath().movements().get(current.getPosition()) instanceof MovementAscend)
+                        || !client.player.isInWater()) return;
+                spent = true; state = State.WAITING; triggeredNanos = System.nanoTime();
+                owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current(); session = owner.captureSession();
+                world = client.level; player = client.player; gameMode = client.gameMode; ledger = movementProgress;
+                observedBot = bot; observedLease = lease; process = expectedProcessForMode(bot, mode);
+                emit("HEADER triggerRequestNanos=" + startedNanos + " triggerTick=" + requestTicks + " progressToken=" + progressToken
+                        + " sessionGeneration=" + session.generation() + " ledger=" + System.identityHashCode(ledger)
+                        + " player=" + System.identityHashCode(player) + " world=" + System.identityHashCode(world)
+                        + " gameMode=" + System.identityHashCode(gameMode) + " bot=" + System.identityHashCode(observedBot)
+                        + " lease=" + System.identityHashCode(observedLease) + " process=" + System.identityHashCode(process)
+                        + " wait=NEXT_CALC_FINISHED_NOW_EXECUTING"
+                        + " snapshot=target/progress/delay/isDestroying phase=UNKNOWN upstreamGuards=UNKNOWN itemComparison=UNKNOWN helperRaycast=UNKNOWN");
+            } catch (RuntimeException failure) { close("DIAGNOSTIC_FAILURE"); }
+        }
+
+        void select() {
+            try {
+                if (!valid() || state != State.WAITING) return;
+                executor = bot.getPathingBehavior().getCurrent();
+                if (executor == null) { close("MISSING_EXECUTOR"); return; }
+                path = executor.getPath(); index = executor.getPosition();
+                if (index != 0 || path.movements().isEmpty() || !(path.movements().get(0) instanceof MovementAscend)
+                        || !client.player.isInWater()) { close("NEXT_CONTEXT_INELIGIBLE"); return; }
+                movement = path.movements().get(0); state = State.CAPTURING;
+                // The path event precedes the update; the first call interval has no late-PRE boundary yet.
+                partial = true;
+            } catch (RuntimeException failure) { close("DIAGNOSTIC_FAILURE"); }
+        }
+
+        void coverage(TickEvent event) {
+            try {
+                if (!valid() || state != State.CAPTURING) return;
+                if (event.getType() != TickEvent.Type.IN) { close("TICK_OUT"); return; }
+                if (unmatched) { close("UNMATCHED_CALL"); return; }
+                if (outer != null && !outer.completed || child != null && !child.completed) { close("INCOMPLETE_CALL"); return; }
+                outer = child = null;
+                if (lastCount != -1 && event.getCount() != lastCount + 1) { close("TICK_GAP"); return; }
+                emit("COVERAGE nativeTick=" + event.getCount() + " state=" + event.getState() + " adapterTick=" + requestTicks
+                        + " interval=CALLS_SINCE_PREVIOUS_LATE_PRE_CALLBACK previousNativeTick=" + lastCount
+                        + " firstSequence=" + (intervalStart + 1) + " lastSequence=" + entries + " calls=" + (entries - intervalStart)
+                        + " executor=" + System.identityHashCode(executor) + " index=" + index + " movement=" + System.identityHashCode(movement)
+                        + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " coverage=" + (partial ? "PARTIAL" : "COMPLETE"));
+                lastCount = event.getCount(); intervalStart = entries;
+                if (++callbacks >= 160) close("TICK_BUDGET");
+                else if (entries >= 200) close("TRUNCATED_CALL_BUDGET");
+            } catch (RuntimeException failure) { close("DIAGNOSTIC_FAILURE"); }
+        }
+
+        void nativeCall(Object controller, int stage, boolean start, boolean value, BlockPos position,
+                        net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
+            if (!valid() || state != State.CAPTURING) return;
+            if (controller != gameMode) { close("GAME_MODE_MISMATCH"); return; }
+            if (stage == 0) {
+                if (outer != null && outer.completed) outer = child = null;
+                if (outer != null && (outer.start || !start || child != null && !child.completed)) { close("UNEXPECTED_DEPTH"); return; }
+                if (outer == null && entries >= 200) return;
+                int sequence = entries < 200 ? ++entries : 0;
+                NativeFrame frame = new NativeFrame(start, sequence, position, face, target, progress, delay, destroying);
+                if (outer == null) outer = frame;
+                else { outer.nested = true; child = frame; } // Sequence zero shields an admitted parent from an unobserved child.
+                return;
+            }
+            if (!start && child != null && child.completed) child = null;
+            NativeFrame frame = child == null ? outer : child;
+            if (frame == null || frame.start != start || !frame.call.equals(position + "/" + face)) { partial = unmatched = true; return; }
+            if (stage == 1 && !frame.completed) {
+                frame.gate = Boolean.toString(value); frame.before = snapshot(target, progress, delay, destroying); frame.baseline = progress;
+                return;
+            }
+            if (!frame.completed) {
+                finish(frame, stage == 3 ? "NOT_RUN" : "RETURN", Boolean.toString(value), snapshot(target, progress, delay, destroying), progress);
+                if (frame == outer) { previousReturn = true; previousProgress = progress; }
+            }
+            // A canceled HEAD leaves a tombstone for a synthetic RETURN, or for the parent's next boundary.
+            if (stage == 2) { if (frame == child) child = null; else outer = null; }
+            if (entries >= 200 && (outer == null || outer.completed)) close("TRUNCATED_CALL_BUDGET");
+        }
+
+        private String snapshot(BlockPos target, float progress, int delay, boolean destroying) {
+            return target + "/" + progress + "/" + delay + "/" + destroying;
+        }
+
+        private void finish(NativeFrame frame, String body, String result, String after, float progress) {
+            frame.completed = true;
+            if (frame.sequence == 0) return;
+            emit("CALL sequence=" + frame.sequence + " parent=" + frame.parent + " depth=" + frame.depth
+                    + " operation=" + (frame.start ? "START" : "CONTINUE") + " adapterTick=" + frame.adapterTick
+                    + " entryNanos=" + frame.nanos + " exitNanos=" + System.nanoTime() + " " + frame.input
+                    + " entry=" + frame.entry + " postGate=" + frame.before + " after=" + after + " gate=" + frame.gate
+                    + " body=" + body + " returned=" + result + " delta=" + (progress - frame.baseline)
+                    + " overlap=" + (frame.nested || frame.parent != 0 ? "NESTED" : "NONE")
+                    + " gapProgress=" + frame.gap + " gapCause=UNKNOWN damageIncrement=UNKNOWN");
+        }
+
+        void close(String reason) {
+            if (state == State.CLOSED) return;
+            if (child != null && !child.completed) finish(child, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
+            if (outer != null && !outer.completed) finish(outer, "INCOMPLETE", "UNKNOWN", "UNKNOWN", Float.NaN);
+            state = State.CLOSED;
+            owner = null; session = null; world = player = gameMode = null; ledger = null;
+            observedBot = null; observedLease = null; process = null; executor = null; path = null; movement = null; outer = child = null;
+            emit("TERMINAL reason=" + reason + " entries=" + entries + " callbacks=" + callbacks
+                    + " coverage=" + (partial || reason.startsWith("TRUNCATED") ? "PARTIAL" : "UNKNOWN")
+                    + " callsSinceLastLatePre=" + (entries - intervalStart) + " remainder=UNKNOWN");
+            partial = previousReturn = unmatched = false; triggeredNanos = 0; previousProgress = 0;
+            entries = callbacks = intervalStart = index = 0; lastCount = -1;
+        }
+
+        private void emit(String record) {
+            try { org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] WATER_BREAK {}", record); }
+            catch (RuntimeException ignored) { }
+        }
     }
 
     private void samplePath() {
@@ -2092,6 +2311,7 @@ final class MovementController {
             if (config.debugLogging && current != null && index >= 0 && index < movements.size()
                     && index + 1 < positions.size() && motionLogAnchorInitialized) {
                 int stallTicks = requestTicks - motionLogAnchorRequestTick;
+                if (stallTicks >= 80) waterBreak.trigger();
                 if (stallTicks >= 80 && motionLogCount < 8
                         && (motionLogCount == 0 || requestTicks - motionLogLastRequestTick >= 80)) {
                     IMovement movement = movements.get(index);
@@ -2113,7 +2333,7 @@ final class MovementController {
                     motionLogLastRequestTick = requestTicks;
                     motionLogCount++;
                     org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                            "[Lodekeeper] NAV_MOTION mode={} requestTicks={} stallTicks={} pathIndex={} pathLength={} executor={} movement={} src={} dest={} nativeXYZ=({},{},{}) blockFeet={} kernelPlayerFeet={} pose={} bbox={} velocity=({},{},{}) onGround={} horizontalCollision={} verticalCollision={} srcFluid={} destFluid={} destHead={} destHead2={} yaw={} pitch={} inWater={} underWater={} inputClass={} actualSideways={} actualForward={} actualJump={} actualSneak={} progressToken={} outputCount={} jump={} forward={} back={} sneak={}",
+                            "[Lodekeeper] NAV_MOTION mode={} requestTicks={} stallTicks={} pathIndex={} pathLength={} executor={} movement={} src={} dest={} nativeXYZ=({},{},{}) blockFeet={} kernelPlayerFeet={} pose={} bbox={} velocity=({},{},{}) onGround={} horizontalCollision={} verticalCollision={} srcFluid={} destFluid={} destHead={} destHead2={} yaw={} pitch={} inWater={} underWater={} inputClass={} actualSideways={} actualForward={} actualJump={} actualSneak={} progressToken={} outputCount={} jump={} forward={} back={} sneak={} attack={} clientStoredHit={}",
                             mode, requestTicks, stallTicks, index, positions.size(), System.identityHashCode(current), movement.getClass().getSimpleName(),
                             source, destination, player.getX(), player.getY(), player.getZ(), player.blockPosition(),
                             bot.getPlayerContext().playerFeet(), player.getPose(), player.getBoundingBox(),
@@ -2124,7 +2344,8 @@ final class MovementController {
                             player.input.keyPresses.jump(), player.input.keyPresses.shift(), progressToken,
                             output == null ? 0 : actions.count(output),
                             inputOverrides.isInputForcedDown(Input.JUMP), inputOverrides.isInputForcedDown(Input.MOVE_FORWARD),
-                            inputOverrides.isInputForcedDown(Input.MOVE_BACK), inputOverrides.isInputForcedDown(Input.SNEAK));
+                            inputOverrides.isInputForcedDown(Input.MOVE_BACK), inputOverrides.isInputForcedDown(Input.SNEAK),
+                            inputOverrides.isInputForcedDown(Input.CLICK_LEFT), storedClientHit());
                 }
             }
             int movementCount = Math.min(NavigationSceneSnapshot.MAX_MOVEMENTS,

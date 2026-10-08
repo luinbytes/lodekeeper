@@ -47,6 +47,11 @@ public final class LodekeeperClient implements ClientModInitializer {
         return engine == null || engine.prepareAutomatedBreak(position);
     }
 
+    public static void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
+                                          net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
+        if (engine != null) engine.observeNativeBreak(gameMode, stage, start, value, position, face, target, progress, delay, destroying);
+    }
+
     @Override public void onInitializeClient() {
         Minecraft client = Minecraft.getInstance();
         engine = new AutomationEngine(client, LodekeeperConfig.load());

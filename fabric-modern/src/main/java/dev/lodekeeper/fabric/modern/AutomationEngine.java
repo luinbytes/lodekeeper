@@ -474,6 +474,10 @@ final class AutomationEngine {
     }
 
     boolean prepareAutomatedBreak(BlockPos position) { return movement.prepareAutomatedBreak(position); }
+    void observeNativeBreak(Object gameMode, int stage, boolean start, boolean value, BlockPos position,
+                            net.minecraft.core.Direction face, BlockPos target, float progress, int delay, boolean destroying) {
+        movement.observeNativeBreak(gameMode, stage, start, value, position, face, target, progress, delay, destroying);
+    }
     private long allocateJobToken() {
         if (lastJobToken == Long.MAX_VALUE) throw new IllegalStateException("Job token capacity reached");
         return ++lastJobToken;
@@ -3204,7 +3208,8 @@ final class AutomationEngine {
     }
 
     private void useMovementProgress(MovementProgressScope scope) {
-        if (movement.attachMovementProgress(scope == null ? null : scope.progress))
+        if (movement.attachMovementProgress(scope == null ? null : scope.progress,
+                scope != null && scope.demand != null && scope.demand.kind() == PlanKind.GATHER))
             lastMovementProgressToken = movement.progressToken();
     }
 
