@@ -833,15 +833,17 @@ The [GitHub response captured on 8 October 2026 at 14:49:10 UTC](https://github.
 
 ### Creeper discovery and blocked retreat
 
-The discovery and fallback changes below have CLEAN source review and passing local builds.
+Exact production source `98b1709a7929dc96c3af72f707f755966fe45e91` has CLEAN source review, passing local builds, and final exact-source CI SUCCESS. Existing prepared native controls pass nine of ten cases; the modern health-six gate remains open.
 
 Eligible unseen creepers strictly inside 10 blocks qualify without sight or player targeting. Eligible primed creepers qualify throughout the existing 12-block expanded discovery box. Eligible tracked primed creepers remain active beyond the phase-distance cutoff. Blocked-retreat contact fallback uses active creepers for its creeper veto. Full route hazards, overflow, stance, and live-prefix guards remain unchanged, as do the 16-threat cap, 15-second and 300-tick budget, 32-block displacement, four starts, and two arrivals. Eligibility, attack, low-health, and ownership guards remain unchanged.
 
 Modern optional settling returns `false` on readiness failure, preserving native forced jump. This promises no global pause.
 
-Local build proof `/tmp/lodekeeper-main-creeper-discovery-build-proof.json` records 315 primary and 268 modern existing checks executed, zero failures, errors, or skips, modern kernel `NO-SOURCE`, and artifact inspection PASS.
+The [build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-builds.json), local `/tmp/lodekeeper-main-creeper-discovery-build-proof.json`, records 315 primary and 268 modern existing checks executed, zero failures, errors, or skips, modern kernel `NO-SOURCE`, and artifact inspection PASS. Its 16,466 bytes have SHA-256 `0be809f356875e522440e7523fb1cc9e8e8d73e6151506087259ca001a982d41`. The proof's capture-time pending-native scope is superseded only by the controls below.
 
-| Minecraft | Candidate jar SHA-256 |
+The [final CI snapshot](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-ci.json) observes [run 37797597957](https://github.com/luinbytes/lodekeeper/actions/runs/37797597957) at `2026-10-08T15:22:05.710739+00:00`, with all 24 jobs SUCCESS at this exact source. Local `/tmp/lodekeeper-main-98b1709-ci-snapshot.json` is 79,610 bytes, SHA-256 `1394fc0b9f705843cc95884937e946170f4d7f64f321a4d24edcb4654ed5e95c`. Sibling upload receipts verify anonymous byte/hash read-back for both proofs. Local/CI jar byte equality remains unproved.
+
+| Minecraft | Frozen production jar SHA-256 |
 | --- | --- |
 | 1.21.1 | `fd744666e19120f9dfc2b6c6be1f76fe77258cc53d3aa185c12063abc83a437a` |
 | 26.3 | `2c1b7d4d4a60333d13d9475412e94b3751b5fdd67ea084714444160e14bf7570` |
@@ -850,7 +852,25 @@ Frozen `995ccb3` baselines exclude this change. [Health-six](https://github.com/
 
 Upload and browser receipts verify four public original PNGs before eight local copies were deleted. Health frames may precede the actual health-six receipt.
 
-No candidate runtime proof exists, and unseen-entry or primed-case coverage is absent. Candidate CI and native verification remain pending. No speedup or fresh Survival claim follows. Preview 11 remains `88f2b52`; no Preview 12 is published.
+The frozen `98b1709` jars run five pairs of existing prepared native cases with supplied resources. All ten runner receipts confirm unchanged artifacts and zero class-provenance violations.
+
+| Existing case and public proof | 1.21.1 | 26.3 | Receipt scope |
+| --- | --- | --- | --- |
+| [Live creeper](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-creeper-controls.json) | PASS | PASS | Same normal-AI creeper remains unharmed at least twelve blocks away; health 20, no explosion, one bucket, empty cursor, stopped navigation. |
+| [Manual takeover](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-manual-controls.json) | PASS | PASS | Simulated forward key during an owned hop restores original input, preserves the key and request, and pauses with stopped navigation. Bucket unfinished by design; physical human input unverified. |
+| [Water retreat](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-water-controls.json) | PASS | PASS | Prepared water/roof fixture reaches dry supported ground with health 20, one bucket, empty cursor, stopped navigation, and unchanged protected mobs and weapons. |
+| [Live contact](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-contact-controls.json) | PASS | PASS | Native hits kill both normal-AI zombies; final health 15.5 and 16.0 respectively, one bucket, empty cursor, stopped navigation, cow and shell intact. |
+| [Health-six onset](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-low-health.json) | PASS | FAIL | Primary observes airborne health 6, zero post-onset attacks or damage, supported landing, full cancellation and restored settings/input, then the expected no-route pause with its bucket request preserved. |
+
+Modern health-six fails to confirm low-health onset during the same first owned airborne hop. One airborne attack logs client health 17; no client onset at health 6 or below is confirmed. The cached pre-release server snapshot cannot prove that the mutation never ran. No post-onset attack violation, production regression, or fixture flake is established. Supported landing and the successful cancellation/restoration/request-preservation chain remain unproved for that failed case. Diagnosis is ongoing in `/tmp/lodekeeper-main-98b1709-low-health-onset-diagnosis.md`; the gate stays open.
+
+All completing cases leave their tables; full station cleanup remains unproved. Local paired proofs use `/tmp/lodekeeper-main-98b1709-{creeper,manual,water,contact,low-health}-proof.json` with sibling proof-upload receipts. Public screenshot manifests cover [primary creeper](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-creeper-primary-screenshots.json), [modern creeper](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-creeper-modern-screenshots.json), [manual](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-manual-screenshots.json), [water](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-water-screenshots.json), [contact](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-contact-screenshots.json), and [health-six](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-low-health-screenshots.json). Sibling screenshot-upload and browser receipts record anonymous byte/hash read-back and logged-out decoding of all ten original PNGs before twenty local original/staging copies were deleted, with none pending. Frames supplement the native receipts.
+
+The separate [saved route-creeper replay](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-saved-replay.json) records `FAIL_NAVIGATION_PROCESS_ENDED` with cancellation pending. An ordinary `!lk project gear_diamond` command uses the same original `63db519` save and player in a fresh initially byte-identical copy-on-write clone, with verification disabled. Original save and frozen jar remain unchanged; provenance verifies 472 remapped production classes with zero violations. The [three replay originals](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-saved-replay-screenshots.json) have anonymous byte/hash read-back and logged-out decoding before six local copies were deleted. Sibling receipts under `/tmp/lodekeeper-main-98b1709-route-creeper-replay` verify publication. This failure establishes neither an original-fallback fix nor safe escape; diagnosis remains open.
+
+The [fresh 1.21.1 Survival run](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-fresh-primary.json), seed `483920105`, FAILS after 290,913 ms at a no-safe-dry-retreat pause. Server inventory confirms one diamond pickaxe; the other eight gear targets remain absent. Final health is 5.333335, with zero deaths and an empty cursor. Two unique tables were recovered and one left under the player-support guard. The client exits normally without timeout, with the frozen artifact unchanged and 512 remapped production classes verified without violations. Its [four original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-fresh-primary-screenshots.json) passed anonymous byte/hash read-back and logged-out decoding before eight local copies were deleted. Local proof and publication receipts use `/tmp/lodekeeper-main-98b1709-natural-primary`.
+
+Fresh 26.3 is running. Unseen-entry and primed-specific coverage remain open. No speedup or fresh Survival pass follows. Preview 11 remains `88f2b52`; no Preview 12 is published.
 
 ### Bounded contact decision capture
 
