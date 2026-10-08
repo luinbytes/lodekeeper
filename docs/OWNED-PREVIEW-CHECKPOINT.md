@@ -811,6 +811,8 @@ Independent source review is CLEAN; native behavior remains unverified. Sequenti
 | 1.21.1 scan repair | 1,721,537 | `e19b29d69583f3722dbb2afb192e4b4370c0ce2f7621442d1d9d9783457191f8` |
 | 26.3 scan repair | 1,793,425 | `449a41f8a2a452fb2d7140263b7134b9814a667d67200c2b47f3b356bcb92a57` |
 
+The [local build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-454fd46-builds.json) records the exact `454fd46` sources and jars. The [first CI attempt](https://github.com/luinbytes/lodekeeper/actions/runs/37771734407) exposed omitted current-source metadata updates before affected kernel compilation. Five family-diff rows and four legacy effective-manifest hashes now match the scan repair. All five existing family validators pass, and all four legacy manifest digests and their file rows match. Historical canonical, upstream archive, source and dependency pins remain unchanged. Full exact-version CI remains pending. These metadata corrections do not alter either frozen 1.21.1 or 26.3 jar.
+
 ### Fresh 26.3 Normal Survival pass at af185d8
 
 The [final public proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af185d8-natural-modern.json) records one fresh generated Normal Survival `!lk project gear_diamond` PASS at exact source `af185d83e0c093840f69fa772d3be60ab6ffa61f`. The frozen 26.3 jar is 1,789,476 bytes, SHA-256 `e63a7189a90153390e2a5fa97cac03b39e58350dc95e4df5566675dfba7cc23f`. Production bytes remain unchanged through the run, with zero class-origin violations. The runner launches from clean source and exits normally with code 0.

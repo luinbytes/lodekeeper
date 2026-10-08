@@ -8,7 +8,7 @@
     "directory": "lifecycle-overrides",
     "file_count": 51,
     "manifest": "lifecycle-overrides.sha256",
-    "manifest_sha256": "e792514a206984f668e53f8c7649d7ab8c7db9115aca05fe423811e0496c0cc3"
+    "manifest_sha256": "ef6830867d44c45485cce6d39f9c262e06a083492ba27d138526ed57dd5c1ca1"
   },
   "java_version": 17,
   "minecraft_mappings": "official Mojang mappings",
