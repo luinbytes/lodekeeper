@@ -36,7 +36,13 @@ Attempt bounds retain the existing 32-block scope, 30-second target deadline, 32
 
 Permitted containers publish finite stock only from acknowledged menus. References bind the physical slot, native session, permit generation, and observation generation. Reopening and content changes invalidate old observations. Retrieve and deposit use the existing exact transfer and coherent full-ACK rules, including an empty acknowledged cursor and protected floors.
 
+Closing a menu invalidates its execution lease. Its last acknowledged counts may remain finite conditional planning forecasts. A withdrawal must reopen that exact permitted container, publish a fresh generation, and replan before any click. A forecast supplies no inventory or completion credit. This policy permits bounded multi-container planning without treating closed menus as current observations.
+
 Travel, player following, deposit, and delivery are foreground goals. They do not produce synthetic recipe items. Acquisition children share their parent's job and payload reservations. Player services bind UUID identity. Delivered status requires recipient evidence. Remote commands require explicit sender authorisation and current-session authentication.
+
+The selected cooperative design uses typed foreground request variants in the existing queue. A delivery retains its acquisition child view for the whole acquisition phase; reading active work does not create a new request. Its reserved payload belongs to the same job. Native pickup packets can overstate partial collection, so sending an item establishes an offer until exact recipient collection is proved. An uncertain offer cannot be sent again automatically.
+
+Remote admission verifies the current certified chat session, sender UUID, signed message body, locally granted server scope, freshness, and replay/rate bounds. Unsigned game chat carries no sender authority. Local configuration establishes grants; a received message cannot grant itself permission. A sender can cancel only work admitted under that sender's authority.
 
 ## Alternatives and verification
 
@@ -44,6 +50,6 @@ Two independent designs were compared. A private CUSTOM decoder registry preserv
 
 A universal effects protocol would migrate existing station and survival routines before delivering the first provider. The selected design keeps native operation knowledge inside concrete actors.
 
-Existing checks and exact artifact compilation precede support claims. Native cases use one isolated client at a time and disclose supplied resources. Lu approved focused new cases for requested meat quantities and cooking, wool and shears accounting, protected or wrong-item refusal, and cancellation after interaction. New cases outside that set require approval.
+Existing checks and exact artifact compilation precede support claims. Native cases use one isolated client at a time and disclose supplied resources. The [implementation ledger](PARITY-IMPLEMENTATION.md) records Lu's approved native case groups. New cases outside those groups require approval.
 
 The eleven audit groups remain tracked in [Parity implementation](PARITY-IMPLEMENTATION.md). This design alone establishes no runtime support or comparative advantage.
