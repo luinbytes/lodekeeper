@@ -122,7 +122,7 @@ final class MovementController {
                     .thenComparingInt(candidate -> candidate.position().getZ());
 
     private enum RetreatDecision {
-        PRIOR_GOAL, ORIGIN_DISTANCE, NO_FULL_CHUNK, UNSAFE_SUPPORT, FALLING_ABOVE,
+        WORLD_HEIGHT, PRIOR_GOAL, ORIGIN_DISTANCE, NO_FULL_CHUNK, UNSAFE_SUPPORT, FALLING_ABOVE,
         FEET_FULL, HEAD_FULL, PROBE_UNRESOLVED, NO_FULL_SUPPORT, HAZARD,
         WATER, CLIMBABLE, BODY_BLOCKED, BREAK_REQUIRED, ACCEPTED
     }
@@ -135,7 +135,8 @@ final class MovementController {
         private final int[][] samples = new int[16][6];
         private final BlockState[][] states = new BlockState[16][3];
         private final RetreatDecision[] decisions = new RetreatDecision[16];
-        private int visitedColumns, passedColumns, completedCandidates, sampleCount;
+        private int visitedColumns, passedColumns, extraColumnVisits, extraPassedColumnVisits, reachedLayer;
+        private int completedCandidates, sampleCount;
         private RetreatStop stop = RetreatStop.OFFSETS_EXHAUSTED;
 
         RetreatSelectionDiagnostics(BlockPos center, BlockPos origin, int radius, int totalColumns,
@@ -144,7 +145,12 @@ final class MovementController {
                     origin.getZ(), radius, totalColumns, hazards, maximumClearance};
         }
 
-        void column(boolean passed) {
+        void column(boolean passed, int layer) {
+            if (layer > 2) {
+                extraColumnVisits++;
+                if (passed) extraPassedColumnVisits++;
+                return;
+            }
             visitedColumns++;
             if (passed) passedColumns++;
         }
@@ -157,6 +163,10 @@ final class MovementController {
             int index = sampleCount++;
             decisions[index] = decision;
             int[] sample = samples[index];
+            if (candidate == null) {
+                sample[5] = -1;
+                return;
+            }
             sample[0] = candidate.getX();
             sample[1] = candidate.getY();
             sample[2] = candidate.getZ();
@@ -177,10 +187,15 @@ final class MovementController {
                 StringBuilder text = new StringBuilder("RETREAT_SELECTOR phase=selection center=");
                 text.append(request[0]).append(',').append(request[1]).append(',').append(request[2])
                         .append(" origin=").append(request[3]).append(',').append(request[4]).append(',').append(request[5])
-                        .append(" radius=").append(request[6]).append(" heights=[0,1,-1,2,-2] hazards=").append(request[8])
+                        .append(" radius=").append(request[6]).append(" baseHeights=[0,1,-1,2,-2]")
+                        .append(" extraLayers=3..").append(request[6]).append(" extraOrder=RANKED_OFFSETS_THEN_[+k,-k]")
+                        .append(" fallbackEntered=").append(reachedLayer > 0).append(" reachedLayer=").append(reachedLayer)
+                        .append(" hazards=").append(request[8])
                         .append(" maximumClearance=").append(request[9]).append(" totalColumns=").append(request[7])
                         .append(" visitedColumns=").append(visitedColumns).append(" clearancePassedColumns=").append(passedColumns)
                         .append(" clearanceRejectedColumns=").append(visitedColumns - passedColumns)
+                        .append(" columnPolicy=DISTINCT_BASE extraColumnVisits=").append(extraColumnVisits)
+                        .append(" extraClearancePassedVisits=").append(extraPassedColumnVisits)
                         .append(" attemptedHeights=").append(candidates).append(" completedHeights=").append(completedCandidates)
                         .append(" probes=").append(probes).append(" goals=").append(goals).append(" stop=").append(stop)
                         .append(" outcome=").append(goals == 0 ? "EMPTY" : "GOALS_SELECTED")
@@ -194,6 +209,10 @@ final class MovementController {
                 text.append("} probeBits=[loaded,bodyClear,fullSupport,surfaceSupport,hazard,water,climbable] samples=[");
                 for (int i = 0; i < sampleCount; i++) {
                     int[] sample = samples[i];
+                    if (sample[5] == -1) {
+                        text.append("{pos=OUT_OF_WORLD decision=").append(decisions[i]).append("},");
+                        continue;
+                    }
                     text.append("{pos=").append(sample[0]).append(',').append(sample[1]).append(',').append(sample[2])
                             .append(" decision=").append(decisions[i]).append(" overheadId=").append(blockId(states[i][0]))
                             .append(" feetId=").append(blockId(states[i][1])).append(" headId=").append(blockId(states[i][2]));
@@ -366,15 +385,9 @@ final class MovementController {
         long searchStarted = System.nanoTime();
         int candidates = 0, probes = 0;
         int[] heights = {0, 1, -1, 2, -2};
-        search: for (BlockPos offset : offsets) {
-            int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
-            if (retreatClearanceMargin(x, z, threats) < 0.0) {
-                if (trace != null) trace.column(false);
-                continue;
-            }
-            if (trace != null) trace.column(true);
-            for (int dy : heights) {
-                if (++candidates > 4_096) {
+        search: for (int layer = 2; layer <= radius; layer++) {
+            if (layer > 2) {
+                if (candidates >= 4_096) {
                     if (trace != null) trace.stop = RetreatStop.CANDIDATE_LIMIT;
                     break search;
                 }
@@ -386,78 +399,116 @@ final class MovementController {
                     if (trace != null) trace.stop = RetreatStop.TIME_LIMIT;
                     break search;
                 }
-                BlockPos candidate = new BlockPos(x, center.getY() + dy, z);
-                if (rejectedGoals.contains(candidate)) {
-                    if (trace != null) trace.complete(RetreatDecision.PRIOR_GOAL, candidate, null, null, null, null);
-                    continue;
-                }
-                double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
-                if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) {
-                    if (trace != null) trace.complete(RetreatDecision.ORIGIN_DISTANCE, candidate, null, null, null, null);
-                    continue;
-                }
-                if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null) {
-                    if (trace != null) trace.complete(RetreatDecision.NO_FULL_CHUNK, candidate, null, null, null, null);
-                    continue;
-                }
-                if (!actions.safePlacementSupport(candidate.below())) {
-                    if (trace != null) trace.complete(RetreatDecision.UNSAFE_SUPPORT, candidate, null, null, null, null);
-                    continue;
-                }
-                BlockState overheadState = client.level.getBlockState(candidate.above(2));
-                if (overheadState.getBlock() instanceof FallingBlock) {
-                    if (trace != null) trace.complete(RetreatDecision.FALLING_ABOVE, candidate, overheadState, null, null, null);
-                    continue;
-                }
-                BlockState feetState = client.level.getBlockState(candidate);
-                var feetShape = feetState.getCollisionShape(client.level, candidate);
-                BlockState headState = client.level.getBlockState(candidate.above());
-                var headShape = headState.getCollisionShape(client.level, candidate.above());
-                if (Block.isShapeFullBlock(feetShape)) {
-                    if (trace != null) trace.complete(RetreatDecision.FEET_FULL, candidate, overheadState, feetState, headState, null);
-                    continue;
-                }
-                if (Block.isShapeFullBlock(headShape)) {
-                    if (trace != null) trace.complete(RetreatDecision.HEAD_FULL, candidate, overheadState, feetState, headState, null);
-                    continue;
-                }
-                probes++;
-                terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
-                if (!stance.loaded) {
-                    if (trace != null) trace.complete(RetreatDecision.PROBE_UNRESOLVED, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (!stance.fullSupport) {
-                    if (trace != null) trace.complete(RetreatDecision.NO_FULL_SUPPORT, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (stance.hazard) {
-                    if (trace != null) trace.complete(RetreatDecision.HAZARD, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (stance.water) {
-                    if (trace != null) trace.complete(RetreatDecision.WATER, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (stance.climbable) {
-                    if (trace != null) trace.complete(RetreatDecision.CLIMBABLE, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (!stance.bodyClear) {
-                    if (trace != null) trace.complete(RetreatDecision.BODY_BLOCKED, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                if (stance.breakCount != 0) {
-                    if (trace != null) trace.complete(RetreatDecision.BREAK_REQUIRED, candidate, overheadState, feetState, headState, stance);
-                    continue;
-                }
-                goals.add(candidate);
-                if (trace != null) trace.complete(RetreatDecision.ACCEPTED, candidate, overheadState, feetState, headState, stance);
-                if (goals.size() == 16) {
-                    if (trace != null) trace.stop = RetreatStop.GOAL_LIMIT;
+                heights = new int[] {layer, -layer};
+                if (trace != null) trace.reachedLayer = layer;
+            }
+            for (BlockPos offset : offsets) {
+                if (layer > 2 && System.nanoTime() - searchStarted >= 8_000_000L) {
+                    if (trace != null) trace.stop = RetreatStop.TIME_LIMIT;
                     break search;
                 }
+                int x = center.getX() + offset.getX(), z = center.getZ() + offset.getZ();
+                if (retreatClearanceMargin(x, z, threats) < 0.0) {
+                    if (trace != null) trace.column(false, layer);
+                    continue;
+                }
+                if (trace != null) trace.column(true, layer);
+                for (int dy : heights) {
+                    if (++candidates > 4_096) {
+                        if (trace != null) trace.stop = RetreatStop.CANDIDATE_LIMIT;
+                        break search;
+                    }
+                    if (probes >= 192) {
+                        if (trace != null) trace.stop = RetreatStop.PROBE_LIMIT;
+                        break search;
+                    }
+                    if (System.nanoTime() - searchStarted >= 8_000_000L) {
+                        if (trace != null) trace.stop = RetreatStop.TIME_LIMIT;
+                        break search;
+                    }
+                    BlockPos candidate;
+                    if (layer == 2) candidate = new BlockPos(x, center.getY() + dy, z);
+                    else {
+                        long candidateY = (long) center.getY() + dy;
+                        if (candidateY - 1 < client.level.getMinY() || candidateY + 2 > client.level.getMaxY()) {
+                            if (trace != null) trace.complete(RetreatDecision.WORLD_HEIGHT, null, null, null, null, null);
+                            continue;
+                        }
+                        candidate = new BlockPos(x, (int) candidateY, z);
+                    }
+                    if (rejectedGoals.contains(candidate)) {
+                        if (trace != null) trace.complete(RetreatDecision.PRIOR_GOAL, candidate, null, null, null, null);
+                        continue;
+                    }
+                    double ox = x + .5 - origin.getX(), oy = candidate.getY() - origin.getY(), oz = z + .5 - origin.getZ();
+                    if (ox * ox + oy * oy + oz * oz > 30.0 * 30.0) {
+                        if (trace != null) trace.complete(RetreatDecision.ORIGIN_DISTANCE, candidate, null, null, null, null);
+                        continue;
+                    }
+                    if (client.level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, false) == null) {
+                        if (trace != null) trace.complete(RetreatDecision.NO_FULL_CHUNK, candidate, null, null, null, null);
+                        continue;
+                    }
+                    if (!actions.safePlacementSupport(candidate.below())) {
+                        if (trace != null) trace.complete(RetreatDecision.UNSAFE_SUPPORT, candidate, null, null, null, null);
+                        continue;
+                    }
+                    BlockState overheadState = client.level.getBlockState(candidate.above(2));
+                    if (overheadState.getBlock() instanceof FallingBlock) {
+                        if (trace != null) trace.complete(RetreatDecision.FALLING_ABOVE, candidate, overheadState, null, null, null);
+                        continue;
+                    }
+                    BlockState feetState = client.level.getBlockState(candidate);
+                    var feetShape = feetState.getCollisionShape(client.level, candidate);
+                    BlockState headState = client.level.getBlockState(candidate.above());
+                    var headShape = headState.getCollisionShape(client.level, candidate.above());
+                    if (Block.isShapeFullBlock(feetShape)) {
+                        if (trace != null) trace.complete(RetreatDecision.FEET_FULL, candidate, overheadState, feetState, headState, null);
+                        continue;
+                    }
+                    if (Block.isShapeFullBlock(headShape)) {
+                        if (trace != null) trace.complete(RetreatDecision.HEAD_FULL, candidate, overheadState, feetState, headState, null);
+                        continue;
+                    }
+                    probes++;
+                    terrain.probeStance16(x, Math.multiplyExact(candidate.getY(), 16), z, stance);
+                    if (!stance.loaded) {
+                        if (trace != null) trace.complete(RetreatDecision.PROBE_UNRESOLVED, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (!stance.fullSupport) {
+                        if (trace != null) trace.complete(RetreatDecision.NO_FULL_SUPPORT, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (stance.hazard) {
+                        if (trace != null) trace.complete(RetreatDecision.HAZARD, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (stance.water) {
+                        if (trace != null) trace.complete(RetreatDecision.WATER, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (stance.climbable) {
+                        if (trace != null) trace.complete(RetreatDecision.CLIMBABLE, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (!stance.bodyClear) {
+                        if (trace != null) trace.complete(RetreatDecision.BODY_BLOCKED, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    if (stance.breakCount != 0) {
+                        if (trace != null) trace.complete(RetreatDecision.BREAK_REQUIRED, candidate, overheadState, feetState, headState, stance);
+                        continue;
+                    }
+                    goals.add(candidate);
+                    if (trace != null) trace.complete(RetreatDecision.ACCEPTED, candidate, overheadState, feetState, headState, stance);
+                    if (goals.size() == 16) {
+                        if (trace != null) trace.stop = RetreatStop.GOAL_LIMIT;
+                        break search;
+                    }
+                }
             }
+            if (!goals.isEmpty()) break search;
         }
         if (trace != null) trace.emit(candidates, probes, goals.size(), System.nanoTime() - searchStarted);
         if (goals.isEmpty()) throw new NavigationFailure(NavigationFailure.Kind.NO_RETREAT_STANCE,

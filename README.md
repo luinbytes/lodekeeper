@@ -119,11 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review and both primary builds. A fresh 26.3 run on production and verifier `d0a62ef` emits eight descent samples, then stops at the cap. Sampling proves no return route. A [saved-world baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission.
+The [retreat-height candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) preserves the original five-height search. Only an exhausted search with no goals tries further height layers under the same shared limits. Both builds pass; source review is in progress. Native height admission and safe ascent remain unverified.
 
-The run **FAILS after 559,590 ms** with one diamond pickaxe and eight gear targets absent. Final health is 5.666666, with no deaths, an empty cursor, no timeout, and clean client exit 0. The low-health guard blocks further attacks. Both retreat selections exhaust their terrain candidates without launching a path. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d0a62ef-no-downward-modern-screenshots.json) show the command and final pause.
+The earlier [26.3 run at `d0a62ef`](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) **FAILS after 559,590 ms**, with one diamond pickaxe, eight targets absent, health 5.666666, zero deaths and clean exit. Eight capped descent samples prove no return route. Its saved terrain suggests an endpoint four blocks higher, outside the old search band. A [saved-world baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission.
 
-Isolated `allowDownward=false` remains an experiment; default policy is unchanged. The [earlier full-health failure](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-fresh-263-no-direct-downward-experiment) retains its separate evidence. The latest [prepared health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The latest [prepared health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS on its labelled source. Isolated `allowDownward=false` is experimental. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
