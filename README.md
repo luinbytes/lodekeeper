@@ -119,11 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The opt-in [native server PICKUP boundary diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation) is implemented. Its 26.3 build passes 268 existing checks, with 265 cached and three rerun; independent source review is CLEAN. Receipt acceptance is unchanged. Exact-artifact runtime and CI evidence remain pending.
+Frozen main `54b2a36` records two 26.3 [server PICKUP capture FAILs](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation). Both saved-world clone replays craft the stone pickaxe, recover the carried table, and quit normally with exit 0 before full gear completes. Each server capture is incomplete with one error and no `HANDLER_RETURN`. The second run captures an `IncompatibleClassChangeError` during `SlotSummary` record formatting. Its terminal excerpt survives; the raw JVM lines rotated before archive.
 
-Frozen `75a66bb` remains the latest verified production evidence. Its 26.3 build passes 268 existing checks, source review is CLEAN, and [exact-source CI](https://github.com/luinbytes/lodekeeper/actions/runs/37751123849) passes all 24 profiles. Three [saved-world clone replays](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation) accept five, two, and two transfers. Their first pickups predict and receive matching counts of four, four, and three. Replay one later exhausts retreat selection, pauses at health 20, then dies to a zombie twenty seconds later. Replays two and three deliberately quit normally after stone crafting and table carry.
-
-Those passing pickups do not explain the earlier `a32cf74` expected-three/full-four failure. Server refusal, source growth, and packet attribution remain unproved. Full gear, fresh Survival, retreat, and complete station recovery remain open. Preview 11 stays at `88f2b52`.
+The exact build passes 268 existing checks, with 265 cached and three rerun. Static R2 review was CLEAN before these native failures. A formatter correction build passes the same checks and independent review is CLEAN. Its freeze, native verification, and CI remain pending. CI 37760593881 was queued at last inspection. The default-disabled control is unrun. Receipt acceptance is unchanged; the earlier `a32cf74` mismatch remains unresolved. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 

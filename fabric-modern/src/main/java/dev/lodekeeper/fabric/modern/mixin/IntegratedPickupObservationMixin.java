@@ -301,7 +301,16 @@ abstract class IntegratedPickupObservationMixin extends ServerCommonPacketListen
                           Object world, Object inventory, net.minecraft.world.inventory.Slot[] capturedSlots, ItemStack[] copies) {}
 
     private record SlotSummary(String role, int menuSlot, String beforeItem, int beforeCount, boolean beforeEmpty,
-                               String afterItem, int afterCount, boolean afterEmpty, boolean sameComponents) {}
+                               String afterItem, int afterCount, boolean afterEmpty, boolean sameComponents) {
+        @Override
+        public String toString() {
+            return "SlotSummary[role=" + role + ", menuSlot=" + menuSlot
+                    + ", beforeItem=" + beforeItem + ", beforeCount=" + beforeCount
+                    + ", beforeEmpty=" + beforeEmpty + ", afterItem=" + afterItem
+                    + ", afterCount=" + afterCount + ", afterEmpty=" + afterEmpty
+                    + ", sameComponents=" + sameComponents + "]";
+        }
+    }
 
     private static final class Candidate {
         static final int BEFORE = 0, AFTER = 1, HANDLER_RETURN = 2, INCOMPLETE = 3;
