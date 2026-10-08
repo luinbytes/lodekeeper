@@ -1441,7 +1441,7 @@ final class AutomationEngine {
             }
             threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
-            if (threats.tick()) { observeInventory(); requestPlan(); }
+            if (threats.tick(config.pauseBelowHealth)) { observeInventory(); requestPlan(); }
             else status = threats.status();
         } catch (RuntimeException failure) {
             threats.stop();

@@ -29,6 +29,7 @@ final class ThreatResponseAction {
     }
     private record AttackChoice(MobEntity target, int slot, double damage, MovementController.DefenseHop hop) { }
     private enum Phase { IDLE, STOPPING, MELEE, HOP_ASCENT, HOP_LANDING, CONTACT_WAIT, RETREAT, FINISHING, COMPLETE, STOPPED }
+    private enum ResponseIntent { ALLOWED, RETREAT_REQUIRED }
     private static final long MAX_NANOS = 15_000_000_000L;
     private static final int MAX_TICKS = 300, MAX_ATTACKS = 24, MAX_RETREAT_STARTS = 4,
             MAX_COMPLETED_RETREATS = 2, MAX_THREATS = 16;
@@ -40,6 +41,7 @@ final class ThreatResponseAction {
     private final List<MobEntity> tracked = new ArrayList<>();
     private Map<ItemId, Integer> protection = Map.of();
     private Phase phase = Phase.IDLE;
+    private ResponseIntent responseIntent = ResponseIntent.ALLOWED;
     private String status = "threat response idle";
     private Object ownerPlayer, ownerWorld;
     private double originX, originY, originZ;
@@ -100,6 +102,7 @@ final class ThreatResponseAction {
         selectedSlot = -1;
         ticks = attacks = retreatStarts = completedRetreats = lastContactTick = hopLaunchWaitTicks = 0;
         retreatBlocked = false;
+        responseIntent = ResponseIntent.ALLOWED;
         startedAt = System.nanoTime();
         tracked.clear();
         tracked.addAll(nearbyThreats());
@@ -119,10 +122,12 @@ final class ThreatResponseAction {
         return phase == Phase.STOPPING || phase == Phase.MELEE || phase == Phase.HOP_ASCENT || phase == Phase.HOP_LANDING || phase == Phase.CONTACT_WAIT || phase == Phase.RETREAT || phase == Phase.FINISHING;
     }
 
-    boolean tick() {
+    boolean tick(float configuredThreshold) {
         if (phase == Phase.COMPLETE) return true;
         if (!active()) return false;
         try {
+            if (!Float.isFinite(configuredThreshold) || configuredThreshold < 1.0f || configuredThreshold > 20.0f)
+                throw new IllegalArgumentException("invalid defense health threshold");
             String reason = unsafeContextReason();
             if (reason != null) throw new IllegalStateException(reason);
             if (client.player != ownerPlayer || client.world != ownerWorld)
@@ -136,6 +141,29 @@ final class ThreatResponseAction {
                 throw new IllegalStateException("player changed the defense selection");
             RuntimeException retreatPrefixFailure = movement.takeRetreatPrefixFailure();
             if (retreatPrefixFailure != null) throw retreatPrefixFailure;
+            float health = client.player.getHealth();
+            if (responseIntent == ResponseIntent.ALLOWED && health <= configuredThreshold) {
+                responseIntent = ResponseIntent.RETREAT_REQUIRED;
+                plannedChoice = null;
+                if (movement.debugLogging())
+                    org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] DEFENSE_RETREAT_REQUIRED phase={} health={} threshold={}",
+                            phase, health, configuredThreshold);
+            }
+            if (responseIntent == ResponseIntent.RETREAT_REQUIRED) {
+                if (phase == Phase.HOP_ASCENT || phase == Phase.HOP_LANDING) {
+                    remainingThreats();
+                    if (movement.tickDefenseHop()) {
+                        stopForRetreat();
+                        log("hop-landed");
+                    }
+                    return false;
+                }
+                if (phase == Phase.MELEE || phase == Phase.CONTACT_WAIT) {
+                    stopForRetreat();
+                    return false;
+                }
+            }
             if (!useShield && !shield.finish()) return false;
             List<MobEntity> threats = remainingThreats();
             if (useShield && (phase == Phase.STOPPING || phase == Phase.FINISHING)
@@ -365,7 +393,8 @@ final class ThreatResponseAction {
             lastContactTick = ticks;
             status = "native melee defense";
             log("melee");
-        } else if (retreatBlocked && threats.stream().noneMatch(ThreatResponseAction::creeper)) {
+        } else if (responseIntent == ResponseIntent.ALLOWED && retreatBlocked
+                && threats.stream().noneMatch(ThreatResponseAction::creeper)) {
             phase = Phase.CONTACT_WAIT;
             status = "waiting for live contact without an open retreat";
         } else if (movement.finishCancellation()) {
@@ -375,7 +404,8 @@ final class ThreatResponseAction {
     }
 
     private boolean selectContactTarget(List<MobEntity> threats) {
-        if (attacks >= MAX_ATTACKS || threats.stream().anyMatch(ThreatResponseAction::creeper)) {
+        if (responseIntent == ResponseIntent.RETREAT_REQUIRED || attacks >= MAX_ATTACKS
+                || threats.stream().anyMatch(ThreatResponseAction::creeper)) {
             plannedChoice = null;
             return false;
         }
@@ -415,6 +445,8 @@ final class ThreatResponseAction {
         List<RouteHazard> hazards = routeHazards();
         logRetreatPlanning(hazards);
         if (retreatStarts >= MAX_RETREAT_STARTS || completedRetreats >= MAX_COMPLETED_RETREATS) {
+            if (responseIntent == ResponseIntent.RETREAT_REQUIRED)
+                throw new IllegalStateException("low-health required retreat exceeded bounded retreat routes");
             if (hazards.stream().anyMatch(RouteHazard::creeper))
                 throw new IllegalStateException("active creeper remained after bounded retreat routes");
             retreatBlocked = true;
@@ -433,6 +465,7 @@ final class ThreatResponseAction {
                     new BlockPos((int) Math.floor(originX), (int) Math.floor(originY), (int) Math.floor(originZ)));
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
+                    || responseIntent == ResponseIntent.RETREAT_REQUIRED
                     || hazards.stream().anyMatch(RouteHazard::creeper)) throw failure;
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
@@ -652,6 +685,7 @@ final class ThreatResponseAction {
     }
 
     private void clearOwnership() {
+        responseIntent = ResponseIntent.ALLOWED;
         tracked.clear();
         retreatRoute = null;
         rejectedRetreatGoals.clear();
@@ -665,18 +699,20 @@ final class ThreatResponseAction {
     private void logAttackDecision(String outcome, int slot) {
         if (!movement.debugLogging()) return;
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetHealth={} sweepCollateral={} playerHealth={} grounded={} y={}",
+                "[Lodekeeper] DEFENSE_ATTACK outcome={} tick={} slot={} weapon={} cooldown={} target={} targetUuid={} targetType={} damage={} targetHealth={} sweepCollateral={} playerHealth={} grounded={} y={}",
                 outcome, ticks, slot, GameCatalog.id(client.player.getMainHandStack().getItem()),
-                client.player.getAttackCooldownProgress(0.0f), plannedChoice.target().getId(), plannedChoice.target().getHealth(),
+                client.player.getAttackCooldownProgress(0.0f), plannedChoice.target().getId(),
+                plannedChoice.target().getUuid(), plannedChoice.target().getType(), plannedChoice.damage(), plannedChoice.target().getHealth(),
                 GameApi.defenseHasSweepCollateral(client.world, client.player, plannedChoice.target()), client.player.getHealth(), client.player.isOnGround(), client.player.getY());
     }
 
     private void log(String outcome) {
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreatStarts={} completedRetreats={} ticks={} status={} player={} threats={}",
+                "[Lodekeeper] THREAT_RESPONSE outcome={} attacks={} retreatStarts={} completedRetreats={} ticks={} status={} player={} playerHealth={} threats={}",
                 outcome, attacks, retreatStarts, completedRetreats, ticks, status,
                 client.player == null ? "absent" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ(),
-                client.player == null ? List.of() : tracked.stream().map(mob -> mob.getUuid() + "/" + mob.getType() + "@"
+                client.player == null ? "absent" : client.player.getHealth(),
+                client.player == null ? List.of() : tracked.stream().map(mob -> mob.getId() + "/" + mob.getUuid() + "/" + mob.getType() + "@"
                         + mob.getX() + "," + mob.getY() + "," + mob.getZ()
                         + "/alive=" + mob.isAlive() + "/removed=" + mob.isRemoved() + "/eligible=" + eligible(mob)
                         + "/distance=" + Math.sqrt(client.player.squaredDistanceTo(mob))).toList());
