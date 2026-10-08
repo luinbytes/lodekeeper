@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+The [late-table stock reconsideration](#late-table-stock-reconsideration) adds one coalesced storage-table gain hint per ordinary project log-gather scope. Both local builds PASS, with 315 primary and 268 modern existing checks all executed. Independent source review is CLEAN. Exact-jar native verification and current CI remain pending. Extra-birch-trip elimination remains unproved. The two `454fd46` failures below remain the latest completed gameplay. The `24a00bb` CI result covers the prior scan unit.
+
 The [nearest live snapshot scan repair](#nearest-live-snapshot-admission) is implemented across all fourteen kernel families. Local 1.21.1 and 26.3 builds pass. All [24 CI profiles at `24a00bb`](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) PASS. Fresh 1.21.1 `454fd46` [FAILS after 709,736 ms](#fresh-1211-normal-survival-failure-at-454fd46), with one diamond pickaxe, 23 diamonds, no equipped armor, health 3, and seven paused foreground goals. Both retreat selections exhaust their sampled domain before path launch. The native target buffer dropped 134 entries. Fresh 26.3 `454fd46` [FAILS after 357,501 ms](#fresh-263-normal-survival-failure-at-454fd46), after a diamond pickaxe and four rejected retreat starts. Final health is 20, with zero deaths. Preview 11 stays at `88f2b52`; Preview 12 remains blocked. The older frozen results below retain their scope.
 
 Both frozen jars PASS [prepared creeper contact, progression and the native settings lease](#prepared-creeper-contact-progression-and-native-settings-lease). Each escapes one normal-AI creeper on an open bedrock platform through two completed retreats, finishes one bucket, and retains health 20 without an explosion. All nine progression cases, 23 config options and 37 native setting bindings pass, with original lease restoration. The seventeen progression originals include seven modern route frames captured in progress; later native receipts establish PASS. These prepared checks do not close the fresh primary failure or prove complete cleanup, comparative speed, reliability, or hazard traversal through the lease.
@@ -795,6 +797,27 @@ Both proofs have recorded anonymous HTTP 200 and matching byte/hash read-back. T
 All nineteen originals pass recorded anonymous byte/hash checks and logged-out decoding at 640 by 360. Cleanup receipts confirm four creeper and 34 progression local original/staging PNG copies removed, with zero pending copies. Local proof, proof-upload, screenshot-upload and browser receipts share `/tmp/lodekeeper-main-af430-creeper-contact` and `/tmp/lodekeeper-main-af430-progression-lease` prefixes. Public originals remain available. No media or evidence blobs are added here.
 
 These prepared results preserve the separate fresh modern PASS and primary FAIL below. They establish no fresh-world comparison, comparative speed, general reliability, or complete cleanup. They precede the nearest-scan repair below and establish no scan-fix result. Preview 11 remains at `88f2b52`; no Preview 12 is published.
+
+### Late-table stock reconsideration
+
+The late-table change updates only the primary and modern `AutomationEngine` production owners. During an ordinary, non-auxiliary project log `GATHER`, the existing ten-tick inventory sample detects a gain in crafting-table storage stock. `MovementProgressScope` coalesces gains into one dispatched reconsideration allowance for the same logical scope. The allowance survives pause, settings, action reset, and same-demand replans. True completion, changed demand, or request, world, player, or session retirement removes the scope.
+
+The change uses the existing asynchronous `requestPlan` as a hint. `StationStockHint` binds the exact future, step, logical scope, and catalog generation. Dispatch consumes the allowance only after submission with the original owner still live. Launch and adoption retain the existing session, inventory, cursor, manual-input, transaction, station, exploration, safety, and foreground-yield gates. Adoption rechecks the catalog and storage gain. Invalidation detaches and cancels only the matching future, preserving any replacement future.
+
+Only a successful, nonempty plan with a changed first source requests a handoff. Ownership checks and movement stop propagate ownership loss. The engine resets the action and returns; a later normal tick drains cancellation before fresh execution planning. The hint never becomes an execution plan. Failed, cancelled, blocked, empty, unchanged-source, or stale hints spend the dispatched allowance and leave gathering active. No stock retry is scheduled. Output receipts, world-action accounting, same-demand logical edge history, and inactivity accounting stay unchanged. Native numeric caps remain per request; no cumulative cap is claimed.
+
+The local build snapshot `/tmp/lodekeeper-main-late-station-stock-build-snapshot.json` records both builds PASS, with every listed existing check executed and none skipped:
+
+| Local build | Executed existing checks | Kernel status |
+| --- | --- | --- |
+| 1.21.1 | 315 = 167 core + 98 navigation + 48 adapter + 2 kernel | Two primary kernel checks PASS |
+| 26.3 | 268 = 167 core + 98 navigation + 3 adapter | Modern kernel tests `NO-SOURCE` |
+
+Both production source hashes still match the snapshot. The local 1.21.1 jar SHA-256 is `a99ad9710679c519801b840c22cb38ba7a68f178c5e119c936a3cce370cea073`; the 26.3 jar is `86b7d32ec520044f7966b248a6d3fe776f728e0161b58509b06190ea0707ac1b`. Both retain internal version `0.1.0-preview.11` as unreleased development artifacts. No new test was added.
+
+Independent source review is CLEAN. There is no current native or CI result and no new public proof link. Native verification must cover one dispatch per scope, ineffective hint continuation, changed-source drainage and fresh planning, same-demand return, superseded futures, interruption and ownership loss, and cursor, offhand, and protected stock. The exact counterfactual plan and elimination of the captured extra birch trip remain unproved. The [primary](#fresh-1211-normal-survival-failure-at-454fd46) and [modern](#fresh-263-normal-survival-failure-at-454fd46) `454fd46` FAILs remain the latest completed gameplay. All 24 CI passes at `24a00bb` belong to the earlier scan unit. No speed, complete cleanup, receipt fix, release readiness, or Preview 12 claim follows. Released Preview 11 remains at `88f2b52`.
+
+No retreat policy change was chosen or implemented in this unit. Duplicate partial-retreat retry remains open. An earlier pause offers no observed escape benefit in the captured run; reducing its retry allowance does not establish a safe escape.
 
 ### Nearest live snapshot admission
 

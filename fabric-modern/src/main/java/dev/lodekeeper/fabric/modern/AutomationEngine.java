@@ -137,6 +137,8 @@ final class AutomationEngine {
         final OwnedStationLedger.Session session;
         final ActionMovementProgress progress = new ActionMovementProgress();
         MovementDemand demand;
+        int sampledTableCount = -1, tableGainFrom = -1;
+        boolean stationStockReconsidered;
 
         MovementProgressScope(Request request, Object world, Object player, OwnedStationLedger.Session session,
                               MovementDemand demand) {
@@ -377,6 +379,9 @@ final class AutomationEngine {
     private HealthRecovery healthRecovery;
     private final AirRecoveryAction airRecovery;
     private CompletableFuture<PlanningOutcome> pendingPlan;
+    private record StationStockHint(CompletableFuture<PlanningOutcome> future, PlanStep step,
+                                    MovementProgressScope scope, long generation) { }
+    private StationStockHint stationStockHint;
     private boolean previewPending;
     private PlanStep step;
     private boolean stepAuxiliaryInvestment;
@@ -608,6 +613,7 @@ final class AutomationEngine {
         if (++inventorySampleTicks >= INVENTORY_SAMPLE_INTERVAL_TICKS) {
             inventorySampleTicks = 0;
             observeInventory();
+            sampleStationStock();
         }
             if (catalog != null && !catalog.usesCurrentStonecuttingProvider()) catalog.load();
             if (catalog != null && ++catalogRefreshTicks % 40 == 0) catalog.refreshLearnedRecipes();
@@ -750,6 +756,33 @@ final class AutomationEngine {
             }
             if (exploring) { explore(); return; }
             if (pendingPlan == null && step == null && catalog != null && catalog.ready()) requestPlan();
+            invalidateStationStockHint();
+            if (stationStockHint != null && stationStockHint.future().isDone()) {
+                StationStockHint hint = stationStockHint;
+                PlanningOutcome outcome = null;
+                try { outcome = hint.future().join(); }
+                catch (java.util.concurrent.CompletionException | java.util.concurrent.CancellationException ignored) { }
+                stationStockHint = null;
+                pendingPlan = null;
+                pendingPreferencePlan = false;
+                PlanResult result = outcome == null ? null : outcome.result();
+                String nextSource = result != null && result.success() && !result.steps().isEmpty()
+                        ? result.steps().get(0).sourceId() : null;
+                boolean changed = nextSource != null && !nextSource.equals(step.sourceId());
+                if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                        "[Lodekeeper] STATION_STOCK_HINT job={} scope={} source={} success={} next={} changed={}",
+                        active.jobToken(), System.identityHashCode(hint.scope()), step.sourceId(),
+                        result != null && result.success(), nextSource, changed);
+                if (changed) {
+                    movement.checkAirRecoveryOwnership();
+                    movement.stop();
+                    resetAction();
+                    if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] STATION_STOCK_HANDOFF job={} scope={} planning=fresh-after-cancellation",
+                            hint.scope().request.jobToken(), System.identityHashCode(hint.scope()));
+                    return;
+                }
+            }
             if (pendingPlan != null && (pendingPlan.isDone() || !pendingPreferencePlan || step == null)) {
                 if (!pendingPlan.isDone()) return;
                 PlanningOutcome outcome = pendingPlan.join();
@@ -885,6 +918,26 @@ final class AutomationEngine {
                     pendingPreferencePlan = pendingPlan != null;
                     if (step == null) return;
                 }
+            }
+            MovementProgressScope stockScope = projectLogGatherScope();
+            if (pendingPlan == null && stockScope != null && !stockScope.stationStockReconsidered
+                    && stockScope.tableGainFrom >= 0 && canReconsiderStationStock()
+                    && actions.count(GameCatalog.item(CRAFTING_TABLE_ITEM)) > stockScope.tableGainFrom) {
+                Request owner = active;
+                PlanStep gathering = step;
+                movement.checkAirRecoveryOwnership();
+                requestPlan();
+                if (pendingPlan != null && active == owner && step == gathering
+                        && parentMovementScope == stockScope && canReconsiderStationStock()) {
+                    stockScope.stationStockReconsidered = true;
+                    pendingPreferencePlan = true;
+                    stationStockHint = new StationStockHint(pendingPlan, gathering, stockScope, pendingPlanGeneration);
+                    if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                            "[Lodekeeper] STATION_STOCK_DISPATCH job={} scope={} source={} tableBefore={} tableNow={}",
+                            owner.jobToken(), System.identityHashCode(stockScope), gathering.sourceId(),
+                            stockScope.tableGainFrom, stockScope.sampledTableCount);
+                }
+                if (step == null || active != owner || paused) return;
             }
             movement.observeConfirmedProgress();
             observeGatherRemoval();
@@ -1269,6 +1322,62 @@ final class AutomationEngine {
         }
     }
 
+    private MovementProgressScope projectLogGatherScope() {
+        if (active == null || active.project() == null || active.project().aborted || active.maintained()
+                || step == null || step.kind() != PlanKind.GATHER || stepAuxiliaryInvestment
+                || isFoodPreparation(step) || stepShieldIdentity != null || catalog == null
+                || !catalog.tags.getOrDefault(LOGS_TAG, List.of()).contains(step.output())
+                || parentMovementScope == null || !parentMovementScope.matches(active, client.level, client.player,
+                        placementProvenance.session().orElse(null))) return null;
+        return parentMovementScope;
+    }
+
+    private void sampleStationStock() {
+        MovementProgressScope scope = projectLogGatherScope();
+        if (scope == null) return;
+        int count = actions.count(GameCatalog.item(CRAFTING_TABLE_ITEM));
+        if (!scope.stationStockReconsidered && scope.sampledTableCount >= 0 && count > scope.sampledTableCount)
+            scope.tableGainFrom = scope.tableGainFrom < 0 ? scope.sampledTableCount
+                    : Math.min(scope.tableGainFrom, scope.sampledTableCount);
+        scope.sampledTableCount = count;
+    }
+
+    private boolean canReconsiderStationStock() {
+        return projectLogGatherScope() != null && !paused && !stopAfterStep && !editingSettings()
+                && client.level == world && config.allowBreaking && catalog.ready()
+                && stepCatalogGeneration == catalog.generation() && !exploring && !foregroundYieldPending
+                && !airRecovery.active() && healthRecovery == null && !threats.active() && !food.active()
+                && !foodAcquisition.active() && !foodAcquisitionPending && !foodReplanPending && !equipment.active()
+                && !stationRecovery.active() && !stationRoom.active() && stationPlacementWait == null && cleanupRun == null
+                && !openingStation && !transactionInProgress() && crafting == null && stonecutting == null && smelting == null
+                && !hasOwnedStationMenuOpen() && GameApi.screen(client) == null && !manualStationInput()
+                && client.player.containerMenu == client.player.inventoryMenu
+                && client.player.containerMenu.getCarried().isEmpty()
+                && (!moving || movement.canReconsiderMiningSource());
+    }
+
+    private void invalidateStationStockHint() {
+        StationStockHint hint = stationStockHint;
+        if (hint != null && (pendingPlan != hint.future() || step != hint.step() || parentMovementScope != hint.scope()
+                || !canReconsiderStationStock() || hint.generation() != catalog.generation()
+                || actions.count(GameCatalog.item(CRAFTING_TABLE_ITEM)) <= hint.scope().tableGainFrom))
+            dropStationStockHint();
+    }
+
+    private void dropStationStockHint() {
+        StationStockHint hint = stationStockHint;
+        if (hint == null) return;
+        stationStockHint = null;
+        if (pendingPlan == hint.future()) {
+            hint.future().cancel(false);
+            pendingPlan = null;
+            pendingPreferencePlan = false;
+        }
+        if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] STATION_STOCK_HINT job={} scope={} source={} decision=invalidated",
+                hint.scope().request.jobToken(), System.identityHashCode(hint.scope()), hint.step().sourceId());
+    }
+
     private void observeInventory() {
         if (client.player == null) return;
         long fingerprint = inventoryFingerprint();
@@ -1593,6 +1702,7 @@ final class AutomationEngine {
     }
 
     private void requestPlan() {
+        dropStationStockHint();
         if (airRecovery.active()) return;
         if (paused || active == null) return;
         pendingPreferencePlan = false;
@@ -3247,6 +3357,7 @@ final class AutomationEngine {
     }
 
     private void retireMovementProgressScopes() {
+        dropStationStockHint();
         useMovementProgress(null);
         parentMovementScope = auxiliaryMovementScope = null;
     }
@@ -3270,6 +3381,7 @@ final class AutomationEngine {
 
     private void syncMovementProgress() {
         OwnedStationLedger.Session session = validateMovementProgressScopes();
+        invalidateStationStockHint();
         if (active == null || session == null || client.level != world || paused || editingSettings()
                 || config.pauseOnScreen && GameApi.screen(client) != null
                 || airRecovery.active() || healthRecovery != null || threats.active() || food.active()
@@ -3343,6 +3455,9 @@ final class AutomationEngine {
         if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] STEP kind={} source={} output={} count={} operations={} auxiliary={}",
                 next.kind(), next.sourceId(), next.output(), next.outputCount(), next.operationCount(), auxiliaryInvestment);
+        MovementProgressScope stockScope = projectLogGatherScope();
+        if (stockScope != null && stockScope.sampledTableCount < 0)
+            stockScope.sampledTableCount = actions.count(GameCatalog.item(CRAFTING_TABLE_ITEM));
         baseline = next.output() == null ? 0 : actions.count(GameCatalog.item(next.output()));
         lastObservedCount = baseline;
         lastSmeltProgress = 0;
@@ -4019,6 +4134,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedMenu) {
+        dropStationStockHint();
         useMovementProgress(null);
         validateMovementProgressScopes();
         cancelStationPlacement();
@@ -4055,6 +4171,7 @@ final class AutomationEngine {
     }
 
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
         stopStationCleanup();
@@ -4071,6 +4188,7 @@ final class AutomationEngine {
     }
 
     void pause(String reason) {
+        dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
         stopStationCleanup();

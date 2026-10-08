@@ -119,13 +119,17 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The [late-table stock change](docs/OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) lets an ordinary project log gather reconsider its source once when a crafting table reaches storage. A changed first source stops movement, drains cancellation, then requests a fresh normal plan. Ineffective or stale hints leave gathering active without a stock retry. Local 1.21.1 and 26.3 builds PASS. Independent source review is CLEAN. Exact-jar native verification and current CI are pending.
+
+The latest completed gameplay remains frozen `454fd46`: [1.21.1 FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-1211-normal-survival-failure-at-454fd46) and [26.3 FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-failure-at-454fd46). Earlier [24-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) covers the prior scan repair at `24a00bb`. Eliminating the extra birch trip remains unproved. Preview 11 stays at released `88f2b52`; the new local jars retain its internal version and are unreleased.
+
+### Historical main evidence
+
 The [live snapshot scan repair](docs/OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) has passing local 1.21.1 and 26.3 builds. All [24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) PASS at `24a00bb`.
 
 Fresh 1.21.1 Survival on frozen `454fd46` [FAILS after 709,736 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-1211-normal-survival-failure-at-454fd46). Final inventory holds one diamond pickaxe and 23 diamonds, with no equipped armor. Health ends at 3, with no deaths and an empty cursor. Seven foreground goals remain paused. Two retreat selections exhaust their sampled domain without launching a path. The receipt buffer dropped 134 entries. Complete station cleanup remains unproved.
 
 Fresh 26.3 `454fd46` [FAILS after 357,501 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-failure-at-454fd46), after a diamond pickaxe and four rejected retreat starts. Final health is 20, with zero deaths. The checkpoint records public captures and the late-table stock diagnosis. Cleanup remains unproved. Preview 11 stays at `88f2b52`; Preview 12 remains blocked.
-
-### Historical main evidence
 
 At the initial scan-repair checkpoint, the repair is implemented across all fourteen kernel families. It retains nearby raw matches before the result cap. Later safety filters still decide eligibility. Local 1.21.1 and 26.3 builds pass; wider CI and gameplay verification remain pending at that checkpoint.
 
