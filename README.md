@@ -119,13 +119,17 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-A bounded [contact diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-contact-decision-capture) has CLEAN source review and passing builds for both adapters. It captures actual sight/reach decisions without extra native queries. Runtime verification is pending; combat behavior is unchanged.
+Exact main `63db519` has passing local builds and [all 24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37785783576). Fresh 1.21.1 Normal Survival [FAILS after 275,614 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-primary-failure-and-creeper-control-at-63db519), with one diamond pickaxe, no armor, health 20, zero deaths and an empty cursor. A visible zombie was outside native attack reach; retreat found no safe stance. Two route-only creepers caused the existing hard pause.
+
+The separate [saved-world continuation](docs/OWNED-PREVIEW-CHECKPOINT.md#native-contact-evidence-at-63db519) completes all nine inventory targets using previously earned gear. A new skeleton records `NO_SIGHT` then `HIT` and clears after seven attacks. This does not reproduce the earlier stalled skeleton.
+
+Existing modern live-contact and primary live-creeper controls PASS. Both complete a bucket goal with an empty cursor and stopped navigation, but leave their tables. Full cleanup and terminal-budget capture remain unproved. Fresh modern is unrun at this source. Preview 11 remains `88f2b52`; no Preview 12 is published.
+
+### Historical main evidence
 
 Exact main `0cbe78a` has passing local 1.21.1 and 26.3 builds, CLEAN source review, and [24/24 successful CI jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443). Fresh Normal Survival `gear_diamond` FAILS on both frozen local jars. Primary fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Modern fails after 336,722 ms with only a diamond pickaxe and no armor.
 
 Both runs record zero `STATION_STOCK` events. The late-table trigger and extra-birch-trip elimination remain unverified. Complete cleanup remains unproved; CI ZIP bytes have no independent hash read-back or local-jar equality proof. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#late-table-stock-reconsideration) records exact hashes, public captures, and defense failures. Preview 11 stays at released `88f2b52`; no Preview 12 is published.
-
-### Historical main evidence
 
 The [live snapshot scan repair](docs/OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) has passing local 1.21.1 and 26.3 builds. All [24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37772913813) PASS at `24a00bb`.
 
