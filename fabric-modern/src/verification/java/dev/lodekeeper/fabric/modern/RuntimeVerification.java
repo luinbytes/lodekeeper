@@ -3230,6 +3230,22 @@ public final class RuntimeVerification implements ClientModInitializer {
                 || client.player.onGround() || client.player.input != contactLowHealthOwnedInput
                 || observedClientTick - contactLowHealthTriggerTick > 20
                 || !(status.contains("timing a safe airborne defense attack") || status.contains("landing after native defense attack"))) {
+            contactLowHealthReceipt.put("failedOnsetEventPhase", eventPhase);
+            contactLowHealthReceipt.put("failedOnsetObservedClientTick", Integer.toString(observedClientTick));
+            contactLowHealthReceipt.put("failedOnsetTriggerClientTick", Integer.toString(contactLowHealthTriggerTick));
+            contactLowHealthReceipt.put("failedOnsetHealth", Float.toString(health));
+            contactLowHealthReceipt.put("failedOnsetOnGround", Boolean.toString(client.player.onGround()));
+            contactLowHealthReceipt.put("failedOnsetTaskEqual", Boolean.toString(requireEngine().diagnosticTaskIdentity() == contactLowHealthTaskIdentity));
+            contactLowHealthReceipt.put("failedOnsetPlayerEqual", Boolean.toString(playerId.equals(client.player.getUUID())));
+            contactLowHealthReceipt.put("failedOnsetInputEqual", Boolean.toString(client.player.input == contactLowHealthOwnedInput));
+            contactLowHealthReceipt.put("failedOnsetStatus", status);
+            contactLowHealthReceipt.put("failedOnsetStatusPaused", Boolean.toString(status.startsWith("paused")));
+            contactLowHealthReceipt.put("failedOnsetStatusAllowed", Boolean.toString(status.contains("timing a safe airborne defense attack") || status.contains("landing after native defense attack")));
+            contactLowHealthReceipt.put("failedOnsetWithin20Ticks", Boolean.toString(observedClientTick - contactLowHealthTriggerTick <= 20));
+            contactLowHealthReceipt.put("failedOnsetHopAdmitted", "false");
+            contactLowHealthReceipt.put("failedOnsetServerReceiptAuthority", "cached_snapshot_not_stage0_event");
+            contactLowHealthReceipt.put("failedOnsetSnapshotServerTick", latestSnapshot == null ? "unknown" : Integer.toString(latestSnapshot.serverTick));
+            contactLowHealthReceipt.put("failedOnsetSnapshotRequestSequence", Long.toString(latestObservationRequestSequence));
             fail("low-health mutation was not observed during that same owned airborne hop: " + status);
             return;
         }
