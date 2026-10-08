@@ -6,7 +6,7 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
-The [bounded retreat-height candidate `d1cae8e`](#bounded-retreat-height-fallback) passes source review and both builds, but its existing modern health-six control FAILS on the exact no-stance pause contract after selecting unreachable rooftop goals. Full restoration and native ascent remain unverified; primary native verification is pending. The completed evidence below retains its original source labels.
+The [bounded retreat-height candidate `d1cae8e`](#bounded-retreat-height-fallback) passes source review and both builds. The maintained [health-six fixture `c57fd4c`](#native-health-six-results-at-c57fd4c) passes both primary native versions with full cancellation and restoration on the no-admissible-stance branch. The original-roof control stays FAIL; its unreachable-goal cleanup and native ascent remain unverified. Each result retains its exact production and verifier source.
 
 Exact production `4aa1cc4` [active-threat snapshot correction](#active-threats-in-retreat-hazard-snapshots) has CLEAN source review and passing 1.21.1 and 26.3 builds, with 315 and 268 existing checks. [CI run 37809197303](https://github.com/luinbytes/lodekeeper/actions/runs/37809197303) finishes SUCCESS with all 24 jobs passing, rechecked on 8 October 2026 at 16:52 UTC. CI does not prove local-jar byte equality or gameplay across all profiles.
 
@@ -1364,4 +1364,22 @@ The admitted-roof failure distinguishes two contracts: a stance can pass local s
 
 Only this mode's bedrock shell extends from Y63..68 to Y63..76, keeping x/z -14..14 and the existing passage at x0..6, Y64..66, z0..1. At the observed center Y64 and radius 12, Y76 blocks the highest candidate feet; the roof stance at Y77 lies outside that domain. This is a fixed fixture bound, not a general retreat policy or a shell adapted to production results. The expected shell count is exactly 11,732: 29 × 29 × 14 positions minus 42 passage cells. Seeding and integrity receipts cover the same whole volume and record its bounds. Other contact modes retain Y68, 5,018 shell cells and their original passage.
 
-No pause-reason assertion, health threshold, timing fence, timeout, mob, stock, landing, input, settings or request requirement is relaxed. Both local builds PASS: primary in 41 seconds (36 executed tasks, five up-to-date), modern in 32 seconds (26 executed, three up-to-date). Both production artifacts remain byte-identical to frozen `d1cae8e`. Source review and native reruns are pending for this fixture maintenance. A future PASS will cover only the no-admissible-stance branch. The original `d1cae8e` rooftop failure stays FAIL, with full cleanup after an unreachable goal unverified and roughly eleven additional action ticks before pause. This maintenance neither repairs that branch nor proves a higher retreat route. The separately proposed staircase case remains approval-pending and untouched.
+No pause-reason assertion, health threshold, timing fence, timeout, mob, stock, landing, input, settings or request requirement is relaxed. Both local builds PASS: primary in 41 seconds (36 executed tasks, five up-to-date), modern in 32 seconds (26 executed, three up-to-date). Both production artifacts remain byte-identical to frozen `d1cae8e`. Independent source review is CLEAN, and the paired native runs below PASS. They cover only the no-admissible-stance branch. The original `d1cae8e` rooftop failure stays FAIL, with full cleanup after an unreachable goal unverified and roughly eleven additional action ticks before pause. This maintenance neither repairs that branch nor proves a higher retreat route. The separately proposed staircase case remains approval-pending and untouched.
+
+### Native health-six results at c57fd4c
+
+Verifier `c57fd4cfbca0022ba41b768f64f1b8021463ab7e` uses frozen production `d1cae8eaf3429efa16785d6bd2cdc3a5bb1de111`. The [review and build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six-shell-builds.json) records unchanged production jar hashes. [One complete native case per primary version PASS](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six.json), with clean exit 0, no timeout, unchanged jars and no class-provenance violations. No new scenario or test file is added.
+
+| Native receipt | 1.21.1 | 26.3 |
+| --- | --- | --- |
+| Server mutation | 17 to exactly 6, tick 105 | 17 to exactly 6, tick 117 |
+| Client observed onset | Health 6, tick 256 | Health 6, tick 186 |
+| Server onset / landing / pause fences | 106 / 114 / 117 | 119 / 126 / 129 |
+| Fresh accepted server observation | 118 | 131 |
+| Native settings compared | 249 | 248 |
+
+Both cases finish COMPLETE with zero post-onset attacks or outgoing damage, confirmed supported landing, the exact no-stance pause, full native cancellation, restored original input and all settings, unchanged resources/equipment, empty cursor, zero deaths and the original bucket request preserved. Both full shell receipts record bounds `-14..14,63..76,-14..14`, exactly 11,732 bedrock cells and zero changes. The expected result leaves the bucket unfinished.
+
+Both selectors reach layer 12 after 1,300 completed candidate heights, zero probes and zero goals, then stop at `OFFSETS_EXHAUSTED`. Recorded selection times are 2.521687 ms primary and 3.002866 ms modern, including diagnostic overhead; these single samples establish no performance improvement. No retreat path launches.
+
+The [two original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six-screenshots.json) show commands and HUD with distinct production/verifier labels. Anonymous bytes/SHA and logged-out decoding pass at 640 by 360 for both; all four local PNG copies are deleted. Queued frames do not establish exact fence timing. These passes do not change the original-roof FAIL, prove its missing restoration fences, or establish uphill escape, the saved corridor's acceptance, fresh Survival reliability or Preview 12 readiness.

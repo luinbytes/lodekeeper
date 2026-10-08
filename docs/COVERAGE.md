@@ -4,7 +4,7 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 ## Latest main evidence
 
-The [retreat-height candidate `d1cae8e`](OWNED-PREVIEW-CHECKPOINT.md#existing-health-six-control-at-d1cae8e) passes source review and both local builds, but its unchanged modern health-six control FAILS after selecting inaccessible rooftop stances. Supported landing and zero post-onset attacks are confirmed. The exact pause-reason check stops evaluation before full restoration and fresh pause fences; those remain unverified. Primary native verification and successful higher-route execution are pending. The earlier labelled passes below do not establish this candidate's acceptance.
+The [retreat-height candidate `d1cae8e`](OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) passes source review and both builds. Its maintained [health-six fixture `c57fd4c`](OWNED-PREVIEW-CHECKPOINT.md#native-health-six-results-at-c57fd4c) passes both primary versions, confirming same-hop onset, zero later attacks, landing, fresh no-stance pause, full cancellation, input/settings restoration and preserved request. The original-roof control remains FAIL; cleanup after admitted-but-unreachable goals and successful higher-route execution remain unverified. These are distinct native branches.
 
 The [bounded bulk-descent sampler](OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) has CLEAN source review and passing builds: 313 existing checks on 1.21.1 and 268 on 26.3. Fresh 26.3 `d0a62ef` emits eight extra samples within its cap, then FAILS at dry-retreat selection after 559,590 ms. It retains one diamond pickaxe and ends at health 5.666666 with no deaths. Primary native sampling is unrun. No return-path or retreat fix is established.
 
