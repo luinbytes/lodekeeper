@@ -4,7 +4,7 @@ The target covers all stable Java releases from 1.20 through 26.3. This is a tar
 
 ## Current development source
 
-The [retreat-height change](OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) initially broke later 1.21 adapter compilation at the renamed world-height API. The shared-bound correction passes the affected 1.21.2 build and its 318 existing checks. [Exact `56c6ec0` CI](https://github.com/luinbytes/lodekeeper/actions/runs/37833935102) now passes all 24 profiles. Its primary health-six no-stance control passes separately. A later verifier description-only correction is built locally; its CI and changed label are separate from these exact-source receipts. This does not change the released jars or their historical verification below.
+The [retreat-height change](OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) initially broke later 1.21 adapter compilation at the renamed world-height API. The shared-bound correction passes the affected 1.21.2 build and its 318 existing checks. [Exact `56c6ec0` CI](https://github.com/luinbytes/lodekeeper/actions/runs/37833935102) now passes all 24 profiles. Its primary health-six no-stance control passes separately. The later description correction `1d13200` also passes all 24 CI profiles. The [staircase verifier `ba73bf2`](OWNED-PREVIEW-CHECKPOINT.md#native-four-block-retreat-comparison) compiles locally on 1.21.1 and 26.3 and passes the paired native ascent comparison on the separately frozen production jars. Its [full CI matrix](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) is pending. These runtime checks cover only the two named versions. This does not change the released jars or their historical verification below.
 
 ## Preview 11 release
 

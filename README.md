@@ -119,11 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [height API correction `56c6ec0`](docs/OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) passes all 24 CI profiles and the primary health-six safety control. Both versions had already passed the maintained no-stance control. These checks preserve cancellation and settings restoration.
+The [controlled four-block retreat comparison](docs/OWNED-PREVIEW-CHECKPOINT.md#native-four-block-retreat-comparison) now **PASSES on 1.21.1 and 26.3**. Both changed builds climb from Y64 to Y68; both old builds pause before path launch. Final server receipts confirm health 20, unchanged fixture blocks, and restored inputs/settings. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-ba73bf2-staircase-screenshots.json) and [exact-artifact evidence](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-ba73bf2-staircase-comparison.json) retain each outcome.
 
-The new [fresh 26.3 run on `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-height-candidate-result) **FAILS** after 8 minutes 10 seconds, with one diamond pickaxe, health 20 and no deaths. The expanded search selects lower goals; a partial retreat ends before arrival. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d1cae8e-natural-final-screenshots.json) show command acceptance, the pickaxe and the pause.
+The separate [fresh 26.3 run](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-height-candidate-result) still **FAILS** with one diamond pickaxe. Its partial retreat ends before arrival. Reliable fresh Survival, the saved-world route, and cleanup after unreachable goals remain open.
 
-Higher-route execution and reliable fresh Survival remain unverified. Both saved baseline attempts died before command admission; the original-roof cleanup gap remains open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+Verifier `ba73bf2` has CLEAN review and passing local builds; its [24-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) is pending. Earlier `1d13200` CI passes all 24 profiles. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
