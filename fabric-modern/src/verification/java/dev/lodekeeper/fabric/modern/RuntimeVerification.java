@@ -2891,9 +2891,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static boolean contactShellPreserved(Map<String, String> receipt) {
-        return "5018".equals(receipt.get("contactShellCells"))
+        return (CONTACT_LOW_HEALTH_MODE ? "5004" : "5018").equals(receipt.get("contactShellCells"))
             && "0".equals(receipt.get("contactShellChangedCells"))
-            && "0..6,64..65,0..1".equals(receipt.get("contactPassageBounds"));
+            && (CONTACT_LOW_HEALTH_MODE ? "0..6,64..66,0..1" : "0..6,64..65,0..1").equals(receipt.get("contactPassageBounds"));
     }
 
     private boolean preparedSafetyContactCompleted(Map<String, String> receipt, int pickaxeWear) {

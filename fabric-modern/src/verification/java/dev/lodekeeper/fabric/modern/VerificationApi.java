@@ -785,8 +785,10 @@ final class VerificationApi {
 
     static PreparedSafetyThreatFixture seedPreparedSafetyContactFixture(ServerPlayer player, ServerLevel world) {
         player.level().getServer().tickRateManager().setFrozen(true);
+        boolean lowHealthMode = "true".equals(System.getProperty("lodekeeper.verify.threatContactLowHealth"));
+        int passageTopY = lowHealthMode ? 66 : 65;
         for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
-            boolean passage = x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= 65;
+            boolean passage = x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= passageTopY;
             world.setBlock(new BlockPos(x, y, z), (passage ? Blocks.AIR : Blocks.BEDROCK).defaultBlockState(), 3);
         }
         if (!player.getInventory().add(new ItemStack(Items.DIAMOND_SWORD))
@@ -815,8 +817,8 @@ final class VerificationApi {
             throw new IllegalStateException("could not spawn both full-health AI-enabled contact zombies and protected cow");
         }
         PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(first, cow, cow.getHealth());
-        fixture.contact = new ContactThreatObservation(second);
-        if ("true".equals(System.getProperty("lodekeeper.verify.threatContactLowHealth")))
+        fixture.contact = new ContactThreatObservation(second, passageTopY);
+        if (lowHealthMode)
             fixture.contact.lowHealth = new ContactLowHealthObservation(player, world);
         java.util.function.BiConsumer<net.minecraft.world.entity.LivingEntity, net.minecraft.world.damagesource.DamageSource> confirmSwordDamage = (entity, source) -> {
             ContactThreatObservation contact = fixture.contact;
@@ -1160,6 +1162,7 @@ final class VerificationApi {
     private static final class ContactThreatObservation {
         private ContactLowHealthObservation lowHealth;
         private final Mob second;
+        private final int passageTopY;
         private final float[] lastHealth = new float[]{20.0F, 20.0F};
         private final int[] playerHits = new int[2];
         private final ContactSwordAttempt[] pendingSwordDamage = new ContactSwordAttempt[2];
@@ -1173,7 +1176,10 @@ final class VerificationApi {
         private int releaseServerTick = -1;
         private boolean observing;
 
-        private ContactThreatObservation(Mob second) { this.second = second; }
+        private ContactThreatObservation(Mob second, int passageTopY) {
+            this.second = second;
+            this.passageTopY = passageTopY;
+        }
     }
 
     private static void appendContactThreatReceipt(Map<String, String> result, ServerPlayer player, PreparedSafetyThreatFixture fixture) {
@@ -1202,7 +1208,7 @@ final class VerificationApi {
         int changed = 0, shellCells = 0;
         var world = player.level();
         for (int x = -14; x <= 14; x++) for (int z = -14; z <= 14; z++) for (int y = 63; y <= 68; y++) {
-            if (x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= 65) continue;
+            if (x >= 0 && x <= 6 && z >= 0 && z <= 1 && y >= 64 && y <= contact.passageTopY) continue;
             shellCells++;
             if (!world.getBlockState(new BlockPos(x, y, z)).is(Blocks.BEDROCK)) changed++;
         }
@@ -1210,7 +1216,7 @@ final class VerificationApi {
         result.put("ironPickaxeDamage", Integer.toString(pickaxe.is(Items.IRON_PICKAXE) ? pickaxe.getDamageValue() : -1));
         result.put("contactShellCells", Integer.toString(shellCells));
         result.put("contactShellChangedCells", Integer.toString(changed));
-        result.put("contactPassageBounds", "0..6,64..65,0..1");
+        result.put("contactPassageBounds", "0..6,64.." + contact.passageTopY + ",0..1");
         result.put("contactClockFrozen", Boolean.toString(player.level().getServer().tickRateManager().isFrozen()));
         result.put("contactClockReleaseServerTick", Integer.toString(contact.releaseServerTick));
         result.put("contactObservedServerTicks", Integer.toString(contact.observedServerTicks));
