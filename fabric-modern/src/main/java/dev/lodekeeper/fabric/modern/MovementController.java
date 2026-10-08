@@ -2105,7 +2105,8 @@ final class MovementController {
                 this.start = start; this.sequence = sequence;
                 parent = outer == null ? 0 : outer.sequence; depth = outer == null ? 1 : 2;
                 call = position + "/" + face;
-                input = call + " attack=" + observedBot.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)
+                input = call + " inWater=" + client.player.isInWater() + " nativeY=" + client.player.getY()
+                        + " attack=" + observedBot.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)
                         + " clientStoredHit=" + storedClientHit() + " executor=" + System.identityHashCode(executor)
                         + " path=" + System.identityHashCode(path) + " index=" + index + " movement=" + System.identityHashCode(movement)
                         + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " requestNanos=" + startedNanos;
@@ -2138,8 +2139,7 @@ final class MovementController {
                     || process != expectedProcessForMode(bot, mode))) reason = "CONTEXT_INVALID";
             if (reason == null && state == State.CAPTURING && (executor != bot.getPathingBehavior().getCurrent()
                     || executor.getPath() != path || executor.getPosition() != index
-                    || index >= path.movements().size() || path.movements().get(index) != movement
-                    || !client.player.isInWater())) reason = "MOVEMENT_ENDED";
+                    || index >= path.movements().size() || path.movements().get(index) != movement)) reason = "MOVEMENT_ENDED";
             if (reason != null) { close(reason); return false; }
             return true;
         }
@@ -2161,7 +2161,7 @@ final class MovementController {
                         + " player=" + System.identityHashCode(player) + " world=" + System.identityHashCode(world)
                         + " gameMode=" + System.identityHashCode(gameMode) + " bot=" + System.identityHashCode(observedBot)
                         + " lease=" + System.identityHashCode(observedLease) + " process=" + System.identityHashCode(process)
-                        + " wait=NEXT_CALC_FINISHED_NOW_EXECUTING"
+                        + " wait=NEXT_CALC_FINISHED_NOW_EXECUTING water=REQUIRED_AT_ADMISSION"
                         + " snapshot=target/progress/delay/isDestroying phase=UNKNOWN upstreamGuards=UNKNOWN itemComparison=UNKNOWN helperRaycast=UNKNOWN");
             } catch (RuntimeException failure) { close("DIAGNOSTIC_FAILURE"); }
         }
@@ -2191,6 +2191,9 @@ final class MovementController {
                 emit("COVERAGE nativeTick=" + event.getCount() + " state=" + event.getState() + " adapterTick=" + requestTicks
                         + " interval=CALLS_SINCE_PREVIOUS_LATE_PRE_CALLBACK previousNativeTick=" + lastCount
                         + " firstSequence=" + (intervalStart + 1) + " lastSequence=" + entries + " calls=" + (entries - intervalStart)
+                        + " inWater=" + client.player.isInWater() + " nativeY=" + client.player.getY()
+                        + " attack=" + observedBot.getInputOverrideHandler().isInputForcedDown(Input.CLICK_LEFT)
+                        + " clientStoredHit=" + storedClientHit()
                         + " executor=" + System.identityHashCode(executor) + " index=" + index + " movement=" + System.identityHashCode(movement)
                         + " src=" + movement.getSrc() + " dest=" + movement.getDest() + " coverage=" + (partial ? "PARTIAL" : "COMPLETE"));
                 lastCount = event.getCount(); intervalStart = entries;

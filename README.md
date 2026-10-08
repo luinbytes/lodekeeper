@@ -123,9 +123,9 @@ Exact-source [CI at `e39ebe0`](https://github.com/luinbytes/lodekeeper/releases/
 
 Frozen `764146a` passes 316 local build checks. Its historical CI remains fourteen passes and ten verifier failures. Both fresh Normal Survival runs FAIL. Primary retains one diamond pickaxe but fails creeper retreat. Modern pauses at stone 0/3 after repeated water ascends.
 
-A manual replay uses a copy-on-write clone of the unchanged saved world and unchanged frozen764 jar, with the verifier disabled. It reproduces the stall. The command pauses after 63,878 ms at cobblestone 0/3. The supervisor times out at 360 seconds with SIGTERM, exit 143. No final screenshot or clean exit was recorded. The stall remains unresolved.
+Saved-world replays preserve the original save and frozen jars. Both `764146a` and diagnostic build `47c972c` pause at cobblestone 0/3. The latter captures five native calls with increasing progress before its observation window closes early. The full stall cause remains unproved. Its final screenshot is public and the client exits normally.
 
-The narrow modern native break observer has a CLEAN independent source review and passes the 26.3 build and 268 existing checks; runtime is pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) holds proofs and five replay captures. Preview 11 stays at `88f2b52`. No fix, root cause, readiness, or speed claim follows.
+A small follow-on keeps the same ascent observable across water bobbing. Its 26.3 build passes; independent review is CLEAN and replay is pending. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) holds exact hashes, checks, public proofs, and screenshots. Preview 11 stays at `88f2b52`.
 
 ### Historical main evidence
 
