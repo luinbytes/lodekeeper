@@ -206,6 +206,209 @@ final class ProjectGatherBatchTest {
                 viewPlan, PlannerLimits.DEFAULT, preferences, Set.of(MATERIAL, other)));
     }
 
+    @Test
+    void promotesRequiredWoodBeforeOreWithoutChangingItsQuantitySpeciesOrTool() {
+        ItemId ore = ItemId.parse("test:diamond");
+        ItemId crafted = ItemId.parse("test:a_crafted");
+        ItemId other = ItemId.parse("test:other_material");
+        GatherSource wood = new GatherSource("test:birch", MATERIAL, 2, List.of(BLOCK),
+                List.of(new ToolRequirement(Ingredient.tag(TOOLS), 2, "cut birch", 1)),
+                Map.of("species", "birch"));
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(MATERIAL, 0).item(PICKAXE, 100)
+                .tag(TOOLS, List.of(PICKAXE)).source(wood)
+                .source(new GatherSource("test:oak", other, 1, List.of(BlockId.parse("test:oak"))))
+                .source(new GatherSource("test:ore", ore, 1, List.of(BlockId.parse("test:ore"))))
+                .source(new CraftingSource("test:craft", crafted, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(2, ore))), List.of())).build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(MATERIAL, 4, PICKAXE, 1), Set.of(),
+                Map.of(), Map.of(), Map.of(), Map.of(PICKAXE, List.of(new InventoryToolLot(12, false))));
+        ProjectSpec project = new ProjectSpec("wood", "Finish with six birch materials.",
+                Map.of(crafted, 1, MATERIAL, 6), ProjectSpec.Purpose.INVENTORY_GOALS);
+        ProjectPlanResult original = PLANNER.planProjectFast(catalog, inventory, project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+        assertTrue(original.success(), original.blockedReasons().toString());
+        assertEquals(List.of("test:ore", "test:craft", "test:birch"),
+                original.steps().stream().map(PlanStep::sourceId).toList());
+
+        ProjectPlanResult promoted = ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, inventory,
+                original, PlannerLimits.DEFAULT, PlanningPreferences.NONE, Set.of(MATERIAL, other));
+
+        assertEquals(List.of("test:birch", "test:ore", "test:craft"),
+                promoted.steps().stream().map(PlanStep::sourceId).toList());
+        PlanStep first = promoted.steps().get(0);
+        assertEquals(MATERIAL, first.output());
+        assertEquals(2, first.outputCount());
+        assertEquals(1, first.operationCount());
+        assertEquals(Map.of("species", "birch"), first.attributes());
+        assertEquals(List.of(new SelectedToolRequirement(PICKAXE, 2, "cut birch")), first.requirements());
+        assertSame(original.steps().get(2), first);
+        assertSame(project, promoted.project());
+    }
+
+    @Test
+    void leavesPlansWithoutWoodDemandOrWithALeadingCraftUnchanged() {
+        ItemId ore = ItemId.parse("test:diamond");
+        ItemId crafted = ItemId.parse("test:a_crafted");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(MATERIAL, 0)
+                .source(new GatherSource("test:wood", MATERIAL, 1, List.of(BLOCK)))
+                .source(new GatherSource("test:ore", ore, 1, List.of(BLOCK)))
+                .source(new CraftingSource("test:craft", crafted, 1, RecipeType.SHAPELESS, 0, 0,
+                        List.of(new RecipeSlot(-1, Ingredient.of(ore))), List.of())).build();
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(MATERIAL, 4, ore, 1));
+        for (Map<ItemId, Integer> goals : List.of(Map.of(ore, 8), Map.of(crafted, 1, MATERIAL, 6))) {
+            ProjectSpec project = new ProjectSpec("supplies", "Preserve this starting action.",
+                    goals, ProjectSpec.Purpose.INVENTORY_GOALS);
+            ProjectPlanResult original = PLANNER.planProjectFast(catalog, inventory, project,
+                    PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+            assertTrue(original.success(), original.blockedReasons().toString());
+
+            assertSame(original, ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, inventory,
+                    original, PlannerLimits.DEFAULT, PlanningPreferences.NONE, Set.of(MATERIAL)));
+        }
+    }
+
+    @Test
+    void declinesWoodWithConsumableOrStationPrerequisitesEvenWhenTheyAreHeld() {
+        ItemId ore = ItemId.parse("test:diamond");
+        StationId station = StationId.parse("test:workbench");
+        InventorySnapshot inventory = new InventorySnapshot(Map.of(PICKAXE, 3), Set.of(station), Map.of());
+        for (Requirement prerequisite : List.of(new ItemRequirement(Ingredient.of(PICKAXE), true, "supplies"),
+                new StationRequirement(station, PICKAXE, "workbench"))) {
+            CatalogSnapshot catalog = catalog(new GatherSource("test:wood", MATERIAL, 1, List.of(BLOCK),
+                            List.of(prerequisite)),
+                    new GatherSource("test:ore", ore, 1, List.of(BLOCK)));
+            ProjectSpec project = new ProjectSpec("supplies", "Gather ore and wood.",
+                    Map.of(ore, 1, MATERIAL, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+            ProjectPlanResult original = PLANNER.planProjectFast(catalog, inventory, project,
+                    PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+            assertTrue(original.success(), original.blockedReasons().toString());
+            assertEquals("test:ore", original.steps().get(0).sourceId());
+
+            assertSame(original, ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, inventory,
+                    original, PlannerLimits.DEFAULT, PlanningPreferences.NONE, Set.of(MATERIAL)));
+        }
+    }
+
+    @Test
+    void declinesTheEarliestWoodWhenItsToolIsMissingWornOrUnsuitable() {
+        ItemId ore = ItemId.parse("test:diamond");
+        ItemId other = ItemId.parse("test:other_material");
+        CatalogSnapshot catalog = catalog(toolSource(), new GatherSource("test:ore", ore, 1, List.of(BLOCK)),
+                new GatherSource("test:other", other, 1, List.of(BLOCK)));
+        ProjectSpec project = new ProjectSpec("supplies", "Retain forecast tool dependencies.",
+                Map.of(ore, 1, MATERIAL, 3, other, 1), ProjectSpec.Purpose.INVENTORY_GOALS);
+        ProjectPlanResult original = PLANNER.planProjectFast(catalog, tools(100, false), project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+        assertTrue(original.success(), original.blockedReasons().toString());
+        assertEquals(List.of("test:ore", "test:gather", "test:other"),
+                original.steps().stream().map(PlanStep::sourceId).toList());
+
+        for (InventorySnapshot actual : List.of(new InventorySnapshot(Map.of()), tools(2, false), tools(100, true)))
+            assertSame(original, ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, actual,
+                    original, PlannerLimits.DEFAULT, PlanningPreferences.NONE, Set.of(MATERIAL, other)));
+    }
+
+    @Test
+    void doesNotSubstituteAnotherHeldToolForTheSelectedWoodTool() {
+        ItemId ore = ItemId.parse("test:diamond");
+        ItemId otherTool = ItemId.parse("test:other_pickaxe");
+        CatalogSnapshot catalog = CatalogSnapshot.builder().item(MATERIAL, 0).item(PICKAXE, 100)
+                .item(otherTool, 100).tag(TOOLS, List.of(PICKAXE, otherTool)).source(toolSource())
+                .source(new GatherSource("test:ore", ore, 1, List.of(BLOCK))).build();
+        ProjectSpec project = new ProjectSpec("supplies", "Preserve the selected tool.",
+                Map.of(ore, 1, MATERIAL, 3), ProjectSpec.Purpose.INVENTORY_GOALS);
+        ProjectPlanResult original = PLANNER.planProjectFast(catalog, tools(100, false), project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+        assertTrue(original.success(), original.blockedReasons().toString());
+        InventorySnapshot actual = new InventorySnapshot(Map.of(otherTool, 1), Set.of(), Map.of(), Map.of(),
+                Map.of(), Map.of(otherTool, List.of(new InventoryToolLot(100, false))));
+
+        assertSame(original, ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, actual,
+                original, PlannerLimits.DEFAULT, PlanningPreferences.NONE, Set.of(MATERIAL)));
+    }
+
+    @Test
+    void preservesThePlanWhenMaterialProofExhaustsNodeOrCountBounds() {
+        ItemId ore = ItemId.parse("test:diamond");
+        CatalogSnapshot catalog = catalog(toolSource(), new GatherSource("test:ore", ore, 1, List.of(BLOCK)));
+        InventorySnapshot inventory = tools(100, false);
+        ProjectSpec project = new ProjectSpec("supplies", "Keep bounded optional planning.",
+                Map.of(ore, 1, MATERIAL, 3), ProjectSpec.Purpose.INVENTORY_GOALS);
+        ProjectPlanResult original = PLANNER.planProjectFast(catalog, inventory, project,
+                PlannerLimits.DEFAULT, PlanningPreferences.NONE);
+        assertTrue(original.success(), original.blockedReasons().toString());
+
+        for (PlannerLimits limits : List.of(new PlannerLimits(48, 1, 20, 12, 4_096, 1_000_000),
+                new PlannerLimits(48, 8_000, 20, 12, 4_096, 2)))
+            assertSame(original, ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, inventory,
+                    original, limits, PlanningPreferences.NONE, Set.of(MATERIAL)));
+    }
+
+    @Test
+    void batchesOnlyBeforeADifferentGatherSourceOutputAttributesOrToolRequirement() {
+        CatalogSnapshot catalog = catalog(toolSource());
+        InventorySnapshot inventory = tools(100, false);
+        PlanStep first = gather(catalog, inventory, 2);
+        PlanStep matching = gather(catalog, inventory, 3);
+        PlanStep later = gather(catalog, inventory, 32);
+        List<PlanStep> barriers = List.of(
+                new PlanStep(first.kind(), "test:wood", first.output(), 1, 1, first.requirements(),
+                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes()),
+                new PlanStep(first.kind(), first.sourceId(), ItemId.parse("test:other_material"), 1, 1,
+                        first.requirements(), first.candidateBlocks(), null, 0, 0, null, null, first.attributes()),
+                new PlanStep(first.kind(), first.sourceId(), first.output(), 1, 1, first.requirements(),
+                        first.candidateBlocks(), null, 0, 0, null, null, Map.of("species", "other")),
+                new PlanStep(first.kind(), first.sourceId(), first.output(), 1, 1,
+                        List.of(new SelectedToolRequirement(PICKAXE, 3, "mine material")),
+                        first.candidateBlocks(), null, 0, 0, null, null, first.attributes()));
+
+        for (PlanStep barrier : barriers) {
+            PlanStep batch = batch(catalog, inventory, List.of(first, matching, barrier, later));
+
+            assertEquals(5, batch.outputCount());
+            assertEquals(5, batch.operationCount());
+            assertEquals("test:gather", batch.sourceId());
+        }
+    }
+
+    @Test
+    void restoresWoodPriorityAfterSpeciesReplanningAndKeepsItWhenConsolidationFails() {
+        ItemId ore = ItemId.parse("test:0_ore");
+        ItemId other = ItemId.parse("test:other_material");
+        ItemId crafted = ItemId.parse("test:a_crafted");
+        ItemId raw = ItemId.parse("test:raw");
+        ItemId smelted = ItemId.parse("test:z_smelted");
+        PlanningPreferences preferences = new PlanningPreferences(Map.of("test:gather", 100, "test:other", 0));
+        for (long fuelTicks : List.of(200L, 1_000L)) {
+            CatalogSnapshot base = supplyCatalog(other, crafted, raw, smelted, fuelTicks);
+            CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+            base.itemDefinitions().values().forEach(builder::item);
+            for (ItemId item : List.of(MATERIAL, other, crafted, smelted))
+                base.sourcesFor(item).forEach(builder::source);
+            CatalogSnapshot catalog = builder.source(new GatherSource("test:ore", ore, 1, List.of(BLOCK))).build();
+            int smeltCount = fuelTicks == 200L ? 1 : 5;
+            InventorySnapshot inventory = new InventorySnapshot(Map.of(raw, smeltCount));
+            ProjectSpec project = new ProjectSpec("supplies", "Required wood precedes ore.",
+                    Map.of(ore, 1, crafted, 1, smelted, smeltCount), ProjectSpec.Purpose.INVENTORY_GOALS);
+            ProjectPlanResult original = PLANNER.planProjectFast(catalog, inventory, project,
+                    PlannerLimits.DEFAULT, preferences);
+            assertTrue(original.success(), original.blockedReasons().toString());
+            assertEquals("test:ore", original.steps().get(0).sourceId());
+            assertEquals(1, original.steps().stream().filter(step -> step.sourceId().equals("test:other")).count());
+
+            ProjectPlanResult consolidated = ProjectGatherBatch.consolidateInitialMaterial(PLANNER, catalog, inventory,
+                    original, PlannerLimits.DEFAULT, preferences, Set.of(MATERIAL, other));
+
+            assertEquals("test:gather", consolidated.steps().get(0).sourceId());
+            assertEquals(2, consolidated.steps().get(0).outputCount());
+            assertEquals(fuelTicks == 200L ? 0 : 1,
+                    consolidated.steps().stream().filter(step -> step.sourceId().equals("test:other")).count());
+            assertEquals("test:ore", consolidated.steps().get(1).sourceId());
+            assertEquals(2, ProjectGatherBatch.firstStep(PLANNER, catalog, inventory, consolidated.steps(),
+                    PlannerLimits.DEFAULT, preferences, 64).outputCount());
+        }
+    }
+
     private static CatalogSnapshot supplyCatalog(ItemId other, ItemId crafted, ItemId raw,
                                                  ItemId smelted, long otherFuelTicks) {
         return CatalogSnapshot.builder().item(MATERIAL, 0).item(other, 0).item(crafted, 0).item(raw, 0).item(smelted, 0)

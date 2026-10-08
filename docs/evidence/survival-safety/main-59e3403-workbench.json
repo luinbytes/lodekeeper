@@ -1,0 +1,1695 @@
+{
+  "sourceCommit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+  "createdAtUtc": "2026-10-08T01:13:10.475212+00:00",
+  "scope": "Existing reachable and blocked previous-command workbench controls on exact frozen 59e3403 jars. Prepared inventory/terrain. Separate from fresh Survival, material-priority scheduling, timing comparisons and released Preview 11.",
+  "artifactBuildReceipt": {
+    "createdAtUtc": "2026-10-08T00:57:40.986934+00:00",
+    "sourceCommit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+    "sourceClean": true,
+    "artifacts": [
+      {
+        "minecraftVersion": "1.21.1",
+        "path": "/tmp/lodekeeper-main-59e3403-1.21.1-frozen.jar",
+        "bytes": 1702960,
+        "sha256": "bac7fc8315ff4197e028926832911ed457512c9df4d6a20cd0e1eace7f2a496d",
+        "coreNavClassMajorVersions": [
+          61
+        ],
+        "metadataMinecraft": "1.21.1",
+        "metadataModVersion": "0.1.0-preview.11"
+      },
+      {
+        "minecraftVersion": "26.3",
+        "path": "/tmp/lodekeeper-main-59e3403-26.3-frozen.jar",
+        "bytes": 1718134,
+        "sha256": "8ab271e119606451d254febaa8d021b40b9e133ccf9968f5543049fa13641b49",
+        "coreNavClassMajorVersions": [
+          61
+        ],
+        "metadataMinecraft": "26.3",
+        "metadataModVersion": "0.1.0-preview.11"
+      }
+    ],
+    "localChecks": {
+      "core": 159,
+      "navigation": 98,
+      "primaryAdapter": 48,
+      "modernAdapter": 3,
+      "total": 308,
+      "failures": 0
+    },
+    "codeReview": "independent R1 CLEAN",
+    "sourceChange": "Owned PICKUP only: leased followRadius 1 to 0 in each adapter; generic pickup, ordinary follow and all receipt/cancellation guards unchanged.",
+    "nativeVerification": "pending",
+    "ci": "pending",
+    "remainingMaterialScheduling": "OPEN independent demonstrated defect; successful carry does not close it"
+  },
+  "workbenchControls": [
+    {
+      "name": "workbench-primary",
+      "minecraftVersion": "1.21.1",
+      "runnerStatus": "passed",
+      "runnerSourceAtLaunch": {
+        "commit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "artifact": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-59e3403-1.21.1-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "bac7fc8315ff4197e028926832911ed457512c9df4d6a20cd0e1eace7f2a496d"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 413,
+        "lodekeeperClasses": 900,
+        "log": "/private/tmp/lodekeeper-main-59e3403-workbench-primary/class-load.log",
+        "productionArtifactClasses": 467,
+        "productionJarClasses": 0,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 766,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 137,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-main-59e3403-1.21.1-frozen.jar",
+            "sha256": "bac7fc8315ff4197e028926832911ed457512c9df4d6a20cd0e1eace7f2a496d"
+          },
+          "loadedClassCount": 467,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "b8f1306172f530ecdd8e639910c16f72f977b1883f8a151979bef56dd4632592"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        },
+        "runtimeRemappedClasses": 467,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 20,
+          "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 467
+        },
+        "verifierClasses": 20,
+        "violations": []
+      },
+      "nativeReceiptPath": "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/verification/evidence/run-2026-10-08T01-01-08-014100Z-bc71401b.json",
+      "nativeReceiptSha256": "064be7050edc67984a8f07a9a3539b38cbfa6c72bbb4d585f589f4bc363d2a79",
+      "native": {
+        "runId": "2026-10-08T01-01-08-014100Z-bc71401b",
+        "status": "passed",
+        "minecraftVersion": "1.21.1",
+        "worldKind": "isolated_superflat_fixture",
+        "preparedWorld": true,
+        "threatWaterRetreat": false,
+        "threatCreeperContact": false,
+        "stationRoomTunnel": false,
+        "stationRoomTunnelProperty": null,
+        "stationRoomSetupScreenshot": null,
+        "preparedSafetyProperty": "workbench",
+        "evidenceAuthority": "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+        "verificationMode": "prepared_safety_workbench",
+        "shieldScenario": null,
+        "worldPolicy": null,
+        "settingsUiChatEntryConfirmed": false,
+        "settingsUiReceipt": null,
+        "settingsUiScreenshots": null,
+        "settingsUiFinalScreenshot": null,
+        "elapsedMillis": 32297,
+        "clientTicks": 541,
+        "failure": "",
+        "serverTableOpened": true,
+        "serverFurnaceOpened": false,
+        "serverTableOpenings": 2,
+        "serverFurnaceOpenings": 0,
+        "preparedWorkbench": {
+          "authority": "prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+          "fixtureGrants": "12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command",
+          "ownershipSetupCommand": "!lk get wooden_pickaxe 1",
+          "ownershipSetupExcludedFromCaseTiming": true,
+          "ownershipSetupServerTick": 157,
+          "ownershipSetupClientTick": 281,
+          "ownershipSetupEngineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "ownershipSetupScreenshot": "screenshots/lodekeeper-2026-10-08T01-01-08-014100Z-bc71401b-prepared_owned_workbench_setup_complete.png",
+          "ownershipSetupStartingServerInventory": {
+            "minecraft:oak_planks": 12
+          },
+          "ownershipSetupServerInventory": {
+            "minecraft:stick": 2,
+            "minecraft:wooden_pickaxe": 1,
+            "minecraft:oak_planks": 3
+          },
+          "initialServerReceipt": {
+            "tablePresent": "true",
+            "horizontalDistance": "6.0",
+            "bedrockShellCells": "9",
+            "tableAir": "false",
+            "stoneAir": "false",
+            "stonePosition": "7,64,0",
+            "stonePresent": "true",
+            "blocked": "false",
+            "playerFeetY": "64.0",
+            "tablePosition": "-1,64,0"
+          },
+          "finalServerReceipt": {
+            "tablePresent": "false",
+            "horizontalDistance": "7.754918663423137",
+            "bedrockShellCells": "9",
+            "tableAir": "true",
+            "stoneAir": "true",
+            "stonePosition": "7,64,0",
+            "stonePresent": "false",
+            "blocked": "false",
+            "playerFeetY": "64.0",
+            "tablePosition": "-1,64,0"
+          },
+          "approachObserved": true,
+          "recoveryEpisodes": 1,
+          "recoveryDurationMillis": 5495,
+          "nativeNavigationStopped": true,
+          "postForegroundFixtureMutations": 0,
+          "naturalClientTickStatusTransitions": [
+            {
+              "clientTick": 303,
+              "elapsedMillis": 36,
+              "engineStatus": "checking nearby crafting stations \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 306,
+              "elapsedMillis": 185,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 307,
+              "elapsedMillis": 244,
+              "engineStatus": "recovering the owned crafting table before leaving \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 308,
+              "elapsedMillis": 296,
+              "engineStatus": "approaching the recorded owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 316,
+              "elapsedMillis": 687,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 319,
+              "elapsedMillis": 822,
+              "engineStatus": "stopping movement before opening the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 320,
+              "elapsedMillis": 890,
+              "engineStatus": "waiting for the owned crafting table handler \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 321,
+              "elapsedMillis": 924,
+              "engineStatus": "closing the verified empty owned crafting table handler \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 322,
+              "elapsedMillis": 993,
+              "engineStatus": "mining the verified empty owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 399,
+              "elapsedMillis": 4852,
+              "engineStatus": "waiting for the server station removal receipt \u00b7 recovering the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 400,
+              "elapsedMillis": 4902,
+              "engineStatus": "checking for the owned crafting table drop \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 401,
+              "elapsedMillis": 4921,
+              "engineStatus": "collecting the owned crafting table drop \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 413,
+              "elapsedMillis": 5536,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 416,
+              "elapsedMillis": 5673,
+              "engineStatus": "station item gained; finishing movement cancellation \u00b7 recovering the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 417,
+              "elapsedMillis": 5740,
+              "engineStatus": "indexing local resource options \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 434,
+              "elapsedMillis": 6604,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 435,
+              "elapsedMillis": 7092,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 448,
+              "elapsedMillis": 7277,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 planning next route \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 452,
+              "elapsedMillis": 7481,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 513,
+              "elapsedMillis": 10572,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            }
+          ]
+        },
+        "cases": [
+          {
+            "name": "prepared_owned_workbench_approach_cobblestone",
+            "item": "minecraft:cobblestone",
+            "expected": 1,
+            "serverObserved": 1,
+            "inventoryEmptyAtStart": false,
+            "passed": true,
+            "clientTicks": 219,
+            "worldTicks": 218,
+            "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+            "detail": "native approach recovered the self-created table from six blocks away, then mined the fixture stone into one cobblestone with the native table gone and every Baritone process stopped",
+            "serverHealth": 20.0,
+            "serverDifficulty": "NORMAL",
+            "serverCraftingTableOpenedDuringCase": true,
+            "serverFurnaceOpenedDuringCase": false,
+            "serverIronPickaxeCount": 0,
+            "serverFoodLevelAtStart": 20,
+            "serverFoodLevelObserved": 20,
+            "serverBreadAtStart": 0,
+            "serverBreadObserved": 0,
+            "serverPosition": [
+              7.254918642165638,
+              64.0,
+              0.5005741953929222
+            ],
+            "screenshot": "screenshots/lodekeeper-2026-10-08T01-01-08-014100Z-bc71401b-prepared_owned_workbench_approach_cobblestone.png",
+            "initialStorageInventory": {
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "finalStorageInventory": {
+              "minecraft:cobblestone": 1,
+              "minecraft:crafting_table": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "fullServerHeldInventory": {
+              "minecraft:cobblestone": 1,
+              "minecraft:crafting_table": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "elapsedMillisFromCommand": 10924,
+            "baritoneCompletionGuardEnabled": true,
+            "baritoneNavigationStoppedAtReceipt": true,
+            "initialEquipmentSlotItems": {},
+            "serverEquipmentSlotItems": {},
+            "initialServerCursorEmpty": true,
+            "serverCursorEmpty": true,
+            "noMaintenanceQueuedBeforeForeground": true,
+            "maintainedReservationObservedBeforeForeground": false,
+            "maintainedReservationPresentAtCompletion": false,
+            "noMaintenanceQueued": true,
+            "initialPreparedThreatReceipt": {},
+            "serverPreparedThreatReceipt": {},
+            "initialPreparedStationRoomReceipt": {},
+            "serverPreparedStationRoomReceipt": {},
+            "initialPreparedPursuitReceipt": {},
+            "serverPreparedPursuitReceipt": {},
+            "initialPreparedAirReceipt": {},
+            "serverPreparedAirReceipt": {}
+          }
+        ],
+        "explorationFixture": false,
+        "diamondBootsFixture": false,
+        "ironPickaxeFixture": false,
+        "coalRecoveryFixture": false,
+        "bulkWoodFixtureLogCount": 0,
+        "woodToolsFlag": false,
+        "woodToolsEnabled": false,
+        "miningRequestLimit": false,
+        "miningZeroYield": false,
+        "threatContact": false,
+        "threatContactManualInput": false,
+        "resourceInitiallyLoaded": false,
+        "explorationAttempts": 0
+      },
+      "stationCleanupGate": {
+        "passed": true,
+        "problems": [],
+        "required": true
+      },
+      "stationDiagnostics": {
+        "left": [],
+        "recovered": [
+          {
+            "line": "2520",
+            "log": "logs/debug.log",
+            "text": "[02:01:34] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0}"
+          },
+          {
+            "line": "205",
+            "log": "logs/latest.log",
+            "text": "[02:01:34] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0}"
+          }
+        ]
+      },
+      "nativeReceiptGate": {
+        "passed": true,
+        "problems": []
+      },
+      "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-primary-screenshots.json",
+      "anonymousUploadReceipt": {
+        "verifiedAtUtc": "2026-10-08T01:02:40.260532+00:00",
+        "checks": [
+          {
+            "assetName": "main-59e3403-workbench-primary-screenshots.json",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-primary-screenshots.json",
+            "anonymousHttpStatus": 200,
+            "bytes": 2031,
+            "sha256": "3b59d0607917f10e4893e8d659dd9dbbb62e2d1d11a2a510181a55aa7848bfe1"
+          },
+          {
+            "assetName": "mc1.21.1-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 89795,
+            "sha256": "578bbf8092f4e608c0f8bc9b95e71ab52ceda0ad90ca06308fbc1a75607b26da"
+          },
+          {
+            "assetName": "mc1.21.1-main-59e3403-workbench-setup-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-setup-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 95888,
+            "sha256": "9053ce498c940b8c32980f0abd82289674797f07b5a925ef4e5e3da17813523e"
+          }
+        ],
+        "pendingLocalCopies": [],
+        "deletedLocalOriginals": [
+          "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/verification/evidence/screenshots/lodekeeper-2026-10-08T01-01-08-014100Z-bc71401b-prepared_owned_workbench_approach_cobblestone.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-primary-upload/mc1.21.1-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+          "/private/tmp/lodekeeper-main-59e3403-workbench-primary/run/verification/evidence/screenshots/lodekeeper-2026-10-08T01-01-08-014100Z-bc71401b-prepared_owned_workbench_setup_complete.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-primary-upload/mc1.21.1-main-59e3403-workbench-setup-PASS-original.png"
+        ],
+        "browserReceipt": "/tmp/lodekeeper-main-59e3403-workbench-primary-browser-receipt.json",
+        "browserVerifiedAtUtc": "2026-10-08T01:05:14.403Z",
+        "deletedAtUtc": "2026-10-08T01:05:54.121241+00:00"
+      },
+      "loggedOutBrowserDecode": {
+        "verifiedAtUtc": "2026-10-08T01:05:14.403Z",
+        "loggedOut": true,
+        "count": 2,
+        "loaded": 2,
+        "failures": [],
+        "verifiedUrls": [
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-setup-PASS-original.png"
+        ],
+        "checks": [
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          },
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-setup-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          }
+        ]
+      }
+    },
+    {
+      "name": "workbench-modern",
+      "minecraftVersion": "26.3",
+      "runnerStatus": "passed",
+      "runnerSourceAtLaunch": {
+        "commit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "artifact": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "8ab271e119606451d254febaa8d021b40b9e133ccf9968f5543049fa13641b49"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 435,
+        "lodekeeperClasses": 923,
+        "log": "/private/tmp/lodekeeper-main-59e3403-workbench-modern/class-load.log",
+        "productionArtifactClasses": 470,
+        "productionJarClasses": 470,
+        "runtimeArtifactTransformation": null,
+        "runtimeRemappedClasses": 0,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 18,
+          "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar": 470
+        },
+        "verifierClasses": 18,
+        "violations": []
+      },
+      "nativeReceiptPath": "/private/tmp/lodekeeper-main-59e3403-workbench-modern/run-verification/verification/2026-10-08T00-58-16-818755Z-13595509/evidence/run-2026-10-08T00-58-16-818755Z-13595509.json",
+      "nativeReceiptSha256": "c6c24fd5eb6ff2c385330812b438fc11134524880c85bd6469a9fd6de8bd28a3",
+      "native": {
+        "runId": "2026-10-08T00-58-16-818755Z-13595509",
+        "status": "passed",
+        "minecraftVersion": "26.3",
+        "navigationBackend": "baritone",
+        "baritoneMiningObserved": true,
+        "worldKind": "isolated_superflat_fixture",
+        "preparedWorld": true,
+        "threatWaterRetreat": false,
+        "threatCreeperContact": false,
+        "threatContact": false,
+        "threatContactManualInput": false,
+        "stationRoomTunnel": false,
+        "preparedSafetyProperty": "workbench",
+        "preparedWorkbench": {
+          "authority": "prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+          "fixtureGrants": "12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command",
+          "ownershipSetupCommand": "!lk get wooden_pickaxe 1",
+          "ownershipSetupExcludedFromCaseTiming": true,
+          "ownershipSetupServerTick": 178,
+          "ownershipSetupClientTick": 241,
+          "ownershipSetupEngineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "ownershipSetupScreenshot": "screenshots/lodekeeper-2026-10-08T00-58-16-818755Z-13595509-prepared_owned_workbench_setup_complete.png",
+          "ownershipSetupStartingServerInventory": {
+            "minecraft:oak_planks": 12
+          },
+          "ownershipSetupServerInventory": {
+            "minecraft:oak_planks": 3,
+            "minecraft:wooden_pickaxe": 1,
+            "minecraft:stick": 2
+          },
+          "initialServerReceipt": {
+            "bedrockShellCells": "9",
+            "horizontalDistance": "6.0",
+            "tablePresent": "true",
+            "tablePosition": "-1,64,0",
+            "playerFeetY": "64.0",
+            "blocked": "false",
+            "stonePresent": "true",
+            "stonePosition": "7,64,0",
+            "stoneAir": "false",
+            "tableAir": "false"
+          },
+          "finalServerReceipt": {
+            "bedrockShellCells": "9",
+            "horizontalDistance": "7.754899294379332",
+            "tablePresent": "false",
+            "tablePosition": "-1,64,0",
+            "playerFeetY": "64.0",
+            "blocked": "false",
+            "stonePresent": "false",
+            "stonePosition": "7,64,0",
+            "stoneAir": "true",
+            "tableAir": "true"
+          },
+          "approachObserved": true,
+          "recoveryEpisodes": 1,
+          "recoveryDurationMillis": 5466,
+          "nativeNavigationStopped": true,
+          "postForegroundFixtureMutations": 0,
+          "naturalClientTickStatusTransitions": [
+            {
+              "clientTick": 263,
+              "elapsedMillis": 34,
+              "engineStatus": "checking nearby crafting stations \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 266,
+              "elapsedMillis": 240,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 267,
+              "elapsedMillis": 266,
+              "engineStatus": "recovering the owned crafting table before leaving \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 268,
+              "elapsedMillis": 321,
+              "engineStatus": "approaching the recorded owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 277,
+              "elapsedMillis": 734,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 280,
+              "elapsedMillis": 902,
+              "engineStatus": "stopping movement before opening the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 281,
+              "elapsedMillis": 935,
+              "engineStatus": "waiting for the owned crafting table handler \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 282,
+              "elapsedMillis": 1011,
+              "engineStatus": "closing the verified empty owned crafting table handler \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 283,
+              "elapsedMillis": 1071,
+              "engineStatus": "mining the verified empty owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 360,
+              "elapsedMillis": 4900,
+              "engineStatus": "waiting for the server station removal receipt \u00b7 recovering the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 361,
+              "elapsedMillis": 4942,
+              "engineStatus": "checking for the owned crafting table drop \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 362,
+              "elapsedMillis": 5002,
+              "engineStatus": "collecting the owned crafting table drop \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 373,
+              "elapsedMillis": 5532,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 376,
+              "elapsedMillis": 5701,
+              "engineStatus": "station item gained; finishing movement cancellation \u00b7 recovering the owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 377,
+              "elapsedMillis": 5732,
+              "engineStatus": "indexing local resource options \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 383,
+              "elapsedMillis": 6046,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 384,
+              "elapsedMillis": 6919,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 457,
+              "elapsedMillis": 10101,
+              "engineStatus": "finishing movement before confirming collected stock \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 458,
+              "elapsedMillis": 10133,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 466,
+              "elapsedMillis": 10534,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            }
+          ]
+        },
+        "evidenceAuthority": "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+        "verificationMode": "prepared_safety_workbench",
+        "runDirectory": "/private/tmp/lodekeeper-main-59e3403-workbench-modern/run-verification",
+        "worldId": "run-6dcca4e826734e0b",
+        "elapsedMillis": 35392,
+        "clientTicks": 486,
+        "failure": "",
+        "serverTableOpened": true,
+        "serverFurnaceOpened": false,
+        "serverTableOpenings": 2,
+        "serverFurnaceOpenings": 0,
+        "ironPickaxeFixture": false,
+        "ironPickaxeEmptyDistantWoodFlag": false,
+        "nearbyWoodFlag": false,
+        "nearbyWoodGoal": "wood",
+        "nearbyWoodTerrain": "flat",
+        "coalRecoveryFixture": false,
+        "cases": [
+          {
+            "name": "prepared_owned_workbench_approach_cobblestone",
+            "item": "minecraft:cobblestone",
+            "expected": 1,
+            "serverObserved": 1,
+            "inventoryEmptyAtStart": false,
+            "passed": true,
+            "clientTicks": 204,
+            "worldTicks": 209,
+            "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+            "detail": "native approach recovered the self-created table from six blocks away, then mined the fixture stone into one cobblestone with the native table gone and every Baritone process stopped",
+            "serverHealth": 20.0,
+            "serverDifficulty": "NORMAL",
+            "serverCraftingTableOpenedDuringCase": true,
+            "serverFurnaceOpenedDuringCase": false,
+            "serverIronPickaxeCount": 0,
+            "serverFoodLevelAtStart": 20,
+            "serverFoodLevelObserved": 20,
+            "serverBreadAtStart": 0,
+            "serverBreadObserved": 0,
+            "serverPosition": "7.2548987713219475,64.0,0.502848247601249",
+            "screenshot": "screenshots/lodekeeper-2026-10-08T00-58-16-818755Z-13595509-prepared-safety-prepared_owned_workbench_approach_cobblestone.png",
+            "screenshotCaptureCallback": "Saved screenshot as lodekeeper-2026-10-08T00-58-16-818755Z-13595509-prepared-safety-prepared_owned_workbench_approach_cobblestone.png",
+            "initialStorageInventory": {
+              "minecraft:oak_planks": 3,
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:stick": 2
+            },
+            "finalStorageInventory": {
+              "minecraft:crafting_table": 1,
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:stick": 2
+            },
+            "fullServerHeldInventory": {
+              "minecraft:crafting_table": 1,
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:stick": 2
+            },
+            "elapsedMillisFromCommand": 10536,
+            "baritoneCompletionGuardEnabled": true,
+            "baritoneNavigationStoppedAtReceipt": true,
+            "initialEquipmentSlotItems": {},
+            "serverEquipmentSlotItems": {},
+            "initialServerCursorEmpty": true,
+            "serverCursorEmpty": true,
+            "noMaintenanceQueuedBeforeForeground": true,
+            "maintainedReservationObservedBeforeForeground": false,
+            "maintainedReservationPresentAtCompletion": false,
+            "noMaintenanceQueued": true,
+            "initialPreparedThreatReceipt": {},
+            "serverPreparedThreatReceipt": {},
+            "initialPreparedStationRoomReceipt": {},
+            "serverPreparedStationRoomReceipt": {},
+            "initialPreparedPursuitReceipt": {},
+            "serverPreparedPursuitReceipt": {},
+            "initialPreparedAirReceipt": {},
+            "serverPreparedAirReceipt": {}
+          }
+        ],
+        "explorationFixture": false,
+        "diamondBootsFixture": false,
+        "bulkWoodFixtureLogCount": 0,
+        "woodToolsFlag": false,
+        "woodToolsEnabled": false,
+        "miningRequestLimit": false,
+        "miningZeroYield": false,
+        "resourceInitiallyLoaded": false,
+        "explorationAttempts": 0
+      },
+      "stationCleanupGate": {
+        "passed": true,
+        "problems": [],
+        "required": true
+      },
+      "stationDiagnostics": {
+        "left": [],
+        "recovered": [
+          {
+            "line": "2638",
+            "log": "logs/debug.log",
+            "text": "[01:58:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0}"
+          },
+          {
+            "line": "371",
+            "log": "logs/latest.log",
+            "text": "[01:58:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0}"
+          }
+        ]
+      },
+      "nativeReceiptGate": {
+        "passed": true,
+        "problems": []
+      },
+      "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-modern-screenshots.json",
+      "anonymousUploadReceipt": {
+        "verifiedAtUtc": "2026-10-08T01:00:55.309746+00:00",
+        "checks": [
+          {
+            "assetName": "main-59e3403-workbench-modern-screenshots.json",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-modern-screenshots.json",
+            "anonymousHttpStatus": 200,
+            "bytes": 2026,
+            "sha256": "41256c33a4e4cf8769bac40ab0a758fa0cdce066d23e748a29878c4f0e7c2a6f"
+          },
+          {
+            "assetName": "mc26.3-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 232080,
+            "sha256": "26a11137ec7dc81238b823215a95558bc097d781d66d914c1d9acab04a022987"
+          },
+          {
+            "assetName": "mc26.3-main-59e3403-workbench-setup-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-setup-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 163283,
+            "sha256": "3bd490553a516bc4386240927ce7ac0890aeecf26cda0c5c7ff677192f46668a"
+          }
+        ],
+        "pendingLocalCopies": [],
+        "deletedLocalOriginals": [
+          "/private/tmp/lodekeeper-main-59e3403-workbench-modern/run-verification/verification/2026-10-08T00-58-16-818755Z-13595509/evidence/screenshots/lodekeeper-2026-10-08T00-58-16-818755Z-13595509-prepared-safety-prepared_owned_workbench_approach_cobblestone.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-modern-upload/mc26.3-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+          "/private/tmp/lodekeeper-main-59e3403-workbench-modern/run-verification/verification/2026-10-08T00-58-16-818755Z-13595509/evidence/screenshots/lodekeeper-2026-10-08T00-58-16-818755Z-13595509-prepared_owned_workbench_setup_complete.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-modern-upload/mc26.3-main-59e3403-workbench-setup-PASS-original.png"
+        ],
+        "browserReceipt": "/tmp/lodekeeper-main-59e3403-workbench-modern-browser-receipt.json",
+        "browserVerifiedAtUtc": "2026-10-08T01:01:53.084Z",
+        "deletedAtUtc": "2026-10-08T01:02:33.842642+00:00"
+      },
+      "loggedOutBrowserDecode": {
+        "verifiedAtUtc": "2026-10-08T01:01:53.084Z",
+        "loggedOut": true,
+        "count": 2,
+        "loaded": 2,
+        "failures": [],
+        "verifiedUrls": [
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-setup-PASS-original.png"
+        ],
+        "checks": [
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-recovered-cobblestone-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          },
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-setup-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          }
+        ]
+      }
+    },
+    {
+      "name": "workbench-blocked-primary",
+      "minecraftVersion": "1.21.1",
+      "runnerStatus": "passed",
+      "runnerSourceAtLaunch": {
+        "commit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "artifact": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-59e3403-1.21.1-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "bac7fc8315ff4197e028926832911ed457512c9df4d6a20cd0e1eace7f2a496d"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 401,
+        "lodekeeperClasses": 888,
+        "log": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/class-load.log",
+        "productionArtifactClasses": 467,
+        "productionJarClasses": 0,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 766,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 137,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-main-59e3403-1.21.1-frozen.jar",
+            "sha256": "bac7fc8315ff4197e028926832911ed457512c9df4d6a20cd0e1eace7f2a496d"
+          },
+          "loadedClassCount": 467,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "9842813dd7cdcf3f8f5775c2dbd9708d3aa7491db6513d4cd0e8914690fecfbe"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        },
+        "runtimeRemappedClasses": 467,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 20,
+          "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 467
+        },
+        "verifierClasses": 20,
+        "violations": []
+      },
+      "nativeReceiptPath": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/verification/evidence/run-2026-10-08T01-06-13-313420Z-37ca5b08.json",
+      "nativeReceiptSha256": "69f3e9f5e97dbfc76a63e359019533e22c41acd5767b1873f805cd14a13585c0",
+      "native": {
+        "runId": "2026-10-08T01-06-13-313420Z-37ca5b08",
+        "status": "passed",
+        "minecraftVersion": "1.21.1",
+        "worldKind": "isolated_superflat_fixture",
+        "preparedWorld": true,
+        "threatWaterRetreat": false,
+        "threatCreeperContact": false,
+        "stationRoomTunnel": false,
+        "stationRoomTunnelProperty": null,
+        "stationRoomSetupScreenshot": null,
+        "preparedSafetyProperty": "workbench-blocked",
+        "evidenceAuthority": "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+        "verificationMode": "prepared_safety_workbench-blocked",
+        "shieldScenario": null,
+        "worldPolicy": null,
+        "settingsUiChatEntryConfirmed": false,
+        "settingsUiReceipt": null,
+        "settingsUiScreenshots": null,
+        "settingsUiFinalScreenshot": null,
+        "elapsedMillis": 24738,
+        "clientTicks": 381,
+        "failure": "",
+        "serverTableOpened": true,
+        "serverFurnaceOpened": false,
+        "serverTableOpenings": 1,
+        "serverFurnaceOpenings": 0,
+        "preparedWorkbench": {
+          "authority": "prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+          "fixtureGrants": "12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command",
+          "ownershipSetupCommand": "!lk get wooden_pickaxe 1",
+          "ownershipSetupExcludedFromCaseTiming": true,
+          "ownershipSetupServerTick": 142,
+          "ownershipSetupClientTick": 262,
+          "ownershipSetupEngineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "ownershipSetupScreenshot": "screenshots/lodekeeper-2026-10-08T01-06-13-313420Z-37ca5b08-prepared_owned_workbench_setup_complete.png",
+          "ownershipSetupStartingServerInventory": {
+            "minecraft:oak_planks": 12
+          },
+          "ownershipSetupServerInventory": {
+            "minecraft:oak_planks": 3,
+            "minecraft:wooden_pickaxe": 1,
+            "minecraft:stick": 2
+          },
+          "initialServerReceipt": {
+            "tablePosition": "-1,64,0",
+            "playerFeetY": "64.0",
+            "blocked": "true",
+            "stonePresent": "true",
+            "stonePosition": "7,64,0",
+            "stoneAir": "false",
+            "tableAir": "false",
+            "bedrockShellCells": "26",
+            "horizontalDistance": "6.0",
+            "tablePresent": "true"
+          },
+          "finalServerReceipt": {
+            "tablePosition": "-1,64,0",
+            "playerFeetY": "64.0",
+            "blocked": "true",
+            "stonePresent": "false",
+            "stonePosition": "7,64,0",
+            "stoneAir": "true",
+            "tableAir": "false",
+            "bedrockShellCells": "26",
+            "horizontalDistance": "7.754939698311774",
+            "tablePresent": "true"
+          },
+          "approachObserved": true,
+          "recoveryEpisodes": 1,
+          "recoveryDurationMillis": 588,
+          "nativeNavigationStopped": true,
+          "postForegroundFixtureMutations": 0,
+          "naturalClientTickStatusTransitions": [
+            {
+              "clientTick": 284,
+              "elapsedMillis": 68,
+              "engineStatus": "checking nearby crafting stations \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 287,
+              "elapsedMillis": 214,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 288,
+              "elapsedMillis": 272,
+              "engineStatus": "recovering the owned crafting table before leaving \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 289,
+              "elapsedMillis": 329,
+              "engineStatus": "approaching the recorded owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 300,
+              "elapsedMillis": 861,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 301,
+              "elapsedMillis": 1447,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 314,
+              "elapsedMillis": 1604,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 planning next route \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 318,
+              "elapsedMillis": 1810,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 352,
+              "elapsedMillis": 3525,
+              "engineStatus": "finishing movement before confirming collected stock \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 353,
+              "elapsedMillis": 3548,
+              "engineStatus": "finishing movement before inventory actions \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 361,
+              "elapsedMillis": 3956,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            }
+          ]
+        },
+        "cases": [
+          {
+            "name": "prepared_owned_workbench_blocked_cobblestone",
+            "item": "minecraft:cobblestone",
+            "expected": 1,
+            "serverObserved": 1,
+            "inventoryEmptyAtStart": false,
+            "passed": true,
+            "clientTicks": 78,
+            "worldTicks": 79,
+            "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+            "detail": "one bounded approach to the sealed self-created table ended, then native cobblestone arrived with the table and all 26 bedrock shell cells retained and every Baritone process stopped",
+            "serverHealth": 20.0,
+            "serverDifficulty": "NORMAL",
+            "serverCraftingTableOpenedDuringCase": false,
+            "serverFurnaceOpenedDuringCase": false,
+            "serverIronPickaxeCount": 0,
+            "serverFoodLevelAtStart": 20,
+            "serverFoodLevelObserved": 20,
+            "serverBreadAtStart": 0,
+            "serverBreadObserved": 0,
+            "serverPosition": [
+              7.254938849811664,
+              64.0,
+              0.49637231014918426
+            ],
+            "screenshot": "screenshots/lodekeeper-2026-10-08T01-06-13-313420Z-37ca5b08-prepared_owned_workbench_blocked_cobblestone.png",
+            "initialStorageInventory": {
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "finalStorageInventory": {
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "fullServerHeldInventory": {
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2,
+              "minecraft:wooden_pickaxe": 1
+            },
+            "elapsedMillisFromCommand": 3960,
+            "baritoneCompletionGuardEnabled": true,
+            "baritoneNavigationStoppedAtReceipt": true,
+            "initialEquipmentSlotItems": {},
+            "serverEquipmentSlotItems": {},
+            "initialServerCursorEmpty": true,
+            "serverCursorEmpty": true,
+            "noMaintenanceQueuedBeforeForeground": true,
+            "maintainedReservationObservedBeforeForeground": false,
+            "maintainedReservationPresentAtCompletion": false,
+            "noMaintenanceQueued": true,
+            "initialPreparedThreatReceipt": {},
+            "serverPreparedThreatReceipt": {},
+            "initialPreparedStationRoomReceipt": {},
+            "serverPreparedStationRoomReceipt": {},
+            "initialPreparedPursuitReceipt": {},
+            "serverPreparedPursuitReceipt": {},
+            "initialPreparedAirReceipt": {},
+            "serverPreparedAirReceipt": {}
+          }
+        ],
+        "explorationFixture": false,
+        "diamondBootsFixture": false,
+        "ironPickaxeFixture": false,
+        "coalRecoveryFixture": false,
+        "bulkWoodFixtureLogCount": 0,
+        "woodToolsFlag": false,
+        "woodToolsEnabled": false,
+        "miningRequestLimit": false,
+        "miningZeroYield": false,
+        "threatContact": false,
+        "threatContactManualInput": false,
+        "resourceInitiallyLoaded": false,
+        "explorationAttempts": 0
+      },
+      "stationCleanupGate": {
+        "passed": null,
+        "problems": [],
+        "required": false
+      },
+      "stationDiagnostics": {
+        "left": [
+          {
+            "line": "2495",
+            "log": "logs/debug.log",
+            "text": "[02:06:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0} reason=owned station recovery failed: Navigation process ended before its target was reached"
+          },
+          {
+            "line": "185",
+            "log": "logs/latest.log",
+            "text": "[02:06:33] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0} reason=owned station recovery failed: Navigation process ended before its target was reached"
+          }
+        ],
+        "recovered": []
+      },
+      "nativeReceiptGate": {
+        "passed": true,
+        "problems": []
+      },
+      "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-blocked-primary-screenshots.json",
+      "anonymousUploadReceipt": {
+        "verifiedAtUtc": "2026-10-08T01:10:30.520484+00:00",
+        "checks": [
+          {
+            "assetName": "main-59e3403-workbench-blocked-primary-screenshots.json",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-blocked-primary-screenshots.json",
+            "anonymousHttpStatus": 200,
+            "bytes": 2063,
+            "sha256": "1845937646d548d935e39147e8f49a4a8b0077ad657b2d5ae5ba8f9cfe45b302"
+          },
+          {
+            "assetName": "mc1.21.1-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 116316,
+            "sha256": "b3cac778342ffbe881f0a80803811aed4a7e47819ce1d0ef730395d968cb7189"
+          },
+          {
+            "assetName": "mc1.21.1-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 66604,
+            "sha256": "a432e62e5bbba30fef266938a59a4d9c1e3297822687c9d0d3b89cb956a11783"
+          }
+        ],
+        "pendingLocalCopies": [],
+        "deletedLocalOriginals": [
+          "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/verification/evidence/screenshots/lodekeeper-2026-10-08T01-06-13-313420Z-37ca5b08-prepared_owned_workbench_blocked_cobblestone.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-blocked-primary-upload/mc1.21.1-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+          "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-primary/run/verification/evidence/screenshots/lodekeeper-2026-10-08T01-06-13-313420Z-37ca5b08-prepared_owned_workbench_setup_complete.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-blocked-primary-upload/mc1.21.1-main-59e3403-workbench-blocked-setup-PASS-original.png"
+        ],
+        "browserReceipt": "/tmp/lodekeeper-main-59e3403-workbench-blocked-primary-browser-receipt.json",
+        "browserVerifiedAtUtc": "2026-10-08T01:12:05.722Z",
+        "deletedAtUtc": "2026-10-08T01:12:32.969627+00:00"
+      },
+      "loggedOutBrowserDecode": {
+        "verifiedAtUtc": "2026-10-08T01:12:05.722Z",
+        "loggedOut": true,
+        "count": 2,
+        "loaded": 2,
+        "failures": [],
+        "verifiedUrls": [
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-setup-PASS-original.png"
+        ],
+        "checks": [
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          },
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc1.21.1-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          }
+        ]
+      }
+    },
+    {
+      "name": "workbench-blocked-modern",
+      "minecraftVersion": "26.3",
+      "runnerStatus": "passed",
+      "runnerSourceAtLaunch": {
+        "commit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "artifact": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "8ab271e119606451d254febaa8d021b40b9e133ccf9968f5543049fa13641b49"
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 423,
+        "lodekeeperClasses": 911,
+        "log": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-modern/class-load.log",
+        "productionArtifactClasses": 470,
+        "productionJarClasses": 470,
+        "runtimeArtifactTransformation": null,
+        "runtimeRemappedClasses": 0,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 18,
+          "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar": 470
+        },
+        "verifierClasses": 18,
+        "violations": []
+      },
+      "nativeReceiptPath": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-modern/run-verification/verification/2026-10-08T01-02-48-151909Z-c1e02a4f/evidence/run-2026-10-08T01-02-48-151909Z-c1e02a4f.json",
+      "nativeReceiptSha256": "0319c3e7c982577b046648ee86d05da3d6f3b2ae7f39bb5a4d8571621df960c7",
+      "native": {
+        "runId": "2026-10-08T01-02-48-151909Z-c1e02a4f",
+        "status": "passed",
+        "minecraftVersion": "26.3",
+        "navigationBackend": "baritone",
+        "baritoneMiningObserved": true,
+        "worldKind": "isolated_superflat_fixture",
+        "preparedWorld": true,
+        "threatWaterRetreat": false,
+        "threatCreeperContact": false,
+        "threatContact": false,
+        "threatContactManualInput": false,
+        "stationRoomTunnel": false,
+        "preparedSafetyProperty": "workbench-blocked",
+        "preparedWorkbench": {
+          "authority": "prepared_integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+          "fixtureGrants": "12 ordinary oak planks before the production wooden-pickaxe setup command; no other items; stopped-only six-block teleport, level bedrock support, one nearby stone, and optional 26-cell bedrock table shell before the cobblestone command",
+          "ownershipSetupCommand": "!lk get wooden_pickaxe 1",
+          "ownershipSetupExcludedFromCaseTiming": true,
+          "ownershipSetupServerTick": 180,
+          "ownershipSetupClientTick": 241,
+          "ownershipSetupEngineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "ownershipSetupScreenshot": "screenshots/lodekeeper-2026-10-08T01-02-48-151909Z-c1e02a4f-prepared_owned_workbench_setup_complete.png",
+          "ownershipSetupStartingServerInventory": {
+            "minecraft:oak_planks": 12
+          },
+          "ownershipSetupServerInventory": {
+            "minecraft:wooden_pickaxe": 1,
+            "minecraft:oak_planks": 3,
+            "minecraft:stick": 2
+          },
+          "initialServerReceipt": {
+            "tableAir": "false",
+            "stoneAir": "false",
+            "stonePosition": "7,64,0",
+            "stonePresent": "true",
+            "blocked": "true",
+            "playerFeetY": "64.0",
+            "tablePosition": "-1,64,0",
+            "tablePresent": "true",
+            "horizontalDistance": "6.0",
+            "bedrockShellCells": "26"
+          },
+          "finalServerReceipt": {
+            "tableAir": "false",
+            "stoneAir": "true",
+            "stonePosition": "7,64,0",
+            "stonePresent": "false",
+            "blocked": "true",
+            "playerFeetY": "64.0",
+            "tablePosition": "-1,64,0",
+            "tablePresent": "true",
+            "horizontalDistance": "7.754878809547417",
+            "bedrockShellCells": "26"
+          },
+          "approachObserved": true,
+          "recoveryEpisodes": 1,
+          "recoveryDurationMillis": 617,
+          "nativeNavigationStopped": true,
+          "postForegroundFixtureMutations": 0,
+          "naturalClientTickStatusTransitions": [
+            {
+              "clientTick": 263,
+              "elapsedMillis": 68,
+              "engineStatus": "checking nearby crafting stations \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 266,
+              "elapsedMillis": 220,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 267,
+              "elapsedMillis": 268,
+              "engineStatus": "recovering the owned crafting table before leaving \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 268,
+              "elapsedMillis": 320,
+              "engineStatus": "approaching the recorded owned crafting table \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 279,
+              "elapsedMillis": 885,
+              "engineStatus": "planning \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 280,
+              "elapsedMillis": 1640,
+              "engineStatus": "mining and collecting minecraft:cobblestone \u00b7 0/1 \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            },
+            {
+              "clientTick": 337,
+              "elapsedMillis": 4000,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued"
+            }
+          ]
+        },
+        "evidenceAuthority": "integrated_server_inventory_and_block_states_with_natural_client_tick_engine_status",
+        "verificationMode": "prepared_safety_workbench-blocked",
+        "runDirectory": "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-modern/run-verification",
+        "worldId": "run-f446c2f7f28c4c62",
+        "elapsedMillis": 28186,
+        "clientTicks": 361,
+        "failure": "",
+        "serverTableOpened": true,
+        "serverFurnaceOpened": false,
+        "serverTableOpenings": 1,
+        "serverFurnaceOpenings": 0,
+        "ironPickaxeFixture": false,
+        "ironPickaxeEmptyDistantWoodFlag": false,
+        "nearbyWoodFlag": false,
+        "nearbyWoodGoal": "wood",
+        "nearbyWoodTerrain": "flat",
+        "coalRecoveryFixture": false,
+        "cases": [
+          {
+            "name": "prepared_owned_workbench_blocked_cobblestone",
+            "item": "minecraft:cobblestone",
+            "expected": 1,
+            "serverObserved": 1,
+            "inventoryEmptyAtStart": false,
+            "passed": true,
+            "clientTicks": 79,
+            "worldTicks": 84,
+            "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+            "detail": "one bounded approach to the sealed self-created table ended, then native cobblestone arrived with the table and all 26 bedrock shell cells retained and every Baritone process stopped",
+            "serverHealth": 20.0,
+            "serverDifficulty": "NORMAL",
+            "serverCraftingTableOpenedDuringCase": false,
+            "serverFurnaceOpenedDuringCase": false,
+            "serverIronPickaxeCount": 0,
+            "serverFoodLevelAtStart": 20,
+            "serverFoodLevelObserved": 20,
+            "serverBreadAtStart": 0,
+            "serverBreadObserved": 0,
+            "serverPosition": "7.25487738799514,64.0,0.5046955222547505",
+            "screenshot": "screenshots/lodekeeper-2026-10-08T01-02-48-151909Z-c1e02a4f-prepared-safety-prepared_owned_workbench_blocked_cobblestone.png",
+            "screenshotCaptureCallback": "Saved screenshot as lodekeeper-2026-10-08T01-02-48-151909Z-c1e02a4f-prepared-safety-prepared_owned_workbench_blocked_cobblestone.png",
+            "initialStorageInventory": {
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:oak_planks": 3,
+              "minecraft:stick": 2
+            },
+            "finalStorageInventory": {
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:stick": 2,
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3
+            },
+            "fullServerHeldInventory": {
+              "minecraft:wooden_pickaxe": 1,
+              "minecraft:stick": 2,
+              "minecraft:cobblestone": 1,
+              "minecraft:oak_planks": 3
+            },
+            "elapsedMillisFromCommand": 4201,
+            "baritoneCompletionGuardEnabled": true,
+            "baritoneNavigationStoppedAtReceipt": true,
+            "initialEquipmentSlotItems": {},
+            "serverEquipmentSlotItems": {},
+            "initialServerCursorEmpty": true,
+            "serverCursorEmpty": true,
+            "noMaintenanceQueuedBeforeForeground": true,
+            "maintainedReservationObservedBeforeForeground": false,
+            "maintainedReservationPresentAtCompletion": false,
+            "noMaintenanceQueued": true,
+            "initialPreparedThreatReceipt": {},
+            "serverPreparedThreatReceipt": {},
+            "initialPreparedStationRoomReceipt": {},
+            "serverPreparedStationRoomReceipt": {},
+            "initialPreparedPursuitReceipt": {},
+            "serverPreparedPursuitReceipt": {},
+            "initialPreparedAirReceipt": {},
+            "serverPreparedAirReceipt": {}
+          }
+        ],
+        "explorationFixture": false,
+        "diamondBootsFixture": false,
+        "bulkWoodFixtureLogCount": 0,
+        "woodToolsFlag": false,
+        "woodToolsEnabled": false,
+        "miningRequestLimit": false,
+        "miningZeroYield": false,
+        "resourceInitiallyLoaded": false,
+        "explorationAttempts": 0
+      },
+      "stationCleanupGate": {
+        "passed": null,
+        "problems": [],
+        "required": false
+      },
+      "stationDiagnostics": {
+        "left": [
+          {
+            "line": "2617",
+            "log": "logs/debug.log",
+            "text": "[02:03:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0} reason=owned station recovery failed: Navigation process ended before its target was reached"
+          },
+          {
+            "line": "351",
+            "log": "logs/latest.log",
+            "text": "[02:03:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=2 producerJob=1 consumerJob=2 position=BlockPos{x=-1, y=64, z=0} reason=owned station recovery failed: Navigation process ended before its target was reached"
+          }
+        ],
+        "recovered": []
+      },
+      "nativeReceiptGate": {
+        "passed": true,
+        "problems": []
+      },
+      "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-blocked-modern-screenshots.json",
+      "anonymousUploadReceipt": {
+        "verifiedAtUtc": "2026-10-08T01:06:00.738176+00:00",
+        "checks": [
+          {
+            "assetName": "main-59e3403-workbench-blocked-modern-screenshots.json",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-workbench-blocked-modern-screenshots.json",
+            "anonymousHttpStatus": 200,
+            "bytes": 2008,
+            "sha256": "2f955c7c713b5fe36a79b2640dfe02727779c1218d5aa2bedb37f99b56956f9c"
+          },
+          {
+            "assetName": "mc26.3-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 241135,
+            "sha256": "9c6ab199a59e4ee8117eb3a08bf3904da6c4bd11e575d42ea3581476132e8026"
+          },
+          {
+            "assetName": "mc26.3-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "anonymousHttpStatus": 200,
+            "bytes": 163283,
+            "sha256": "3bd490553a516bc4386240927ce7ac0890aeecf26cda0c5c7ff677192f46668a"
+          }
+        ],
+        "pendingLocalCopies": [],
+        "deletedLocalOriginals": [
+          "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-modern/run-verification/verification/2026-10-08T01-02-48-151909Z-c1e02a4f/evidence/screenshots/lodekeeper-2026-10-08T01-02-48-151909Z-c1e02a4f-prepared-safety-prepared_owned_workbench_blocked_cobblestone.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-blocked-modern-upload/mc26.3-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+          "/private/tmp/lodekeeper-main-59e3403-workbench-blocked-modern/run-verification/verification/2026-10-08T01-02-48-151909Z-c1e02a4f/evidence/screenshots/lodekeeper-2026-10-08T01-02-48-151909Z-c1e02a4f-prepared_owned_workbench_setup_complete.png",
+          "/tmp/lodekeeper-main-59e3403-workbench-blocked-modern-upload/mc26.3-main-59e3403-workbench-blocked-setup-PASS-original.png"
+        ],
+        "browserReceipt": "/tmp/lodekeeper-main-59e3403-workbench-blocked-modern-browser-receipt.json",
+        "browserVerifiedAtUtc": "2026-10-08T01:09:44.966Z",
+        "deletedAtUtc": "2026-10-08T01:10:00.400310+00:00"
+      },
+      "loggedOutBrowserDecode": {
+        "verifiedAtUtc": "2026-10-08T01:09:44.966Z",
+        "loggedOut": true,
+        "count": 2,
+        "loaded": 2,
+        "failures": [],
+        "verifiedUrls": [
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+          "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-setup-PASS-original.png"
+        ],
+        "checks": [
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-retained-table-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          },
+          {
+            "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-workbench-blocked-setup-PASS-original.png",
+            "loaded": true,
+            "width": 640,
+            "height": 360
+          }
+        ]
+      }
+    }
+  ],
+  "freshSurvival": "Modern frozen-59 rerun in progress; primary not rerun. No acceptance claim.",
+  "materialPriority": "Separate source changes are in review and are not included in these frozen jars.",
+  "screenshotReleaseUrl": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence",
+  "ciSnapshot": {
+    "runId": 37710466940,
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940",
+    "headSha": "59e340375e6f55c52ddf63464b095f319069bf8b",
+    "status": "in_progress",
+    "conclusion": "",
+    "jobs": [
+      {
+        "name": "adapters (1.20.1, 17, fabric)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959218"
+      },
+      {
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959339"
+      },
+      {
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959351"
+      },
+      {
+        "name": "adapters (1.20, 17, fabric)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959357"
+      },
+      {
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959419"
+      },
+      {
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959420"
+      },
+      {
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959424"
+      },
+      {
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959442"
+      },
+      {
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959445"
+      },
+      {
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959446"
+      },
+      {
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959490"
+      },
+      {
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959501"
+      },
+      {
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959544"
+      },
+      {
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094959555"
+      },
+      {
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960750"
+      },
+      {
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960788"
+      },
+      {
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960826"
+      },
+      {
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960870"
+      },
+      {
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960897"
+      },
+      {
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960920"
+      },
+      {
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094960966"
+      },
+      {
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094961001"
+      },
+      {
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094961005"
+      },
+      {
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37710466940/job/113094961012"
+      }
+    ]
+  }
+}

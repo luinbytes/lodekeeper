@@ -1,0 +1,1629 @@
+{
+  "createdAtUtc": "2026-10-08T01:22:58.276653+00:00",
+  "sourceCommit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+  "scope": "Fresh Normal Survival attempt with no supplied stock on the exact frozen59 jar. Failure, not full-gear acceptance or a speed comparison. Separate from the unbuilt material-priority source.",
+  "runnerSourceAtLaunch": {
+    "commit": "59e340375e6f55c52ddf63464b095f319069bf8b",
+    "dirty": true,
+    "dirtyPaths": [
+      "core/src/main/java/dev/lodekeeper/core/ProjectGatherBatch.java",
+      "core/src/test/java/dev/lodekeeper/core/ProjectGatherBatchTest.java"
+    ],
+    "gitStatusError": null
+  },
+  "sourceQualification": "Approved core source/test edits were dirty at launch; only frozen59 production classes loaded. The artifact was frozen from clean59 source. Starting positions vary across same-seed attempts.",
+  "artifact": {
+    "minecraftDependency": "26.3",
+    "modId": "lodekeeper",
+    "modVersion": "0.1.0-preview.11",
+    "path": "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar",
+    "productionClassEntries": [
+      "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+    ],
+    "sha256": "8ab271e119606451d254febaa8d021b40b9e133ccf9968f5543049fa13641b49"
+  },
+  "artifactUnchangedDuringRun": true,
+  "classLoadProvenance": {
+    "foreignKernelClasses": 0,
+    "generatedClasses": 537,
+    "lodekeeperClasses": 1056,
+    "log": "/private/tmp/lodekeeper-main-59e3403-natural-modern/class-load.log",
+    "productionArtifactClasses": 503,
+    "productionJarClasses": 503,
+    "runtimeArtifactTransformation": null,
+    "runtimeRemappedClasses": 0,
+    "sourceCounts": {
+      "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 16,
+      "/private/tmp/lodekeeper-main-59e3403-26.3-frozen.jar": 503
+    },
+    "verifierClasses": 16,
+    "violations": []
+  },
+  "runnerStatus": "failed",
+  "runnerFailures": [
+    "native run receipt verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/natural-2026-10-08T01-12-01.654602Z-a4f2d9de.json status is 'failed'",
+    "native run receipt verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/natural-2026-10-08T01-12-01.654602Z-a4f2d9de.json reports failure 'automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 8 foreground queued \u00b7 0 maintenance queued'"
+  ],
+  "nativeReceiptPath": "/private/tmp/lodekeeper-main-59e3403-natural-modern/run-verification/verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/natural-2026-10-08T01-12-01.654602Z-a4f2d9de.json",
+  "nativeReceiptSha256": "fe5315b33af734875b7bafbc5c3df13bd66de725c254d889454f2234959c29a3",
+  "native": {
+    "runId": "2026-10-08T01-12-01.654602Z-a4f2d9de",
+    "worldId": "natural-8b0591eef8ee4f17",
+    "status": "failed",
+    "verificationMode": "natural_world",
+    "evidenceAuthority": "integrated_server_ticks_and_inventory",
+    "goal": "gear_diamond",
+    "command": "!lk project gear_diamond",
+    "minecraftVersion": "26.3",
+    "worldKind": "normal_generated_world",
+    "worldPreset": "minecraft:normal",
+    "worldSeed": 483920105,
+    "gameMode": "survival",
+    "difficulty": "normal",
+    "cheatsEnabled": false,
+    "bonusChestEnabled": false,
+    "structuresEnabled": true,
+    "worldInitializationTimeoutSeconds": 120,
+    "requestTimeoutSeconds": 900,
+    "initializedElapsedMillis": 261913,
+    "worldLaunchElapsedMillis": 255323,
+    "worldReadyElapsedMillis": 240054,
+    "commandElapsedMillis": 237067,
+    "firstServerMovementElapsedMillis": 2027,
+    "commandServerTick": 114,
+    "serverMovementTicks": 864,
+    "serverMovementSteps": 864,
+    "serverMovementStepDefinition": "server ticks with more than 0.03 blocks of displacement",
+    "serverDistanceMeters": 305.8557697511469,
+    "deathsObserved": 0,
+    "minimumHealth": 20.0,
+    "minimumHunger": 20,
+    "failure": "automation paused: paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "engineStatus": "paused \u00b7 Threat response needs attention: threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search \u00b7 8 foreground queued \u00b7 0 maintenance queued",
+    "successRequiresIdleAndCancelledNavigation": true,
+    "candidateSha256": "8ab271e119606451d254febaa8d021b40b9e133ccf9968f5543049fa13641b49",
+    "framebufferWidth": 640,
+    "framebufferHeight": 360,
+    "commandStartPosition": {
+      "x": -8.5,
+      "y": 76.0,
+      "z": 30.5
+    },
+    "expectedItems": [
+      "minecraft:diamond_pickaxe",
+      "minecraft:diamond_axe",
+      "minecraft:diamond_shovel",
+      "minecraft:diamond_hoe",
+      "minecraft:diamond_sword",
+      "minecraft:diamond_helmet",
+      "minecraft:diamond_chestplate",
+      "minecraft:diamond_leggings",
+      "minecraft:diamond_boots"
+    ],
+    "visualScreenshots": [
+      "screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-phase-running.png",
+      "screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-first-movement.png",
+      "screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-final.png"
+    ],
+    "serverDifficulty": "NORMAL",
+    "serverSurvival": true,
+    "serverCreativeAbility": false,
+    "serverSpectator": false,
+    "serverHealth": 20.0,
+    "serverHunger": 20,
+    "serverDeaths": 0,
+    "serverTick": 4852,
+    "serverInventoryCounts": {
+      "minecraft:crafting_table": 1,
+      "minecraft:cobbled_deepslate": 12,
+      "minecraft:andesite": 2,
+      "minecraft:stick": 2,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:birch_log": 1,
+      "minecraft:rotten_flesh": 2,
+      "minecraft:porkchop": 6,
+      "minecraft:birch_planks": 3,
+      "minecraft:beef": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobblestone": 63,
+      "minecraft:dirt": 7,
+      "minecraft:granite": 4,
+      "minecraft:leather": 2
+    },
+    "serverArmorCounts": {},
+    "serverHeldCounts": {
+      "minecraft:crafting_table": 1,
+      "minecraft:cobbled_deepslate": 12,
+      "minecraft:andesite": 2,
+      "minecraft:stick": 2,
+      "minecraft:iron_pickaxe": 1,
+      "minecraft:stone_pickaxe": 1,
+      "minecraft:birch_log": 1,
+      "minecraft:rotten_flesh": 2,
+      "minecraft:porkchop": 6,
+      "minecraft:birch_planks": 3,
+      "minecraft:beef": 1,
+      "minecraft:wooden_pickaxe": 1,
+      "minecraft:cobblestone": 63,
+      "minecraft:dirt": 7,
+      "minecraft:granite": 4,
+      "minecraft:leather": 2
+    },
+    "serverLogItems": [
+      "minecraft:birch_log"
+    ],
+    "serverCursor": {
+      "item": "",
+      "count": 0
+    },
+    "goalSatisfied": false,
+    "serverTargetReceipts": [
+      {
+        "serverTick": 258,
+        "elapsedMillisFromCommand": 7206,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 330,
+        "elapsedMillisFromCommand": 10767,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 398,
+        "elapsedMillisFromCommand": 14168,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 464,
+        "elapsedMillisFromCommand": 17465,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 532,
+        "elapsedMillisFromCommand": 20865,
+        "item": "minecraft:birch_log",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 545,
+        "elapsedMillisFromCommand": 21514,
+        "item": "minecraft:birch_log",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 549,
+        "elapsedMillisFromCommand": 21731,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 557,
+        "elapsedMillisFromCommand": 22123,
+        "item": "minecraft:stick",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 563,
+        "elapsedMillisFromCommand": 22419,
+        "item": "minecraft:birch_log",
+        "countIncrease": 3,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 567,
+        "elapsedMillisFromCommand": 22615,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 573,
+        "elapsedMillisFromCommand": 22909,
+        "item": "minecraft:birch_log",
+        "countIncrease": 2,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 577,
+        "elapsedMillisFromCommand": 23115,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 10,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 583,
+        "elapsedMillisFromCommand": 23415,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 6,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 587,
+        "elapsedMillisFromCommand": 23615,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 605,
+        "elapsedMillisFromCommand": 24512,
+        "item": "minecraft:wooden_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 701,
+        "elapsedMillisFromCommand": 29311,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 824,
+        "elapsedMillisFromCommand": 35462,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 846,
+        "elapsedMillisFromCommand": 36565,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 870,
+        "elapsedMillisFromCommand": 37775,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 890,
+        "elapsedMillisFromCommand": 38760,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 911,
+        "elapsedMillisFromCommand": 39814,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1044,
+        "elapsedMillisFromCommand": 46467,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1066,
+        "elapsedMillisFromCommand": 47567,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 7,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1086,
+        "elapsedMillisFromCommand": 48561,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 8,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1108,
+        "elapsedMillisFromCommand": 49669,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 9,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1136,
+        "elapsedMillisFromCommand": 51071,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1166,
+        "elapsedMillisFromCommand": 52560,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1194,
+        "elapsedMillisFromCommand": 53967,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1236,
+        "elapsedMillisFromCommand": 56069,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1266,
+        "elapsedMillisFromCommand": 57567,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1269,
+        "elapsedMillisFromCommand": 57713,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1277,
+        "elapsedMillisFromCommand": 58142,
+        "item": "minecraft:stone_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1374,
+        "elapsedMillisFromCommand": 62969,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1564,
+        "elapsedMillisFromCommand": 72466,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1751,
+        "elapsedMillisFromCommand": 81824,
+        "item": "minecraft:rotten_flesh",
+        "countIncrease": 2,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1965,
+        "elapsedMillisFromCommand": 92521,
+        "item": "minecraft:leather",
+        "countIncrease": 2,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 1965,
+        "elapsedMillisFromCommand": 92521,
+        "item": "minecraft:beef",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2151,
+        "elapsedMillisFromCommand": 101815,
+        "item": "minecraft:porkchop",
+        "countIncrease": 3,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2372,
+        "elapsedMillisFromCommand": 112864,
+        "item": "minecraft:porkchop",
+        "countIncrease": 3,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2440,
+        "elapsedMillisFromCommand": 116264,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2462,
+        "elapsedMillisFromCommand": 117367,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2482,
+        "elapsedMillisFromCommand": 118364,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2504,
+        "elapsedMillisFromCommand": 119466,
+        "item": "minecraft:dirt",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 7,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2522,
+        "elapsedMillisFromCommand": 120364,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2540,
+        "elapsedMillisFromCommand": 121265,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2558,
+        "elapsedMillisFromCommand": 122167,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2576,
+        "elapsedMillisFromCommand": 123064,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2594,
+        "elapsedMillisFromCommand": 123963,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 7,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2612,
+        "elapsedMillisFromCommand": 124864,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 8,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2630,
+        "elapsedMillisFromCommand": 125764,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 9,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2648,
+        "elapsedMillisFromCommand": 126665,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 10,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2666,
+        "elapsedMillisFromCommand": 127564,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 11,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2684,
+        "elapsedMillisFromCommand": 128464,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 12,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2702,
+        "elapsedMillisFromCommand": 129367,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 13,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2720,
+        "elapsedMillisFromCommand": 130262,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 14,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2738,
+        "elapsedMillisFromCommand": 131160,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 15,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2756,
+        "elapsedMillisFromCommand": 132065,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 16,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2774,
+        "elapsedMillisFromCommand": 132965,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 17,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2792,
+        "elapsedMillisFromCommand": 133865,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 18,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2810,
+        "elapsedMillisFromCommand": 134763,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 19,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2828,
+        "elapsedMillisFromCommand": 135663,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 20,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2846,
+        "elapsedMillisFromCommand": 136564,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 21,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2864,
+        "elapsedMillisFromCommand": 137468,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 22,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2882,
+        "elapsedMillisFromCommand": 138365,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 23,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2900,
+        "elapsedMillisFromCommand": 139258,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 24,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2918,
+        "elapsedMillisFromCommand": 140164,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 25,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2946,
+        "elapsedMillisFromCommand": 141564,
+        "item": "minecraft:raw_iron",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2964,
+        "elapsedMillisFromCommand": 142466,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 26,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 2982,
+        "elapsedMillisFromCommand": 143365,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 27,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3012,
+        "elapsedMillisFromCommand": 144864,
+        "item": "minecraft:raw_iron",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3030,
+        "elapsedMillisFromCommand": 145766,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 28,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3058,
+        "elapsedMillisFromCommand": 147163,
+        "item": "minecraft:raw_iron",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3077,
+        "elapsedMillisFromCommand": 148108,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 19,
+        "heldCountAfterReceipt": 20,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3081,
+        "elapsedMillisFromCommand": 148313,
+        "item": "minecraft:furnace",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3303,
+        "elapsedMillisFromCommand": 159445,
+        "item": "minecraft:iron_ingot",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3503,
+        "elapsedMillisFromCommand": 169408,
+        "item": "minecraft:iron_ingot",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3703,
+        "elapsedMillisFromCommand": 179414,
+        "item": "minecraft:iron_ingot",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3713,
+        "elapsedMillisFromCommand": 179908,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3719,
+        "elapsedMillisFromCommand": 180214,
+        "item": "minecraft:birch_planks",
+        "countIncrease": 3,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3723,
+        "elapsedMillisFromCommand": 180418,
+        "item": "minecraft:stick",
+        "countIncrease": 4,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3737,
+        "elapsedMillisFromCommand": 181120,
+        "item": "minecraft:iron_pickaxe",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3830,
+        "elapsedMillisFromCommand": 185764,
+        "item": "minecraft:crafting_table",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3892,
+        "elapsedMillisFromCommand": 188864,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 21,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3906,
+        "elapsedMillisFromCommand": 189563,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 22,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3920,
+        "elapsedMillisFromCommand": 190265,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 23,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3934,
+        "elapsedMillisFromCommand": 190965,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 24,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3948,
+        "elapsedMillisFromCommand": 191664,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 25,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3962,
+        "elapsedMillisFromCommand": 192366,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 26,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3976,
+        "elapsedMillisFromCommand": 193071,
+        "item": "minecraft:andesite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 3990,
+        "elapsedMillisFromCommand": 193764,
+        "item": "minecraft:andesite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4004,
+        "elapsedMillisFromCommand": 194466,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 27,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4018,
+        "elapsedMillisFromCommand": 195165,
+        "item": "minecraft:granite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4032,
+        "elapsedMillisFromCommand": 195863,
+        "item": "minecraft:granite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4046,
+        "elapsedMillisFromCommand": 196564,
+        "item": "minecraft:granite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4060,
+        "elapsedMillisFromCommand": 197264,
+        "item": "minecraft:granite",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4074,
+        "elapsedMillisFromCommand": 197963,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 28,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4088,
+        "elapsedMillisFromCommand": 198667,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 29,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4102,
+        "elapsedMillisFromCommand": 199363,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 30,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4116,
+        "elapsedMillisFromCommand": 200066,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 31,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4130,
+        "elapsedMillisFromCommand": 200766,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 32,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4144,
+        "elapsedMillisFromCommand": 201463,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 33,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4158,
+        "elapsedMillisFromCommand": 202163,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 34,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4172,
+        "elapsedMillisFromCommand": 202863,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 35,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4186,
+        "elapsedMillisFromCommand": 203564,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 36,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4200,
+        "elapsedMillisFromCommand": 204267,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 37,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4214,
+        "elapsedMillisFromCommand": 204959,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 38,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4228,
+        "elapsedMillisFromCommand": 205664,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 39,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4241,
+        "elapsedMillisFromCommand": 206315,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 40,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4256,
+        "elapsedMillisFromCommand": 207066,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 41,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4270,
+        "elapsedMillisFromCommand": 207766,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 42,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4284,
+        "elapsedMillisFromCommand": 208465,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 43,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4298,
+        "elapsedMillisFromCommand": 209163,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 44,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4312,
+        "elapsedMillisFromCommand": 209866,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 45,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4326,
+        "elapsedMillisFromCommand": 210564,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 46,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4340,
+        "elapsedMillisFromCommand": 211266,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 47,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4354,
+        "elapsedMillisFromCommand": 211963,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 48,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4368,
+        "elapsedMillisFromCommand": 212663,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 49,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4382,
+        "elapsedMillisFromCommand": 213365,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 50,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4396,
+        "elapsedMillisFromCommand": 214066,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 51,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4412,
+        "elapsedMillisFromCommand": 214863,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 52,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4426,
+        "elapsedMillisFromCommand": 215562,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 53,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4440,
+        "elapsedMillisFromCommand": 216266,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 54,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4458,
+        "elapsedMillisFromCommand": 217164,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 55,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4472,
+        "elapsedMillisFromCommand": 217865,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 56,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4486,
+        "elapsedMillisFromCommand": 218563,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 57,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4504,
+        "elapsedMillisFromCommand": 219466,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 58,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4518,
+        "elapsedMillisFromCommand": 220164,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 59,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4532,
+        "elapsedMillisFromCommand": 220866,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 60,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4546,
+        "elapsedMillisFromCommand": 221567,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 61,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4564,
+        "elapsedMillisFromCommand": 222463,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 62,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4578,
+        "elapsedMillisFromCommand": 223167,
+        "item": "minecraft:cobblestone",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 63,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4600,
+        "elapsedMillisFromCommand": 224270,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 1,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4626,
+        "elapsedMillisFromCommand": 225567,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 2,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4646,
+        "elapsedMillisFromCommand": 226565,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 3,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4667,
+        "elapsedMillisFromCommand": 227615,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 4,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4689,
+        "elapsedMillisFromCommand": 228707,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 5,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4709,
+        "elapsedMillisFromCommand": 229709,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 6,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4730,
+        "elapsedMillisFromCommand": 230764,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 7,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4752,
+        "elapsedMillisFromCommand": 231864,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 8,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4772,
+        "elapsedMillisFromCommand": 232859,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 9,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4794,
+        "elapsedMillisFromCommand": 233964,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 10,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4814,
+        "elapsedMillisFromCommand": 234965,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 11,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      },
+      {
+        "serverTick": 4836,
+        "elapsedMillisFromCommand": 236065,
+        "item": "minecraft:cobbled_deepslate",
+        "countIncrease": 1,
+        "heldCountAfterReceipt": 12,
+        "requestedTargetItem": false,
+        "authority": "integrated_server_inventory_diff"
+      }
+    ],
+    "serverTargetReceiptsDropped": 0
+  },
+  "stationDiagnostics": {
+    "left": [
+      {
+        "line": "2751",
+        "log": "logs/debug.log",
+        "text": "[02:12:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-7, y=68, z=34} reason=owned station recovery failed: owned station removal receipt changed during recovery expectedSequence=7094 currentSequence=7096 position=BlockPos{x=-7,"
+      },
+      {
+        "line": "479",
+        "log": "logs/latest.log",
+        "text": "[02:12:56] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_LEFT job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-7, y=68, z=34} reason=owned station recovery failed: owned station removal receipt changed during recovery expectedSequence=7094 currentSequence=7096 position=BlockPos{x=-7,"
+      }
+    ],
+    "recovered": [
+      {
+        "line": "2978",
+        "log": "logs/debug.log",
+        "text": "[02:13:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=2, y=56, z=35}"
+      },
+      {
+        "line": "4296",
+        "log": "logs/debug.log",
+        "text": "[02:15:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=23, y=40, z=-9}"
+      },
+      {
+        "line": "705",
+        "log": "logs/latest.log",
+        "text": "[02:13:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=2, y=56, z=35}"
+      },
+      {
+        "line": "2021",
+        "log": "logs/latest.log",
+        "text": "[02:15:32] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=23, y=40, z=-9}"
+      }
+    ]
+  },
+  "screenshots": {
+    "manifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-natural-modern-screenshots.json",
+    "anonymousUploadReceipt": {
+      "verifiedAtUtc": "2026-10-08T01:20:53.282796+00:00",
+      "checks": [
+        {
+          "assetName": "main-59e3403-natural-modern-screenshots.json",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-natural-modern-screenshots.json",
+          "anonymousHttpStatus": 200,
+          "bytes": 2726,
+          "sha256": "7b7d3b41195b6d20d7989bbc81489194d0a35ced54798c09ef17b535840e851d"
+        },
+        {
+          "assetName": "mc26.3-main-59e3403-natural-final-FAIL-original.png",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-final-FAIL-original.png",
+          "anonymousHttpStatus": 200,
+          "bytes": 59720,
+          "sha256": "147f0555bd5bb39d8277b613665f5be384b992a16183c534f4f121c13581ece0"
+        },
+        {
+          "assetName": "mc26.3-main-59e3403-natural-first-movement-FAIL-original.png",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-first-movement-FAIL-original.png",
+          "anonymousHttpStatus": 200,
+          "bytes": 191741,
+          "sha256": "b4e7fdf2af25b5ae25308e6028f12ec2303ef34bcde2e1a1313093b6829a107f"
+        },
+        {
+          "assetName": "mc26.3-main-59e3403-natural-phase-running-FAIL-original.png",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-phase-running-FAIL-original.png",
+          "anonymousHttpStatus": 200,
+          "bytes": 227953,
+          "sha256": "e953d666a3df373317f863478b303365b13ded40d57670cf760bd316baf1991b"
+        }
+      ],
+      "pendingLocalCopies": [],
+      "deletedLocalOriginals": [
+        "/private/tmp/lodekeeper-main-59e3403-natural-modern/run-verification/verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-final.png",
+        "/tmp/lodekeeper-main-59e3403-natural-modern-upload/mc26.3-main-59e3403-natural-final-FAIL-original.png",
+        "/private/tmp/lodekeeper-main-59e3403-natural-modern/run-verification/verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-first-movement.png",
+        "/tmp/lodekeeper-main-59e3403-natural-modern-upload/mc26.3-main-59e3403-natural-first-movement-FAIL-original.png",
+        "/private/tmp/lodekeeper-main-59e3403-natural-modern/run-verification/verification/2026-10-08T01-12-01.654602Z-a4f2d9de/evidence/screenshots/lodekeeper-2026-10-08T01-12-01.654602Z-a4f2d9de-phase-running.png",
+        "/tmp/lodekeeper-main-59e3403-natural-modern-upload/mc26.3-main-59e3403-natural-phase-running-FAIL-original.png"
+      ],
+      "browserReceipt": "/tmp/lodekeeper-main-59e3403-natural-modern-browser-receipt.json",
+      "browserVerifiedAtUtc": "2026-10-08T01:22:07.986Z",
+      "deletedAtUtc": "2026-10-08T01:22:58.080173+00:00"
+    },
+    "loggedOutDecodeReceipt": {
+      "verifiedAtUtc": "2026-10-08T01:22:07.986Z",
+      "loggedOut": true,
+      "count": 3,
+      "loaded": 3,
+      "failures": [],
+      "verifiedUrls": [
+        "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-final-FAIL-original.png",
+        "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-first-movement-FAIL-original.png",
+        "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-phase-running-FAIL-original.png"
+      ],
+      "checks": [
+        {
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-final-FAIL-original.png",
+          "loaded": true,
+          "width": 640,
+          "height": 360
+        },
+        {
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-first-movement-FAIL-original.png",
+          "loaded": true,
+          "width": 640,
+          "height": 360
+        },
+        {
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-phase-running-FAIL-original.png",
+          "loaded": true,
+          "width": 640,
+          "height": 360
+        }
+      ]
+    },
+    "earlyManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-natural-modern-early-screenshots.json",
+    "earlyAnonymousUploadReceipt": {
+      "verifiedAtUtc": "2026-10-08T01:15:53.862358+00:00",
+      "checks": [
+        {
+          "assetName": "main-59e3403-natural-modern-early-screenshots.json",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-59e3403-natural-modern-early-screenshots.json",
+          "anonymousHttpStatus": 200,
+          "bytes": 1125,
+          "sha256": "598caa1b359a24f6dbce24905c84f061fbe3d4e3fd5df7bcac2285f3cc00aa08"
+        },
+        {
+          "assetName": "mc26.3-main-59e3403-natural-iron-smelting-UNFINISHED-original.png",
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-iron-smelting-UNFINISHED-original.png",
+          "anonymousHttpStatus": 200,
+          "bytes": 89977,
+          "sha256": "ebdad8c9dd085bc83213f31a3e6a26b6dce77010898fe9d6abd1f45570f2d8cb"
+        }
+      ],
+      "pendingLocalCopies": [],
+      "deletedLocalOriginals": [
+        "/tmp/lodekeeper-main-59e3403-natural-modern-iron-UNFINISHED-original.png",
+        "/tmp/lodekeeper-main-59e3403-natural-modern-early-upload/mc26.3-main-59e3403-natural-iron-smelting-UNFINISHED-original.png"
+      ],
+      "browserReceipt": "/tmp/lodekeeper-main-59e3403-natural-modern-early-browser-receipt.json",
+      "browserVerifiedAtUtc": "2026-10-08T01:16:45.337Z",
+      "deletedAtUtc": "2026-10-08T01:17:35.402259+00:00"
+    },
+    "earlyLoggedOutDecodeReceipt": {
+      "verifiedAtUtc": "2026-10-08T01:16:45.337Z",
+      "loggedOut": true,
+      "count": 1,
+      "loaded": 1,
+      "failures": [],
+      "verifiedUrls": [
+        "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-iron-smelting-UNFINISHED-original.png"
+      ],
+      "checks": [
+        {
+          "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/mc26.3-main-59e3403-natural-iron-smelting-UNFINISHED-original.png",
+          "loaded": true,
+          "width": 640,
+          "height": 388
+        }
+      ]
+    }
+  },
+  "remainingGates": "Primary fresh59 not run. Material-priority source not in this jar. Safe dry retreat and changed table removal receipt remain unresolved; complete interruption, shield combat and counted timing remain separate.",
+  "logSha256": "015e474fb34d11e079cc5f51ff1a966205f0f91c65260c48ea603018b95345b7",
+  "boundedThreatRecords": [
+    "[02:13:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=4.5051565060161405,71.24918707874468,19.853740738594983 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@8.927797666634433,74.0,16.92244466266129/alive=true/removed=false/eligible=true/distance=5.976556136114224]",
+    "[02:13:41] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat attacks=0 retreatStarts=1 completedRetreats=0 ticks=5 status=retreating from live threats 1 player=4.503166243452332,71.0,19.30000001192093 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@8.5361328125,74.0,16.907958984375/alive=true/removed=false/eligible=true/distance=5.566568029272534]",
+    "[02:13:45] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-arrived attacks=0 retreatStarts=1 completedRetreats=1 ticks=75 status=verifying current threat clearance player=-4.23960746445828,69.0,28.221245309280377 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@3.589843747584382,70.0,21.382731122284895/alive=true/removed=false/eligible=true/distance=10.443446871962092]",
+    "[02:13:45] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=retreat-drained attacks=0 retreatStarts=1 completedRetreats=1 ticks=76 status=verifying current threat clearance player=-4.249206993077629,69.0,28.23090246444857 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@3.508789057668764,70.0,21.46638997894479/alive=true/removed=false/eligible=true/distance=10.341427942500646]",
+    "[02:13:45] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=cleared attacks=0 retreatStarts=1 completedRetreats=1 ticks=76 status=live threats cleared player=-4.249206993077629,69.0,28.23090246444857 threats=[]",
+    "[02:13:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=-0.4739412880981349,69.0,23.068857261834893 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@1.2082519530522404,69.0,22.56884765625/alive=true/removed=false/eligible=true/distance=1.7549312539951998]",
+    "[02:13:46] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=melee attacks=0 retreatStarts=0 completedRetreats=0 ticks=1 status=native melee defense player=-0.47114442477666757,69.0,22.91664550025088 threats=[bad46edd-92d9-4431-9fc9-78662fdbed9e/entity.minecraft.zombie@1.20703125,69.0,22.56884765625/alive=true/removed=false/eligible=true/distance=1.7138369046393487]",
+    "[02:13:47] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=cleared attacks=2 retreatStarts=0 completedRetreats=0 ticks=22 status=live threats cleared player=-0.4678699131085994,69.0,22.73843901246921 threats=[]",
+    "[02:16:23] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=started attacks=0 retreatStarts=0 completedRetreats=0 ticks=0 status=stopping movement before defense player=19.391556760247095,-11.76847620241299,-10.51785751794537 threats=[12b38f7f-df6c-4e18-a321-dbb3a2eb794a/entity.minecraft.creeper@19.195556640625,-14.0,-11.745361328125/alive=true/removed=false/eligible=true/distance=2.5543844875222956]",
+    "[02:16:23] [Render thread/INFO] (lodekeeper) [Lodekeeper] THREAT_RESPONSE outcome=failed attacks=0 retreatStarts=1 completedRetreats=0 ticks=1 status=threat response failed: NavigationFailure: No safe dry retreat stance remains within the bounded search player=19.391556760247095,-12.0,-10.51785751794537 threats=[12b38f7f-df6c-4e18-a321-dbb3a2eb794a/entity.minecraft.creeper@19.195556640625,-14.0,-11.745361328125/alive=true/removed=false/eligible=true/distance=2.3548209381813696]"
+  ],
+  "airRecoveryRecords": []
+}
