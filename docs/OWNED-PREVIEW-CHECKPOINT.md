@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+All eighteen existing prepared [shield cases](#prepared-shield-matrix-at-af185d8-and-430029f) PASS on exact frozen 1.21.1 `430029f` and 26.3 `af185d8` jars. They cover the nine modes separately from fresh Survival. Worn blocks one controlled NoAI zombie attack; manual simulates native use-key takeover and leaves the bucket unfinished by design. Live pursuit, physical human input, and complete station cleanup remain unverified. Artifact source and launch checkout are recorded separately.
+
 Frozen main `af185d8` passes one [fresh 26.3 Normal Survival `gear_diamond` run](#fresh-263-normal-survival-pass-at-af185d8) in 597,056 ms, on seed `483920105` with no supplied stock or tools. The integrated server confirms all five diamond tools and four equipped armor pieces. Final health is 20, minimum health 17, with zero deaths, an empty cursor, and idle cancelled navigation. The pickup observer's opt-in property is absent, no boundary records emit, and zero inventory-transfer invalidations occur. Seven unique stations recover; one remains beyond range. Complete cleanup is unproved.
 
 [Exact-source CI 37761885585](https://github.com/luinbytes/lodekeeper/actions/runs/37761885585) finishes SUCCESS at `af185d83e0c093840f69fa772d3be60ab6ffa61f`, with all 24 compile, check, and package profiles passing. The public proof and [twelve unchanged original PNGs](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af185d8-natural-modern-screenshots-v2.json) have recorded anonymous byte/hash read-back and logged-out browser verification at 640 by 360; all 24 local PNG copies are deleted. The corrected manifest supersedes captions only. Item screenshots are queued and rendered later, so they do not establish first-receipt timing or incomplete full gear at rendering. The earlier iron frame retains its historical `UNFINISHED` label, with two copies previously deleted. This single seeded pass establishes no general reliability or comparative speed result.
@@ -732,6 +734,45 @@ The enabled proof is 73,512 bytes, SHA-256 `b7353aeec13617523ef9118f9e32518ba291
 The opening controls verify only their scoped observer paths. The separate [fresh 26.3 Survival pass](#fresh-263-normal-survival-pass-at-af185d8) below completes full gear on this frozen jar and records final all-24 CI success. Complete station recovery, broader retreat coverage, other-version runtime, and Lu's acceptance remain open. Preview 11 remains at `88f2b52`.
 
 
+### Prepared shield matrix at af185d8 and 430029f
+
+The [native aggregate](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-shield-matrix.json) records all nine existing modes PASS on each primary version, eighteen total. These supplied-stock superflat fixtures use integrated-server inventory and crafting receipts. Every runner passes, exits normally with code 0, retains unchanged artifact bytes, and records zero class-origin violations. They establish no fresh Survival, general reliability, comparative speed, or live-pursuit result.
+
+| Minecraft | Frozen artifact source | Jar SHA-256 |
+| --- | --- | --- |
+| 1.21.1 | `430029f07b1f0d3917777e535d8ccb34763d4dc2` | `43ff4290ed9616c5e1b9dd8d9a7e32deff73675a2e3701b29393ff63e5fa6c6d` |
+| 26.3 | `af185d83e0c093840f69fa772d3be60ab6ffa61f` | `e63a7189a90153390e2a5fa97cac03b39e58350dc95e4df5566675dfba7cc23f` |
+
+Artifact source differs from runner checkout metadata. Spare and worn launch from `430029f` with only the five documentation files dirty. The other seven modes launch from clean `d3fadfb9c382801745c4363a117193db7a4ac2d7`. Neither launch state changes the frozen production source or artifact hashes.
+
+The fixture reserves maintained stock and uses keep floors of four iron and nine planks. Production defaults remain two iron and sixteen planks. Each row passes on both versions.
+
+| Mode | Native result |
+| --- | --- |
+| `default` | `autoUseShield=true`, `autoCraftShield=false`. No shield crafted. Bucket completes; iron 10 to 7, planks remain 19. |
+| `off` | `autoUseShield=false`, `autoCraftShield=true`. No shield crafted. Bucket completes; iron 10 to 7, planks remain 19. |
+| `spare` | One shield and one bucket crafted from stored stock. Iron 10 to 6, planks 19 to 13. No gathering is needed. |
+| `queued` | Queued reservation observed. One shield, bucket, and shears complete; iron 12 to 6, planks 19 to 13. |
+| `iron_short` | No shield crafted. Bucket completes; iron 9 to 6, planks remain 19. Protected stock prevents shield crafting. |
+| `planks_short` | No shield crafted. Bucket completes; iron 10 to 7, planks remain 18. Protected stock prevents shield crafting. |
+| `worn` | Existing shield starts at damage 200. One controlled NoAI zombie native attack with base damage 3 deals zero player damage. Shield restores at damage 204; bucket completes, no shield crafted. |
+| `occupied` | Eight offhand torches remain. Stored shield stays at damage 200, with no native use or shield crafting. Bucket completes. |
+| `manual` | Simulated native use-key takeover preserves the user hold through pause; explicit release reaches the server. Original request remains unfinished, bucket count zero, stock unchanged. No shield crafted. |
+
+Every final server cursor is empty and native navigation stops. Eight modes complete the bucket and release the owned shield hold. Manual passes its separate expected pause and release gate. Its retained offhand shield and unfinished bucket do not prove completion or full physical-input drainage. Worn's one controlled attack does not establish live pursuit or general combat safety. The separate native GUI checks below pass on both frozen jars. Complete station cleanup, broader interruptions, ordinary-launcher and other-version runtime, and Lu's acceptance remain open. Fresh modern PASS and primary FAIL below retain their separate outcomes. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+
+The aggregate is 192,970 bytes, SHA-256 `4798d9315216355e017147da5086639f62a6e9a1e4ca3033ee494f4be5d2209c`, with recorded anonymous HTTP 200 and matching byte/hash read-back. The [final matrix screenshot manifest](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-shield-matrix-final-screenshots.json) covers twelve original PNGs for off, queued, iron-short, plank-short, occupied, and manual. The [default](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-shield-default-screenshots.json), [spare](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-shield-spare-screenshots.json), and [worn](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-shield-worn-screenshots.json) manifests each cover two more originals. All eighteen pass recorded anonymous byte/hash checks and logged-out browser decoding at 640 by 360. Updated upload receipts confirm all 36 local original and staging copies deleted afterward, with no pending copies. The public originals remain unchanged.
+
+Local evidence is `/tmp/lodekeeper-main-af430-shield-matrix-proof.json` and its `-proof-upload-receipt.json`, plus matrix, default, spare, and worn `-screenshot-upload-receipt.json` and `-browser.json` files. No media or evidence blobs are added to the repository.
+
+The public evidence index was compacted from 124,557 to 6,195 characters. The [notes archive through shield-worn](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-gameplay-evidence-notes-through-20261008-shield-worn.md) preserves the old notes. `/tmp/lodekeeper-main-evidence-index-receipt.json` confirms every previous asset preserved, matching release-body read-back, and archive byte/hash verification. Earlier version failures and notes retain their historical scope.
+
+### Native settings GUI at af185d8 and 430029f
+
+The [native GUI proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-settings-ui.json) records all ten existing checks PASS on each frozen jar identified in the shield table above. Native mouse, key and character events exercise search/filter, discard, dependent controls, invalid-number rejection, reset, advanced navigation preferences and protected plots. Shield controls save and reload test floors of nineteen iron and thirty-seven planks, then restore the defaults and all original settings. Both receipts record `steps=10/10; restored=true`; plot state returns to zero live/disk entries and cleared corners. These fixtures do not establish physical user acceptance or fresh Survival.
+
+Both runners exit normally, retain unchanged frozen jars and record zero class-origin violations. The aggregate is 128,648 bytes, SHA-256 `36ae7bf4f9df179521304b1cfb8ce9c7594a64e1366a437ee0b810c458cbdcff`. The [screenshot manifest](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af430-settings-ui-screenshots.json) preserves ten original PNGs at 640 by 360. Anonymous byte/hash checks and logged-out browser decoding pass before all twenty local original/staging PNG copies are removed. Local proof, upload, browser and cleanup receipts share `/tmp/lodekeeper-main-af430-settings-ui`.
+
 ### Fresh 26.3 Normal Survival pass at af185d8
 
 The [final public proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-af185d8-natural-modern.json) records one fresh generated Normal Survival `!lk project gear_diamond` PASS at exact source `af185d83e0c093840f69fa772d3be60ab6ffa61f`. The frozen 26.3 jar is 1,789,476 bytes, SHA-256 `e63a7189a90153390e2a5fa97cac03b39e58350dc95e4df5566675dfba7cc23f`. Production bytes remain unchanged through the run, with zero class-origin violations. The runner launches from clean source and exits normally with code 0.
@@ -762,6 +803,10 @@ The [final public primary proof](https://github.com/luinbytes/lodekeeper/release
 Final and minimum health are 20, with no observed deaths and an empty cursor. One iron pickaxe remains; no diamonds, diamond tools, or equipped armor are present. The engine is paused with eight foreground goals. No inventory-transfer invalidations occur. Three unique station recoveries are logged, with no `OWNED_STATION_LEFT` record. This failed run does not prove complete cleanup.
 
 `RETREAT_SELECTOR` records nineteen hazards, all 1,212 columns visited and rejected at clearance, zero attempted or completed heights, zero terrain probes, and zero goals. It stops with `OFFSETS_EXHAUSTED`, outcome `EMPTY`, and `pathLaunch=NOT_STARTED`. This is selection failure before path launch. Physical escape impossibility and a safe policy correction remain unproved; no code or safety policy changes follow from this documentation update.
+
+The [read-only retreat analysis](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-430029f-retreat-analysis.json) reproduces complete horizontal clearance coverage. Ten creepers alone exclude every column; four particular creepers suffice. Expanding the sampled radius to 32 yields 1,155 origin-admitted height sites, all with solid feet in the saved five-height slice. Saved terrain lacks selection-time loading and revision proof. No omitted legal endpoint or permitted no-break/no-place escape route is proved, so no radius fix or guard relaxation is justified.
+
+The separate [non-default `allowDownward=false` experiment](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-430029f-no-direct-downward.json) FAILS at the first stone 0/3 action timeout after 108,838 command ms, before bulk diamond descent or retreat. Its isolated preference remains false. Native health is 20, with zero observed deaths, an empty cursor, unchanged frozen primary jar, and zero provenance violations. This result is inconclusive for retreat and supplies no evidence for changing the default policy. The public proof has recorded anonymous byte/hash read-back; its [screenshot manifest](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-430029f-no-direct-downward-screenshots.json) is separate from the eighteen shield captures.
 
 
 The public primary proof is 76,296 bytes, SHA-256 `4b66d4543f19d077605d989ab6436517ec3ab60fcb69f04ddcdd7a5143ab31da`. The local `/tmp/lodekeeper-main-430029f-natural-primary-proof-upload-receipt.json` records anonymous byte/hash read-back. The [final-run screenshot manifest](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-430029f-natural-primary-screenshots.json) lists three original PNGs. All three pass recorded anonymous byte/hash checks and logged-out browser decoding at 640 by 360; all six local originals and staging copies are deleted afterward. The final HUD still shows stale `WORKING`; pause chat and the final native JSON establish FAIL.
