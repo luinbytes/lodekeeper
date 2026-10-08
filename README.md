@@ -119,9 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Frozen main `54b2a36` records two 26.3 [server PICKUP capture FAILs](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation). Both saved-world clone replays craft the stone pickaxe, recover the carried table, and quit normally with exit 0 before full gear completes. Each server capture is incomplete with one error and no `HANDLER_RETURN`. The second run captures an `IncompatibleClassChangeError` during `SlotSummary` record formatting. Its terminal excerpt survives; the raw JVM lines rotated before archive.
+Frozen main `af185d8` passes the 26.3 [server pickup observer and default-disabled controls](docs/OWNED-PREVIEW-CHECKPOINT.md#server-pickup-boundary-observation). The enabled replay emits three complete server records with zero capture errors or omissions; the disabled replay emits none. Both craft the stone pickaxe and recover one table, then quit normally before full gear completes. The first server-local pair moves four cobblestone to the cursor with matching native components. Strict cross-side attribution is refused; the old `a32cf74` mismatch remains unresolved.
 
-The exact build passes 268 existing checks, with 265 cached and three rerun. Static R2 review was CLEAN before these native failures. A formatter correction build passes the same checks and independent review is CLEAN. Its freeze, native verification, and CI remain pending. CI 37760593881 was queued at last inspection. The default-disabled control is unrun. Receipt acceptance is unchanged; the earlier `a32cf74` mismatch remains unresolved. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The formatter fix passes independent review and 268 existing checks, with 265 cached and three rerun. A fresh 26.3 Survival run is in progress. [Exact-source CI](https://github.com/luinbytes/lodekeeper/actions/runs/37761885585) is running, with 11 of 24 jobs completed at last check. The earlier `54b2a36` capture failures remain documented. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
