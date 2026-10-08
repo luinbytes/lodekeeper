@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The [shared height API correction](docs/OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) fixes the compile error found in later 1.21 adapters. The affected 1.21.2 build passes; full compatibility remains under verification.
+
 The [retreat-height candidate `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) passes source review and both builds. With the maintained [health-six fixture `c57fd4c`](docs/OWNED-PREVIEW-CHECKPOINT.md#native-health-six-results-at-c57fd4c), both primary versions **PASS** exact health mutation, attack suppression, landing, fresh no-stance pause, full cancellation, restored input/settings and the preserved request. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six-screenshots.json) label production and verifier separately.
 
 The [original-roof control remains FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#existing-health-six-control-at-d1cae8e): admitted rooftop goals are unreachable, and full restoration on that path is unverified. The maintained fixture proves only the no-admissible-stance branch.

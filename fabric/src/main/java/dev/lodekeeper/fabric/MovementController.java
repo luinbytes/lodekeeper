@@ -421,7 +421,8 @@ final class MovementController {
                     if (layer == 2) candidate = new BlockPos(x, center.getY() + dy, z);
                     else {
                         long candidateY = (long) center.getY() + dy;
-                        if (candidateY - 1 < client.world.getBottomY() || candidateY + 2 >= client.world.getTopY()) {
+                        if (candidateY - 1 < client.world.getBottomY()
+                                || candidateY + 2 >= (long) client.world.getBottomY() + client.world.getHeight()) {
                             if (trace != null) trace.complete(RetreatDecision.WORLD_HEIGHT, null, null, null, null, null);
                             continue;
                         }

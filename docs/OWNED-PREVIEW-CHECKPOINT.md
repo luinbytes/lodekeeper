@@ -1383,3 +1383,11 @@ Both cases finish COMPLETE with zero post-onset attacks or outgoing damage, conf
 Both selectors reach layer 12 after 1,300 completed candidate heights, zero probes and zero goals, then stop at `OFFSETS_EXHAUSTED`. Recorded selection times are 2.521687 ms primary and 3.002866 ms modern, including diagnostic overhead; these single samples establish no performance improvement. No retreat path launches.
 
 The [two original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six-screenshots.json) show commands and HUD with distinct production/verifier labels. Anonymous bytes/SHA and logged-out decoding pass at 640 by 360 for both; all four local PNG copies are deleted. Queued frames do not establish exact fence timing. These passes do not change the original-roof FAIL, prove its missing restoration fences, or establish uphill escape, the saved corridor's acceptance, fresh Survival reliability or Preview 12 readiness.
+
+### Shared height API compatibility
+
+[CI at verifier `c57fd4c`](https://github.com/luinbytes/lodekeeper/actions/runs/37831930871) exposes a compile regression in the shared Yarn controller. The failed 1.21.2 and 1.21.11 logs both reject the new no-argument `getTopY()` call. Those APIs expose an inclusive top instead; the primary 1.21.1 API returns an exclusive top.
+
+The correction computes the exclusive bound as `(long) getBottomY() + getHeight()`. Local bytecode confirms this matches the 1.21.1 bound and is one greater than the 1.21.2 inclusive bound. The cast precedes addition. Only this extra-height guard changes; the modern inclusive guard and all search limits remain unchanged. Independent source review is CLEAN. No new test is added.
+
+The affected 1.21.2 profile builds in 56 seconds, with all 33 tasks executed and 318 existing checks passing (167 core, 98 navigation, 53 adapter). The 1.21.1 build and verifier preparation also pass in 35 seconds, with 36 executed tasks, five up-to-date tasks and 313 existing checks (167 core, 98 navigation, 48 adapter). These are build/check results; no new gameplay run is implied. The remaining profiles require the next exact-source CI run; prior native receipts retain their original source and jar labels. This API correction does not establish higher-route execution or repair the original-roof cleanup gap.

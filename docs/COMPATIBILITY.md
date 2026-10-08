@@ -2,6 +2,10 @@
 
 The target covers all stable Java releases from 1.20 through 26.3. This is a target, not a supported-version declaration. A successful compile is separate from a successful gameplay scenario. Never install a jar for a different game release. The exact 24-release dependency ledger and adapter boundaries are in [VERSION-MATRIX.md](VERSION-MATRIX.md).
 
+## Current development source
+
+The [retreat-height change](OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) initially broke later 1.21 adapter compilation at the renamed world-height API. The shared-bound correction passes the affected 1.21.2 build and its 318 existing checks. Full current-source compatibility is pending CI. This does not change the released jars or their historical verification below.
+
 ## Preview 11 release
 
 [Preview 11](https://github.com/luinbytes/lodekeeper/releases/tag/v0.1.0-preview.11) is published for 1.21.1 and 26.3 only, from source `88f2b523648e1e35c16db7e652aca1b719f002b3`. The [matrix at `ce3c967`](https://github.com/luinbytes/lodekeeper/actions/runs/37609503491) and the later [matrix at `bf68249`](https://github.com/luinbytes/lodekeeper/actions/runs/37632112439) passed all 24 exact profiles. The downloaded `ce3c967` primary jars match their shield and GUI gameplay inputs byte for byte. Those CI results describe earlier source.
