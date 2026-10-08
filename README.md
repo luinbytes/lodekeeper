@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+A [bounded descent sampler](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) passes source review. Builds pass on 1.21.1 and 26.3; native capture remains pending. It changes diagnostics only.
+
 Fresh 26.3 Normal Survival with isolated `allowDownward=false` [completed with native FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-fresh-263-no-direct-downward-experiment) after 500,299 ms. Frozen production `4aa1cc4`, verifier `579c2e3`, and seed `483920105` produced one diamond pickaxe; eight targets remain absent. Health stayed 20, with no deaths, an empty cursor, no timeout, and clean exit 0.
 
 At retreat center `(-36,-12,21)`, all 1,212 columns failed clearance against nineteen hazards before terrain checks or path launch. The bounded saved sample found no escape witness satisfying every guard. The preference supplies no return guarantee; policy is unchanged. [Four original captures](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-4aa1cc4-no-downward-modern-screenshots.json) accompany the proof.

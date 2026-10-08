@@ -282,6 +282,7 @@ final class MovementController {
     private boolean motionLogAnchorInitialized;
     private double motionLogAnchorX, motionLogAnchorZ;
     private int motionLogAnchorRequestTick, motionLogLastRequestTick, motionLogCount;
+    private int descentMotionLogLastRequestTick, descentMotionLogCount;
     private int miningY = Integer.MIN_VALUE, lastDiscoveryMergeTick = -100, lastScanLogTick = -20;
     private MiningDepthPolicy miningDepthPolicy;
     private BlockSearch miningDiscovery;
@@ -1117,6 +1118,7 @@ final class MovementController {
         motionLogAnchorInitialized = false;
         motionLogAnchorX = motionLogAnchorZ = 0;
         motionLogAnchorRequestTick = motionLogLastRequestTick = motionLogCount = 0;
+        descentMotionLogLastRequestTick = descentMotionLogCount = 0;
         lastBreakTick = lastDiscoveryMergeTick = -100; lastScanLogTick = -20;
         phaseStartedTick = 0; miningY = Integer.MIN_VALUE; miningDepthPolicy = null;
         scannedMiningChunks.clear(); rejectedMiningTargets.clear(); miningDiscovery = null;
@@ -2629,40 +2631,51 @@ final class MovementController {
                     && index + 1 < positions.size() && motionLogAnchorInitialized) {
                 int stallTicks = requestTicks - motionLogAnchorRequestTick;
                 if (stallTicks >= 80) waterBreak.trigger();
-                if (stallTicks >= 80 && motionLogCount < 8
-                        && (motionLogCount == 0 || requestTicks - motionLogLastRequestTick >= 80)) {
-                    IMovement movement = movements.get(index);
-                    var source = movement.getSrc();
-                    var destination = movement.getDest();
-                    boolean sourceLoaded = client.level.getChunk(
-                            source.getX() >> 4, source.getZ() >> 4, ChunkStatus.FULL, false) != null;
-                    boolean destinationLoaded = client.level.getChunk(
-                            destination.getX() >> 4, destination.getZ() >> 4, ChunkStatus.FULL, false) != null;
-                    String sourceFluid = sourceLoaded ? client.level.getFluidState(source).toString() : "unloaded";
-                    String destinationFluid = destinationLoaded ? client.level.getFluidState(destination).toString() : "unloaded";
-                    String destinationHead = destinationLoaded
-                            ? client.level.getBlockState(destination.above()).toString() : "unloaded";
-                    String destinationHead2 = destinationLoaded
-                            ? client.level.getBlockState(destination.above(2)).toString() : "unloaded";
-                    var player = client.player;
-                    var velocity = player.getDeltaMovement();
-                    var inputOverrides = bot.getInputOverrideHandler();
-                    motionLogLastRequestTick = requestTicks;
-                    motionLogCount++;
-                    org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                            "[Lodekeeper] NAV_MOTION mode={} requestTicks={} stallTicks={} pathIndex={} pathLength={} executor={} movement={} src={} dest={} nativeXYZ=({},{},{}) blockFeet={} kernelPlayerFeet={} pose={} bbox={} velocity=({},{},{}) onGround={} horizontalCollision={} verticalCollision={} srcFluid={} destFluid={} destHead={} destHead2={} yaw={} pitch={} inWater={} underWater={} inputClass={} actualSideways={} actualForward={} actualJump={} actualSneak={} progressToken={} outputCount={} jump={} forward={} back={} sneak={} attack={} clientStoredHit={}",
-                            mode, requestTicks, stallTicks, index, positions.size(), System.identityHashCode(current), movement.getClass().getSimpleName(),
-                            source, destination, player.getX(), player.getY(), player.getZ(), player.blockPosition(),
-                            bot.getPlayerContext().playerFeet(), player.getPose(), player.getBoundingBox(),
-                            velocity.x, velocity.y, velocity.z, player.onGround(), player.horizontalCollision,
-                            player.verticalCollision, sourceFluid, destinationFluid, destinationHead, destinationHead2,
-                            player.getYRot(), player.getXRot(), player.isInWater(), player.isUnderWater(),
-                            player.input.getClass().getSimpleName(), player.input.getMoveVector().x, player.input.getMoveVector().y,
-                            player.input.keyPresses.jump(), player.input.keyPresses.shift(), progressToken,
-                            output == null ? 0 : actions.count(output),
-                            inputOverrides.isInputForcedDown(Input.JUMP), inputOverrides.isInputForcedDown(Input.MOVE_FORWARD),
-                            inputOverrides.isInputForcedDown(Input.MOVE_BACK), inputOverrides.isInputForcedDown(Input.SNEAK),
-                            inputOverrides.isInputForcedDown(Input.CLICK_LEFT), storedClientHit());
+                boolean stallSample = stallTicks >= 80 && motionLogCount < 8
+                        && (motionLogCount == 0 || requestTicks - motionLogLastRequestTick >= 80);
+                boolean descentSample = mode == Mode.DESCEND && miningDepthPolicy != null
+                        && miningDepthPolicy.bulkDiamonds() && descentMotionLogCount < 8
+                        && (descentMotionLogCount == 0 || requestTicks - descentMotionLogLastRequestTick >= 20);
+                if (stallSample || descentSample) {
+                    if (descentSample) { descentMotionLogLastRequestTick = requestTicks; descentMotionLogCount++; }
+                    try {
+                        IMovement movement = movements.get(index);
+                        var source = movement.getSrc();
+                        var destination = movement.getDest();
+                        boolean sourceLoaded = client.level.getChunk(
+                                source.getX() >> 4, source.getZ() >> 4, ChunkStatus.FULL, false) != null;
+                        boolean destinationLoaded = client.level.getChunk(
+                                destination.getX() >> 4, destination.getZ() >> 4, ChunkStatus.FULL, false) != null;
+                        String sourceFluid = sourceLoaded ? client.level.getFluidState(source).toString() : "unloaded";
+                        String destinationFluid = destinationLoaded ? client.level.getFluidState(destination).toString() : "unloaded";
+                        String destinationHead = destinationLoaded
+                                ? client.level.getBlockState(destination.above()).toString() : "unloaded";
+                        String destinationHead2 = destinationLoaded
+                                ? client.level.getBlockState(destination.above(2)).toString() : "unloaded";
+                        var player = client.player;
+                        var velocity = player.getDeltaMovement();
+                        var inputOverrides = bot.getInputOverrideHandler();
+                        if (stallSample) { motionLogLastRequestTick = requestTicks; motionLogCount++; }
+                        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                                "[Lodekeeper] NAV_MOTION mode={} requestTicks={} stallTicks={} pathIndex={} pathLength={} executor={} movement={} src={} dest={} nativeXYZ=({},{},{}) blockFeet={} kernelPlayerFeet={} pose={} bbox={} velocity=({},{},{}) onGround={} horizontalCollision={} verticalCollision={} srcFluid={} destFluid={} destHead={} destHead2={} yaw={} pitch={} inWater={} underWater={} inputClass={} actualSideways={} actualForward={} actualJump={} actualSneak={} progressToken={} outputCount={} jump={} forward={} back={} sneak={} attack={} clientStoredHit={} stallSample={} descentSample={} stallSampleCount={} descentSampleAttempts={} coverage=SAMPLED_ONLY descentBudgetExhausted={} allowDownward={} maxFallHeightNoWater={}",
+                                mode, requestTicks, stallTicks, index, positions.size(), System.identityHashCode(current), movement.getClass().getSimpleName(),
+                                source, destination, player.getX(), player.getY(), player.getZ(), player.blockPosition(),
+                                bot.getPlayerContext().playerFeet(), player.getPose(), player.getBoundingBox(),
+                                velocity.x, velocity.y, velocity.z, player.onGround(), player.horizontalCollision,
+                                player.verticalCollision, sourceFluid, destinationFluid, destinationHead, destinationHead2,
+                                player.getYRot(), player.getXRot(), player.isInWater(), player.isUnderWater(),
+                                player.input.getClass().getSimpleName(), player.input.getMoveVector().x, player.input.getMoveVector().y,
+                                player.input.keyPresses.jump(), player.input.keyPresses.shift(), progressToken,
+                                output == null ? 0 : actions.count(output),
+                                inputOverrides.isInputForcedDown(Input.JUMP), inputOverrides.isInputForcedDown(Input.MOVE_FORWARD),
+                                inputOverrides.isInputForcedDown(Input.MOVE_BACK), inputOverrides.isInputForcedDown(Input.SNEAK),
+                                inputOverrides.isInputForcedDown(Input.CLICK_LEFT), storedClientHit(),
+                                stallSample, descentSample, motionLogCount, descentMotionLogCount,
+                                descentMotionLogCount == 8,
+                                OwnedKernelAPI.getSettings().allowDownward.value, OwnedKernelAPI.getSettings().maxFallHeightNoWater.value);
+                    } catch (RuntimeException diagnosticFailure) {
+                        if (stallSample) throw diagnosticFailure;
+                    }
                 }
             }
             int movementCount = Math.min(NavigationSceneSnapshot.MAX_MOVEMENTS,
