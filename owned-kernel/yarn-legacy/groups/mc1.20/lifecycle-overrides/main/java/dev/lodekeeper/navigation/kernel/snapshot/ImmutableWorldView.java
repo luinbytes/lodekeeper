@@ -46,27 +46,98 @@ public final class ImmutableWorldView implements BlockGetter {
     }
 
     public List<BlockPos> scan(Predicate<BlockState> filter, int maximum, BlockPos center) {
+        checkScanInterrupted();
         int limit = Math.max(0, Math.min(maximum, 65_536));
-        List<BlockPos> result = new ArrayList<>();
-        var chunks = new ArrayList<>(live.values());
-        chunks.sort(java.util.Comparator.comparingLong(chunk -> {
-            long dx = ((long) chunk.x() << 4) - center.getX();
-            long dz = ((long) chunk.z() << 4) - center.getZ();
-            return dx * dx + dz * dz;
-        }));
-        for (ChunkSnapshot chunk : chunks) {
-            for (int y = minY; y < minY + height && !Thread.currentThread().isInterrupted(); y++) {
+        if (limit == 0) { return List.of(); }
+        int centerX = center.getX(), centerY = center.getY(), centerZ = center.getZ();
+        long topY = (long) minY + height;
+        List<ScanRegion> regions = new ArrayList<>();
+        for (ChunkSnapshot chunk : live.values()) {
+            checkScanInterrupted();
+            long x0 = (long) chunk.x() * 16, z0 = (long) chunk.z() * 16;
+            for (long y0 = minY; y0 < topY; y0 += 16) {
+                checkScanInterrupted();
+                long y1 = Math.min(y0 + 16, topY);
+                double lowerD2 = scanDistanceSquared(scanAxisGap(x0, x0 + 15, centerX),
+                        scanAxisGap(y0, y1 - 1, centerY), scanAxisGap(z0, z0 + 15, centerZ));
+                regions.add(new ScanRegion(chunk, x0, z0, y0, y1, lowerD2));
+            }
+        }
+        checkScanInterrupted();
+        regions.sort((left, right) -> {
+            checkScanInterrupted();
+            return Double.compare(left.lowerD2(), right.lowerD2());
+        });
+        checkScanInterrupted();
+        var retained = new java.util.PriorityQueue<ScanHit>(11, java.util.Comparator.reverseOrder());
+        for (ScanRegion region : regions) {
+            checkScanInterrupted();
+            if (retained.size() == limit && region.lowerD2() > retained.peek().distanceSquared()) { break; }
+            for (long y = region.y0(); y < region.y1(); y++) {
+                int worldY = Math.toIntExact(y);
                 for (int z = 0; z < 16; z++) {
+                    checkScanInterrupted();
+                    int worldZ = Math.toIntExact(region.z0() + z);
                     for (int x = 0; x < 16; x++) {
-                        if (result.size() == limit) { return List.copyOf(result); }
-                        if (filter.test(chunk.get(x, y, z))) {
-                            result.add(new BlockPos((chunk.x() << 4) + x, y, (chunk.z() << 4) + z));
+                        int worldX = Math.toIntExact(region.x0() + x);
+                        double distance = scanDistanceSquared((long) worldX - centerX,
+                                (long) worldY - centerY, (long) worldZ - centerZ);
+                        if (retained.size() == limit && distance > retained.peek().distanceSquared()) { continue; }
+                        if (!filter.test(region.chunk().get(x, worldY, z))) { continue; }
+                        if (retained.size() < limit) {
+                            retained.add(new ScanHit(new BlockPos(worldX, worldY, worldZ), distance));
+                        } else if (compareScanHit(distance, worldX, worldY, worldZ, retained.peek()) < 0) {
+                            retained.poll();
+                            retained.add(new ScanHit(new BlockPos(worldX, worldY, worldZ), distance));
                         }
                     }
                 }
             }
         }
-        return List.copyOf(result);
+        checkScanInterrupted();
+        var ordered = new ArrayList<>(retained);
+        checkScanInterrupted();
+        ordered.sort(null);
+        checkScanInterrupted();
+        List<BlockPos> result = new ArrayList<>(ordered.size());
+        for (ScanHit hit : ordered) {
+            checkScanInterrupted();
+            result.add(hit.position());
+        }
+        checkScanInterrupted();
+        List<BlockPos> immutable = List.copyOf(result);
+        checkScanInterrupted();
+        return immutable;
+    }
+
+    private record ScanRegion(ChunkSnapshot chunk, long x0, long z0, long y0, long y1, double lowerD2) {}
+
+    private record ScanHit(BlockPos position, double distanceSquared) implements Comparable<ScanHit> {
+        @Override public int compareTo(ScanHit other) {
+            return compareScanHit(distanceSquared, position.getX(), position.getY(), position.getZ(), other);
+        }
+    }
+
+    private static int compareScanHit(double distance, int x, int y, int z, ScanHit other) {
+        checkScanInterrupted();
+        int order = Double.compare(distance, other.distanceSquared());
+        if (order == 0) { order = Integer.compare(x, other.position().getX()); }
+        if (order == 0) { order = Integer.compare(y, other.position().getY()); }
+        if (order == 0) { order = Integer.compare(z, other.position().getZ()); }
+        return order;
+    }
+
+    private static long scanAxisGap(long low, long high, int center) {
+        return Math.max(0L, Math.max(low - center, (long) center - high));
+    }
+
+    private static double scanDistanceSquared(long dx, long dy, long dz) {
+        double x = dx, y = dy, z = dz;
+        return x * x + y * y + z * z;
+    }
+
+    private static void checkScanInterrupted() {
+        if (Thread.currentThread().isInterrupted()) { throw new java.util.concurrent.CancellationException(); }
     }
 
     public List<BlockPos> cachedLocations(String block, int maximum) {

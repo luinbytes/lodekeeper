@@ -119,11 +119,13 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The [live snapshot scan repair](docs/OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) is implemented across all fourteen kernel families. It retains nearby raw matches before the result cap. Later safety filters still decide eligibility. Local 1.21.1 and 26.3 builds pass; wider CI and gameplay verification remain pending.
+
 Frozen 1.21.1 `430029f` and 26.3 `af185d8` jars PASS all eighteen existing prepared [shield cases](docs/OWNED-PREVIEW-CHECKPOINT.md#prepared-shield-matrix-at-af185d8-and-430029f) and all twenty [native GUI checks](docs/OWNED-PREVIEW-CHECKPOINT.md#native-settings-gui-at-af185d8-and-430029f). Manual takeover uses simulated input and leaves its bucket unfinished.
 
-Both PASS [prepared creeper contact, nine progression cases and the settings lease](docs/OWNED-PREVIEW-CHECKPOINT.md#prepared-creeper-contact-progression-and-native-settings-lease). Each escapes a normal-AI creeper on an open bedrock platform, completes two retreats and one bucket, and retains health 20. All 37 native setting bindings and 23 advanced options pass with lease restoration. The seventeen progression PNGs include seven modern route frames captured in progress; later native receipts establish PASS.
+Both PASS [prepared creeper contact, nine progression cases and the settings lease](docs/OWNED-PREVIEW-CHECKPOINT.md#prepared-creeper-contact-progression-and-native-settings-lease). The checkpoint separates in-progress screenshots from later PASS receipts.
 
-Separately, fresh 26.3 Normal Survival PASS completes all nine diamond targets in 597,056 ms. Fresh 1.21.1 Survival FAILS after 221,815 ms before retreat path launch. [The checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-normal-survival-pass-at-af185d8) records artifacts, launch checkouts and cleanup limits. Scan-order designs remain unimplemented. No general reliability, comparative speed or lease hazard-traversal claim follows. Preview 11 remains at `88f2b52`; no Preview 12 is published.
+Separately, fresh 26.3 Normal Survival PASS completes all nine diamond targets in 597,056 ms. Fresh 1.21.1 Survival FAILS after 221,815 ms before retreat path launch. These earlier jars do not verify the scan repair. Cleanup and general reliability remain unproved. Preview 11 remains at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 

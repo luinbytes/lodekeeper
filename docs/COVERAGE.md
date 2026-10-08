@@ -4,6 +4,8 @@ This ledger keeps the full product scope visible. A planned interface or a succe
 
 ## Latest main evidence
 
+The [nearest live snapshot scan repair](OWNED-PREVIEW-CHECKPOINT.md#nearest-live-snapshot-admission) is implemented across fourteen kernel families. It changes capped raw discovery for Mine, GetToBlock and Farm. Local 1.21.1 and 26.3 builds pass. Wider CI and native verification remain pending; the frozen evidence below precedes this repair.
+
 Both frozen jars PASS [prepared creeper contact, progression and the native settings lease](OWNED-PREVIEW-CHECKPOINT.md#prepared-creeper-contact-progression-and-native-settings-lease). Each escapes one normal-AI creeper on an open bedrock platform through two completed retreats, finishes one bucket, and retains health 20 without an explosion. All nine progression cases, 23 config options and 37 native setting bindings pass, with original lease restoration. The seventeen progression originals include seven modern route frames captured in progress; later native receipts establish PASS. These prepared checks do not close the fresh primary failure or prove complete cleanup, comparative speed, reliability, or hazard traversal through the lease.
 
 Both frozen jars also pass all ten [native settings GUI checks](OWNED-PREVIEW-CHECKPOINT.md#native-settings-gui-at-af185d8-and-430029f), including shield thresholds, dependent controls, save/reload and restoring original values. This is separate from physical user acceptance.

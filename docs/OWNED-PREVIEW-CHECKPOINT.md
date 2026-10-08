@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+The [nearest live snapshot scan repair](#nearest-live-snapshot-admission) is implemented across all fourteen kernel families. Local 1.21.1 and 26.3 builds pass; wider CI and native verification are pending. The frozen results below precede this repair.
+
 Both frozen jars PASS [prepared creeper contact, progression and the native settings lease](#prepared-creeper-contact-progression-and-native-settings-lease). Each escapes one normal-AI creeper on an open bedrock platform through two completed retreats, finishes one bucket, and retains health 20 without an explosion. All nine progression cases, 23 config options and 37 native setting bindings pass, with original lease restoration. The seventeen progression originals include seven modern route frames captured in progress; later native receipts establish PASS. These prepared checks do not close the fresh primary failure or prove complete cleanup, comparative speed, reliability, or hazard traversal through the lease.
 
 All eighteen existing prepared [shield cases](#prepared-shield-matrix-at-af185d8-and-430029f) PASS on exact frozen 1.21.1 `430029f` and 26.3 `af185d8` jars. They cover the nine modes separately from fresh Survival. Worn blocks one controlled NoAI zombie attack; manual simulates native use-key takeover and leaves the bucket unfinished by design. Live pursuit, physical human input, and complete station cleanup remain unverified. Artifact source and launch checkout are recorded separately.
@@ -792,7 +794,22 @@ Both proofs have recorded anonymous HTTP 200 and matching byte/hash read-back. T
 
 All nineteen originals pass recorded anonymous byte/hash checks and logged-out decoding at 640 by 360. Cleanup receipts confirm four creeper and 34 progression local original/staging PNG copies removed, with zero pending copies. Local proof, proof-upload, screenshot-upload and browser receipts share `/tmp/lodekeeper-main-af430-creeper-contact` and `/tmp/lodekeeper-main-af430-progression-lease` prefixes. Public originals remain available. No media or evidence blobs are added here.
 
-These prepared results preserve the separate fresh modern PASS and primary FAIL below. They establish no fresh-world comparison, comparative speed, general reliability, or complete cleanup. Two scan-order designs remain under evaluation from the no-direct-downward diagnosis, with no production implementation and test approval pending. The prepared runs establish no scan fix. Preview 11 remains at `88f2b52`; no Preview 12 is published.
+These prepared results preserve the separate fresh modern PASS and primary FAIL below. They establish no fresh-world comparison, comparative speed, general reliability, or complete cleanup. They precede the nearest-scan repair below and establish no scan-fix result. Preview 11 remains at `88f2b52`; no Preview 12 is published.
+
+### Nearest live snapshot admission
+
+The no-direct-downward diagnosis independently found that live discovery filled its cap by scanning from the world's bottom upward. A later distance sort could not recover nearby blocks omitted from those results. The selected repair ranks raw predicate matches by squared distance from captured player feet, then X, Y and Z for ties, before applying the unchanged cap of at most 65,536.
+
+All fourteen canonical `ImmutableWorldView` owners carry the same scan implementation and updated owner hashes. Private section-sized regions provide distance lower bounds; a bounded heap retains the nearest matches. Regions stop only when their lower bound exceeds the worst retained distance, preserving equal-distance candidates. The full copied live domain and AIR behavior remain intact. Cancellation throws with the interrupt flag preserved. Cached lookup, snapshot ownership, policy, depth, tool, exposure and movement guards are unchanged.
+
+Mine, GetToBlock and Farm share this operation. Farm therefore also receives nearby raw matches at its cap, while retaining its existing range and crop rules. Nearest raw matches do not establish nearest eligible or reachable goals. If nearer matches fail later guards, a farther eligible match can still be omitted. Sparse or empty searches can visit the whole captured domain; no measured speedup or scan deadline is claimed.
+
+Independent source review is CLEAN; native behavior remains unverified. Sequential local 1.21.1 and 26.3 builds pass with one Gradle worker, no parallel build and no persistent daemon. Primary reruns all 48 adapter tests and two kernel tests successfully; its 167 core and 98 navigation tests are up to date. Modern reruns all 167 core, 98 navigation and three adapter tests successfully. Kernel and host-jar inspectors pass for both versions, including primary named/intermediary inspection. Both generated scan sources match their canonical owners. The wider exact-version CI matrix and native verification remain pending. Approval for one focused scan regression file is pending; no new tests have been added. Earlier frozen-artifact passes do not verify this implementation. Fresh primary Survival and Preview 12 gates remain open.
+
+| Locally built artifact | Bytes | SHA-256 |
+| --- | --- | --- |
+| 1.21.1 scan repair | 1,721,537 | `e19b29d69583f3722dbb2afb192e4b4370c0ce2f7621442d1d9d9783457191f8` |
+| 26.3 scan repair | 1,793,425 | `449a41f8a2a452fb2d7140263b7134b9814a667d67200c2b47f3b356bcb92a57` |
 
 ### Fresh 26.3 Normal Survival pass at af185d8
 
