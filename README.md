@@ -119,11 +119,9 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [retreat-height candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) preserves the original five-height search. Only an exhausted search with no goals tries further height layers under the same shared limits. Both builds pass; source review is in progress. Native height admission and safe ascent remain unverified.
+The [retreat-height candidate `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) passes independent source review and both builds. Its existing 26.3 health-six control **FAILS**: the wider search selects valid rooftop stances above the sealed fixture, but native routing cannot reach them. Landing and zero post-onset attacks are confirmed; final restoration remains unverified because the pause-reason assertion stops the test. [Original screenshot and receipt](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d1cae8e-health-six-modern.json) preserve the failure. Primary native verification is pending.
 
-The earlier [26.3 run at `d0a62ef`](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) **FAILS after 559,590 ms**, with one diamond pickaxe, eight targets absent, health 5.666666, zero deaths and clean exit. Eight capped descent samples prove no return route. Its saved terrain suggests an endpoint four blocks higher, outside the old search band. A [saved-world baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission.
-
-The latest [prepared health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) remains PASS on its labelled source. Isolated `allowDownward=false` is experimental. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The earlier [fresh `d0a62ef` run](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) fails with one diamond pickaxe and eight targets absent. Its saved terrain suggests an endpoint four blocks higher; a [manual baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission. Native ascent, safe escape and reliable fresh Survival remain open. The [earlier health-six pair](docs/OWNED-PREVIEW-CHECKPOINT.md#native-headroom-results-at-579c2e3) retains its original PASS. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
