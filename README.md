@@ -119,13 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [shared height API correction](docs/OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) fixes the compile error found in later 1.21 adapters. The affected 1.21.2 build passes; full compatibility remains under verification.
+The [height API correction `56c6ec0`](docs/OWNED-PREVIEW-CHECKPOINT.md#shared-height-api-compatibility) passes all 24 CI profiles and the primary health-six safety control. Both versions had already passed the maintained no-stance control. These checks preserve cancellation and settings restoration.
 
-The [retreat-height candidate `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) passes source review and both builds. With the maintained [health-six fixture `c57fd4c`](docs/OWNED-PREVIEW-CHECKPOINT.md#native-health-six-results-at-c57fd4c), both primary versions **PASS** exact health mutation, attack suppression, landing, fresh no-stance pause, full cancellation, restored input/settings and the preserved request. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-c57fd4c-health-six-screenshots.json) label production and verifier separately.
+The new [fresh 26.3 run on `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-height-candidate-result) **FAILS** after 8 minutes 10 seconds, with one diamond pickaxe, health 20 and no deaths. The expanded search selects lower goals; a partial retreat ends before arrival. [Original screenshots](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d1cae8e-natural-final-screenshots.json) show command acceptance, the pickaxe and the pause.
 
-The [original-roof control remains FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#existing-health-six-control-at-d1cae8e): admitted rooftop goals are unreachable, and full restoration on that path is unverified. The maintained fixture proves only the no-admissible-stance branch.
-
-The earlier [fresh `d0a62ef` run](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) fails with one diamond pickaxe and eight targets absent. Its static higher endpoint has no native ascent proof; both [manual baseline attempts](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-retry-without-the-initial-delay) die before command admission. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+Higher-route execution and reliable fresh Survival remain unverified. Both saved baseline attempts died before command admission; the original-roof cleanup gap remains open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 

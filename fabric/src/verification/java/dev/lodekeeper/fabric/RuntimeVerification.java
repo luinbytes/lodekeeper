@@ -5831,7 +5831,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             appendStringStringMap(json, contactManualInputReceipt);
         }
         if (CONTACT_MANUAL_INPUT_MODE) json.append(",\n  \"verificationInputIntervention\":\"one forward-key press during the owned airborne hop; key cleared only after observing the manual-priority pause\"");
-        if (THREAT_CONTACT_MODE) json.append(",\n  \"fixtureGrants\":\"full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65; clock frozen until ordinary bucket command\"");
+        if (THREAT_CONTACT_MODE) json.append(",\n  \"fixtureGrants\":\"full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, ")
+            .append(CONTACT_LOW_HEALTH_MODE ? "y 63..76 with 42-cell passage x 0..6, z 0..1, y 64..66"
+                : "y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65")
+            .append("; clock frozen until ordinary bucket command\"");
         if (THREAT_WATER_RETREAT_MODE) json.append(",\n  \"fixtureGrants\":\"stored_weapons_and_bucket_materials_with_bedrock_water_roof_and_NoAI_mobs_and_helmeted_distant_zombie\"");
         if (NEARBY_WOOD_MODE) {
             json.append(",\n  \"nearbyWoodWalkArrivalInputEvidence\":");

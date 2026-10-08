@@ -156,6 +156,8 @@ The air proof corrects the initial uploaded manifest caption. The primary native
 
 ## Current main evidence
 
+The [fresh 26.3 height-candidate run](OWNED-PREVIEW-CHECKPOINT.md#fresh-263-height-candidate-result) ends FAIL with one diamond pickaxe, health 20 and no deaths. It exercises lower-layer admission and a partial retreat, then pauses before arrival. Higher-route execution and full fresh gear remain unproved. The separate `56c6ec0` CI matrix passes all 24 profiles, and its primary no-stance health-six control passes.
+
 The [retreat-height candidate `d1cae8e`](OWNED-PREVIEW-CHECKPOINT.md#bounded-retreat-height-fallback) passes source review and both builds. Its maintained [health-six fixture `c57fd4c`](OWNED-PREVIEW-CHECKPOINT.md#native-health-six-results-at-c57fd4c) passes both primary versions, confirming same-hop onset, zero later attacks, landing, fresh no-stance pause, full cancellation, input/settings restoration and preserved request. The original-roof control remains FAIL; cleanup after admitted-but-unreachable goals and successful higher-route execution remain unverified. These are distinct native branches.
 
 The [bounded bulk-descent sampler](OWNED-PREVIEW-CHECKPOINT.md#bounded-bulk-descent-sampling) has CLEAN source review and passing builds: 313 existing checks on 1.21.1 and 268 on 26.3. Fresh 26.3 `d0a62ef` emits eight extra samples within its cap, then FAILS at dry-retreat selection after 559,590 ms. It retains one diamond pickaxe and ends at health 5.666666 with no deaths. Primary native sampling is unrun. No return-path or retreat fix is established.

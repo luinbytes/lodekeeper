@@ -5359,7 +5359,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (THREAT_CREEPER_CONTACT_MODE) root.addProperty("fixtureGrants", "one unprotected stone sword, one maintained diamond sword, one wooden pickaxe, 3 iron ingots, one crafting table; full-health player; one full-health normal-AI creeper at contact range; distant shaded 4-health NoAI zombie and full-health NoAI cow; open bedrock platform; server clock frozen until ordinary bucket command");
             if (CONTACT_MANUAL_INPUT_MODE) root.add("manualInputReceipt", new GsonBuilder().create().toJsonTree(contactManualInputReceipt));
             if (CONTACT_MANUAL_INPUT_MODE) root.addProperty("verificationInputIntervention", "one forward-key press during the owned airborne hop; key cleared only after observing the manual-priority pause");
-            if (THREAT_CONTACT_MODE) root.addProperty("fixtureGrants", "full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65; clock frozen until ordinary bucket command");
+            if (THREAT_CONTACT_MODE) root.addProperty("fixtureGrants", "full-health player; untouched diamond sword, iron pickaxe, 3 iron ingots, crafting table; two full-health adult normal-AI zombies targeting player; one NoAI cow; solid bedrock box x/z -14..14, "
+                + (CONTACT_LOW_HEALTH_MODE ? "y 63..76 with 42-cell passage x 0..6, z 0..1, y 64..66"
+                    : "y 63..68 with 28-cell passage x 0..6, z 0..1, y 64..65")
+                + "; clock frozen until ordinary bucket command");
             root.addProperty("stationRoomTunnel", STATION_ROOM_TUNNEL_MODE);
             root.addProperty("stationRoomTunnelProperty", STATION_ROOM_TUNNEL_PROPERTY);
             if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) root.addProperty("stationRoomSetupScreenshot", stationRoomSetupScreenshot);
