@@ -133,6 +133,8 @@ Main `da6d464` waits on an exact confirmed pre-drag state and still requires the
 
 The [fresh `da6d464` 26.3 run](docs/evidence/survival-safety/main-da6d464-natural-modern.json) fails after 582,806 ms. All four diamond armor pieces are equipped, but only the pickaxe, axe, and hoe are retained; the shovel and sword are missing. Birch-log gathering remains at 0/1 underground after 27 path retries and the original action timeout. Health stays 20, with zero deaths, an empty cursor, and a paused engine. One air recovery completes, without reproducing the earlier zombie failure. The stranded table required a replacement, consuming the four planks that pushed the remaining recipes beyond the initial twenty-plank supply. The physical cause of the later surface-wood search failure remains unproved. Fresh primary Survival has not run at this source. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) records packet, station, and screenshot limits.
 
+Later main tightens exact owned-drop routing to the item block while preserving its identity and server receipt checks. Native verification is pending, and the failed-carry material-ordering defect remains open.
+
 New verification uses screenshots. The [work-in-progress evidence release](https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence) receives labelled screenshots between previews. Its results apply to the named main commits, separately from Preview 11.
 
 - [Navigation and survival rebuild](docs/NAVIGATION-REBUILD.md)

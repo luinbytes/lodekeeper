@@ -992,7 +992,7 @@ final class MovementController {
             case PICKUP -> {
                 if (pickupTarget == null) bot.getFollowProcess().pickup(stack -> stack.isOf(output));
                 else {
-                    lease.set(settings.followRadius, 1);
+                    lease.set(settings.followRadius, 0);
                     lease.set(settings.followOffsetDistance, 0.0);
                     lease.set(settings.followTargetMaxDistance, 64);
                     bot.getFollowProcess().follow(followFilter);
