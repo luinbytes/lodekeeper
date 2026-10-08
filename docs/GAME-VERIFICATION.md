@@ -156,6 +156,8 @@ The air proof corrects the initial uploaded manifest caption. The primary native
 
 ## Current main evidence
 
+Both frozen jars PASS [prepared creeper contact, progression and the native settings lease](OWNED-PREVIEW-CHECKPOINT.md#prepared-creeper-contact-progression-and-native-settings-lease). Each escapes one normal-AI creeper on an open bedrock platform through two completed retreats, finishes one bucket, and retains health 20 without an explosion. All nine progression cases, 23 config options and 37 native setting bindings pass, with original lease restoration. The seventeen progression originals include seven modern route frames captured in progress; later native receipts establish PASS. These prepared checks do not close the fresh primary failure or prove complete cleanup, comparative speed, reliability, or hazard traversal through the lease.
+
 Both frozen jars also pass all ten [native settings GUI checks](OWNED-PREVIEW-CHECKPOINT.md#native-settings-gui-at-af185d8-and-430029f), including shield thresholds, dependent controls, save/reload and restoring original values. This is separate from physical user acceptance.
 
 All eighteen existing prepared [shield cases](OWNED-PREVIEW-CHECKPOINT.md#prepared-shield-matrix-at-af185d8-and-430029f) PASS on exact frozen 1.21.1 `430029f` and 26.3 `af185d8` jars. They cover the nine modes separately from fresh Survival. Worn blocks one controlled NoAI zombie attack; manual simulates native use-key takeover and leaves the bucket unfinished by design. Live pursuit, physical human input, and complete station cleanup remain unverified. Artifact source and launch checkout are recorded separately.
