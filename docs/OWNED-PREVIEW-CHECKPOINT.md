@@ -6,7 +6,7 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
-The [controlled four-block retreat comparison](#native-four-block-retreat-comparison) now passes on both 1.21.1 and 26.3: changed production selects the Y+4 endpoints and reaches a supported Y68 stance through ordinary threat response; old production returns the expected no-stance pause before path launch. The final ordered server receipts verify preserved fixture/resources/request, health 20, zero deaths, and full input/settings restoration. Verifier `ba73bf2` has CLEAN review and passing local builds; [its CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) is pending. Earlier `1d13200` CI passes all 24 profiles.
+The [controlled four-block retreat comparison](#native-four-block-retreat-comparison) now passes on both 1.21.1 and 26.3: changed production selects the Y+4 endpoints and reaches a supported Y68 stance through ordinary threat response; old production returns the expected no-stance pause before path launch. The final ordered server receipts verify preserved fixture/resources/request, health 20, zero deaths, and full input/settings restoration. Verifier `ba73bf2` has CLEAN review and passing local builds; [its CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) passes all 24 jobs. Earlier `1d13200` CI passes all 24 profiles.
 
 The [fresh 26.3 height-candidate run](#fresh-263-height-candidate-result) remains FAIL with one diamond pickaxe, health 20 and no deaths. It selects lower goals and executes a partial retreat before pausing short of arrival. The prepared staircase pass does not establish reliable fresh Survival, the original saved-world route, or cleanup after unreachable goals.
 
@@ -1445,8 +1445,27 @@ A session-bound marker travels on the same connection after ordinary command dis
 
 The block-item statistic is not a direct placement-event counter. Full cell equality at fenced observations does not prove the absence of every transient or rejected edit. Height-band samples and the final supported Y68 observation establish ascent, not a grounded landing on every step. The mandatory INITIAL/LIVE guards and actual production arrival cover this case without claiming independent per-edge guard telemetry. The two preliminary modern runs retain their original results but lack the ordered packet fence; final r2 receipts supersede their preservation claim.
 
-All four final clients exit 0 without timeout; jars remain unchanged and class provenance has zero violations. Final local builds pass with 313 existing checks on 1.21.1 and 268 on 26.3, including up-to-date checks. [Exact verifier CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) is pending. The earlier `1d13200` matrix passes all 24 profiles separately.
+All four final clients exit 0 without timeout; jars remain unchanged and class provenance has zero violations. Final local builds pass with 313 existing checks on 1.21.1 and 268 on 26.3, including up-to-date checks. [Exact verifier CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) passes all 24 jobs. The earlier `1d13200` matrix passes all 24 profiles separately. The [final CI and publication receipt](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-ba73bf2-staircase-ci.json) records the full job list, anonymous download hashes, logged-out image decoding and local PNG cleanup. The documented 1.21.1 command also passes syntax and isolated launch-plan validation; that check starts no client.
 
 To repeat the case, build the relevant verification source set and run `scripts/run-artifact-verification.py` against the exact production jar with `lodekeeper.verify.baritone=true`, `lodekeeper.verify.preparedSafety=threat`, `lodekeeper.verify.threatStaircase=true`, and `lodekeeper.verify.configRoundTrip=true`. Use one isolated client at a time, JDK 21 / `fabric-1211` for 1.21.1 or JDK 25 / `fabric-modern` for 26.3. The expected old-build raw FAIL must remain FAIL; only the comparison interpretation calls it the expected baseline.
+
+From the repository root with `JAVA_HOME` set to JDK 21, these commands build and open one isolated 1.21.1 verification client. Run them with no other verification client or build active:
+
+```sh
+./scripts/build-version.sh 1.21.1 --no-daemon --max-workers=1 --no-parallel \
+  :fabric-1211:verificationClasses :fabric-1211:prepareArtifactVerification
+python3 scripts/run-artifact-verification.py \
+  --module fabric-1211 --version 1.21.1 --profile verificationClient \
+  --java "$JAVA_HOME/bin/java" \
+  --production-jar fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar \
+  --output-dir "$(mktemp -d /tmp/lodekeeper-staircase-primary.XXXXXX)" \
+  --timeout-seconds 180 \
+  --verify-flag lodekeeper.verify.baritone=true \
+  --verify-flag lodekeeper.verify.preparedSafety=threat \
+  --verify-flag lodekeeper.verify.threatStaircase=true \
+  --verify-flag lodekeeper.verify.configRoundTrip=true
+```
+
+The runner prints the receipt location and closes its own client when done. On this source, the expected result is a supported four-block ascent followed by the deliberate pause, with the bucket still uncrafted. For 26.3, use JDK 25 and substitute `26.3`, `fabric-modern`, `lodekeeper-26.3-0.1.0-preview.11.jar`, and a fresh output directory in the corresponding arguments and Gradle tasks. The development jar's Preview 11 metadata does not make it the published Preview 11 artifact.
 
 This closes the prepared higher-endpoint admission and execution question. Reliable fresh Survival, the original saved-world route and cleanup after an admitted but unreachable goal remain open. Preview 11 remains `88f2b52`; no Preview 12 is published.

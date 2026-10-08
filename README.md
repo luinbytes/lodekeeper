@@ -123,7 +123,7 @@ The [controlled four-block retreat comparison](docs/OWNED-PREVIEW-CHECKPOINT.md#
 
 The separate [fresh 26.3 run](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-263-height-candidate-result) still **FAILS** with one diamond pickaxe. Its partial retreat ends before arrival. Reliable fresh Survival, the saved-world route, and cleanup after unreachable goals remain open.
 
-Verifier `ba73bf2` has CLEAN review and passing local builds; its [24-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) is pending. Earlier `1d13200` CI passes all 24 profiles. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+Verifier `ba73bf2` has CLEAN review and passing local builds; its [24-profile CI](https://github.com/luinbytes/lodekeeper/actions/runs/37842274684) passes all 24 jobs. Earlier `1d13200` CI passes all 24 profiles. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
