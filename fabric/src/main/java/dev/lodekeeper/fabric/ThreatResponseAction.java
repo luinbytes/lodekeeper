@@ -333,7 +333,7 @@ final class ThreatResponseAction {
                         startRetreat(threats);
                 }
                 case RETREAT -> {
-                    List<RouteHazard> hazards = routeHazards();
+                    List<RouteHazard> hazards = routeHazards(threats);
                     List<MovementController.RetreatThreat> movementHazards = hazards.stream()
                             .map(RouteHazard::movementThreat).toList();
                     movement.updateRetreatHazards(movementHazards);
@@ -562,7 +562,7 @@ final class ThreatResponseAction {
         plannedChoice = null;
         restoreSelection();
         selectedSlot = -1;
-        List<RouteHazard> hazards = routeHazards();
+        List<RouteHazard> hazards = routeHazards(threats);
         logRetreatPlanning(hazards);
         if (retreatStarts >= MAX_RETREAT_STARTS || completedRetreats >= MAX_COMPLETED_RETREATS) {
             if (responseIntent == ResponseIntent.RETREAT_REQUIRED)
@@ -607,7 +607,7 @@ final class ThreatResponseAction {
         log("retreat");
     }
 
-    private List<RouteHazard> routeHazards() {
+    private List<RouteHazard> routeHazards(List<MobEntity> activeThreats) {
         if (client.player == null || client.world == null)
             throw new IllegalStateException("world unavailable while checking retreat hazards");
         var envelope = client.player.getBoundingBox().expand(24.0, 6.0, 24.0);
@@ -615,6 +615,7 @@ final class ThreatResponseAction {
         for (MobEntity mob : tracked) if (envelope.intersects(mob.getBoundingBox())) addRouteHazard(candidates, mob);
         for (MobEntity mob : client.world.getEntitiesByClass(MobEntity.class, envelope, this::eligible))
             addRouteHazard(candidates, mob);
+        for (MobEntity mob : activeThreats) addRouteHazard(candidates, mob);
         return candidates.values().stream().sorted(Comparator.comparingDouble(client.player::squaredDistanceTo))
                 .map(mob -> new RouteHazard(mob.getUuid(), mob.getType(), creeper(mob), mob.getX(), mob.getY(), mob.getZ())).toList();
     }
