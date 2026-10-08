@@ -119,13 +119,13 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Historical exact-source [CI at `e39ebe0`](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-e39ebe0-ci.json), run [37729522342](https://github.com/luinbytes/lodekeeper/actions/runs/37729522342), passes all 24 compile, check, and package profiles. Runtime coverage remains scoped to the recorded native cases.
+Frozen main `f7eae44` compiles on 26.3 and passes CLEAN source review. Both mining admission hooks emit native records in its saved-world replay. The command still FAILS at stone 0/3 after 62,772 ms, with normal exit 0. The [admission checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-mining-admission-observer) records exact build and trace proofs, four public screenshots, and observation limits. [Exact-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-f7eae44-ci.json) now passes all 24 profiles after retrying one dependency-download failure.
 
-Frozen `764146a` passes 316 local build checks. Its historical CI remains fourteen passes and ten verifier failures. Both fresh Normal Survival runs FAIL. Primary retains one diamond pickaxe but fails creeper retreat. Modern pauses at stone 0/3 after repeated water ascends.
+Both fresh `764146a` Survival failures and primary retreat remain open. Earlier `a30df80` passes all 24 CI profiles but its saved-world replay FAILS. The [checkpoint history](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) retains those results and the earlier partial observer captures.
 
-Saved-world replays preserve the original save and frozen jars. Both `764146a` and diagnostic build `47c972c` pause at cobblestone 0/3. The latter captures five native calls with increasing progress before its observation window closes early. The full stall cause remains unproved. Its final screenshot is public and the client exits normally.
+A [recomputed-aim candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) also compiles locally and passes source review; its replay remains pending.
 
-Frozen `a30df80` keeps the ascent observable across water bobbing. Its manual saved-world replay FAILS at stone 0/3 after 63,038 ms, with a bounded trace, public final capture, and normal exit 0. Root-cause investigation and primary retreat remain open. The [checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-native-break-observer-status) records exact hashes, trace limits, and all 24 passing exact-source CI profiles. Both fresh `764146a` failures remain open. Preview 11 stays at `88f2b52`. The [next admission diagnostic](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-mining-admission-observer) compiles on 26.3 and passes independent source review; native verification remains pending.
+Preview 11 stays at `88f2b52`. These diagnostics establish no gameplay fix, fresh Survival pass, performance improvement, or release readiness.
 
 ### Historical main evidence
 

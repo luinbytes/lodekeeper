@@ -1237,6 +1237,7 @@ final class MovementController {
             }
             case DESCEND -> bot.getCustomGoalProcess().setGoalAndPath(new GoalYLevel(miningY));
             case MINE -> {
+                lease.set(settings.remainWithExistingLookDirection, false);
                 lease.set(settings.legitMineYLevel, miningY == Integer.MIN_VALUE ? (int) Math.floor(client.player.getY()) : miningY);
                 // Native quantity counts several drops. The request checks its exact output itself.
                 long scanStarted = System.nanoTime();
