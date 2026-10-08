@@ -253,9 +253,7 @@ final class CraftingAction {
                 Item item = GameCatalog.item(requirement.item());
                 String candidateKey = key(input.recipeSlot(), item);
                 long alreadyPlaced = placements.stream().filter(placement -> placement.budgetKey().equals(candidateKey)).count();
-                long alreadyPlacedForItem = placements.stream().filter(placement -> placement.item().equals(item)).count();
-                if (remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyPlaced
-                        || actions.count(item) <= alreadyPlacedForItem) continue;
+                if (remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyPlaced) continue;
                 AvailableInput available = findAvailableInput(item, input.ingredient());
                 if (available == null) continue;
                 selected = item;

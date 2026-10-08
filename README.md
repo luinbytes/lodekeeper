@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The [crafting input scan removal](docs/OWNED-PREVIEW-CHECKPOINT.md#crafting-input-scan-removal) has PASS source review for inspected native menus and passing local 1.21.1 and 26.3 builds. Native nine-case progression and current CI remain pending; no speedup is measured.
+
 Exact main `63db519` has passing local builds and [all 24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37785783576). Fresh 1.21.1 Normal Survival [FAILS after 275,614 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-primary-failure-and-creeper-control-at-63db519), with one diamond pickaxe, no armor, health 20, zero deaths and an empty cursor. A visible zombie was outside native attack reach; retreat found no safe stance. Two route-only creepers caused the existing hard pause.
 
 The separate [saved-world continuation](docs/OWNED-PREVIEW-CHECKPOINT.md#native-contact-evidence-at-63db519) completes all nine inventory targets using previously earned gear. A new skeleton records `NO_SIGHT` then `HIT` and clears after seven attacks. This does not reproduce the earlier stalled skeleton.

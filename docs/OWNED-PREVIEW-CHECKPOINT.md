@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+The [crafting input scan removal](#crafting-input-scan-removal) has native-menu source review PASS and passing local builds; native nine-case progression and current CI remain pending, with no measured speedup.
+
 Exact `63db519` [native contact evidence](#native-contact-evidence-at-63db519) supplies useful gate evidence for the bounded diagnostic. The primary saved-world continuation completes all nine goals and records `NO_SIGHT` then `HIT` for a new skeleton. The modern prepared live-contact control passes with the cow and shell intact and its table left in place. Combat policy is unchanged. The original stalled skeleton, terminal-budget capture, and full cleanup remain unproved. [CI 37785783576](https://github.com/luinbytes/lodekeeper/actions/runs/37785783576) finishes SUCCESS with all 24 profiles passing. [Fresh primary FAILS after 275,614 ms](#fresh-primary-failure-and-creeper-control-at-63db519) with one diamond pickaxe, no armor and health 20. The existing primary live-creeper control PASS is separate. Fresh modern is unrun. No original-failure fix or Preview 12 is claimed.
 
 Exact main `0cbe78a` [late-table stock reconsideration](#late-table-stock-reconsideration) has CLEAN source review and passing local builds, with all 315 primary and 268 modern existing checks executed. [CI 37779110443](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443) finishes SUCCESS with all 24 compile, check, and package profiles passing. CI ZIP bytes were not independently hashed or equated with the frozen local jars.
@@ -804,6 +806,19 @@ All nineteen originals pass recorded anonymous byte/hash checks and logged-out d
 
 These prepared results preserve the separate fresh modern PASS and primary FAIL below. They establish no fresh-world comparison, comparative speed, general reliability, or complete cleanup. They precede the nearest-scan repair below and establish no scan-fix result. Preview 11 remains at `88f2b52`; no Preview 12 is published.
 
+### Crafting input scan removal
+
+The two-`CraftingAction` deletion is based on main `3f3b5fbfdeeada89bfa8b67aec8913a7a1a7904a`. Source review `/tmp/lodekeeper-main-crafting-scan-removal-review-r1.md` is PASS for inspected native 1.21.1 and 26.3 table and player menus. Duplicate aggregate scans are removed; per-slot capacity remains guarded. Custom aliased or virtual storage layouts are outside that proof, with no equivalence claim for all admitted subclasses. Shortages may do more work. No speedup or gameplay throughput gain is measured.
+
+The [build proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-crafting-scan-builds.json) records both builds PASS and 315 primary and 268 modern existing checks, with zero failures, errors, or skips. It preserves build logs and executed test-task lines. Modern kernel tests are `NO-SOURCE`.
+
+| Minecraft | Built jar SHA-256 |
+| --- | --- |
+| 1.21.1 | `cf600cf7e84a4f12ccb5b55e15c54a51e7abbbdd84e8d0b193de52d95f55d8d2` |
+| 26.3 | `69b8b5ca32b87268b450ecd8f388d41e3bc83166bd0b8998e199aa7af82893bb` |
+
+Native nine-case progression on these jars and current CI remain pending. Older native and CI results below retain their original scope. No new release or runtime acceptance is established.
+
 ### Bounded contact decision capture
 
 The two `ThreatResponseAction` mirrors add a private debug capture around contact selection. Each UUID records its last actual ordered gate: `NOT_EVALUATED`, `INELIGIBLE`, `NO_SIGHT`, `OUT_OF_REACH`, or `HIT`. `NO_SIGHT` leaves native reach unevaluated. The normal selection result and revalidation/fallback stage remain separate. Fallback reseeds the rows; UUID order, rather than distance order, controls comparison.
@@ -853,6 +868,12 @@ The [existing primary creeper control](https://github.com/luinbytes/lodekeeper/r
 | Final CI | 101,572 | `de5cc825644ea9622ba813d7046ea013f8bfbb4bc8ddc6b78d451551b591a7cf` |
 
 Sibling upload receipts record anonymous byte/hash read-back. The [early primary frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-63db519-primary-early-screenshots.json), [four final-run frames](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-63db519-primary-final-screenshots.json) and [creeper control frame](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-63db519-primary-creeper-screenshots.json) preserve six original PNGs. All decode while logged out before twelve local original/staging copies are deleted. Early and pickaxe milestone frames precede FAIL. Final chat and native receipts establish the pause despite the HUD retaining its prior WORKING frame. These six join the four continuation/contact originals above, ten public originals and twenty deleted local copies in total for this source. No videos were recorded.
+
+#### Saved route-creeper baseline at 63db519
+
+The historical [saved baseline proof](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-63db519-route-creeper-baseline.json) is 46,591 bytes, SHA-256 `d9d9c3c0ed49dab5cee19e52bf493802ee0251b78be4aaa2e673feabcc40c2c0`. An ordinary command runs on an initially byte-identical saved-world clone with verification disabled. Five attacks kill the original zombie. A second zombie receives one attack before sight and reach refusals, then the empty retreat search pauses with two distant route creepers. This is `SAVED_CONTINUATION_FAIL_NO_RETREAT_STANCE`; it establishes neither the exact original failure tick nor a fresh Survival pass or tested fix.
+
+Provenance verifies 453 production classes through Fabric runtime remapping with zero violations. The original world and frozen production jar remain unchanged. Local proof and upload/browser receipts share `/tmp/lodekeeper-main-63db519-route-creeper-baseline-`. The [screenshot manifest](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-63db519-route-creeper-baseline-screenshots.json) records two public original PNGs with anonymous byte/hash and logged-out browser verification before four local copies are deleted. The earlier ten-capture/twenty-copy record above remains scoped to its earlier sets; this baseline brings the source total to twelve public captures and twenty-four deleted local copies.
 
 ### Late-table stock reconsideration
 

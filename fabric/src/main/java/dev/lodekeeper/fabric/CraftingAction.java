@@ -302,9 +302,7 @@ final class CraftingAction {
                 Item item = GameCatalog.item(choice.item());
                 String candidateKey = key(input.slot(), item);
                 long alreadyForSlot = placements.stream().filter(placement -> placement.budgetKey.equals(candidateKey)).count();
-                long alreadyForItem = placements.stream().filter(placement -> placement.item.equals(item)).count();
-                if (remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyForSlot
-                        || actions.count(item) <= alreadyForItem) continue;
+                if (remainingMaterials.getOrDefault(candidateKey, 0) <= alreadyForSlot) continue;
                 var source = findAvailableInput(item, input.predicate());
                 if (source == null) continue;
                 selected = item;
