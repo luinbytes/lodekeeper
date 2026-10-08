@@ -22,7 +22,9 @@ After an exact final cursor return, same-item, same-component growth in the sour
 
 ### PICKUP mismatch at main a32cf74
 
-Current main adds [bounded client-side PICKUP diagnostics](OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation) to investigate this mismatch. Its 26.3 build passes; source review is CLEAN and exact-jar replay remains pending. Strict receipts remain unchanged.
+Exact main `75a66bb` adds [bounded client-side PICKUP diagnostics](OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). Its 26.3 build passes and source review is CLEAN. Three original-world clone replays accept five, two, and two transfers. The first PICKUP has live and prior full source four before prediction in replays one and two, then predicts and receives four. Replay three has source three in both states, predicts three, and receives three. These positive pre-click full-source observations apply only to the passing comparisons. The observer remains debug-only; strict receipt validation is unchanged.
+
+Replay one later fails retreat selection and pauses at health 20, then dies to a zombie twenty seconds later. Replays two and three deliberately quit normally after stone crafting and table carry, with food and further cobblestone gathering also observed in replay three. None establishes full gear, fresh Survival, retreat acceptance, or complete station recovery. These results do not fix or disprove the historical mismatch below.
 
 The [saved-world replay](OWNED-PREVIEW-CHECKPOINT.md#saved-world-stone-progress-and-pickup-pause-at-a32cf74) advances from stone gathering to stone-pickaxe crafting, then fails before drag. The first PICKUP expects an empty source and cursor three. The coherent full reply has an empty watched source/grid and cursor four, with full and live revisions both three. Exact validation pauses the preserved open transaction with no accepted pickup, so no DRAG, PLACE, or RETURN is authorized. This is separate from the older hybrid full/partial receipt failure. The pre-drag exception requires a confirmed pickup and cannot apply here.
 

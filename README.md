@@ -119,13 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-Current main adds [bounded crafting PICKUP diagnostics](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). The 26.3 build passes 268 existing checks, with 265 cached and three rerun. Source review is CLEAN; exact-jar replay is pending. Receipt acceptance is unchanged.
+Frozen main `75a66bb` adds [bounded crafting PICKUP diagnostics](docs/OWNED-PREVIEW-CHECKPOINT.md#bounded-crafting-pickup-observation). The 26.3 build passes 268 existing checks, with 265 cached and three rerun; source review is CLEAN. Three original-world clone replays accept five, two, and two transfers. The first PICKUP starts with four cobblestone in live and prior full state in replays one and two, then predicts and receives four. Replay three starts, predicts, and receives three. Exact receipt acceptance is unchanged.
 
-Frozen main `a32cf74` passes CLEAN source review and the 26.3 build with 268 existing checks, 265 cached and three rerun. Its [shallow-water replay](docs/OWNED-PREVIEW-CHECKPOINT.md#shallow-water-mining-preparation) clears the original stone 0/3 stall. Sixteen accepted records stay grounded at Y62 with air 300 and health 20; cobblestone satisfies the prerequisite with zero native movement timeouts. The full command then PAUSES during crafting PICKUP, expecting cursor 3 but receiving a coherent full cursor 4. Server refusal and late-pickup causality remain unproved.
+Replay one later exhausts retreat selection across 23 hazards, 1,212 columns, and 265 heights, with zero goals. It pauses at health 20 at 09:42:14; a zombie kills the player twenty seconds later. Replays two and three end through deliberate normal quits after stone crafting and table carry. Each has sixteen accepted shallow rows, zero native movement timeouts, unchanged original world and jar, and no provenance violations. Nine PNGs pass recorded upload and browser checks; eighteen local copies are deleted.
 
-The existing prepared-air fixture PASS restores air 300, has zero deaths, and crafts one bucket with zero shallow acceptances. Physical Space during shallow preparation pauses persistently. Explicit resume crafts the stone pickaxe, recovers the table, then pursues food. The second airborne check remains incomplete.
-
-[CI 37746371132](https://github.com/luinbytes/lodekeeper/actions/runs/37746371132) completes successfully at exact `a32cf74`, with all 24 compile, check, and package profiles passing. [Historical evidence](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) remains source-scoped. Full gear, fresh primary Survival, retreat, complete station recovery, and Preview 12 remain open. Preview 11 stays at `88f2b52`.
+The earlier `a32cf74` expected-three/full-four failure remains unresolved. Server refusal, source growth, and packet attribution remain unproved. Full gear, fresh Survival, retreat, and complete station recovery remain open. [Exact-source CI 37751123849](https://github.com/luinbytes/lodekeeper/actions/runs/37751123849) passes all 24 compile, check, and package profiles. Preview 11 stays at `88f2b52`.
 
 ### Historical main evidence
 
