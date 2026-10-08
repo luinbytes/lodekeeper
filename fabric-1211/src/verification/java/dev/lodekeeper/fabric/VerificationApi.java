@@ -977,6 +977,11 @@ final class VerificationApi {
             java.util.function.Supplier<java.util.UUID> originalPlayerId,
             java.util.function.IntConsumer observeAttackAttempt) {
         java.util.UUID session = java.util.UUID.randomUUID();
+        int[] markerDiagnosticRecords = {0};
+        java.util.function.Consumer<String> markerDiagnostic = message -> {
+            if (markerDiagnosticRecords[0] < 32) System.out.println("[Lodekeeper verification] low-health marker record="
+                    + (++markerDiagnosticRecords[0]) + "/32 " + message);
+        };
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(ContactLowHealthMarker.ID, ContactLowHealthMarker.CODEC);
         boolean registered = net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(ContactLowHealthMarker.ID, (marker, context) -> {
             PreparedSafetyThreatFixture fixture = currentFixture.get();
@@ -1002,6 +1007,25 @@ final class VerificationApi {
                 low.mutationTick = serverTick;
                 fixture.contact.lastPlayerHealth = player.getHealth();
             } else if (marker.stage() == 1) {
+                if (markerDiagnosticRecords[0] < 32) {
+                    int diagnosticMutationTick = low.mutationTick, diagnosticFenceTick = low.fenceTick;
+                    boolean diagnosticOnGround = player.isOnGround();
+                    float diagnosticHealth = player.getHealth();
+                    markerDiagnostic.accept("event=onset-gate stage=1 serverTick=" + serverTick
+                        + " session=" + marker.session() + " expectedSession=" + session
+                        + " fixture=" + marker.fixture() + " currentFixture=" + fixture.zombie.getUuid()
+                        + " fixtureIdentity=" + System.identityHashCode(fixture) + " player=" + player.getUuid()
+                        + " playerIdentity=" + System.identityHashCode(player) + " ownerIdentity=" + System.identityHashCode(low.owner)
+                        + " connectionIdentity=" + System.identityHashCode(player.networkHandler)
+                        + " originalConnectionIdentity=" + System.identityHashCode(low.connection)
+                        + " contextAlreadyAdmitted=true originalPlayerMatch=true ownerMatch=true connectionMatch=true"
+                        + " health=" + diagnosticHealth + " onGround=" + diagnosticOnGround
+                        + " mutationTick=" + diagnosticMutationTick + " fenceTick=" + diagnosticFenceTick
+                        + " rejectMutationMissing=" + (diagnosticMutationTick < 0) + " rejectFencePresent=" + (diagnosticFenceTick >= 0)
+                        + " rejectGrounded=" + diagnosticOnGround + " rejectHealthAboveSix=" + (diagnosticHealth > 6.0F)
+                        + " admitted=" + !(diagnosticMutationTick < 0 || diagnosticFenceTick >= 0 || diagnosticOnGround || diagnosticHealth > 6.0F)
+                        + " priorFailure=" + low.failure + " confirmedDamageEvents=" + low.confirmedDamageEvents);
+                }
                 if (low.mutationTick < 0 || low.fenceTick >= 0 || player.isOnGround() || player.getHealth() > 6.0F) {
                     low.failure = "low-health onset fence missed native airborne health or was repeated";
                     return;
@@ -1023,6 +1047,7 @@ final class VerificationApi {
             private java.util.UUID fixtureId;
             private Object player, connection, world;
             private boolean onset;
+            private int clientMarkerDiagnosticRecords;
 
             private boolean sameContext(PreparedSafetyThreatFixture fixture, MinecraftClient client) {
                 return fixture == originalFixture && fixture != null && fixtureId.equals(fixture.zombie.getUuid())
@@ -1047,6 +1072,13 @@ final class VerificationApi {
                 if (!sameContext(fixture, client))
                     throw new IllegalStateException("low-health original client player, connection or fixture changed");
                 if (stage == 1) onset = true;
+                if (stage == 1 && clientMarkerDiagnosticRecords < 8) System.out.println("[Lodekeeper verification] low-health client marker record="
+                    + (++clientMarkerDiagnosticRecords) + "/8 event=onset-send stage=1 session=" + session + " fixture=" + fixtureId
+                    + " fixtureIdentity=" + System.identityHashCode(fixture) + " player=" + client.player.getUuid()
+                    + " playerIdentity=" + System.identityHashCode(client.player) + " connectionIdentity=" + System.identityHashCode(connection)
+                    + " worldIdentity=" + System.identityHashCode(world) + " contextAlreadyAdmitted=true"
+                    + " clientWorldTick=" + (client.world == null ? "unknown" : client.world.getTime())
+                    + " clientPlayerAge=" + client.player.age + " health=" + client.player.getHealth() + " onGround=" + client.player.isOnGround());
                 net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new ContactLowHealthMarker(session, fixtureId, stage));
             }
         }

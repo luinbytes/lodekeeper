@@ -119,9 +119,17 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
-The [active-threat retreat snapshot correction](docs/OWNED-PREVIEW-CHECKPOINT.md#active-threats-in-retreat-hazard-snapshots) has CLEAN source review and passing exact 1.21.1/26.3 builds. Native verification and candidate CI are pending.
+Exact production `4aa1cc4` has [CLEAN review and passing builds](docs/OWNED-PREVIEW-CHECKPOINT.md#active-threats-in-retreat-hazard-snapshots), with 315 primary and 268 modern checks. [CI](https://github.com/luinbytes/lodekeeper/actions/runs/37809197303) finishes SUCCESS with all 24 jobs passing, rechecked on 8 October at 16:52 UTC.
 
-The modern [health-six rerun with verifier `d41f41f`](docs/OWNED-PREVIEW-CHECKPOINT.md#health-six-fixture-clock-ordering) PASS closes this controlled gate on unchanged frozen production `98b1709`. It observes airborne health 6, zero later attacks or damage, supported landing, full cancellation and restoration, then the expected no-route pause with the bucket request preserved. Source review is CLEAN and the 26.3 verifier compile passes; `d41f41f` CI remains unknown/pending.
+Four of six [prepared controls](docs/OWNED-PREVIEW-CHECKPOINT.md#native-controls-and-saved-replay-at-4aa1cc4) PASS. Both creeper and water pairs complete one bucket at health 20 with protected resources; all four tables remain LEFT. Both health-six controls FAIL at the native onset fence after accepted server mutation from 17 to 6. Zero recorded later attacks or outgoing damage proves neither accepted fences nor full restoration.
+
+The [saved 26.3 replay](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-active-creeper-membership-at-4aa1cc4) confirms initial active-creeper membership eight blocks below with clearance 20. Gameplay FAILS with no path or full gear, paused at health 20. Exact live bounding-box exclusion was not separately measured. Live refresh, primed retention, cap behavior, fresh Survival, and safe escape remain unproved. Queued screenshots do not prove fence timing.
+
+Bounded stage-one diagnostics have CLEAN source review and passing verifier compiles on both versions; native diagnosis is pending. Production is unchanged. Earlier health-six passes remain historical. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+
+### Historical main evidence
+
+The modern [health-six rerun with verifier `d41f41f`](docs/OWNED-PREVIEW-CHECKPOINT.md#health-six-fixture-clock-ordering) is a historical PASS for that prepared case on unchanged frozen production `98b1709`. It observes airborne health 6, zero later attacks or damage, supported landing, full cancellation and restoration, then the expected no-route pause with the bucket request preserved. Source review is CLEAN and the 26.3 verifier compile passes; `d41f41f` [final CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-d41f41f-ci.json) is CANCELLED with 17 successful and seven cancelled jobs.
 
 Production `98b1709` [creeper discovery and blocked retreat](docs/OWNED-PREVIEW-CHECKPOINT.md#creeper-discovery-and-blocked-retreat) has CLEAN source review, passing local builds, and [all 24 CI jobs passing](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-ci.json). Its historical paired controls retain nine of ten PASS results, including the modern health-six FAIL. [Verifier `811a466` separately FAILS after a rejected mutation](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-811a466-health-six-diagnostic.json). The rerun above establishes bounded refusal with zero buckets. [Fresh 1.21.1 Survival](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-fresh-primary.json) and [fresh 26.3 Survival](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-98b1709-fresh-modern.json) both remain FAIL after one diamond pickaxe. Successful fresh Survival and safe escape remain open.
 
@@ -133,7 +141,7 @@ The separate [saved-world continuation](docs/OWNED-PREVIEW-CHECKPOINT.md#native-
 
 Existing modern live-contact and primary live-creeper controls PASS. Both complete a bucket goal with an empty cursor and stopped navigation, but leave their tables. Full cleanup and terminal-budget capture remain unproved. Fresh modern is unrun at this source. Preview 11 remains `88f2b52`; no Preview 12 is published.
 
-### Historical main evidence
+### Earlier main evidence
 
 Exact main `0cbe78a` has passing local 1.21.1 and 26.3 builds, CLEAN source review, and [24/24 successful CI jobs](https://github.com/luinbytes/lodekeeper/actions/runs/37779110443). Fresh Normal Survival `gear_diamond` FAILS on both frozen local jars. Primary fails after 603,636 ms with a diamond pickaxe, axe, hoe, and four equipped armor pieces; shovel and sword are missing. Modern fails after 336,722 ms with only a diamond pickaxe and no armor.
 

@@ -1033,6 +1033,26 @@ final class VerificationApi {
                 markerDiagnostic.accept("event=mutation-complete serverTick=" + player.level().getServer().getTickCount()
                     + " health=" + player.getHealth() + " onGround=" + player.onGround() + " mutationTick=" + low.mutationTick);
             } else if (marker.stage() == 1) {
+                if (markerDiagnosticRecords[0] < 32) {
+                    int diagnosticMutationTick = low.mutationTick, diagnosticFenceTick = low.fenceTick;
+                    boolean diagnosticOnGround = player.onGround();
+                    float diagnosticHealth = player.getHealth();
+                    markerDiagnostic.accept("event=onset-gate stage=1 serverTick=" + serverTick
+                        + " session=" + marker.session() + " expectedSession=" + session
+                        + " fixture=" + marker.fixture() + " currentFixture=" + fixture.zombie.getUUID()
+                        + " fixtureIdentity=" + System.identityHashCode(fixture) + " player=" + player.getUUID()
+                        + " playerIdentity=" + System.identityHashCode(player) + " ownerIdentity=" + System.identityHashCode(low.owner)
+                        + " connectionIdentity=" + System.identityHashCode(player.connection)
+                        + " originalConnectionIdentity=" + System.identityHashCode(low.connection)
+                        + " worldIdentity=" + System.identityHashCode(low.world) + " playerWorldIdentity=" + System.identityHashCode(player.level())
+                        + " contextAlreadyAdmitted=true originalPlayerMatch=true ownerMatch=true connectionMatch=true"
+                        + " health=" + diagnosticHealth + " onGround=" + diagnosticOnGround
+                        + " mutationTick=" + diagnosticMutationTick + " fenceTick=" + diagnosticFenceTick
+                        + " rejectMutationMissing=" + (diagnosticMutationTick < 0) + " rejectFencePresent=" + (diagnosticFenceTick >= 0)
+                        + " rejectGrounded=" + diagnosticOnGround + " rejectHealthAboveSix=" + (diagnosticHealth > 6.0F)
+                        + " admitted=" + !(diagnosticMutationTick < 0 || diagnosticFenceTick >= 0 || diagnosticOnGround || diagnosticHealth > 6.0F)
+                        + " priorFailure=" + low.failure + " confirmedDamageEvents=" + low.confirmedDamageEvents);
+                }
                 if (low.mutationTick < 0 || low.fenceTick >= 0 || player.onGround() || player.getHealth() > 6.0F) {
                     low.failure = "low-health onset fence missed native airborne health or was repeated";
                     return;
@@ -1054,6 +1074,7 @@ final class VerificationApi {
             private java.util.UUID fixtureId;
             private Object player, connection, world;
             private boolean onset;
+            private int clientMarkerDiagnosticRecords;
 
             private boolean sameContext(PreparedSafetyThreatFixture fixture, net.minecraft.client.Minecraft client) {
                 return originalFixture != null && fixture == originalFixture && fixtureId.equals(fixture.zombie.getUUID())
@@ -1082,6 +1103,13 @@ final class VerificationApi {
                 if (!sameContext(fixture, client))
                     throw new IllegalStateException("low-health original client player, connection or fixture changed");
                 if (stage == 1) onset = true;
+                if (stage == 1 && clientMarkerDiagnosticRecords < 8) System.out.println("[Lodekeeper verification] low-health client marker record="
+                    + (++clientMarkerDiagnosticRecords) + "/8 event=onset-send stage=1 session=" + session + " fixture=" + fixtureId
+                    + " fixtureIdentity=" + System.identityHashCode(fixture) + " player=" + client.player.getUUID()
+                    + " playerIdentity=" + System.identityHashCode(client.player) + " connectionIdentity=" + System.identityHashCode(connection)
+                    + " worldIdentity=" + System.identityHashCode(world) + " contextAlreadyAdmitted=true"
+                    + " clientWorldTick=" + client.level.getGameTime()
+                    + " clientPlayerAge=" + client.player.tickCount + " health=" + client.player.getHealth() + " onGround=" + client.player.onGround());
                 net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new ContactLowHealthMarker(session, fixtureId, stage));
             }
         }
