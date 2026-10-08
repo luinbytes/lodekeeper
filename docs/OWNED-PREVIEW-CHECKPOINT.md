@@ -6,6 +6,8 @@ At `88f2b52`, fresh 26.3 survival fails after 63,753 ms during the third skeleto
 
 ## Latest main evidence
 
+The [creeper discovery and blocked retreat candidate](#creeper-discovery-and-blocked-retreat) has CLEAN source review and passing local builds, with candidate CI and native verification pending.
+
 Exact `995ccb3` [crafting input scan removal](#crafting-input-scan-removal) passes native-menu source review, local builds, nine controlled progression cases on each primary version, and all 24 CI jobs. The CI response was captured on 8 October 2026 at 14:49 UTC. No speedup or fresh Survival result is established.
 
 Exact `63db519` [native contact evidence](#native-contact-evidence-at-63db519) supplies useful gate evidence for the bounded diagnostic. The primary saved-world continuation completes all nine goals and records `NO_SIGHT` then `HIT` for a new skeleton. The modern prepared live-contact control passes with the cow and shell intact and its table left in place. Combat policy is unchanged. The original stalled skeleton, terminal-budget capture, and full cleanup remain unproved. [CI 37785783576](https://github.com/luinbytes/lodekeeper/actions/runs/37785783576) finishes SUCCESS with all 24 profiles passing. [Fresh primary FAILS after 275,614 ms](#fresh-primary-failure-and-creeper-control-at-63db519) with one diamond pickaxe, no armor and health 20. The existing primary live-creeper control PASS is separate. Fresh modern is unrun. No original-failure fix or Preview 12 is claimed.
@@ -828,6 +830,27 @@ The [native progression proof](https://github.com/luinbytes/lodekeeper/releases/
 The proof and manifests have recorded anonymous HTTP 200 with matching byte/hash read-back. Primary has ten original PNGs, nine queued case frames and one in-progress route frame. Modern has seven in-progress route frames. Queued frames do not establish exact item-receipt timing, and modern captures precede completion. The separate final native receipts establish both PASS results. All seventeen public PNGs have recorded anonymous byte/hash verification and logged-out browser decoding at 640 by 360 before all 34 local original and staging copies are deleted, with zero pending copies. Local proof and upload receipt are `/tmp/lodekeeper-main-995ccb3-progression-proof.json` and `/tmp/lodekeeper-main-995ccb3-progression-proof-upload-receipt.json`. Runner, screenshot-upload, and browser receipts share `/tmp/lodekeeper-main-995ccb3-progression-{primary,modern}` prefixes.
 
 The [GitHub response captured on 8 October 2026 at 14:49:10 UTC](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-ci.json) records [CI 37792458692](https://github.com/luinbytes/lodekeeper/actions/runs/37792458692) at exact `995ccb30a23270b7035ba1fb435d470c1fd1fcd2` as completed SUCCESS, with all 24 jobs passing. The captured JSON is 79768 bytes, SHA-256 `7f7d29d7ebe382301c02fa7e6d920a0d51765ff087839a289650710164bf19b5`. Local/CI jar byte equality remains unproved. Older native and CI results below retain their original scope. Preview 11 remains at `88f2b52`; no Preview 12 or runtime acceptance is established.
+
+### Creeper discovery and blocked retreat
+
+The discovery and fallback changes below have CLEAN source review and passing local builds.
+
+Eligible unseen creepers strictly inside 10 blocks qualify without sight or player targeting. Eligible primed creepers qualify throughout the existing 12-block expanded discovery box. Eligible tracked primed creepers remain active beyond the phase-distance cutoff. Blocked-retreat contact fallback uses active creepers for its creeper veto. Full route hazards, overflow, stance, and live-prefix guards remain unchanged, as do the 16-threat cap, 15-second and 300-tick budget, 32-block displacement, four starts, and two arrivals. Eligibility, attack, low-health, and ownership guards remain unchanged.
+
+Modern optional settling returns `false` on readiness failure, preserving native forced jump. This promises no global pause.
+
+Local build proof `/tmp/lodekeeper-main-creeper-discovery-build-proof.json` records 315 primary and 268 modern existing checks executed, zero failures, errors, or skips, modern kernel `NO-SOURCE`, and artifact inspection PASS.
+
+| Minecraft | Candidate jar SHA-256 |
+| --- | --- |
+| 1.21.1 | `fd744666e19120f9dfc2b6c6be1f76fe77258cc53d3aa185c12063abc83a437a` |
+| 26.3 | `2c1b7d4d4a60333d13d9475412e94b3751b5fdd67ea084714444160e14bf7570` |
+
+Frozen `995ccb3` baselines exclude this change. [Health-six](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-low-health-baseline.json) PASS on both versions confirms supported hop landing and zero post-onset attacks, followed by the expected no-route pause with the bucket goal unfinished. Existing water-retreat [primary](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-water-retreat-baseline-primary.json) and [modern](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-water-retreat-baseline-modern.json) PASS retain health 20, protected mobs and equipment, and one bucket. Both leave the table.
+
+Upload and browser receipts verify four public original PNGs before eight local copies were deleted. Health frames may precede the actual health-six receipt.
+
+No candidate runtime proof exists, and unseen-entry or primed-case coverage is absent. Candidate CI and native verification remain pending. No speedup or fresh Survival claim follows. Preview 11 remains `88f2b52`; no Preview 12 is published.
 
 ### Bounded contact decision capture
 

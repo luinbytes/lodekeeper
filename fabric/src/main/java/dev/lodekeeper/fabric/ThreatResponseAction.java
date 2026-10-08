@@ -3,6 +3,7 @@ package dev.lodekeeper.fabric;
 import dev.lodekeeper.core.ItemId;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Hand;
@@ -566,7 +567,7 @@ final class ThreatResponseAction {
         if (retreatStarts >= MAX_RETREAT_STARTS || completedRetreats >= MAX_COMPLETED_RETREATS) {
             if (responseIntent == ResponseIntent.RETREAT_REQUIRED)
                 throw new IllegalStateException("low-health required retreat exceeded bounded retreat routes");
-            if (hazards.stream().anyMatch(RouteHazard::creeper))
+            if (threats.stream().anyMatch(ThreatResponseAction::creeper))
                 throw new IllegalStateException("active creeper remained after bounded retreat routes");
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
@@ -585,7 +586,7 @@ final class ThreatResponseAction {
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.NO_RETREAT_STANCE
                     || responseIntent == ResponseIntent.RETREAT_REQUIRED
-                    || hazards.stream().anyMatch(RouteHazard::creeper)) throw failure;
+                    || threats.stream().anyMatch(ThreatResponseAction::creeper)) throw failure;
             retreatBlocked = true;
             phase = Phase.CONTACT_WAIT;
             status = "waiting for live contact without an open retreat";
@@ -655,7 +656,9 @@ final class ThreatResponseAction {
         if (client.player == null || client.world == null) return List.of();
         List<MobEntity> threats = client.world.getEntitiesByClass(MobEntity.class,
                 client.player.getBoundingBox().expand(12.0), mob -> eligible(mob) && (
-                        mob.getTarget() == client.player && client.player.squaredDistanceTo(mob) < clearanceSquared(mob)
+                        primedCreeper(mob)
+                        || creeper(mob) && client.player.squaredDistanceTo(mob) < clearanceSquared(mob)
+                        || mob.getTarget() == client.player && client.player.squaredDistanceTo(mob) < clearanceSquared(mob)
                         || mob.getTarget() == null && client.player.squaredDistanceTo(mob) <= 36.0 && client.player.canSee(mob)));
         if (threats.size() > MAX_THREATS) throw new IllegalStateException("too many nearby threats for bounded defense");
         return threats.stream().sorted(Comparator.comparingDouble(client.player::squaredDistanceTo)).toList();
@@ -668,6 +671,7 @@ final class ThreatResponseAction {
         }
         return tracked.stream().filter(this::eligible)
                 .filter(mob -> {
+                    if (primedCreeper(mob)) return true;
                     double clearance = Math.sqrt(clearanceSquared(mob));
                     if (phase == Phase.RETREAT || phase == Phase.FINISHING)
                         clearance += creeper(mob) ? 6 : 2;
@@ -684,6 +688,17 @@ final class ThreatResponseAction {
 
     private static boolean creeper(MobEntity mob) { return mob.getType() == EntityType.CREEPER; }
     private static double clearanceSquared(MobEntity mob) { return creeper(mob) ? 100.0 : 64.0; }
+
+    private static boolean primedCreeper(MobEntity mob) {
+        try {
+            if (!creeper(mob)) return false;
+            if (!(mob instanceof CreeperEntity nativeCreeper))
+                throw new IllegalStateException("creeper native class unavailable");
+            return nativeCreeper.isIgnited() || nativeCreeper.getFuseSpeed() > 0;
+        } catch (LinkageError unavailablePriming) {
+            throw new IllegalStateException("creeper priming unavailable", unavailablePriming);
+        }
+    }
 
     private boolean canHit(MobEntity mob) {
         if (contactCapture == null || !contactCapture.collecting || !movement.debugLogging()) {

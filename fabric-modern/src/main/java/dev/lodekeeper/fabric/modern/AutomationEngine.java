@@ -488,7 +488,13 @@ final class AutomationEngine {
                 || !moving || movingPickup || world != client.level || client.player == null || client.level == null
                 || editingSettings() || GameApi.screen(client) != null || pendingPlan != null
                 || airRecovery.active() || airRecovery.ready() || healthRecovery != null
-                || threats.active() || threats.ready() || equipment.active() || food.active() || foodAcquisition.active()
+                || threats.active()) return false;
+        try {
+            if (threats.ready()) return false;
+        } catch (RuntimeException unavailableThreatReadiness) {
+            return false;
+        }
+        if (equipment.active() || food.active() || foodAcquisition.active()
                 || openingStation || transactionInProgress() || crafting != null || stonecutting != null || smelting != null
                 || stationPlacementWait != null || cleanupRun != null || stationRecovery.active() || stationRoom.active()
                 || client.player.containerMenu != client.player.inventoryMenu

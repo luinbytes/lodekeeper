@@ -119,6 +119,8 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The [creeper discovery and blocked retreat candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#creeper-discovery-and-blocked-retreat) has CLEAN source review and passing local builds, with candidate CI and native verification pending.
+
 Exact main `995ccb3` [crafting input scan removal](docs/OWNED-PREVIEW-CHECKPOINT.md#crafting-input-scan-removal) has PASS source review for inspected native menus, passing local builds, and [nine controlled progression cases passing on each primary version](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-progression.json). Both settings round trips and native leases pass with restoration confirmed. [All 24 CI jobs passed](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-995ccb3-ci.json), verified on 8 October 2026 at 14:49 UTC. No speedup or fresh Survival result is established.
 
 Exact main `63db519` has passing local builds and [all 24 CI profiles](https://github.com/luinbytes/lodekeeper/actions/runs/37785783576). Fresh 1.21.1 Normal Survival [FAILS after 275,614 ms](docs/OWNED-PREVIEW-CHECKPOINT.md#fresh-primary-failure-and-creeper-control-at-63db519), with one diamond pickaxe, no armor, health 20, zero deaths and an empty cursor. A visible zombie was outside native attack reach; retreat found no safe stance. Two route-only creepers caused the existing hard pause.
