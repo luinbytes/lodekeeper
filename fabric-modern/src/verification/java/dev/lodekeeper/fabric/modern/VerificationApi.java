@@ -680,6 +680,7 @@ final class VerificationApi {
     }
 
     static PreparedSafetyThreatFixture seedPreparedSafetyThreatFixture(ServerPlayer player, ServerLevel world) {
+        if (Boolean.getBoolean("lodekeeper.verify.threatStaircase")) return seedPreparedSafetyStaircase(player, world);
         boolean waterRetreat = Boolean.getBoolean("lodekeeper.verify.threatWaterRetreat");
         if (Boolean.getBoolean("lodekeeper.verify.threatContact")) return seedPreparedSafetyContactFixture(player, world);
         if (Boolean.getBoolean("lodekeeper.verify.threatCreeperContact")) {
@@ -773,6 +774,171 @@ final class VerificationApi {
             : new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth());
     }
 
+    private static int staircaseFeetY(int x) {
+        return 64 + Math.max(0, x - 9);
+    }
+
+    private static boolean staircaseAirCell(int x, int y, int z) {
+        if (x >= 0 && x <= 13 && z >= -1 && z <= 1)
+            return y >= staircaseFeetY(x) && y <= staircaseFeetY(x) + 3;
+        return (x == -7 && z == 0 || x == 20 && z == 20 || x == 18 && z == 20)
+            && y >= 64 && y <= 66;
+    }
+
+    private static PreparedSafetyThreatFixture seedPreparedSafetyStaircase(ServerPlayer player, ServerLevel world) {
+        player.level().getServer().tickRateManager().setFrozen(true);
+        for (int x = -21; x <= 21; x++) for (int z = -21; z <= 21; z++) for (int y = 63; y <= 85; y++)
+            world.setBlock(new BlockPos(x, y, z), (staircaseAirCell(x, y, z) ? Blocks.AIR : Blocks.BEDROCK).defaultBlockState(), 3);
+        if (!player.getInventory().add(new ItemStack(Items.DIAMOND_SWORD))
+                || !player.getInventory().add(new ItemStack(Items.WOODEN_PICKAXE))
+                || !player.getInventory().add(new ItemStack(Items.IRON_INGOT, 3))
+                || !player.getInventory().add(new ItemStack(Items.CRAFTING_TABLE)))
+            throw new IllegalStateException("could not seed staircase bucket materials and weapons");
+        player.getInventory().setSelectedSlot(0);
+        Mob zombie = preparedMob(world, "minecraft:zombie");
+        zombie.setPos(20.5, 64.0, 20.5);
+        zombie.setNoAi(true);
+        zombie.setHealth(4.0F);
+        Mob cow = preparedMob(world, "minecraft:cow");
+        cow.setPos(18.5, 64.0, 20.5);
+        cow.setNoAi(true);
+        Mob creeper = preparedMob(world, "minecraft:creeper");
+        creeper.setPos(-6.5, 64.0, 0.5);
+        creeper.setNoAi(true);
+        creeper.setHealth(20.0F);
+        if (!world.addFreshEntity(zombie) || !world.addFreshEntity(cow) || !world.addFreshEntity(creeper))
+            throw new IllegalStateException("could not spawn staircase threat and protected controls");
+        PreparedSafetyThreatFixture fixture = new PreparedSafetyThreatFixture(zombie, cow, cow.getHealth(), creeper);
+        fixture.staircase = new StaircaseObservation(player, world);
+        fixture.staircase.initialMined = staircaseBlocksMined(player);
+        fixture.staircase.initialBlockItemUses = staircaseBlockItemUses(player);
+        return fixture;
+    }
+
+    private static int staircaseBlocksMined(ServerPlayer player) {
+        int total = 0;
+        for (var block : BuiltInRegistries.BLOCK)
+            total += player.getStats().getValue(net.minecraft.stats.Stats.BLOCK_MINED.get(block));
+        return total;
+    }
+
+    private static int staircaseBlockItemUses(ServerPlayer player) {
+        int total = 0;
+        for (var item : BuiltInRegistries.ITEM) if (item instanceof net.minecraft.world.item.BlockItem)
+            total += player.getStats().getValue(net.minecraft.stats.Stats.ITEM_USED.get(item));
+        return total;
+    }
+
+    private static void appendStaircaseReceipt(Map<String, String> result, ServerPlayer player, PreparedSafetyThreatFixture fixture) {
+        StaircaseObservation observation = fixture.staircase;
+        if (observation == null) return;
+        int changed = 0;
+        for (int x = -21; x <= 21; x++) for (int z = -21; z <= 21; z++) for (int y = 63; y <= 85; y++)
+            if (!player.level().getBlockState(new BlockPos(x, y, z)).is(staircaseAirCell(x, y, z) ? Blocks.AIR : Blocks.BEDROCK)) changed++;
+        BlockPos feet = player.blockPosition();
+        boolean supported = feet.getX() == 13 && feet.getY() == 68 && feet.getZ() >= -1 && feet.getZ() <= 1
+            && player.onGround() && Math.abs(player.getY() - 68.0) <= 0.0625 && !player.isInWater()
+            && player.level().getBlockState(feet.below()).is(Blocks.BEDROCK)
+            && player.level().getBlockState(feet).isAir() && player.level().getBlockState(feet.above()).isAir();
+        result.put("staircaseBounds", "-21..21,63..85,-21..21");
+        result.put("staircaseCells", "42527");
+        result.put("staircaseSelectedSlot", Integer.toString(player.getInventory().getSelectedSlot()));
+        result.put("staircaseChangedCells", Integer.toString(changed));
+        result.put("staircaseSupportedEndpoint", Boolean.toString(supported));
+        result.put("staircaseHeightMask", Integer.toString(observation.heightMask));
+        result.put("staircaseHeightFirstServerTicks", java.util.Arrays.toString(observation.heightTicks));
+        result.put("staircaseReleaseServerTick", Integer.toString(observation.releaseServerTick));
+        result.put("staircasePauseFenceServerTick", Integer.toString(observation.pauseFenceServerTick));
+        result.put("staircaseMarkerFailure", observation.markerFailure);
+        result.put("staircaseObservedServerTicks", Integer.toString(observation.observedTicks));
+        result.put("staircaseMinimumPlayerHealth", Float.toString(observation.minimumPlayerHealth));
+        result.put("staircasePlayerAlive", Boolean.toString(player.isAlive()));
+        result.put("staircasePlayerDeaths", Integer.toString(player.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS))));
+        result.put("staircaseBlocksMined", Integer.toString(staircaseBlocksMined(player) - observation.initialMined));
+        result.put("staircaseBlockItemUses", Integer.toString(staircaseBlockItemUses(player) - observation.initialBlockItemUses));
+        result.put("staircaseClockFrozen", Boolean.toString(player.level().getServer().tickRateManager().isFrozen()));
+        result.put("staircaseCreeperAiEnabled", Boolean.toString(!fixture.creeper.isNoAi()));
+        result.put("staircaseCreeperPosition", fixture.creeper.getX() + "," + fixture.creeper.getY() + "," + fixture.creeper.getZ());
+    }
+
+    private static final class StaircaseObservation {
+        final ServerPlayer owner;
+        final Object connection;
+        final ServerLevel world;
+        int releaseServerTick = -1, observedTicks, heightMask, initialMined, initialBlockItemUses;
+        int pauseFenceServerTick = -1;
+        String markerFailure = "";
+        final int[] heightTicks = {-1, -1, -1, -1, -1};
+        float minimumPlayerHealth = 20.0F;
+        StaircaseObservation(ServerPlayer owner, ServerLevel world) {
+            this.owner = owner;
+            this.connection = owner.connection;
+            this.world = world;
+        }
+    }
+
+    private record StaircaseMarker(java.util.UUID session, java.util.UUID fixture, int stage)
+            implements net.minecraft.network.protocol.common.custom.CustomPacketPayload {
+        private static final Type<StaircaseMarker> ID = new Type<>(Identifier.fromNamespaceAndPath("lodekeeper-verification", "staircase_fence"));
+        private static final net.minecraft.network.codec.StreamCodec<net.minecraft.network.RegistryFriendlyByteBuf, StaircaseMarker> CODEC = new net.minecraft.network.codec.StreamCodec<>() {
+            @Override public StaircaseMarker decode(net.minecraft.network.RegistryFriendlyByteBuf buffer) {
+                return new StaircaseMarker(buffer.readUUID(), buffer.readUUID(), buffer.readInt());
+            }
+            @Override public void encode(net.minecraft.network.RegistryFriendlyByteBuf buffer, StaircaseMarker marker) {
+                buffer.writeUUID(marker.session()); buffer.writeUUID(marker.fixture()); buffer.writeInt(marker.stage());
+            }
+        };
+        @Override public Type<? extends net.minecraft.network.protocol.common.custom.CustomPacketPayload> type() { return ID; }
+    }
+
+    static java.util.function.IntConsumer registerStaircaseNetworking(
+            java.util.function.Supplier<PreparedSafetyThreatFixture> currentFixture,
+            java.util.function.Supplier<java.util.UUID> originalPlayerId) {
+        java.util.UUID session = java.util.UUID.randomUUID();
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(StaircaseMarker.ID, StaircaseMarker.CODEC);
+        boolean registered = net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(StaircaseMarker.ID, (marker, context) -> {
+            PreparedSafetyThreatFixture fixture = currentFixture.get();
+            if (fixture == null || fixture.staircase == null) return;
+            StaircaseObservation observation = fixture.staircase;
+            var player = context.player();
+            if (!session.equals(marker.session()) || !fixture.creeper.getUUID().equals(marker.fixture())
+                    || !player.getUUID().equals(originalPlayerId.get()) || observation.owner != player
+                    || observation.connection != player.connection || observation.world != player.level()) {
+                observation.markerFailure = "staircase marker original session, fixture, player, connection or world changed";
+                return;
+            }
+            if (!observation.markerFailure.isEmpty()) return;
+            if (marker.stage() == 0 && observation.releaseServerTick < 0
+                    && player.level().getServer().tickRateManager().isFrozen()) {
+                releasePreparedSafetyThreatClock(fixture, player);
+            } else if (marker.stage() == 1 && observation.releaseServerTick >= 0
+                    && observation.pauseFenceServerTick < 0 && !player.level().getServer().tickRateManager().isFrozen()) {
+                observation.pauseFenceServerTick = player.level().getServer().getTickCount();
+            } else observation.markerFailure = "staircase marker was repeated or out of order";
+        });
+        if (!registered) throw new IllegalStateException("staircase marker receiver already registered");
+        return new java.util.function.IntConsumer() {
+            private int nextStage;
+            private Object player, connection, world, fixtureIdentity;
+            @Override public void accept(int stage) {
+                var client = net.minecraft.client.Minecraft.getInstance();
+                PreparedSafetyThreatFixture fixture = currentFixture.get();
+                if (stage != nextStage || stage > 1 || fixture == null || fixture.staircase == null
+                        || client.player == null || client.level == null || client.getConnection() == null
+                        || !client.player.getUUID().equals(originalPlayerId.get())
+                        || !net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(StaircaseMarker.ID))
+                    throw new IllegalStateException("staircase marker unavailable or out of order");
+                if (stage == 0) {
+                    player = client.player; connection = client.getConnection(); world = client.level; fixtureIdentity = fixture;
+                }
+                if (player != client.player || connection != client.getConnection() || world != client.level || fixtureIdentity != fixture)
+                    throw new IllegalStateException("staircase original client context changed");
+                net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new StaircaseMarker(session, fixture.creeper.getUUID(), stage));
+                nextStage++;
+            }
+        };
+    }
+
     private static Mob preparedMob(ServerLevel world, String id) {
         var type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(id));
         var entity = type == null ? null : type.create(world, EntitySpawnReason.COMMAND);
@@ -856,7 +1022,9 @@ final class VerificationApi {
     }
 
     static void releasePreparedSafetyThreatClock(PreparedSafetyThreatFixture fixture, ServerPlayer player) {
-        if (fixture.contact != null) {
+        if (fixture.staircase != null) {
+            fixture.staircase.releaseServerTick = player.level().getServer().getTickCount();
+        } else if (fixture.contact != null) {
             fixture.contact.observing = true;
             fixture.contact.releaseServerTick = player.level().getServer().getTickCount();
         } else if (fixture.creeperContact) {
@@ -868,6 +1036,16 @@ final class VerificationApi {
     }
 
     static void observePreparedSafetyThreatTick(PreparedSafetyThreatFixture fixture, ServerPlayer player, int serverTick) {
+        if (fixture.staircase != null && fixture.staircase.releaseServerTick >= 0) {
+            StaircaseObservation observation = fixture.staircase;
+            observation.observedTicks++;
+            observation.minimumPlayerHealth = Math.min(observation.minimumPlayerHealth, player.getHealth());
+            int height = (int) Math.floor(player.getY()) - 64;
+            if (height >= 0 && height <= 4 && (observation.heightMask & 1 << height) == 0) {
+                observation.heightMask |= 1 << height;
+                observation.heightTicks[height] = serverTick;
+            }
+        }
         if (fixture.creeperContact && fixture.creeperContactReleaseServerTick >= 0) {
             fixture.creeperContactObservedServerTicks++;
             fixture.creeperContactMinimumPlayerHealth = Math.min(fixture.creeperContactMinimumPlayerHealth, player.getHealth());
@@ -1317,7 +1495,7 @@ final class VerificationApi {
                     net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.DEATHS))));
                 result.put("stoneSwordDamage", Integer.toString(player.getInventory().getItem(2).is(Items.STONE_SWORD)
                     ? player.getInventory().getItem(2).getDamageValue() : -1));
-            } else {
+            } else if (fixture.staircase == null) {
                 boolean roofPresent = true, waterPresent = true, floorPresent = true;
                 for (int z = -3; z <= -1; z++) roofPresent &= world.getBlockState(new BlockPos(0, 65, z)).is(Blocks.BEDROCK);
                 for (int x = -2; x <= 2; x++) for (int z = -3; z <= 3; z++) {
@@ -1336,10 +1514,12 @@ final class VerificationApi {
             }
         }
         appendContactThreatReceipt(result, player, fixture);
+        appendStaircaseReceipt(result, player, fixture);
         return Map.copyOf(result);
     }
 
     static final class PreparedSafetyThreatFixture {
+        private StaircaseObservation staircase;
         private ContactThreatObservation contact;
         private final Mob zombie;
         private final Mob cow;

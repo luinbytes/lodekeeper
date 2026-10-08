@@ -331,6 +331,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final boolean CONTACT_MANUAL_INPUT_MODE = "true".equals(CONTACT_MANUAL_INPUT_PROPERTY);
     private static final String THREAT_CREEPER_CONTACT_PROPERTY = System.getProperty("lodekeeper.verify.threatCreeperContact");
     private static final boolean THREAT_CREEPER_CONTACT_MODE = "true".equals(THREAT_CREEPER_CONTACT_PROPERTY);
+    private static final String THREAT_STAIRCASE_PROPERTY = System.getProperty("lodekeeper.verify.threatStaircase");
+    private static final boolean THREAT_STAIRCASE_MODE = "true".equals(THREAT_STAIRCASE_PROPERTY);
     private static final int PREPARED_SAFETY_SETUP_TIMEOUT_TICKS = 400;
     private static final int PREPARED_SAFETY_CASE_TIMEOUT_TICKS = 1_200;
     private static final String IRON_PICKAXE_ID = "minecraft:iron_pickaxe";
@@ -578,6 +580,14 @@ public final class RuntimeVerification implements ClientModInitializer {
     private PreparedSafetyPhase preparedSafetyPhase = PreparedSafetyPhase.NONE;
     private VerificationApi.PreparedSafetyThreatFixture preparedSafetyThreatFixture;
     private Map<String, String> activeInitialThreatReceipt = Map.of();
+    private final Map<String, String> staircaseReceipt = new LinkedHashMap<>();
+    private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> staircaseOriginalSettings = new LinkedHashMap<>();
+    private final Map<String, Object> staircaseOriginalConfig = new LinkedHashMap<>();
+    private Object staircaseOriginalInput, staircaseTaskIdentity;
+    private java.util.function.IntConsumer staircaseTransport;
+    private boolean staircaseRetreatObserved, staircaseArrivalObserved;
+    private int staircasePauseTick = -1, staircasePauseServerTick = -1;
+    private long staircasePauseObservationSequence = -1;
     private enum ContactLowHealthPhase { WAIT_FIRST_HOP, HEALTH_REQUESTED, ONSET_SENT, LANDED, PAUSED, COMPLETE }
     private ContactLowHealthPhase contactLowHealthPhase = ContactLowHealthPhase.WAIT_FIRST_HOP;
     private java.util.function.IntConsumer contactLowHealthTransport;
@@ -640,6 +650,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (!SETTINGS_UI_MODE && !WORLD_POLICY_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
                 && (THREAT_CREEPER_CONTACT_PROPERTY == null || "false".equals(THREAT_CREEPER_CONTACT_PROPERTY))
+                && (THREAT_STAIRCASE_PROPERTY == null || "false".equals(THREAT_STAIRCASE_PROPERTY))
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
                 && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE) {
@@ -679,6 +690,19 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (invalidStationRoomTunnelMode()) {
                 failure = "stationRoomTunnel must be exactly false, true, or approach and requires baritone=true, preparedSafety=station_room, and Minecraft 1.21.1 or 26.3 without naturalGoal";
+                state = State.FAILED;
+                writeEvidence("failed");
+                System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
+                client.scheduleStop();
+                return;
+            }
+            if (THREAT_STAIRCASE_PROPERTY != null && !"false".equals(THREAT_STAIRCASE_PROPERTY)
+                    && (!THREAT_STAIRCASE_MODE || !BARITONE_MODE || !"threat".equals(PREPARED_SAFETY_MODE)
+                        || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())
+                        || System.getProperty("lodekeeper.verify.naturalGoal") != null
+                        || THREAT_CONTACT_MODE || CONTACT_LOW_HEALTH_MODE || CONTACT_MANUAL_INPUT_MODE
+                        || THREAT_WATER_RETREAT_MODE || THREAT_CREEPER_CONTACT_MODE)) {
+                failure = "threatStaircase must be false or true; true requires baritone=true, preparedSafety=threat, Minecraft 1.21.1 or 26.3, and no other threat or natural mode";
                 state = State.FAILED;
                 writeEvidence("failed");
                 System.err.println("[Lodekeeper verification] Refusing to start: " + failure);
@@ -888,6 +912,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             registerContactLowHealthTransport();
+        registerStaircaseTransport();
             ClientTickEvents.END_CLIENT_TICK.register(this::tick);
             ClientTickEvents.END_CLIENT_TICK.register(mc -> {
                 if (!BARITONE_MODE || mc.player == null) return;
@@ -901,7 +926,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 if (playerId == null) return;
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player == null) return;
-                if ((THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE) && preparedSafetyThreatFixture != null) {
+                if ((THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE || THREAT_STAIRCASE_MODE) && preparedSafetyThreatFixture != null) {
                     VerificationApi.observePreparedSafetyThreatTick(preparedSafetyThreatFixture, player, server.getTicks());
                 }
                 if (preparedSafetyPursuitFixture != null) {
@@ -1309,7 +1334,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         engine.config.autoEat = true;
         if (BULK_WOOD_MODE) engine.config.optimizeWoodTools = WOOD_TOOLS_MODE;
-        if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE) engine.config.debugLogging = true;
+        if (THREAT_WATER_RETREAT_MODE || THREAT_CONTACT_MODE || THREAT_CREEPER_CONTACT_MODE || THREAT_STAIRCASE_MODE) engine.config.debugLogging = true;
         if (STATION_ROOM_APPROACH_MODE) engine.config.debugLogging = true;
         if (MINING_REQUEST_LIMIT_MODE) {
             engine.config.actionTimeoutTicks = 200;
@@ -2829,7 +2854,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 Map.of("minecraft:oak_log", 2, "minecraft:crafting_table", 1))
                 && latestSnapshot.equippedItems.equals(Map.of("offhand", "minecraft:oak_log"))
                 && latestSnapshot.count("minecraft:oak_log") == 10;
-            case THREAT -> THREAT_CREEPER_CONTACT_MODE ? preparedSafetyCreeperContactFixtureReady()
+            case THREAT -> THREAT_STAIRCASE_MODE ? preparedSafetyStaircaseFixtureReady()
+                : THREAT_CREEPER_CONTACT_MODE ? preparedSafetyCreeperContactFixtureReady()
                 : THREAT_CONTACT_MODE ? preparedSafetyContactFixtureReady() : latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
                 && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
                     "minecraft:iron_ingot", 3, "minecraft:wooden_pickaxe", 1))
@@ -3261,6 +3287,18 @@ public final class RuntimeVerification implements ClientModInitializer {
             || THREAT_CREEPER_CONTACT_PROPERTY != null && !"false".equals(THREAT_CREEPER_CONTACT_PROPERTY);
     }
 
+    private void registerStaircaseTransport() {
+        if (!THREAT_STAIRCASE_MODE) return;
+        try {
+            Method method = VerificationApi.class.getDeclaredMethod("registerStaircaseNetworking", java.util.function.Supplier.class, java.util.function.Supplier.class);
+            staircaseTransport = (java.util.function.IntConsumer) method.invoke(null,
+                (java.util.function.Supplier<VerificationApi.PreparedSafetyThreatFixture>) () -> preparedSafetyThreatFixture,
+                (java.util.function.Supplier<java.util.UUID>) () -> playerId);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("staircase verifier transport unavailable for this exact profile", exception);
+        }
+    }
+
     private void registerContactLowHealthTransport() {
         if (!CONTACT_LOW_HEALTH_MODE) return;
         try {
@@ -3436,13 +3474,134 @@ public final class RuntimeVerification implements ClientModInitializer {
             && stoneSwordWear == 0;
     }
 
+    private boolean preparedSafetyStaircaseFixtureReady() {
+        Map<String, String> receipt = latestSnapshot.preparedSafetyThreatReceipt;
+        return latestSnapshot.storageInventory.equals(latestSnapshot.inventory)
+            && latestSnapshot.inventory.equals(Map.of("minecraft:crafting_table", 1, "minecraft:diamond_sword", 1,
+                "minecraft:iron_ingot", 3, "minecraft:wooden_pickaxe", 1))
+            && latestSnapshot.equippedItems.isEmpty() && latestSnapshot.foodLevel == 20
+            && latestSnapshot.x == 0.5 && latestSnapshot.y == 64.0 && latestSnapshot.z == 0.5
+            && "true".equals(receipt.get("staircaseClockFrozen"))
+            && "0".equals(receipt.get("staircaseChangedCells"))
+            && "true".equals(receipt.get("creeperAlive")) && "20.0".equals(receipt.get("creeperHealth"))
+            && "false".equals(receipt.get("staircaseCreeperAiEnabled"))
+            && "0".equals(receipt.get("staircasePlayerDeaths"));
+    }
+
+    private void evaluatePreparedSafetyStaircase() {
+        String status = requireEngine().status();
+        Map<String, String> server = latestSnapshot.preparedSafetyThreatReceipt;
+        staircaseReceipt.put("engineStatus", status);
+        for (var entry : server.entrySet()) if (entry.getKey().startsWith("staircase"))
+            staircaseReceipt.put(entry.getKey(), entry.getValue());
+        if (staircaseTaskIdentity == null) staircaseTaskIdentity = requireEngine().diagnosticTaskIdentity();
+        if (staircaseTaskIdentity != null && requireEngine().diagnosticTaskIdentity() != staircaseTaskIdentity) {
+            fail("staircase retreat lost the original bucket request: " + status);
+            return;
+        }
+        if (status.contains("retreating from live threats 1")) staircaseRetreatObserved = true;
+        if (staircasePauseTick < 0) {
+            if (status.contains("verifying current threat clearance")) {
+                if (!staircaseRetreatObserved || staircaseTaskIdentity == null
+                        || !client.player.isOnGround() || Math.abs(client.player.getY() - 68.0) > 0.0625) {
+                    fail("staircase arrival lacked the original request, guarded retreat or four-block ascent: " + status);
+                    return;
+                }
+                staircaseArrivalObserved = true;
+                staircaseReceipt.put("arrivalClientTick", Integer.toString(clientTicks));
+                staircaseReceipt.put("arrivalStatus", status);
+                staircaseReceipt.put("arrivalY", Double.toString(client.player.getY()));
+                requireEngine().pause("staircase retreat observation");
+                status = requireEngine().status();
+            }
+            if (status.startsWith("paused")) {
+                staircasePauseTick = clientTicks;
+                staircasePauseServerTick = latestSnapshot.serverTick;
+                staircasePauseObservationSequence = observationRequestSequence;
+                staircaseReceipt.put("pauseClientTick", Integer.toString(staircasePauseTick));
+                staircaseReceipt.put("pauseServerTick", Integer.toString(staircasePauseServerTick));
+                staircaseReceipt.put("pauseObservationSequence", Long.toString(staircasePauseObservationSequence));
+                staircaseReceipt.put("pauseStatus", status);
+                staircaseTransport.accept(1);
+            } else {
+                if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS)
+                    fail("staircase retreat exceeded the existing case bound: " + status);
+                return;
+            }
+        }
+        if (observationFuture == null) requestObservation();
+        int pauseFenceTick = Integer.parseInt(server.getOrDefault("staircasePauseFenceServerTick", "-1"));
+        if (!server.getOrDefault("staircaseMarkerFailure", "").isEmpty()) {
+            fail("staircase connection marker failed: " + server.get("staircaseMarkerFailure"));
+            return;
+        }
+        if (pauseFenceTick < 0 || latestObservationRequestSequence <= staircasePauseObservationSequence
+                || latestSnapshot.serverTick <= Math.max(staircasePauseServerTick, pauseFenceTick)) {
+            if (clientTicks - staircasePauseTick > 20) fail("staircase pause missed a fresh server observation");
+            return;
+        }
+        boolean settingsRestored = true;
+        for (var entry : staircaseOriginalSettings.entrySet())
+            settingsRestored &= java.util.Objects.equals(entry.getValue(), entry.getKey().value);
+        for (var entry : staircaseOriginalConfig.entrySet())
+            settingsRestored &= java.util.Objects.equals(entry.getValue(), requireEngine().config.read(entry.getKey()));
+        boolean requestPreserved = staircaseTaskIdentity != null && requireEngine().diagnosticTaskIdentity() == staircaseTaskIdentity;
+        boolean stopped = contactLowHealthMovementStopped();
+        boolean inputRestored = client.player.input == staircaseOriginalInput;
+        staircaseReceipt.put("retreatObserved", Boolean.toString(staircaseRetreatObserved));
+        staircaseReceipt.put("arrivalObserved", Boolean.toString(staircaseArrivalObserved));
+        staircaseReceipt.put("requestPreserved", Boolean.toString(requestPreserved));
+        staircaseReceipt.put("nativeNavigationStopped", Boolean.toString(stopped));
+        staircaseReceipt.put("originalInputRestored", Boolean.toString(inputRestored));
+        staircaseReceipt.put("settingsRestored", Boolean.toString(settingsRestored));
+        staircaseReceipt.put("nativeSettingsChecked", Integer.toString(staircaseOriginalSettings.size()));
+        staircaseReceipt.put("observedClientTick", Integer.toString(clientTicks));
+        staircaseReceipt.put("observedServerTick", Integer.toString(latestSnapshot.serverTick));
+        staircaseReceipt.put("observedRequestSequence", Long.toString(latestObservationRequestSequence));
+        boolean preserved = status.startsWith("paused") && requestPreserved && stopped && inputRestored && settingsRestored
+            && requireEngine().config.pauseBelowHealth == 6.0F
+            && latestSnapshot.inventory.equals(activeInitialResources) && latestSnapshot.storageInventory.equals(activeInitialResources)
+            && latestSnapshot.equippedItems.equals(activeInitialEquipment) && latestSnapshot.serverCursorEmpty
+            && latestSnapshot.health == 20.0F && "20.0".equals(server.get("staircaseMinimumPlayerHealth"))
+            && "0".equals(server.get("staircasePlayerDeaths")) && "true".equals(server.get("staircasePlayerAlive"))
+            && "0".equals(server.get("staircaseChangedCells"))
+            && "0".equals(server.get("staircaseBlocksMined")) && "0".equals(server.get("staircaseBlockItemUses"))
+            && "false".equals(server.get("staircaseClockFrozen"))
+            && Integer.parseInt(server.getOrDefault("staircaseReleaseServerTick", "-1")) >= 0
+            && pauseFenceTick >= Integer.parseInt(server.getOrDefault("staircaseReleaseServerTick", "-1"))
+            && Integer.parseInt(server.getOrDefault("staircaseObservedServerTicks", "0")) > 0
+            && server.getOrDefault("staircaseMarkerFailure", "missing").isEmpty()
+            && activeInitialThreatReceipt.get("staircaseCreeperPosition").equals(server.get("staircaseCreeperPosition"))
+            && activeInitialThreatReceipt.get("staircaseSelectedSlot").equals(server.get("staircaseSelectedSlot"))
+            && activeInitialThreatReceipt.get("zombiePosition").equals(server.get("zombiePosition"))
+            && activeInitialThreatReceipt.get("cowPosition").equals(server.get("cowPosition"))
+            && activeInitialThreatReceipt.get("creeperUuid").equals(server.get("creeperUuid"))
+            && "true".equals(server.get("creeperAlive")) && "20.0".equals(server.get("creeperHealth"))
+            && activeInitialThreatReceipt.get("zombieUuid").equals(server.get("zombieUuid"))
+            && activeInitialThreatReceipt.get("zombieHealth").equals(server.get("zombieHealth"))
+            && activeInitialThreatReceipt.get("cowUuid").equals(server.get("cowUuid"))
+            && activeInitialThreatReceipt.get("cowHealth").equals(server.get("cowHealth"))
+            && activeInitialThreatReceipt.get("diamondSwordDamage").equals(server.get("diamondSwordDamage"))
+            && activeInitialThreatReceipt.get("woodenPickaxeDamage").equals(server.get("woodenPickaxeDamage"));
+        staircaseReceipt.put("preservedFixtureAndOwnership", Boolean.toString(preserved));
+        if (!preserved || !staircaseArrivalObserved || !"31".equals(server.get("staircaseHeightMask"))
+                || !"true".equals(server.get("staircaseSupportedEndpoint"))) {
+            fail("staircase retreat lacked ascent, supported arrival, preserved fixture or restored ownership: " + status);
+            return;
+        }
+        addResult(true, latestSnapshot.count(activeItem), "ordinary bucket command retreated through four one-block ascents to y 68; a fresh post-arrival pause receipt preserved every fixture block, stock and request, with zero deaths, zero mining and block-item-use counters, empty cursor and restored native settings and inputs", capture(activeCase));
+        state = State.CAPTURING;
+        captureStartedAtTick = clientTicks;
+    }
+
     private void startPreparedSafetyThreatCase() {
         String engineStatus = requireEngine().status();
         if (!engineStatus.startsWith("idle") || !engineStatus.endsWith("0 maintenance queued")) {
             fail("prepared threat command was not issued from an idle engine: " + engineStatus);
             return;
         }
-        activeCase = CONTACT_LOW_HEALTH_MODE ? "contact_defense_low_health_owned_hop"
+        activeCase = THREAT_STAIRCASE_MODE ? "threat_retreat_four_block_staircase"
+            : CONTACT_LOW_HEALTH_MODE ? "contact_defense_low_health_owned_hop"
             : CONTACT_MANUAL_INPUT_MODE ? "contact_defense_manual_takeover"
             : THREAT_CREEPER_CONTACT_MODE ? "live_creeper_contact_defense_maintained_bucket"
             : THREAT_CONTACT_MODE ? "live_contact_defense_bucket"
@@ -3474,7 +3633,17 @@ public final class RuntimeVerification implements ClientModInitializer {
             contactLowHealthReceipt.put("submittedBucketTarget", "1");
             contactLowHealthReceipt.put("threshold", "6.0");
         }
+        if (THREAT_STAIRCASE_MODE) {
+            staircaseOriginalInput = client.player.input;
+            for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
+                staircaseOriginalSettings.put(setting, setting.value);
+            for (var spec : LodekeeperConfig.specs()) staircaseOriginalConfig.put(spec.key(), requireEngine().config.read(spec.key()));
+            staircaseReceipt.put("command", "!lk get bucket 1");
+            staircaseReceipt.put("initialServerTick", Integer.toString(latestSnapshot.serverTick));
+            staircaseReceipt.put("initialY", Double.toString(latestSnapshot.y));
+        }
         sendCommand("!lk get bucket 1");
+        if (THREAT_STAIRCASE_MODE) staircaseTransport.accept(0);
         if (THREAT_CONTACT_MODE) {
             contactOriginalInput = client.player.input;
             releasePreparedThreatFixtureClock();
@@ -3965,6 +4134,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void evaluatePreparedSafetyCase() {
+        if (THREAT_STAIRCASE_MODE) { evaluatePreparedSafetyStaircase(); return; }
         if (CONTACT_LOW_HEALTH_MODE) { evaluateContactLowHealth(); return; }
         if (CONTACT_MANUAL_INPUT_MODE) { evaluateContactManualInput(); return; }
         if (requireEngine().status().startsWith("paused")) {
@@ -5821,6 +5991,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (configRoundTripReceipt != null) json.append(",\n  \"configRoundTripReceipt\":").append(configRoundTripReceipt);
         json.append(",\n  \"threatContact\":").append(THREAT_CONTACT_MODE);
         json.append(",\n  \"threatContactManualInput\":").append(CONTACT_MANUAL_INPUT_MODE);
+        json.append(",\n  \"threatStaircase\":").append(THREAT_STAIRCASE_MODE);
+        if (THREAT_STAIRCASE_MODE) {
+            json.append(",\n  \"staircaseReceipt\":");
+            appendStringStringMap(json, staircaseReceipt);
+            json.append(",\n  \"fixtureGrants\":\"full-health player, bucket materials and untouched weapons; stationary native threat outside attack reach; bedrock corridor with four one-block ascents and its only admissible stances at y 68; no fixture changes after command submission; verifier pauses only after production retreat arrival to observe preserved request, blocks, inputs and settings\"");
+        }
         json.append(",\n  \"threatContactLowHealth\":").append(CONTACT_LOW_HEALTH_MODE);
         if (CONTACT_LOW_HEALTH_MODE) {
             json.append(",\n  \"lowHealthReceipt\":");
@@ -6306,6 +6482,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         if (COAL_RAISED_FULL_DROP_MODE && !COAL_RECOVERY_MODE) return "invalid_raised_full_requires_coal_recovery";
         if (selectedFixtureModes() > 1) return "invalid_conflicting_modes";
+        if (THREAT_STAIRCASE_MODE) return "prepared_safety_threat_staircase";
         if (STATION_ROOM_APPROACH_MODE) return "prepared_safety_station_room_approach";
         if (STATION_ROOM_TUNNEL_MODE) return "prepared_safety_station_room_tunnel";
         if (PREPARED_SAFETY_MODE != null) return CONTACT_LOW_HEALTH_MODE ? "prepared_safety_low_health_owned_hop" : THREAT_CREEPER_CONTACT_MODE ? "prepared_safety_threat_creeper_contact" : CONTACT_MANUAL_INPUT_MODE ? "prepared_safety_manual_defense_takeover" : THREAT_CONTACT_MODE ? "prepared_safety_live_contact_defense" : THREAT_WATER_RETREAT_MODE
