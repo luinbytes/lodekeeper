@@ -125,7 +125,7 @@ The [retreat-height candidate `d1cae8e`](docs/OWNED-PREVIEW-CHECKPOINT.md#bounde
 
 The [original-roof control remains FAIL](docs/OWNED-PREVIEW-CHECKPOINT.md#existing-health-six-control-at-d1cae8e): admitted rooftop goals are unreachable, and full restoration on that path is unverified. The maintained fixture proves only the no-admissible-stance branch.
 
-The earlier [fresh `d0a62ef` run](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) fails with one diamond pickaxe and eight targets absent. Its static higher endpoint has no native ascent proof; the first [manual baseline](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-baseline-before-retreat-height-verification) dies before command admission. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
+The earlier [fresh `d0a62ef` run](docs/OWNED-PREVIEW-CHECKPOINT.md#completed-263-sampler-run-at-d0a62ef) fails with one diamond pickaxe and eight targets absent. Its static higher endpoint has no native ascent proof; both [manual baseline attempts](docs/OWNED-PREVIEW-CHECKPOINT.md#saved-world-retry-without-the-initial-delay) die before command admission. Safe escape and reliable fresh Survival remain open. Preview 11 stays at `88f2b52`; no Preview 12 is published.
 
 ### Historical main evidence
 
