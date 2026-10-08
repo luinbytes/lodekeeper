@@ -119,11 +119,11 @@ Preview 11 includes SHA-256 checksums, [packaging evidence](docs/evidence/builds
 
 ### Latest main evidence
 
+The exact `38b459e` [recomputed-aim replay](docs/OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) FAILS at stone 0/3 after 63,300 ms, with normal exit 0. No goal benefit was shown. The experimental source line is removed, restoring production paths byte for byte to `f7eae44`. Removal has no rebuild or native rerun. The failed candidate passes all 24 [CI profiles](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-38b459e-ci.json).
+
 Frozen main `f7eae44` compiles on 26.3 and passes CLEAN source review. Both mining admission hooks emit native records in its saved-world replay. The command still FAILS at stone 0/3 after 62,772 ms, with normal exit 0. The [admission checkpoint](docs/OWNED-PREVIEW-CHECKPOINT.md#modern-mining-admission-observer) records exact build and trace proofs, four public screenshots, and observation limits. [Exact-source CI](https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-f7eae44-ci.json) now passes all 24 profiles after retrying one dependency-download failure.
 
 Both fresh `764146a` Survival failures and primary retreat remain open. Earlier `a30df80` passes all 24 CI profiles but its saved-world replay FAILS. The [checkpoint history](docs/OWNED-PREVIEW-CHECKPOINT.md#latest-main-evidence) retains those results and the earlier partial observer captures.
-
-A [recomputed-aim candidate](docs/OWNED-PREVIEW-CHECKPOINT.md#recomputed-mining-aim-candidate) also compiles locally and passes source review; its replay remains pending.
 
 Preview 11 stays at `88f2b52`. These diagnostics establish no gameplay fix, fresh Survival pass, performance improvement, or release readiness.
 
