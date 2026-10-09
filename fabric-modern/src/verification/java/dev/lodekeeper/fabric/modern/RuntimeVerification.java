@@ -261,6 +261,37 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean nativeAnimalAirRouteObserved, nativeAnimalAirMovementObserved, nativeAnimalAirReadyObserved;
     private int nativeAnimalPendingSendTick = -1;
 
+    private static final String CROP_SCENARIO = System.getProperty("lodekeeper.verify.cropScenario");
+    private static final boolean CROP_MODE = CROP_SCENARIO != null && !"false".equals(CROP_SCENARIO);
+    private volatile Object nativeWheatFixture;
+    private volatile Map<String, String> nativeWheatReceipt = Map.of();
+    private final JsonObject nativeWheatEvidence = new JsonObject();
+    private Object nativeWheatOriginalInput;
+    private int nativeWheatOriginalSelected = -1, nativeWheatStopTick = -1;
+    private long nativeWheatCompletionRequestFence = -1, nativeWheatCompletionServerFence = -1;
+    private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> nativeWheatOriginalSettings = new LinkedHashMap<>();
+
+    private static boolean invalidCropScenario() {
+        if (!CROP_MODE) return false;
+        if (!"wheat".equals(CROP_SCENARIO) || !BARITONE_MODE || !"26.3".equals(VerificationApi.minecraftVersion())) return true;
+        for (String property : System.getProperties().stringPropertyNames()) {
+            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone",
+                    "lodekeeper.verify.cropScenario", "lodekeeper.verify.candidateSha256").contains(property)) continue;
+            if (!"false".equals(System.getProperty(property))) return true;
+        }
+        return false;
+    }
+
+    private static Object nativeWheatApi(String name, Object... arguments) {
+        try {
+            for (Method method : VerificationApi.class.getDeclaredMethods())
+                if (method.getName().equals(name) && method.getParameterCount() == arguments.length) return method.invoke(null, arguments);
+            throw new IllegalStateException("native wheat fixture API missing: " + name);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("native wheat fixture failed in " + name, failure);
+        }
+    }
+
     private static Object nativeAnimalApi(String name, Object... arguments) {
         try {
             for (Method method : VerificationApi.class.getDeclaredMethods())
@@ -655,7 +686,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT, WORLD_POLICY,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK,
         CRAFTING_FURNACE, SMELTING_IRON, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE,
-        GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, NATIVE_ANIMAL, NATIVE_COOPERATIVE, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED
+        GATHERING_FOOD, COOKING, GATHERING_COAL_RECOVERY, NATIVE_ANIMAL, NATIVE_WHEAT_DISPATCH, NATIVE_WHEAT, NATIVE_COOPERATIVE, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED
     }
 
     private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY, HELD_FUEL_SMELTING, HELD_FUEL_STICKS }
@@ -702,8 +733,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     private boolean worldLaunchQueued;
     private boolean worldCreationStarted;
     private CompletableFuture<Long> setupFuture;
-    private CompletableFuture<ServerSnapshot> observationFuture;
+    private CompletableFuture<NativeWheatBoundObservation> observationFuture;
     private ServerSnapshot latestSnapshot;
+    private volatile NativeWheatBoundObservation latestNativeWheatObservation;
     private volatile boolean coalNavigationCourseCommandStarted;
     private volatile float coalNavigationCourseMinimumHealth = 20.0F;
     private int coalNavigationCourseObservedMask;
@@ -854,7 +886,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (THREAT_STAIRCASE_PROPERTY == null || "false".equals(THREAT_STAIRCASE_PROPERTY))
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
-                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE && !ANIMAL_MODE && !COOPERATIVE_MODE) {
+                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE && !ANIMAL_MODE && !CROP_MODE && !COOPERATIVE_MODE) {
             NaturalWorldVerification.start(Minecraft.getInstance());
             return;
         }
@@ -864,6 +896,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             prepareIsolatedPaths();
             if (invalidCooperativeScenario()) {
                 failure = "cooperativeScenario requires exactly goto or follow, baritone=true, an exact 1.21.1 or 26.3 artifact and no other verifier mode";
+                state = State.FAILED; writeEvidence("failed"); client.stop(); return;
+            }
+            if (invalidCropScenario()) {
+                failure = "cropScenario must be exactly wheat and requires baritone=true, exact Minecraft 26.3, and no other verifier mode";
                 state = State.FAILED; writeEvidence("failed"); client.stop(); return;
             }
             if (invalidAnimalNoScaffold() || invalidAnimalScenario()) {
@@ -1271,6 +1307,16 @@ public final class RuntimeVerification implements ClientModInitializer {
                     } else readyTicks = 0;
                     return;
                 }
+                if (CROP_MODE) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
+                            && Integer.parseInt(nativeWheatReceipt.getOrDefault("samples", "0")) > 0
+                            && latestSnapshot.serverCursorEmpty && latestSnapshot.health == 20.0F
+                            && latestSnapshot.foodLevel == 20 && requireEngine().placementStockReady()) {
+                        if (++readyTicks >= 20) startNativeWheatCase();
+                    } else readyTicks = 0;
+                    return;
+                }
                 if (ANIMAL_MODE) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
@@ -1426,6 +1472,12 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
             if (state == State.NATIVE_COOPERATIVE) { tickCooperativeCase(); return; }
             if (state == State.NATIVE_ANIMAL) { tickNativeAnimalCase(); return; }
+            if (state == State.NATIVE_WHEAT_DISPATCH) {
+                if (clientTicks - caseStartedAtTick > 1_200 || System.nanoTime() - caseStartedAtNanos > 90_000_000_000L)
+                    fail("native wheat dispatch exceeded the original case deadline");
+                return;
+            }
+            if (state == State.NATIVE_WHEAT) { tickNativeWheatCase(); return; }
             if (state == State.WORLD_POLICY) {
                 tickWorldPolicyScenario();
                 if (state == State.CAPTURING && screenshotWritesPending == 0 && clientTicks - captureStartedAtTick >= 20) finishRun();
@@ -1489,7 +1541,12 @@ public final class RuntimeVerification implements ClientModInitializer {
             engine.config.allowExploration = false;
             engine.config.debugLogging = true;
         }
-        engine.config.autoEat = true;
+        engine.config.autoEat = !CROP_MODE;
+        if (CROP_MODE) {
+            engine.config.autoDefend = false; engine.config.autoEquipArmor = false;
+            engine.config.allowBreaking = true; engine.config.allowExploration = false;
+            engine.config.backfill = false; engine.config.debugLogging = true;
+        }
         if (ANIMAL_MODE) {
             engine.config.autoEat = false; engine.config.autoDefend = false; engine.config.autoEquipArmor = false;
             engine.config.allowBreaking = false; engine.config.allowExploration = false;
@@ -1853,6 +1910,174 @@ public final class RuntimeVerification implements ClientModInitializer {
             addResult(true, latestSnapshot.count(activeItem), "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt=" + nativeAnimalPublishedReceipt);
             state = State.CAPTURING; captureStartedAtTick = clientTicks;
         } else readyTicks = 0;
+    }
+
+    private void startNativeWheatCase() {
+        AutomationEngine engine = requireEngine();
+        if (!engine.status().startsWith("idle") || !baritoneNavigationStopped() || latestSnapshot.count("minecraft:wheat") != 0) {
+            fail("native wheat command requires idle navigation and zero starting wheat; receipt=" + nativeWheatReceipt); return;
+        }
+        activeCase = "native_crop_wheat"; activeItem = "minecraft:wheat"; activeCount = 4;
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        nativeWheatOriginalInput = client.player.input;
+        nativeWheatOriginalSelected = client.player.getInventory().getSelectedSlot();
+        for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
+            nativeWheatOriginalSettings.put(setting, cooperativeSettingSnapshot(setting.value));
+        nativeWheatEvidence.addProperty("scenario", "wheat");
+        nativeWheatEvidence.addProperty("command", "!lk get wheat 4");
+        nativeWheatEvidence.addProperty("fixture", "six mature vanilla wheat crops on ordinary farmland above a bounded bedrock pad; 24 ordinary wheat seeds; no wheat output or post-command fixture mutation");
+        nativeWheatEvidence.addProperty("receiptProvenance", "server-thread dispatch-admission baseline plus same-operation request-bound inventory snapshot and previously observed END_SERVER_TICK crop history");
+        nativeWheatEvidence.addProperty("fixtureInitialMatureCells", nativeWheatReceipt.getOrDefault("observedInitialMatureCells", "unknown"));
+        nativeWheatEvidence.addProperty("unexpectedPreCommandLosses", nativeWheatReceipt.getOrDefault("preCommandLosses", "unknown"));
+        beginCaseClock(); readyTicks = 0; state = State.NATIVE_WHEAT_DISPATCH;
+        MinecraftServer server = requireServer();
+        server.execute(() -> {
+            try {
+                ServerPlayer player = requireServerPlayer(server);
+                @SuppressWarnings("unchecked") Map<String, String> baseline = (Map<String, String>) nativeWheatApi(
+                        "observeNativeWheat", nativeWheatFixture, player, server.getTickCount());
+                boolean admitted = "6".equals(baseline.get("observedInitialMatureCells"))
+                        && "0".equals(baseline.get("preCommandLosses"))
+                        && "0".equals(baseline.get("wheat"))
+                        && "24".equals(baseline.get("seeds"))
+                        && "24".equals(baseline.get("ordinaryMainSeeds"))
+                        && Boolean.parseBoolean(baseline.getOrDefault("seedOrdinaryComponents", "false"))
+                        && Boolean.parseBoolean(baseline.getOrDefault("exactBaselineUnchanged", "false"));
+                if (admitted) nativeWheatApi("armNativeWheatCommand", nativeWheatFixture, server.getTickCount());
+                Map<String, String> admissionReceipt = admitted
+                        ? castStringMap(nativeWheatApi("nativeWheatReceipt", nativeWheatFixture, player)) : baseline;
+                client.execute(() -> {
+                    if (state != State.NATIVE_WHEAT_DISPATCH) return;
+                    nativeWheatReceipt = admissionReceipt;
+                    if (!admitted) {
+                        fail("native wheat dispatch admission lacked six mature cells, zero prior losses, zero wheat, 24 ordinary seeds, or exact starting inventory/equipment; receipt=" + baseline); return;
+                    }
+                    nativeWheatEvidence.addProperty("dispatchFenceMeaning", "server-thread mature-cell baseline and admission tick immediately before ordinary client-intercepted command dispatch; no server command acknowledgement or caused-by claim");
+                    nativeWheatEvidence.addProperty("dispatchAdmissionFenceTick", admissionReceipt.getOrDefault("dispatchAdmissionFenceTick", "unknown"));
+                    state = State.NATIVE_WHEAT;
+                    sendCommand("!lk get wheat 4");
+                    server.execute(() -> {
+                        ServerPlayer dispatchPlayer = requireServerPlayer(server);
+                        nativeWheatApi("markNativeWheatCommandDispatched", nativeWheatFixture, server.getTickCount());
+                        Map<String, String> dispatchedReceipt = castStringMap(nativeWheatApi(
+                                "nativeWheatReceipt", nativeWheatFixture, dispatchPlayer));
+                        client.execute(() -> nativeWheatReceipt = dispatchedReceipt);
+                    });
+                });
+            } catch (Throwable throwable) {
+                client.execute(() -> fail("native wheat dispatch admission failed: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private void tickNativeWheatCase() {
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (clientTicks - caseStartedAtTick > 1_200 || System.nanoTime() - caseStartedAtNanos > 90_000_000_000L) {
+            fail("native wheat case exceeded 1200 client ticks or 90 seconds; receipt=" + nativeWheatReceipt); return;
+        }
+        AutomationEngine engine = requireEngine();
+        NativeWheatBoundObservation wheatObservation = latestNativeWheatObservation;
+        ServerSnapshot wheatSnapshot = wheatObservation == null ? null : wheatObservation.snapshot;
+        Map<String, String> wheatReceipt = wheatObservation == null ? Map.of() : wheatObservation.wheatReceipt;
+        int harvested = Integer.parseInt(wheatReceipt.getOrDefault("harvests", "0"));
+        int replanted = Integer.parseInt(wheatReceipt.getOrDefault("replants", "0"));
+        boolean result = wheatSnapshot != null && wheatSnapshot.count(activeItem) >= activeCount
+                && engine.status().startsWith("idle") && harvested > 0 && replanted == harvested
+                && "0".equals(wheatReceipt.get("preCommandLosses"))
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("allInitialMatureCellsObserved", "false"))
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("commandDispatched", "false"))
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("allHarvestedCellsReplanted", "false"))
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("wheatOrdinaryComponents", "false"))
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("seedOrdinaryComponents", "false"))
+                && Integer.parseInt(wheatReceipt.getOrDefault("wheat", "0")) >= 4
+                && Integer.parseInt(wheatReceipt.getOrDefault("ordinaryMainWheat", "0")) >= 4
+                && Integer.parseInt(wheatReceipt.getOrDefault("ordinaryMainSeeds", "0")) >= Math.max(1, Integer.parseInt(wheatReceipt.getOrDefault("initialSeeds", "24")) - replanted);
+        boolean restored = client.player != null && client.player.input == nativeWheatOriginalInput
+                && client.player.getInventory().getSelectedSlot() == nativeWheatOriginalSelected
+                && wheatSnapshot != null && wheatSnapshot.serverCursorEmpty == activeInitialCursorEmpty && wheatSnapshot.health == 20.0F
+                && wheatSnapshot.equippedItems.equals(activeInitialEquipment)
+                && Boolean.parseBoolean(wheatReceipt.getOrDefault("exactBaselineUnchanged", "false"))
+                && nativeWheatSettingsRestored() && baritoneNavigationStopped() && nativeWheatUnrelatedStockUnchanged(wheatSnapshot);
+        boolean completionGates = result && restored && engine.placementStockReady();
+        if (!completionGates) {
+            readyTicks = 0;
+            if (nativeWheatStopTick >= 0) {
+                nativeWheatStopTick = -1; nativeWheatCompletionRequestFence = -1; nativeWheatCompletionServerFence = -1;
+                nativeWheatApi("resetNativeWheatIdleFence", nativeWheatFixture);
+            }
+            return;
+        }
+        if (nativeWheatStopTick < 0) {
+            nativeWheatStopTick = clientTicks; nativeWheatCompletionRequestFence = observationRequestSequence;
+            nativeWheatCompletionServerFence = wheatSnapshot.serverTick;
+            nativeWheatApi("requestNativeWheatIdleFence", nativeWheatFixture);
+            requestObservation(); return;
+        }
+        int historyTick = Integer.parseInt(wheatReceipt.getOrDefault("lastTick", "-1"));
+        int idleFenceTick = Integer.parseInt(wheatReceipt.getOrDefault("idleFenceTick", "-1"));
+        boolean freshBoundObservation = wheatObservation.requestSequence > nativeWheatCompletionRequestFence
+                && idleFenceTick >= nativeWheatCompletionServerFence
+                && historyTick > nativeWheatCompletionServerFence && historyTick > idleFenceTick
+                && wheatSnapshot.serverTick >= historyTick
+                && nativeWheatInventoryMatches(wheatSnapshot, wheatReceipt);
+        if (!freshBoundObservation || Integer.parseInt(wheatReceipt.getOrDefault("idleStableTicks", "0")) < 20) {
+            readyTicks = 0; return;
+        }
+        nativeWheatEvidence.add("serverReceipt", nativeWheatJson(wheatReceipt));
+        nativeWheatEvidence.addProperty("actualOutput", wheatSnapshot.count(activeItem));
+        nativeWheatEvidence.addProperty("actualSeedCount", wheatReceipt.getOrDefault("seeds", "unknown"));
+        nativeWheatEvidence.addProperty("seedDebit", wheatReceipt.getOrDefault("seedDebit", "unknown"));
+        nativeWheatEvidence.addProperty("unrelatedStockUnchanged", true);
+        nativeWheatEvidence.addProperty("healthAtCompletion", wheatSnapshot.health);
+        nativeWheatEvidence.addProperty("selectionAtCompletion", client.player.getInventory().getSelectedSlot());
+        nativeWheatEvidence.addProperty("restorationObserved", true);
+        nativeWheatEvidence.addProperty("freshIdleTicks", wheatReceipt.getOrDefault("idleStableTicks", "0"));
+        nativeWheatEvidence.addProperty("completionRequestFence", nativeWheatCompletionRequestFence);
+        nativeWheatEvidence.addProperty("completionServerTickFence", nativeWheatCompletionServerFence);
+        nativeWheatEvidence.addProperty("acceptedObservationRequest", wheatObservation.requestSequence);
+        nativeWheatEvidence.addProperty("acceptedServerTick", wheatSnapshot.serverTick);
+        nativeWheatEvidence.addProperty("result", "native_wheat_output_replant_and_idle_observed");
+        nativeWheatEvidence.addProperty("screenshot", capture(activeCase));
+        addResult(true, wheatSnapshot.count(activeItem), "native wheat output, replant history and restored idle state observed");
+        state = State.CAPTURING; captureStartedAtTick = clientTicks;
+    }
+
+    private static boolean nativeWheatInventoryMatches(ServerSnapshot snapshot, Map<String, String> receipt) {
+        Map<String, Integer> receiptCounts = new LinkedHashMap<>();
+        for (var entry : receipt.entrySet()) {
+            if (entry.getKey().startsWith("inventory:"))
+                receiptCounts.put(entry.getKey().substring("inventory:".length()), Integer.parseInt(entry.getValue()));
+        }
+        return !receiptCounts.isEmpty() && receiptCounts.equals(snapshot.inventory);
+    }
+
+    private boolean nativeWheatUnrelatedStockUnchanged(ServerSnapshot snapshot) {
+        if (snapshot == null) return false;
+        for (String item : activeInitialResources.keySet()) {
+            if (item.equals("minecraft:wheat") || item.equals("minecraft:wheat_seeds")) continue;
+            if (!java.util.Objects.equals(activeInitialResources.get(item), snapshot.inventory.get(item))) return false;
+        }
+        for (String item : snapshot.inventory.keySet()) {
+            if (item.equals("minecraft:wheat") || item.equals("minecraft:wheat_seeds")) continue;
+            if (!java.util.Objects.equals(activeInitialResources.get(item), snapshot.inventory.get(item))) return false;
+        }
+        return true;
+    }
+
+    private boolean nativeWheatSettingsRestored() {
+        if (nativeWheatOriginalSettings.isEmpty()) return false;
+        for (var entry : nativeWheatOriginalSettings.entrySet())
+            if (!java.util.Objects.equals(cooperativeSettingSnapshot(entry.getKey().value), entry.getValue())) return false;
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> castStringMap(Object value) { return (Map<String, String>) value; }
+
+    private static JsonObject nativeWheatJson(Map<String, String> values) {
+        JsonObject result = new JsonObject(); values.forEach(result::addProperty); return result;
     }
 
     private void tickNativeAnimalAirCase(AutomationEngine engine, AnimalHarvestAction.Observation action) {
@@ -2300,7 +2525,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     world.setBlockAndUpdate(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.defaultBlockState());
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
-                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE && !ANIMAL_MODE && !COOPERATIVE_MODE) {
+                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE && !ANIMAL_MODE && !CROP_MODE && !COOPERATIVE_MODE) {
                     int oakLogStartX = IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE
                         ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
                         : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
@@ -2362,6 +2587,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 player.getFoodData().setFoodLevel(20);
                 if (ANIMAL_MODE) nativeAnimalFixture = nativeAnimalApi(ANIMAL_NO_SCAFFOLD
                         ? "seedNativeAnimalNoScaffold" : "seedNativeAnimal", player, world, ANIMAL_SCENARIO);
+                if (CROP_MODE) nativeWheatFixture = nativeWheatApi("seedNativeWheat", player, world);
                 if (SHIELD_MODE) {
                     server.setDifficulty(Difficulty.NORMAL, true);
                     shieldFixture = shieldApi("seedShieldScenario", player, world, SHIELD_SCENARIO);
@@ -2814,6 +3040,11 @@ public final class RuntimeVerification implements ClientModInitializer {
             @SuppressWarnings("unchecked") Map<String, String> receipt = (Map<String, String>) nativeAnimalApi(
                     "nativeAnimalReceipt", nativeAnimalFixture, player, server.getTickCount());
             nativeAnimalPublishedReceipt = receipt;
+        }
+        if (CROP_MODE && nativeWheatFixture != null) {
+            @SuppressWarnings("unchecked") Map<String, String> receipt = (Map<String, String>) nativeWheatApi(
+                    "observeNativeWheat", nativeWheatFixture, player, server.getTickCount());
+            nativeWheatReceipt = receipt;
         }
         observeShieldServer(player, server.getTickCount());
         observeFirstServerMovement(player);
@@ -6206,7 +6437,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private void requestObservation() {
         if (observationFuture != null || client.player == null || client.getSingleplayerServer() == null) return;
         MinecraftServer server = requireServer();
-        CompletableFuture<ServerSnapshot> capture = new CompletableFuture<>();
+        CompletableFuture<NativeWheatBoundObservation> capture = new CompletableFuture<>();
         long requestSequence = ++observationRequestSequence;
         observationFuture = capture;
         server.execute(() -> {
@@ -6214,7 +6445,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 ServerPlayer player = requireServerPlayer(server);
                 ServerInventorySnapshot inventory = inventorySnapshot(player);
                 ServerLevel world = player.level();
-                capture.complete(new ServerSnapshot(server.getTickCount(), world.getGameTime(), inventory.counts(),
+                ServerSnapshot snapshot = new ServerSnapshot(server.getTickCount(), world.getGameTime(), inventory.counts(),
                     inventory.woodenAxeRemainingDurability(),
                     IRON_PICKAXE_MODE ? countIronPickaxeDeepslate(world) : -1,
                     COAL_RECOVERY_MODE && world.getBlockState(COAL_RECOVERY_ENCASED_ORE).is(Blocks.COAL_ORE) ? 1 : COAL_RECOVERY_MODE ? 0 : -1,
@@ -6238,20 +6469,28 @@ public final class RuntimeVerification implements ClientModInitializer {
                     HELD_FUEL_MODE ? VerificationApi.preparedSafetyHeldFuelReceipt(world) : Map.of(),
                     WORLD_POLICY_MODE ? worldPolicyServerReceipt(world, player, inventory.counts()) : Map.of(),
                     player.getHealth(), player.getFoodData().getFoodLevel(), world.getDifficulty().name(),
-                    player.getX(), player.getY(), player.getZ()));
+                    player.getX(), player.getY(), player.getZ());
+                Map<String, String> wheatReceipt = CROP_MODE && nativeWheatFixture != null
+                        ? castStringMap(nativeWheatApi("nativeWheatReceipt", nativeWheatFixture, player)) : Map.of();
+                capture.complete(new NativeWheatBoundObservation(requestSequence, snapshot, wheatReceipt));
             } catch (Throwable throwable) {
                 capture.completeExceptionally(throwable);
             }
         });
-        capture.whenComplete((snapshot, throwable) -> client.execute(() -> {
+        capture.whenComplete((observation, throwable) -> client.execute(() -> {
             if (observationFuture != capture) return;
             observationFuture = null;
             if (throwable != null) {
                 fail("server observation failed: " + throwable.getMessage());
                 return;
             }
+            ServerSnapshot snapshot = observation.snapshot;
             latestSnapshot = snapshot;
-            latestObservationRequestSequence = requestSequence;
+            latestObservationRequestSequence = observation.requestSequence;
+            if (CROP_MODE && nativeWheatFixture != null) {
+                latestNativeWheatObservation = observation;
+                nativeWheatReceipt = observation.wheatReceipt;
+            }
             if (WORLD_POLICY_MODE) recordWorldPolicySnapshot(snapshot);
         }));
     }
@@ -6479,7 +6718,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = COOPERATIVE_MODE || ANIMAL_MODE || SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
+        int expectedCases = COOPERATIVE_MODE || ANIMAL_MODE || CROP_MODE || SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || NEARBY_WOOD_MODE
                 || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
@@ -6664,6 +6903,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                             ? "integrated_server_air_health_hunger_position_and_inventory"
                         : "integrated_server_inventory_menu_and_hunger");
             root.addProperty("verificationMode", verificationMode());
+            if (CROP_MODE) root.add("nativeWheat", nativeWheatEvidence);
             if (ANIMAL_MODE) {
                 nativeAnimalEvidence.add("initialServerReceipt", nativeAnimalJson(nativeAnimalInitialReceipt));
                 nativeAnimalEvidence.add("finalServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
@@ -7145,6 +7385,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static String verificationMode() {
         if (COOPERATIVE_MODE) return "native_cooperative_" + COOPERATIVE_SCENARIO;
         if (ANIMAL_MODE) return "native_animal_" + ANIMAL_SCENARIO;
+        if (CROP_MODE) return "native_crop_wheat";
         if (invalidShieldScenario()) return "invalid_shield_scenario";
         if (SHIELD_MODE) return "native_shield_" + SHIELD_SCENARIO;
         if (WORLD_POLICY_MODE) return "native_world_policy";
@@ -7207,7 +7448,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static int selectedFixtureModes() {
-        return (COOPERATIVE_MODE ? 1 : 0) + (ANIMAL_MODE ? 1 : 0) + (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+        return (COOPERATIVE_MODE ? 1 : 0) + (ANIMAL_MODE ? 1 : 0) + (CROP_MODE ? 1 : 0) + (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
             + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0)
             + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
             + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0) + (PREPARED_SAFETY_MODE != null ? 1 : 0);
@@ -7223,6 +7464,11 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private record CoalNavigationCheckpoint(int xCell, int feetY16) { }
+
+    private record NativeWheatBoundObservation(long requestSequence, ServerSnapshot snapshot,
+                                               Map<String, String> wheatReceipt) {
+        private NativeWheatBoundObservation { wheatReceipt = Map.copyOf(wheatReceipt); }
+    }
 
     private record ServerSnapshot(int serverTick, long worldTime, Map<String, Integer> inventory,
                                   List<Integer> woodenAxeRemainingDurability, int ironPickaxeDeepslateRemaining,

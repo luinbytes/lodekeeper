@@ -87,6 +87,203 @@ final class VerificationApi {
         NativeAnimalFixture(String scenario) { this.scenario = scenario; }
     }
 
+    /** Ordinary, flat wheat bed used only by the focused native crop verifier. */
+    private static final class NativeWheatFixture {
+        final java.util.List<BlockPos> cells = new java.util.ArrayList<>();
+        final java.util.List<Boolean> harvested = new java.util.ArrayList<>();
+        final java.util.List<Boolean> replanted = new java.util.ArrayList<>();
+        final java.util.List<Boolean> preCommandLossRecorded = new java.util.ArrayList<>();
+        final java.util.List<ItemStack> inventoryBaseline = new java.util.ArrayList<>();
+        final java.util.List<ItemStack> equipmentBaseline = new java.util.ArrayList<>();
+        final int initialSeeds;
+        int harvests, replants, samples, firstTick = -1, lastTick = -1;
+        int fenceTick = -1, stableTicks, previousWheat = -1, previousSeeds = -1;
+        volatile int commandFenceTick = -1;
+        volatile int dispatchAdmissionFenceTick = -1;
+        volatile boolean commandDispatched;
+        int initialMatureCells = 6, observedInitialMatureCells = -1, preCommandLosses, lastContinuousTick = -1;
+        boolean continuousTicks = true;
+        volatile boolean fenceRequested, resetFenceRequested;
+        NativeWheatFixture(int initialSeeds) { this.initialSeeds = initialSeeds; }
+    }
+
+    static Object seedNativeWheat(ServerPlayer player, ServerLevel world) {
+        if (!"26.3".equals(minecraftVersion()))
+            throw new IllegalStateException("native wheat fixture requires Minecraft 26.3");
+        NativeWheatFixture fixture = new NativeWheatFixture(24);
+        for (int x = 2; x <= 11; x++) for (int z = -2; z <= 2; z++)
+            world.setBlockAndUpdate(new BlockPos(x, 62, z), Blocks.BEDROCK.defaultBlockState());
+        for (int i = 0; i < 6; i++) {
+            var soil = new BlockPos(4 + i, 63, 0);
+            var crop = soil.above();
+            world.setBlockAndUpdate(soil, Blocks.FARMLAND.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.FarmlandBlock.MOISTURE, 7));
+            world.setBlockAndUpdate(crop, Blocks.WHEAT.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.CropBlock.AGE, 7));
+            fixture.cells.add(crop.immutable()); fixture.harvested.add(false); fixture.replanted.add(false); fixture.preCommandLossRecorded.add(false);
+        }
+        player.getInventory().setItem(10, new ItemStack(Items.WHEAT_SEEDS, fixture.initialSeeds));
+        if (player.getInventory().getNonEquipmentItems().size() != 36)
+            throw new IllegalStateException("native wheat fixture requires exactly 36 main inventory slots");
+        for (int slot = 0; slot < 36; slot++) fixture.inventoryBaseline.add(player.getInventory().getNonEquipmentItems().get(slot).copy());
+        for (EquipmentSlot slot : java.util.List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND))
+            fixture.equipmentBaseline.add(player.getItemBySlot(slot).copy());
+        player.getInventory().setChanged();
+        return fixture;
+    }
+
+    static Object observeNativeWheat(Object value, ServerPlayer player, int serverTick) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        if (fixture.firstTick < 0) fixture.firstTick = serverTick;
+        fixture.continuousTicks = fixture.lastContinuousTick < 0 || serverTick == fixture.lastContinuousTick + 1;
+        if (!fixture.continuousTicks && fixture.fenceTick >= 0) fixture.stableTicks = 0;
+        fixture.lastContinuousTick = serverTick;
+        fixture.lastTick = serverTick; fixture.samples++;
+        if (fixture.resetFenceRequested) {
+            fixture.resetFenceRequested = false; fixture.fenceTick = -1; fixture.stableTicks = 0;
+            fixture.previousWheat = -1; fixture.previousSeeds = -1;
+        }
+        if (fixture.fenceRequested) { fixture.fenceRequested = false; fixture.fenceTick = serverTick; fixture.stableTicks = 0; fixture.previousWheat = -1; fixture.previousSeeds = -1; fixture.continuousTicks = true; }
+        int matureCells = 0;
+        for (int i = 0; i < fixture.cells.size(); i++) {
+            var state = player.level().getBlockState(fixture.cells.get(i));
+            boolean mature = state.is(Blocks.WHEAT)
+                    && state.getValue(net.minecraft.world.level.block.CropBlock.AGE) == 7;
+            if (mature) matureCells++;
+            if (!fixture.harvested.get(i) && !mature) {
+                if (!fixture.commandDispatched || serverTick <= fixture.commandFenceTick) {
+                    if (!fixture.preCommandLossRecorded.get(i)) { fixture.preCommandLossRecorded.set(i, true); fixture.preCommandLosses++; }
+                } else if (state.isAir()) { fixture.harvested.set(i, true); fixture.harvests++; }
+            } else if (fixture.harvested.get(i) && state.is(Blocks.WHEAT)
+                    && state.getValue(net.minecraft.world.level.block.CropBlock.AGE) == 0 && !fixture.replanted.get(i)) {
+                fixture.replanted.set(i, true); fixture.replants++;
+            }
+        }
+        if (fixture.observedInitialMatureCells < 0 && fixture.commandFenceTick < 0) fixture.observedInitialMatureCells = matureCells;
+        java.util.Map<String, String> receipt = nativeWheatReceipt(fixture, player);
+        int wheatNow = Integer.parseInt(receipt.get("wheat")), seedsNow = Integer.parseInt(receipt.get("seeds"));
+        boolean stableGates = player.getHealth() == 20.0F && serverCursorEmpty(player)
+                && fixture.commandDispatched && fixture.preCommandLosses == 0
+                && fixture.observedInitialMatureCells == fixture.initialMatureCells
+                && Integer.parseInt(receipt.get("ordinaryMainWheat")) >= 4
+                && Integer.parseInt(receipt.get("ordinaryMainSeeds")) >= Math.max(1, fixture.initialSeeds - fixture.replants)
+                && Boolean.parseBoolean(receipt.get("wheatOrdinaryComponents"))
+                && Boolean.parseBoolean(receipt.get("seedOrdinaryComponents"))
+                && Boolean.parseBoolean(receipt.get("exactBaselineUnchanged"))
+                && Boolean.parseBoolean(receipt.get("allHarvestedCellsReplanted"));
+        if (fixture.fenceTick >= 0 && serverTick > fixture.fenceTick && fixture.continuousTicks && stableGates) {
+            if (wheatNow == fixture.previousWheat && seedsNow == fixture.previousSeeds) fixture.stableTicks++;
+            else fixture.stableTicks = 0;
+        } else if (fixture.fenceTick >= 0) fixture.stableTicks = 0;
+        fixture.previousWheat = wheatNow; fixture.previousSeeds = seedsNow;
+        return nativeWheatReceipt(fixture, player);
+    }
+
+    static void armNativeWheatCommand(Object value, int serverTick) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        fixture.commandFenceTick = serverTick;
+        fixture.dispatchAdmissionFenceTick = serverTick;
+        fixture.commandDispatched = false;
+    }
+    static void markNativeWheatCommandDispatched(Object value, int serverTick) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        fixture.commandFenceTick = serverTick;
+        fixture.commandDispatched = true;
+    }
+    static void requestNativeWheatIdleFence(Object value) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        fixture.fenceRequested = true;
+    }
+    static void resetNativeWheatIdleFence(Object value) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        fixture.resetFenceRequested = true;
+    }
+
+    static java.util.Map<String, String> nativeWheatReceipt(Object value, ServerPlayer player) {
+        NativeWheatFixture fixture = (NativeWheatFixture) value;
+        int wheat = 0, seeds = 0, ordinaryMainWheat = 0, ordinaryMainSeeds = 0;
+        boolean wheatOrdinary = true, seedsOrdinary = true, unrelatedInventoryUnchanged = true;
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = player.getInventory().getNonEquipmentItems().get(slot);
+            ItemStack baseline = fixture.inventoryBaseline.get(slot);
+            boolean baselineCrop = baseline.is(Items.WHEAT) || baseline.is(Items.WHEAT_SEEDS);
+            boolean currentCrop = stack.is(Items.WHEAT) || stack.is(Items.WHEAT_SEEDS);
+            if (baseline.isEmpty()) {
+                unrelatedInventoryUnchanged &= stack.isEmpty() || (currentCrop && ordinaryCropStack(stack));
+            } else if (baselineCrop) {
+                unrelatedInventoryUnchanged &= stack.isEmpty() || (currentCrop && ordinaryCropStack(stack));
+            } else {
+                unrelatedInventoryUnchanged &= !currentCrop && sameStackAndComponents(baseline, stack);
+            }
+            if (stack.is(Items.WHEAT)) {
+                wheat += stack.getCount(); wheatOrdinary &= ordinaryCropStack(stack);
+                if (slot < 36 && ordinaryCropStack(stack)) ordinaryMainWheat += stack.getCount();
+            }
+            if (stack.is(Items.WHEAT_SEEDS)) {
+                seeds += stack.getCount();
+                boolean ordinary = ordinaryCropStack(stack);
+                seedsOrdinary &= ordinary;
+                if (slot < 36 && ordinary) ordinaryMainSeeds += stack.getCount();
+            }
+        }
+        boolean equipmentUnchanged = true;
+        java.util.List<EquipmentSlot> equipmentSlots = java.util.List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND);
+        for (int index = 0; index < equipmentSlots.size(); index++) {
+            ItemStack stack = player.getItemBySlot(equipmentSlots.get(index));
+            equipmentUnchanged &= sameStackAndComponents(fixture.equipmentBaseline.get(index), stack);
+            if (stack.is(Items.WHEAT)) { wheat += stack.getCount(); wheatOrdinary &= ordinaryCropStack(stack); }
+            if (stack.is(Items.WHEAT_SEEDS)) { seeds += stack.getCount(); seedsOrdinary &= ordinaryCropStack(stack); }
+        }
+        java.util.Map<String, String> result = new java.util.LinkedHashMap<>();
+        result.put("harvests", Integer.toString(fixture.harvests));
+        result.put("replants", Integer.toString(fixture.replants));
+        result.put("cells", Integer.toString(fixture.cells.size()));
+        result.put("samples", Integer.toString(fixture.samples));
+        result.put("firstTick", Integer.toString(fixture.firstTick));
+        result.put("lastTick", Integer.toString(fixture.lastTick));
+        result.put("idleStableTicks", Integer.toString(fixture.stableTicks));
+        result.put("idleFenceTick", Integer.toString(fixture.fenceTick));
+        result.put("continuousTicks", Boolean.toString(fixture.continuousTicks));
+        result.put("dispatchAdmissionFenceTick", Integer.toString(fixture.dispatchAdmissionFenceTick));
+        result.put("dispatchObservedTick", Integer.toString(fixture.commandDispatched ? fixture.commandFenceTick : -1));
+        result.put("commandDispatched", Boolean.toString(fixture.commandDispatched));
+        result.put("initialMatureCells", Integer.toString(fixture.initialMatureCells));
+        result.put("observedInitialMatureCells", Integer.toString(fixture.observedInitialMatureCells));
+        result.put("preCommandLosses", Integer.toString(fixture.preCommandLosses));
+        result.put("wheat", Integer.toString(wheat));
+        result.put("ordinaryMainWheat", Integer.toString(ordinaryMainWheat));
+        result.put("seeds", Integer.toString(seeds));
+        result.put("ordinaryMainSeeds", Integer.toString(ordinaryMainSeeds));
+        result.put("initialSeeds", Integer.toString(fixture.initialSeeds));
+        result.put("seedDebit", Integer.toString(fixture.initialSeeds - seeds));
+        result.put("wheatOrdinaryComponents", Boolean.toString(wheatOrdinary));
+        result.put("seedOrdinaryComponents", Boolean.toString(seedsOrdinary));
+        result.put("allHarvestedCellsReplanted", Boolean.toString(fixture.harvests > 0 && fixture.harvests == fixture.replants));
+        result.put("allInitialMatureCellsObserved", Boolean.toString(fixture.observedInitialMatureCells == fixture.initialMatureCells));
+        result.put("exactBaselineUnchanged", Boolean.toString(unrelatedInventoryUnchanged && equipmentUnchanged));
+        java.util.Map<String, Integer> currentCounts = new java.util.HashMap<>();
+        for (int slot = 0; slot < 36; slot++) {
+            ItemStack stack = player.getInventory().getNonEquipmentItems().get(slot);
+            if (!stack.isEmpty()) currentCounts.merge(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), Integer::sum);
+        }
+        for (EquipmentSlot slot : equipmentSlots) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (!stack.isEmpty()) currentCounts.merge(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(), stack.getCount(), Integer::sum);
+        }
+        currentCounts.forEach((id, count) -> result.put("inventory:" + id, Integer.toString(count)));
+        return java.util.Map.copyOf(result);
+    }
+
+    private static boolean ordinaryCropStack(ItemStack stack) {
+        return ItemStack.isSameItemSameComponents(stack, stack.is(Items.WHEAT)
+                ? Items.WHEAT.getDefaultInstance() : Items.WHEAT_SEEDS.getDefaultInstance());
+    }
+
+    private static boolean sameStackAndComponents(ItemStack left, ItemStack right) {
+        return nativeAnimalExactStock(left, right);
+    }
+
     static Object seedNativeAnimal(ServerPlayer player, ServerLevel world, String scenario) {
         NativeAnimalFixture fixture = new NativeAnimalFixture(scenario);
         boolean airTransfer = "air_pending_transfer".equals(scenario);
