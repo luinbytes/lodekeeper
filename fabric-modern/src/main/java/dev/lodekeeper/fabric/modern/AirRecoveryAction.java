@@ -27,6 +27,9 @@ final class AirRecoveryAction {
     private MovementController.AirExitPreference planningPreference;
     private final Set<BlockPos> rejected = new HashSet<>();
     private final Set<BlockPos> heightHolds = new HashSet<>();
+    private record HeightHoldObservation(int sample, BlockPos waypoint, double actualY, int targetY,
+                                         int attempts, long elapsedMs) {}
+    private HeightHoldObservation pendingHeightHold;
     private List<BlockPos> offeredGoals = List.of();
     private List<BlockPos> swimRoute = List.of();
     private int swimIndex;
@@ -50,14 +53,14 @@ final class AirRecoveryAction {
         ownerPlayer = client.player; ownerWorld = client.level;
         startedAt = progressAt = System.nanoTime();
         attempts = 0; rejected.clear(); phase = Phase.DRAINING;
-        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear();
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
         log("begin");
     }
 
     boolean tick() {
         try { return tickOwned(); }
         catch (RuntimeException failed) { movement.discardAirPlanning(); input.release(); throw failed; }
-        finally { sampleDiagnostics(); }
+        finally { logPendingHeightHold(); sampleDiagnostics(); }
     }
 
     private boolean tickOwned() {
@@ -182,7 +185,7 @@ final class AirRecoveryAction {
             dz = next.getZ() + .5 - client.player.getZ();
             dy = next.getY() - client.player.getY();
             boolean terminal = swimIndex == swimRoute.size() - 1;
-            if (!terminal && dy > 0 && dy <= .35 && dx * dx + dz * dz <= .0784) logHeightHold(next);
+            if (!terminal && dy > 0 && dy <= .35 && dx * dx + dz * dz <= .0784) captureHeightHold(next);
             // Reach the waypoint's feet height before a following-edge refusal can enable lateral centering.
             if (dx * dx + dz * dz > .0784
                     || (terminal ? Math.floor(client.player.getY()) < next.getY() : dy > 0 || Math.abs(dy) > .35)) break;
@@ -230,15 +233,27 @@ final class AirRecoveryAction {
         input.drive(forward, 0, !descend, descend);
     }
 
-    private void logHeightHold(BlockPos waypoint) {
+    private void captureHeightHold(BlockPos waypoint) {
         if (!config.debugLogging || heightHolds.size() >= MAX_DIAGNOSTIC_HEIGHT_HOLDS || heightHolds.contains(waypoint)) return;
+        try {
+            BlockPos captured = waypoint.immutable();
+            heightHolds.add(captured);
+            pendingHeightHold = new HeightHoldObservation(heightHolds.size(), captured, client.player.getY(),
+                    captured.getY(), attempts, (System.nanoTime() - startedAt) / 1_000_000L);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void logPendingHeightHold() {
+        HeightHoldObservation observed = pendingHeightHold;
+        pendingHeightHold = null;
+        if (observed == null) return;
         try {
             var logger = org.slf4j.LoggerFactory.getLogger("lodekeeper");
             if (!logger.isInfoEnabled()) return;
-            heightHolds.add(waypoint.immutable());
             logger.info("[Lodekeeper] AIR_HEIGHT_HOLD observationPoint=arrival-check sample={} sampleCap=8 waypoint={} actualY={} targetY={} acceptedAbove=.35 horizontalRadius=.28 attempts={} elapsedMs={}",
-                    heightHolds.size(), waypoint, client.player.getY(), waypoint.getY(), attempts,
-                    (System.nanoTime() - startedAt) / 1_000_000L);
+                    observed.sample(), observed.waypoint(), observed.actualY(), observed.targetY(), observed.attempts(),
+                    observed.elapsedMs());
         } catch (Throwable ignored) {
         }
     }
@@ -261,7 +276,7 @@ final class AirRecoveryAction {
         movement.discardAirPlanning(); planningStarted = false;
         input.release(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
-        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear();
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
     }
 
     String status() {
