@@ -598,7 +598,7 @@ final class OwnedStationRecoveryAction {
         pickupDiagnostics.anchorX = client.player.getX();
         pickupDiagnostics.anchorY = client.player.getY();
         pickupDiagnostics.anchorZ = client.player.getZ();
-        movement.startOwnedPickup(drop, recoverySession);
+        movement.startOwnedPickup(drop, recoverySession, MovementController.RouteEffects.MOVEMENT_ONLY);
         logPickupDiagnostic("start", "exact drop pinned", false);
     }
 

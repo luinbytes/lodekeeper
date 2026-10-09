@@ -318,6 +318,7 @@ final class MovementController {
         }
     }
 
+    enum RouteEffects { CONFIGURED, MOVEMENT_ONLY }
     private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private record OwnedPickupTarget(ItemEntity entity, UUID entityId, Item item, int startingCount,
                                      Object ownerWorld, Object ownerPlayer, Object ownerSession) { }
@@ -329,6 +330,7 @@ final class MovementController {
     private IBaritone bot;
     private IBaritoneProcess cancellationProcess;
     private Mode mode = Mode.IDLE, resumeMode = Mode.IDLE;
+    private RouteEffects routeEffects = RouteEffects.CONFIGURED;
     private boolean cancelling, followCancellationPending, retreatRequest, defenseSettlingPending;
     private List<RetreatThreat> retreatHazards = List.of();
     private RetreatPrefixRejection retreatPrefixRejection;
@@ -402,6 +404,7 @@ final class MovementController {
     }
 
     void updateProtection(Set<Item> reserved, Set<Block> protectedBlocks) {
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY && lease != null) checkAirRecoveryOwnership();
         this.reserved = Set.copyOf(reserved);
         this.protectedBlocks = Set.copyOf(protectedBlocks);
         if (lease != null) applyProtection();
@@ -1550,9 +1553,16 @@ final class MovementController {
     }
 
     void startFollowing(Animal animal, Predicate<Animal> eligible) {
+        startFollowing(animal, eligible, RouteEffects.CONFIGURED);
+    }
+
+    void startFollowing(Animal animal, Predicate<Animal> eligible, RouteEffects effects) {
         Objects.requireNonNull(animal);
         Objects.requireNonNull(eligible);
+        Objects.requireNonNull(effects);
+        if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         prepare();
+        routeEffects = effects;
         followTargetId = animal.getUUID();
         followOwnerWorld = client.level;
         followOwnerPlayer = client.player;
@@ -1571,9 +1581,16 @@ final class MovementController {
     }
 
     void startOwnedPickup(ItemEntity item, Object ownerSession) {
+        startOwnedPickup(item, ownerSession, RouteEffects.CONFIGURED);
+    }
+
+    void startOwnedPickup(ItemEntity item, Object ownerSession, RouteEffects effects) {
         if (item == null || !item.isAlive() || ownerSession == null)
             throw new NavigationFailure("Owned pickup requires a live item and recovery session");
+        Objects.requireNonNull(effects);
+        if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         prepare();
+        routeEffects = effects;
         Item itemType = item.getItem().getItem();
         pickupTarget = new OwnedPickupTarget(item, item.getUUID(), itemType, item.getItem().getCount(),
                 client.level, client.player, ownerSession);
@@ -1685,6 +1702,7 @@ final class MovementController {
             });
         }
         input.release(); actions.cancel();
+        routeEffects = RouteEffects.CONFIGURED;
         retreatRequest = false;
         resetRetreatPrefix();
         startedNanos = System.nanoTime(); requestTicks = failedCalculations = 0;
@@ -1717,6 +1735,7 @@ final class MovementController {
     }
 
     private void launch() {
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         if (mode == Mode.MINE || mode == Mode.DESCEND) {
             refreshMiningDepth();
             if (miningDepthPolicy.bulkDiamonds() && (int) Math.floor(client.player.getY())
@@ -1730,15 +1749,16 @@ final class MovementController {
         lease.set(settings.chatDebug, config.debugLogging);
         lease.set(settings.logger, message -> logNativeDebug(message.getString()));
         boolean airRecovery = mode == Mode.AIR;
-        lease.set(settings.allowBreak, !airRecovery && !retreatRequest && config.allowBreaking);
-        lease.set(settings.allowPlace, !airRecovery && !retreatRequest && config.allowBuilding);
+        boolean movementOnly = routeEffects == RouteEffects.MOVEMENT_ONLY;
+        lease.set(settings.allowBreak, !movementOnly && !airRecovery && !retreatRequest && config.allowBreaking);
+        lease.set(settings.allowPlace, !movementOnly && !airRecovery && !retreatRequest && config.allowBuilding);
         lease.set(settings.allowInventory, false);
         if (retreatRequest) {
             lease.set(settings.planningTickLookahead, 0);
             lease.set(settings.splicePath, false);
         }
         lease.set(settings.allowParkour, !airRecovery && config.allowParkour);
-        lease.set(settings.allowParkourPlace, !airRecovery && !retreatRequest
+        lease.set(settings.allowParkourPlace, !movementOnly && !airRecovery && !retreatRequest
                 && config.allowParkour && config.allowParkourPlace && config.allowBuilding);
         lease.set(settings.allowSprint, config.allowSprint);
         lease.set(settings.allowDiagonalAscend, !airRecovery && config.allowDiagonalAscend);
@@ -1749,7 +1769,7 @@ final class MovementController {
         lease.set(settings.allowWaterBucketFall, false);
         if (airRecovery) lease.set(settings.assumeWalkOnWater, false);
         lease.set(settings.maxFallHeightNoWater, config.maxFallHeight);
-        lease.set(settings.autoTool, true);
+        lease.set(settings.autoTool, !movementOnly);
         lease.set(settings.assumeExternalAutoTool, true);
         lease.set(settings.itemSaver, true);
         lease.set(settings.itemSaverThreshold, tool == null ? 1 : Math.max(1, tool.minimumDurability() - 1));
@@ -1796,7 +1816,7 @@ final class MovementController {
             }
         }
         applyProtection();
-        if (!airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
+        if (!movementOnly && !airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
             case MOVE, AIR -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
             case PICKUP -> {
@@ -1850,7 +1870,7 @@ final class MovementController {
     }
 
     boolean tick() {
-        if (retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY || retreatRequest || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
         if (mode == Mode.IDLE && !cancelling) return true;
@@ -1916,7 +1936,7 @@ final class MovementController {
         input.release();
         observeConfirmedProgress();
         if (requestTicks % 4 == 0) samplePath();
-        if (mode != Mode.AIR && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
+        if (routeEffects != RouteEffects.MOVEMENT_ONLY && mode != Mode.AIR && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         boolean satisfied = mode == Mode.MOVE || mode == Mode.AIR
                 ? routeGoal.isInGoal(client.player.blockPosition())
                 : mode == Mode.PICKUP && pickupTarget != null
@@ -2159,6 +2179,15 @@ final class MovementController {
         if (pendingOwnershipFailure != null) return true;
         if (lease == null || bot == null
                 || !bot.getInputOverrideHandler().isInputForcedDown(dev.lodekeeper.navigation.kernel.api.utils.input.Input.CLICK_LEFT)) return true;
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY) {
+            try { checkAirRecoveryOwnership(); }
+            catch (NavigationFailure failure) {
+                if (failure.kind != NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+                pendingOwnershipFailure = failure;
+                return true;
+            }
+            return false;
+        }
         if (cancelling || retreatRequest || mode == Mode.IDLE || mode == Mode.SUSPENDED || !config.allowBreaking) return false;
         if (client.level == null || client.player == null) return false;
         if (config.pauseOnScreen && GameApi.screen(client) != null) return false;
@@ -2307,6 +2336,7 @@ final class MovementController {
     }
 
     void suspend() {
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         waterBreak.close("SUSPEND");
         rebaseMovementProgress();
         stopDefenseHop();
@@ -2457,6 +2487,7 @@ final class MovementController {
     }
 
     void stop() {
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         waterBreak.close("STOP");
         RetreatSnapshotDiagnostics.clear(this);
         rebaseMovementProgress();
@@ -2553,6 +2584,7 @@ final class MovementController {
         mode = resumeMode = Mode.IDLE;
         cancelling = followCancellationPending = airRecoveryCancellationPending = false;
         cancellationProcess = null;
+        routeEffects = RouteEffects.CONFIGURED;
         input.release();
         observation = NavigationSnapshot.EMPTY;
         miningTarget = null;
@@ -2585,6 +2617,11 @@ final class MovementController {
         pickupTarget = null;
         mode = resumeMode = Mode.IDLE;
         cancelling = followCancellationPending = false;
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY) {
+            cancellationProcess = null;
+            airRecoveryCancellationPending = false;
+            routeEffects = RouteEffects.CONFIGURED;
+        }
         input.release();
         observation = NavigationSnapshot.EMPTY;
         miningTarget = null;
@@ -2608,7 +2645,7 @@ final class MovementController {
     }
 
     private boolean finishCancellation(boolean defenseOnly) {
-        if (defenseOnly || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY || defenseOnly || mode == Mode.AIR || mode == Mode.SUSPENDED || cancellationProcess != null
                 || airRecoveryCancellationPending) checkAirRecoveryOwnership();
         else checkFollowOwnership();
         if (!cancelling) {
@@ -2621,6 +2658,9 @@ final class MovementController {
                 }
                 if (!physicalCancellationReady()) logDefenseCancellation("physical-settling");
             }
+            if (mode == Mode.IDLE && resumeMode == Mode.IDLE && lease == null
+                    && cancellationProcess == null && !followCancellationPending && !airRecoveryCancellationPending)
+                routeEffects = RouteEffects.CONFIGURED;
             return true;
         }
         var pathing = bot.getPathingBehavior();
@@ -2642,6 +2682,7 @@ final class MovementController {
         cancellationProcess = null;
         airRecoveryCancellationPending = false;
         airRecoveryGoal = null;
+        if (mode == Mode.IDLE && resumeMode == Mode.IDLE) routeEffects = RouteEffects.CONFIGURED;
         if (mode == Mode.IDLE && resumeMode == Mode.IDLE && routeGoal instanceof GoalComposite) {
             terrain.beginSearch();
             routeGoal = null;

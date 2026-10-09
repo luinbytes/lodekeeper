@@ -10,6 +10,10 @@ final class NativeSettingsInput {
         throw new IllegalStateException("Native animal verification requires Minecraft 26.3");
     }
 
+    static void selectCookingFixtureSlot(net.minecraft.server.level.ServerPlayer player, int selected) {
+        throw new IllegalStateException("Native cooking original-slot verification requires Minecraft26.3");
+    }
+
     static KeyEvent key(int logicalKey) {
         int key = switch (logicalKey) {
             case 257 -> InputConstants.KEY_RETURN;

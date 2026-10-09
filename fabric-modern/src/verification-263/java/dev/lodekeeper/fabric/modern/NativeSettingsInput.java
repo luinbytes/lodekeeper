@@ -10,6 +10,12 @@ final class NativeSettingsInput {
         animal.setPermanentlyInvulnerable(true);
     }
 
+    static void selectCookingFixtureSlot(net.minecraft.server.level.ServerPlayer player, int selected) {
+        if (selected != 3 && selected != 5) throw new IllegalArgumentException("cooking original slot must be3 or5");
+        player.getInventory().setSelectedSlot(selected);
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket(selected));
+    }
+
     static KeyEvent key(int logicalKey) {
         return switch (logicalKey) {
             case 257 -> new KeyEvent(InputConstants.KEY_RETURN, InputConstants.KEYCODE_RETURN, 0);

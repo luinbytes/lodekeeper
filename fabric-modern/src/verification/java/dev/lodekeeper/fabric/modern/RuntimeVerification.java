@@ -75,6 +75,10 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
     private static final String ANIMAL_SCENARIO = System.getProperty("lodekeeper.verify.animalScenario");
     private static final boolean ANIMAL_MODE = ANIMAL_SCENARIO != null && !"false".equals(ANIMAL_SCENARIO);
+    private static final String ANIMAL_NO_SCAFFOLD_PROPERTY = System.getProperty("lodekeeper.verify.animalNoScaffold");
+    private static final boolean ANIMAL_NO_SCAFFOLD = "true".equals(ANIMAL_NO_SCAFFOLD_PROPERTY);
+    private boolean nativeAnimalApproachObserved, nativeAnimalGroundedPickupObserved;
+    private int nativeAnimalShearedAtStop = -1;
     private volatile Object nativeAnimalFixture;
     private volatile Map<String, String> nativeAnimalPublishedReceipt = Map.of();
     private Map<String, String> nativeAnimalInitialReceipt = Map.of();
@@ -99,14 +103,25 @@ public final class RuntimeVerification implements ClientModInitializer {
             throw new IllegalStateException("native animal fixture failed in " + name, failure);
         }
     }
+    private static boolean invalidAnimalNoScaffold() {
+        return ANIMAL_NO_SCAFFOLD_PROPERTY != null && !"false".equals(ANIMAL_NO_SCAFFOLD_PROPERTY)
+                && (!ANIMAL_NO_SCAFFOLD || !"white_wool_inventory".equals(ANIMAL_SCENARIO)
+                    || !BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion()));
+    }
+
+    private static final String COOKING_ORIGINAL_SLOT = System.getProperty("lodekeeper.verify.cookingOriginalSlot");
+
     private static boolean invalidAnimalScenario() {
+        if (COOKING_ORIGINAL_SLOT != null && (!"cooking".equals(ANIMAL_SCENARIO)
+                || !List.of("3", "5").contains(COOKING_ORIGINAL_SLOT) || !BARITONE_MODE
+                || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion()))) return true;
         if (!ANIMAL_MODE) return false;
         if (!List.of("beef", "beef_partial", "porkchop", "mutton", "leather", "cooking", "white_wool", "red_wool",
                 "white_wool_inventory", "wrong_components", "protected", "stop_after_interaction", "air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)
                 || !BARITONE_MODE || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())) return true;
         for (String property : System.getProperties().stringPropertyNames()) {
             if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone",
-                    "lodekeeper.verify.animalScenario", "lodekeeper.verify.candidateSha256").contains(property)) continue;
+                    "lodekeeper.verify.animalScenario", "lodekeeper.verify.animalNoScaffold", "lodekeeper.verify.cookingOriginalSlot", "lodekeeper.verify.candidateSha256").contains(property)) continue;
             if (!"false".equals(System.getProperty(property))) return true;
         }
         return false;
@@ -662,7 +677,9 @@ public final class RuntimeVerification implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) return;
-        if (!SETTINGS_UI_MODE && !WORLD_POLICY_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
+        if ((ANIMAL_NO_SCAFFOLD_PROPERTY == null || "false".equals(ANIMAL_NO_SCAFFOLD_PROPERTY))
+                && COOKING_ORIGINAL_SLOT == null
+                && !SETTINGS_UI_MODE && !WORLD_POLICY_MODE && System.getProperty("lodekeeper.verify.naturalGoal") != null
                 && !MINING_REQUEST_LIMIT_MODE && !MINING_ZERO_YIELD_MODE && !THREAT_WATER_RETREAT_MODE
                 && (THREAT_CREEPER_CONTACT_PROPERTY == null || "false".equals(THREAT_CREEPER_CONTACT_PROPERTY))
                 && (THREAT_STAIRCASE_PROPERTY == null || "false".equals(THREAT_STAIRCASE_PROPERTY))
@@ -676,8 +693,8 @@ public final class RuntimeVerification implements ClientModInitializer {
         startedAtNanos = System.nanoTime();
         try {
             prepareIsolatedPaths();
-            if (invalidAnimalScenario()) {
-                failure = "animalScenario needs an admitted focused case, baritone=true, an exact 1.21.1 or 26.3 artifact, and no other verifier mode";
+            if (invalidAnimalNoScaffold() || invalidAnimalScenario()) {
+                failure = "animalScenario needs an admitted focused case, baritone=true, an exact 1.21.1 or 26.3 artifact, and no other verifier mode; animalNoScaffold must be false or true and true requires white_wool_inventory";
                 state = State.FAILED; writeEvidence("failed"); client.stop(); return;
             }
             if (invalidShieldScenario()) {
@@ -1072,7 +1089,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
                             && !nativeAnimalPublishedReceipt.isEmpty() && nativeAnimalInt("effects") == 0
-                            && nativeAnimalInt("sheared") == 0 && latestSnapshot.health == 20.0F
+                            && nativeAnimalInt("sheared") == 0 && nativeAnimalOriginalSlotReady()
+                            && latestSnapshot.health == 20.0F
                             && latestSnapshot.foodLevel == 20 && latestSnapshot.serverCursorEmpty
                             && requireEngine().placementStockReady()) {
                         if (++readyTicks >= 20) startNativeAnimalCase();
@@ -1432,7 +1450,17 @@ public final class RuntimeVerification implements ClientModInitializer {
         nativeAnimalEvidence.add(observationPoint.equals("before-stop") ? "beforeStopReadiness" : "latestReadiness", evidence);
     }
 
+    private boolean nativeAnimalOriginalSlotReady() {
+        if (COOKING_ORIGINAL_SLOT == null) return true;
+        int expected = Integer.parseInt(COOKING_ORIGINAL_SLOT);
+        return client.player != null && client.player.getInventory().getSelectedSlot() == expected
+                && nativeAnimalInt("selectedSlot") == expected;
+    }
+
     private void startNativeAnimalCase() {
+        if (!nativeAnimalOriginalSlotReady()) {
+            fail("cooking fixture requires matching initial server/client selected slot"); return;
+        }
         AutomationEngine engine = requireEngine();
         if (!engine.status().startsWith("idle") || !baritoneNavigationStopped()) {
             fail("native animal command requires idle production navigation"); return;
@@ -1442,7 +1470,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         nativeAnimalOriginalSelectedSlot = client.player.getInventory().getSelectedSlot();
         for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
             nativeAnimalOriginalSettings.put(setting, setting.value);
-        activeCase = "native_animal_" + ANIMAL_SCENARIO;
+        activeCase = "native_animal_" + ANIMAL_SCENARIO + (ANIMAL_NO_SCAFFOLD ? "_no_scaffold" : "");
         activeItem = "minecraft:" + (List.of("white_wool_inventory", "air_pending_transfer").contains(ANIMAL_SCENARIO) ? "white_wool"
                 : "cooking".equals(ANIMAL_SCENARIO) ? "cooked_beef"
                 : List.of("beef_partial", "wrong_components", "protected", "stop_after_interaction", "air_pending_attack").contains(ANIMAL_SCENARIO)
@@ -1463,8 +1491,20 @@ public final class RuntimeVerification implements ClientModInitializer {
             if (!result.contains("created")) { fail("native animal protection fixture failed: " + result); return; }
         }
         nativeAnimalEvidence.addProperty("scenario", ANIMAL_SCENARIO);
+        if (ANIMAL_NO_SCAFFOLD) {
+            nativeAnimalEvidence.addProperty("animalNoScaffold", true);
+            nativeAnimalEvidence.addProperty("physicalCensusScope", "36 copied main stacks, HEAD/CHEST/LEGS/FEET/OFFHAND and cursor at every END_SERVER_TICK from setup through command completion, real stop and bounded restoration; sampled stock does not certify the absence of transient packets");
+        }
+        if (COOKING_ORIGINAL_SLOT != null) {
+            nativeAnimalEvidence.addProperty("cookingOriginalSlotRequested", Integer.parseInt(COOKING_ORIGINAL_SLOT));
+            nativeAnimalEvidence.addProperty("initialServerSelectedSlot", nativeAnimalInt("selectedSlot"));
+            nativeAnimalEvidence.addProperty("initialClientSelectedSlot", client.player.getInventory().getSelectedSlot());
+            nativeAnimalEvidence.addProperty("originalSlotFixtureAuthority", "before command, genuine server selection and normal native S2C held-slot packet; matching client/server selection required for20 ready ticks");
+        }
         nativeAnimalEvidence.addProperty("command", "!lk get " + activeItem + " " + activeCount);
-        nativeAnimalEvidence.addProperty("fixtureGrants", "air_pending_attack".equals(ANIMAL_SCENARIO)
+        nativeAnimalEvidence.addProperty("fixtureGrants", ANIMAL_NO_SCAFFOLD
+                ? "existing white_wool_inventory pad, four adult NoAI white sheep and nearer wrong-color decoy; ordinary shears main20, ordinary cobblestone64 main30, ordinary stick selected0, no hotbar scaffold or granted wool; command get white_wool4 uses real shears staging, native approach and grounded pickup, followed by real stop after full requested stock; no actor/ACK state grants"
+                : "air_pending_attack".equals(ANIMAL_SCENARIO)
                 ? "bounded bedrock pad; one adult NoAI invulnerable vanilla cow rejects the real native attack; after exactly one send is retained without damage, server fixture builds a roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air to 170; no granted items, output, damage or actor/receipt state; real AIR movement and refill follow; full starting health and hunger"
                 : "air_pending_transfer".equals(ANIMAL_SCENARIO)
                 ? "bounded bedrock pad; one ordinary adult NoAI white sheep; one ordinary shears in main slot20 and one ordinary stick in selected slot0 force staging into alternate hotbar1; after the real owned PICKUP click puts shears on the cursor with pendingEvidence=true and zero animal sends, server fixture builds the roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air170; no granted wool, animal interaction, damage or actor/receipt state; AIR owns movement, then real stop requires exact shears return20, unchanged wear0, empty hotbar1 and original selection0"
@@ -1474,6 +1514,49 @@ public final class RuntimeVerification implements ClientModInitializer {
         beginCaseClock(); readyTicks = 0; state = State.NATIVE_ANIMAL;
         sendCommand("!lk get " + activeItem + " " + activeCount);
     }
+    private void observeNativeAnimalMovement(AnimalHarvestAction.Observation action) {
+        if (!ANIMAL_NO_SCAFFOLD || !action.active() || client.player == null || client.level == null) return;
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (owner == null || !owner.isCurrent(session) || session.world() != client.level) return;
+        var bot = owner.getPrimaryBaritone();
+        if (bot.getPlayerContext().player() != client.player || bot.getPlayerContext().world() != client.level) return;
+        var follow = bot.getFollowProcess();
+        var following = follow.following();
+        var filter = follow.currentFilter();
+        if (following == null || !follow.isActive() || filter == null) return;
+        var settings = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings();
+        if (settings.allowBreak.value || settings.allowPlace.value || settings.allowParkourPlace.value
+                || settings.allowInventory.value || settings.autoTool.value) return;
+        for (var entity : following) {
+            if (!filter.test(entity)) continue;
+            if (!nativeAnimalApproachObserved && settings.followRadius.value == 1
+                    && entity instanceof net.minecraft.world.entity.animal.Animal target && target.getUUID().equals(action.target())) {
+                nativeAnimalApproachObserved = true;
+                nativeAnimalEvidence.addProperty("nativeApproachObservedClientTick", clientTicks);
+                nativeAnimalEvidence.addProperty("nativeApproachTarget", target.getUUID().toString());
+            }
+            if (!nativeAnimalGroundedPickupObserved && settings.followRadius.value == 0
+                    && entity instanceof net.minecraft.world.entity.item.ItemEntity drop && drop.onGround()
+                    && BuiltInRegistries.ITEM.getKey(drop.getItem().getItem()).toString().equals("minecraft:white_wool")
+                    && AnimalHarvestAction.ordinary(drop.getItem())) {
+                nativeAnimalGroundedPickupObserved = true;
+                nativeAnimalEvidence.addProperty("groundedOwnedPickupObservedClientTick", clientTicks);
+                nativeAnimalEvidence.addProperty("groundedPickupDrop", drop.getUUID().toString());
+                nativeAnimalEvidence.addProperty("groundedPickupCount", drop.getItem().getCount());
+            }
+        }
+    }
+
+    private boolean nativeAnimalPhysicalCensusReady() {
+        return nativeAnimalInt("physicalCensusSlots") == 41 && nativeAnimalInt("physicalCensusSamples") > 0
+                && nativeAnimalInt("physicalCensusMismatchSamples") == 0
+                && "true".equals(nativeAnimalPublishedReceipt.get("physicalCensusShearsStaged"))
+                && "true".equals(nativeAnimalPublishedReceipt.get("shearsOrdinary"))
+                && "true".equals(nativeAnimalPublishedReceipt.get("stagedHotbarEmpty"))
+                && nativeAnimalApproachObserved && nativeAnimalGroundedPickupObserved;
+    }
+
     private void tickNativeAnimalCase() {
         if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
         if (clientTicks - caseStartedAtTick > 2_400 || System.nanoTime() - caseStartedAtNanos > 120_000_000_000L) {
@@ -1488,6 +1571,18 @@ public final class RuntimeVerification implements ClientModInitializer {
         boolean refusal = List.of("wrong_components", "protected").contains(ANIMAL_SCENARIO);
         boolean stopping = "stop_after_interaction".equals(ANIMAL_SCENARIO);
         AnimalHarvestAction.Observation action = engine.nativeAnimalObservation();
+        if (ANIMAL_NO_SCAFFOLD) {
+            observeNativeAnimalMovement(action);
+            if (nativeAnimalInt("physicalCensusMismatchSamples") > 0) {
+                fail("movement-only animal physical stock census changed unrelated stock or exact borrowed shears: " + nativeAnimalPublishedReceipt); return;
+            }
+            if (nativeAnimalStopTick >= 0 && (nativeAnimalInt("sheared") != nativeAnimalShearedAtStop
+                    || nativeAnimalInt("effects") != 0 || action.sentEffects() != nativeAnimalStopSends
+                    || action.active() && (action.jobToken() != nativeAnimalStopJob
+                        || !java.util.Objects.equals(action.target(), nativeAnimalStopTarget)))) {
+                fail("movement-only completion stop crossed its native animal send or server shear fence"); return;
+            }
+        }
         if (List.of("air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)) { tickNativeAnimalAirCase(engine, action); return; }
         if (stopping && nativeAnimalTaskIdentity == null && action.active()) nativeAnimalTaskIdentity = engine.diagnosticTaskIdentity();
         if (stopping && nativeAnimalStopTick < 0 && nativeAnimalInt("effects") > 0) {
@@ -1512,7 +1607,10 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         boolean stopped = baritoneNavigationStopped() && nativeAnimalInputsReleased()
                 && client.player.input == nativeAnimalOriginalInput && nativeAnimalSettingsRestored()
-                && nativeAnimalInt("selectedSlot") == 0 && latestSnapshot.serverCursorEmpty
+                && nativeAnimalInt("selectedSlot") == (COOKING_ORIGINAL_SLOT == null ? 0 : nativeAnimalOriginalSelectedSlot)
+                && (COOKING_ORIGINAL_SLOT == null || client.player.getInventory().getSelectedSlot() == nativeAnimalOriginalSelectedSlot
+                    && nativeAnimalOriginalSelectedSlot == Integer.parseInt(COOKING_ORIGINAL_SLOT))
+                && latestSnapshot.serverCursorEmpty
                 && "true".equals(nativeAnimalPublishedReceipt.get("cursorEmpty"));
         boolean result = refusal ? engine.status().startsWith("paused") && nativeAnimalInt("effects") == 0
                         && nativeAnimalInt("sheared") == 0 && latestSnapshot.inventory.equals(activeInitialResources)
@@ -1528,14 +1626,35 @@ public final class RuntimeVerification implements ClientModInitializer {
                         : nativeAnimalInt("dead") > 0)
                         && (!"cooking".equals(ANIMAL_SCENARIO) || serverFurnaceOpenings > activeFurnaceOpeningsAtStart);
         recordNativeAnimalReadiness("readiness");
-        if (result && stopped && latestSnapshot.health == 20.0F && engine.placementStockReady()) {
+        if (result && stopped && latestSnapshot.health == 20.0F && engine.placementStockReady()
+                && (!ANIMAL_NO_SCAFFOLD || nativeAnimalPhysicalCensusReady())) {
+            if (ANIMAL_NO_SCAFFOLD && nativeAnimalStopTick >= 0 && clientTicks - nativeAnimalStopTick < 60) { readyTicks = 0; return; }
             if (++readyTicks < 20) return;
+            if (ANIMAL_NO_SCAFFOLD && nativeAnimalStopTick < 0) {
+                nativeAnimalStopTick = clientTicks; nativeAnimalStopSends = action.sentEffects();
+                nativeAnimalStopJob = action.jobToken(); nativeAnimalStopTarget = action.target();
+                nativeAnimalShearedAtStop = nativeAnimalInt("sheared");
+                nativeAnimalEvidence.addProperty("stopAfterRequestedStockClientTick", clientTicks);
+                nativeAnimalEvidence.addProperty("effectsSentAtCompletionStop", action.sentEffects());
+                nativeAnimalEvidence.addProperty("shearedAtCompletionStop", nativeAnimalShearedAtStop);
+                nativeAnimalEvidence.addProperty("pendingEvidenceAtCompletionStop", action.pendingEvidence());
+                nativeAnimalEvidence.addProperty("originalNativeActionActiveAtCompletionStop", action.active());
+                nativeAnimalEvidence.add("completionStopServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
+                readyTicks = 0; sendCommand("!lk stop"); return;
+            }
             recordNativeAnimalReadiness("completion");
             nativeAnimalEvidence.addProperty("restorationObserved", true);
             nativeAnimalEvidence.addProperty("originalInputRestored", client.player.input == nativeAnimalOriginalInput);
             nativeAnimalEvidence.addProperty("nativeSettingsRestored", nativeAnimalSettingsRestored());
             nativeAnimalEvidence.addProperty("nativeSettingsChecked", nativeAnimalOriginalSettings.size());
-            nativeAnimalEvidence.addProperty("result", refusal ? "refused_without_effect" : stopping ? "drained_after_interaction" : "requested_server_stock_observed");
+            if (ANIMAL_NO_SCAFFOLD) {
+                nativeAnimalEvidence.addProperty("physicalCensusUnchanged", true);
+                nativeAnimalEvidence.addProperty("nativeApproachObserved", nativeAnimalApproachObserved);
+                nativeAnimalEvidence.addProperty("groundedOwnedPickupObserved", nativeAnimalGroundedPickupObserved);
+                nativeAnimalEvidence.addProperty("completionStopSendFenceObserved", true);
+            }
+            nativeAnimalEvidence.addProperty("result", ANIMAL_NO_SCAFFOLD ? "requested_wool_physical_census_return_and_completion_stop_observed"
+                    : refusal ? "refused_without_effect" : stopping ? "drained_after_interaction" : "requested_server_stock_observed");
             if (nativeAnimalClaim != null) { engine.protection.removeClaim(nativeAnimalClaim); nativeAnimalClaim = null; }
             nativeAnimalEvidence.addProperty("screenshot", capture(activeCase));
             addResult(true, latestSnapshot.count(activeItem), "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt=" + nativeAnimalPublishedReceipt);
@@ -1785,7 +1904,8 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 player.setHealth(player.getMaxHealth());
                 player.getFoodData().setFoodLevel(20);
-                if (ANIMAL_MODE) nativeAnimalFixture = nativeAnimalApi("seedNativeAnimal", player, world, ANIMAL_SCENARIO);
+                if (ANIMAL_MODE) nativeAnimalFixture = nativeAnimalApi(ANIMAL_NO_SCAFFOLD
+                        ? "seedNativeAnimalNoScaffold" : "seedNativeAnimal", player, world, ANIMAL_SCENARIO);
                 if (SHIELD_MODE) {
                     server.setDifficulty(Difficulty.NORMAL, true);
                     shieldFixture = shieldApi("seedShieldScenario", player, world, SHIELD_SCENARIO);

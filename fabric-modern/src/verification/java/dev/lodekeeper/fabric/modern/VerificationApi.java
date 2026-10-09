@@ -49,6 +49,12 @@ final class VerificationApi {
         final java.util.List<net.minecraft.world.entity.animal.Animal> animals = new java.util.ArrayList<>();
         final java.util.Map<java.util.UUID, Float> health = new java.util.HashMap<>();
         int effects, submersionTick = -1;
+        boolean noScaffold, shearsStaged;
+        java.util.List<ItemStack> physicalBaseline = java.util.List.of();
+        ItemStack cursorBaseline = ItemStack.EMPTY;
+        String physicalBaselineDescription;
+        int censusSamples, censusMismatchSamples, censusFirstTick = -1, censusLastTick = -1;
+        final java.util.List<String> censusMismatches = new java.util.ArrayList<>();
         NativeAnimalFixture(String scenario) { this.scenario = scenario; }
     }
 
@@ -68,6 +74,13 @@ final class VerificationApi {
         if ("cooking".equals(scenario)) {
             player.getInventory().setItem(5, new ItemStack(Items.FURNACE));
             player.getInventory().setItem(6, new ItemStack(Items.COAL, 2));
+            String originalSlot = System.getProperty("lodekeeper.verify.cookingOriginalSlot");
+            if (originalSlot != null) {
+                if (!java.util.List.of("3", "5").contains(originalSlot))
+                    throw new IllegalArgumentException("cooking original slot must be3 or5");
+                int selected = Integer.parseInt(originalSlot);
+                NativeSettingsInput.selectCookingFixtureSlot(player, selected);
+            }
         }
         int count = air ? 1 : wool ? 4 : "protected".equals(scenario) || wrong || "stop_after_interaction".equals(scenario) ? 1 : 12;
         for (int i = 0; i < count; i++) {
@@ -96,6 +109,80 @@ final class VerificationApi {
         }
         player.getInventory().setChanged();
         return fixture;
+    }
+
+    static Object seedNativeAnimalNoScaffold(ServerPlayer player, ServerLevel world, String scenario) {
+        if (!"white_wool_inventory".equals(scenario)) throw new IllegalArgumentException("no-scaffold variation requires white_wool_inventory");
+        NativeAnimalFixture fixture = (NativeAnimalFixture) seedNativeAnimal(player, world, scenario);
+        player.getInventory().setItem(0, new ItemStack(Items.STICK));
+        player.getInventory().setItem(30, new ItemStack(Items.COBBLESTONE, 64));
+        player.getInventory().setChanged();
+        player.getInventory().setSelectedSlot(0);
+        fixture.physicalBaseline = nativeAnimalPhysicalStock(player);
+        fixture.physicalBaselineDescription = fixture.physicalBaseline.stream().map(VerificationApi::nativeAnimalStockDescription).toList().toString();
+        fixture.cursorBaseline = player.containerMenu.getCarried().copy();
+        if (!fixture.cursorBaseline.isEmpty()) throw new IllegalStateException("no-scaffold setup requires an empty server cursor");
+        fixture.noScaffold = true;
+        return fixture;
+    }
+
+    private static java.util.List<ItemStack> nativeAnimalPhysicalStock(ServerPlayer player) {
+        java.util.List<ItemStack> stacks = new java.util.ArrayList<>(41);
+        for (int slot = 0; slot < 36; slot++) stacks.add(player.getInventory().getItem(slot).copy());
+        for (EquipmentSlot slot : java.util.List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND)) stacks.add(player.getItemBySlot(slot).copy());
+        return java.util.List.copyOf(stacks);
+    }
+
+    private static String nativeAnimalStockDescription(ItemStack stack) {
+        String value = stack + " components=" + stack.getComponents();
+        return value.length() <= 256 ? value : value.substring(0, 256);
+    }
+
+    private static boolean nativeAnimalExactStock(ItemStack expected, ItemStack actual) {
+        return expected.isEmpty() && actual.isEmpty() || !expected.isEmpty() && !actual.isEmpty()
+                && expected.getCount() == actual.getCount() && ItemStack.isSameItemSameComponents(expected, actual);
+    }
+
+    private static boolean nativeAnimalBorrowedShears(NativeAnimalFixture fixture, ItemStack stack, int sheared) {
+        if (!stack.is(Items.SHEARS) || stack.getCount() != 1 || stack.getDamageValue() != sheared) return false;
+        ItemStack undamaged = stack.copy();
+        undamaged.setDamageValue(fixture.physicalBaseline.get(20).getDamageValue());
+        return nativeAnimalExactStock(fixture.physicalBaseline.get(20), undamaged);
+    }
+
+    private static void observeNativeAnimalPhysicalStock(NativeAnimalFixture fixture, ServerPlayer player, int tick, int sheared) {
+        java.util.List<ItemStack> actual = nativeAnimalPhysicalStock(player);
+        ItemStack cursor = player.containerMenu.getCarried().copy();
+        int toolCount = 0;
+        boolean mismatch = false;
+        for (int slot = 0; slot < actual.size(); slot++) {
+            ItemStack before = fixture.physicalBaseline.get(slot), now = actual.get(slot);
+            boolean toolSlot = slot == 20 || slot == 1;
+            boolean tool = toolSlot && nativeAnimalBorrowedShears(fixture, now, sheared);
+            if (tool) toolCount += now.getCount();
+            boolean allowed = toolSlot ? now.isEmpty() || tool
+                    : nativeAnimalExactStock(before, now) || slot < 36 && before.isEmpty()
+                        && BuiltInRegistries.ITEM.getKey(now.getItem()).toString().equals("minecraft:white_wool")
+                        && AnimalHarvestAction.ordinary(now);
+            if (!allowed) {
+                mismatch = true;
+                if (fixture.censusMismatches.size() < 8) fixture.censusMismatches.add("tick=" + tick
+                        + " physicalSlot=" + slot + " before=" + nativeAnimalStockDescription(before)
+                        + " actual=" + nativeAnimalStockDescription(now));
+            }
+        }
+        boolean cursorTool = nativeAnimalBorrowedShears(fixture, cursor, sheared);
+        if (cursorTool) toolCount += cursor.getCount();
+        if (!(nativeAnimalExactStock(fixture.cursorBaseline, cursor) || cursorTool) || toolCount != 1) {
+            mismatch = true;
+            if (fixture.censusMismatches.size() < 8) fixture.censusMismatches.add("tick=" + tick
+                    + " cursor=" + nativeAnimalStockDescription(cursor) + " physicalShearsCount=" + toolCount + " observedShearWear=" + sheared);
+        }
+        if (nativeAnimalBorrowedShears(fixture, actual.get(1), sheared) && actual.get(20).isEmpty()) fixture.shearsStaged = true;
+        if (fixture.censusSamples++ == 0) fixture.censusFirstTick = tick;
+        fixture.censusLastTick = tick;
+        if (mismatch) fixture.censusMismatchSamples++;
     }
 
     static void submergeNativeAnimal(Object handle, ServerPlayer player, ServerLevel world, int tick) {
@@ -139,7 +226,7 @@ final class VerificationApi {
             ItemStack stack = player.getInventory().getItem(slot);
             if (stack.is(Items.BEEF) && AnimalHarvestAction.ordinary(stack)) ordinaryBeef += stack.getCount();
         }
-        return java.util.Map.ofEntries(java.util.Map.entry("serverTick", Integer.toString(tick)),
+        java.util.Map<String, String> receipt = new java.util.LinkedHashMap<>(java.util.Map.ofEntries(java.util.Map.entry("serverTick", Integer.toString(tick)),
                 java.util.Map.entry("effects", Integer.toString(fixture.effects)), java.util.Map.entry("dead", Integer.toString(dead)),
                 java.util.Map.entry("sheared", Integer.toString(sheared)), java.util.Map.entry("wrongColorSheared", Integer.toString(wrongColorSheared)),
                 java.util.Map.entry("ordinaryBeef", Integer.toString(ordinaryBeef)),
@@ -156,7 +243,22 @@ final class VerificationApi {
                 java.util.Map.entry("headInWater", Boolean.toString(player.isUnderWater())),
                 java.util.Map.entry("playerX", Double.toString(player.getX())),
                 java.util.Map.entry("playerY", Double.toString(player.getY())),
-                java.util.Map.entry("playerZ", Double.toString(player.getZ())));
+                java.util.Map.entry("playerZ", Double.toString(player.getZ()))));
+        if (fixture.noScaffold) {
+            observeNativeAnimalPhysicalStock(fixture, player, tick, sheared - wrongColorSheared);
+            receipt.put("physicalCensusSlots", "41");
+            receipt.put("physicalCensusSlotOrder", "main0..35,HEAD,CHEST,LEGS,FEET,OFFHAND; cursor separate");
+            receipt.put("physicalCensusBaseline", fixture.physicalBaselineDescription);
+            receipt.put("physicalCensusSamples", Integer.toString(fixture.censusSamples));
+            receipt.put("physicalCensusFirstTick", Integer.toString(fixture.censusFirstTick));
+            receipt.put("physicalCensusLastTick", Integer.toString(fixture.censusLastTick));
+            receipt.put("physicalCensusMismatchSamples", Integer.toString(fixture.censusMismatchSamples));
+            receipt.put("physicalCensusMismatches", fixture.censusMismatches.toString());
+            receipt.put("physicalCensusShearsStaged", Boolean.toString(fixture.shearsStaged));
+            receipt.put("physicalCensusCobblestone30", Integer.toString(player.getInventory().getItem(30).getCount()));
+            receipt.put("physicalCensusStick0", Integer.toString(player.getInventory().getItem(0).getCount()));
+        }
+        return java.util.Map.copyOf(receipt);
     }
 
 

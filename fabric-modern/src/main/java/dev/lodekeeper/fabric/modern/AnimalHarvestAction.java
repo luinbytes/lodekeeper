@@ -303,7 +303,7 @@ final class AnimalHarvestAction implements NativeRun {
             if (settled.isEmpty()) { status = "waiting for an ordinary matching drop to land before owned pickup"; return; }
             drop = settled.get(); dropId = drop.getUUID(); pinnedDropCount = drop.getItem().getCount();
             ambiguous = oldDrops.containsKey(dropId);
-            movement.startOwnedPickup(drop, session); phase = Phase.PICKUP;
+            movement.startOwnedPickup(drop, session, MovementController.RouteEffects.MOVEMENT_ONLY); phase = Phase.PICKUP;
             status = "collecting pinned ordinary " + GameCatalog.id(drop.getItem().getItem());
             return;
         }
@@ -397,14 +397,23 @@ final class AnimalHarvestAction implements NativeRun {
         if (!active()) return;
         if (currentSession() && client.player.getInventory().getSelectedSlot() != selectedSlot) selectionAbandoned = true;
         drainRequested = true; phase = Phase.DRAIN; status = "draining animal action for " + reason;
-        if (currentSession()) { if (!navigationAbandoned && !movementHandedOff) movement.stop(); }
-        else abandonSession();
+        if (currentSession()) {
+            try { if (!navigationAbandoned && !movementHandedOff) movement.stop(); }
+            catch (MovementController.NavigationFailure failure) {
+                if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+                abandonNavigationOwnership();
+            }
+        } else abandonSession();
     }
     @Override public void pause() {
         if (!active()) return;
         if (currentSession() && client.player.getInventory().getSelectedSlot() != selectedSlot) selectionAbandoned = true;
         if (!paused) { paused = true; pauseStarted = System.nanoTime(); }
-        if (!navigationAbandoned && !movementHandedOff) movement.suspend();
+        try { if (!navigationAbandoned && !movementHandedOff) movement.suspend(); }
+        catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+            abandonNavigationOwnership();
+        }
     }
     void stop() { requestDrain(DrainReason.PREEMPT); }
     @Override public void abandonSession() {
@@ -444,7 +453,8 @@ final class AnimalHarvestAction implements NativeRun {
     private void startApproach() {
         if (target == null || !eligible(target, request, urgent)) { block("animal is no longer safe to approach"); return; }
         movement.startFollowing(target, entity -> entity == target && targetId.equals(target.getUUID())
-                && eligible(target, request, urgent) && withinOrigin(target.getX(), target.getY(), target.getZ()));
+                && eligible(target, request, urgent) && withinOrigin(target.getX(), target.getY(), target.getZ()),
+                MovementController.RouteEffects.MOVEMENT_ONLY);
         phase = Phase.APPROACH; status = "pursuing " + request.sourceId();
     }
     private boolean eligible(Animal animal, PlanStep step, boolean food) {
