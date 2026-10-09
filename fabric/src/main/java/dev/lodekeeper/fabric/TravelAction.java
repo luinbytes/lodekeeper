@@ -191,8 +191,7 @@ final class TravelAction implements NativeRun {
             return;
         }
         missingSince = 0;
-        double dx = target.getX() - client.player.getX(), dy = target.getY() - client.player.getY(), dz = target.getZ() - client.player.getZ();
-        boolean waiting = dx * dx + dy * dy + dz * dz <= 4;
+        boolean waiting = routeStarted && movement.followGoalSettled(target, goal.target());
         if (waiting || progressed()) lastProgressNanos = now;
         if (now - lastProgressNanos >= 15_000_000_000L) { end(TravelResult.REFUSED, "15 seconds without observed follow progress"); return; }
         if (!routeStarted) {
@@ -202,7 +201,7 @@ final class TravelAction implements NativeRun {
             routeStarted = true;
         }
         movement.tick();
-        outcome = new Outcome.Pending(waiting ? "following; waiting within two blocks" : "following the pinned player");
+        outcome = new Outcome.Pending(waiting ? "following; waiting at native goal" : "following the pinned player");
     }
 
     private boolean destinationAdmitted(ExplorationFrontier.Waypoint destination, int radius) {

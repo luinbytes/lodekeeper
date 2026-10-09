@@ -2,7 +2,7 @@
 
 Travel uses the foreground queue shared with acquisition and projects. Each accepted command prints its job token. `!lk queue` lists queued jobs, and `!lk status` reports the current job.
 
-The 1.21.1 and 26.3 artifacts compile with these commands. Coordinate travel passes the prepared native case on both. The first primary follow case fails during peer enrollment before sending the command; modern follow remains unrun. Other adapters refuse travel before starting a route. The [initial native evidence](evidence/cooperative/main-5108f5b-travel-initial.json) preserves all three results.
+The 1.21.1 and 26.3 artifacts compile with these commands. Coordinate travel passes the prepared native case on both. After the peer PLAY correction, 1.21.1 passes moving-player follow, original expiry, control restoration, peer teardown and fresh post-idle observation. The 26.3 case enrolls the peer and follows both moves but returns REFUSED at the progress watchdog; its outer case then times out. Other adapters refuse travel before starting a route. The [initial native evidence](evidence/cooperative/main-5108f5b-travel-initial.json) preserves all three results.
 
 | Command | Behavior and limits |
 | --- | --- |
@@ -26,3 +26,7 @@ Food and shield preparation use guarded acquisition children before travel. They
 Waypoints use at most 64 labels per world and dimension across sixteen scopes. An unreadable waypoint file blocks edits until its contents are inspected.
 
 The [parity implementation ledger](PARITY-IMPLEMENTATION.md) records native verification and the remaining player-service work.
+
+The [5d2ef07 follow evidence](evidence/cooperative/main-5d2ef07-follow-initial.json) records both results and all 24 passing CI jobs for that exact commit. The primary original capture passed anonymous byte/hash read-back and signed-out browser decoding; its two local copies were deleted. Modern produced no capture. The goal-settlement source correction has separate build and native gates.
+
+The [follow goal-settlement correction](evidence/cooperative/follow-goal-settlement-source-r2.json) passes independent source review and builds for 1.21.1, 26.3 and the mapped 1.21.11 adapter, with 319, 274 and 324 existing checks. Waiting now observes the current owned native block goal and the same pinned target, while preserving the original deadline, missing-target and progress bounds. The unchanged native follow acceptance cases remain pending for these corrected jars.

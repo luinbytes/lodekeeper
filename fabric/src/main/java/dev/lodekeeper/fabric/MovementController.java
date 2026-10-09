@@ -473,6 +473,31 @@ final class MovementController {
 
     void abandonRequestContext() { releaseLostAirRecoveryOwnership(); bot = null; }
 
+    boolean followGoalSettled(Entity target, UUID targetId) {
+        if (mode != Mode.FOLLOW || routeEffects != RouteEffects.MOVEMENT_ONLY
+                || lease == null || cancelling || followCancellationPending || target == null || targetId == null
+                || !targetId.equals(followTargetId) || followFilter == null || bot == null
+                || client.player == null || client.world == null
+                || client.player != followOwnerPlayer || client.world != followOwnerWorld
+                || target.getWorld() != followOwnerWorld || !targetId.equals(target.getUuid())
+                || !target.isAlive() || target.isRemoved()
+                || bot.getPlayerContext().player() != client.player
+                || bot.getPlayerContext().world() != client.world
+                || OwnedKernelAPI.getSettings().followRadius.value != followRadius
+                || OwnedKernelAPI.getSettings().followOffsetDistance.value != 0.0
+                || bot.getPathingControlManager().mostRecentInControl().orElse(null) != bot.getFollowProcess()
+                || bot.getFollowProcess().currentFilter() != followFilter
+                || !followFilter.test(target)) return false;
+        var following = bot.getFollowProcess().following();
+        if (following == null || following.size() != 1 || following.get(0) != target) return false;
+        var nativeGoal = bot.getPathingBehavior().getGoal();
+        var feet = bot.getPlayerContext().playerFeet();
+        BlockPos targetFeet = target.getBlockPos();
+        GoalNear acceptedGoal = new GoalNear(targetFeet, followRadius);
+        return nativeGoal != null && nativeGoal.isInGoal(feet)
+                && acceptedGoal.isInGoal(feet.getX(), feet.getY(), feet.getZ());
+    }
+
     boolean travelReleased() {
         return mode == Mode.IDLE && resumeMode == Mode.IDLE && !cancelling && lease == null
                 && !followCancellationPending && cancellationProcess == null && !airRecoveryCancellationPending;

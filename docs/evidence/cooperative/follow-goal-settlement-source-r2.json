@@ -1,0 +1,166 @@
+{
+  "recordedAtUtc": "2026-10-09T10:59:57.910400+00:00",
+  "sourceBaseline": "5d2ef0768deba94be4f78fad366a2a5b5518ce6d",
+  "status": "SOURCE_REVIEW_AND_THREE_BUILDS_PASS_NATIVE_UNRUN",
+  "sourceManifest": {
+    "sourceCommit": "5d2ef0768deba94be4f78fad366a2a5b5518ce6d",
+    "status": "ROOT_PREP_SOURCE_ONLY_UNREVIEWED",
+    "changes": [
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+        "baselineSha256": "d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da",
+        "sourceSha256": "e71dfb764e18369a7e3696a13e204c5b665cbd3a651eb0f97c1c80ad6bbf5685",
+        "lunaCandidateSha256": "c52191effa12dc981a47f21f9291998db795426e935b5a8f2640083881c7ad18"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java",
+        "baselineSha256": "e931122f3ff98388bca4ad2643ea765aa382d2ff6e83d3787881fdb294121d85",
+        "sourceSha256": "c6a8ac67b4ae4fe2ce16338c1f24314a1fe6c0451f27ddf58ac50653ad401314",
+        "lunaCandidateSha256": "c6a8ac67b4ae4fe2ce16338c1f24314a1fe6c0451f27ddf58ac50653ad401314"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+        "baselineSha256": "7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6",
+        "sourceSha256": "16000af9c0711f5568a98efd6dc8fa9c6d7eea985de9836342fc270768ee4c38",
+        "lunaCandidateSha256": "bd0bdc6b12aad1718bdf2a4d838ace1ed331c49d94891693c1b890aee875b783"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java",
+        "baselineSha256": "a9184c6150274d540dec815a30c28c8b361a5ecd373c97af6f8336a0f3453bec",
+        "sourceSha256": "a35c69d07af5f47401eecb93aa74063ffcf7f72a1dc5514eb482a11bb6ce8190",
+        "lunaCandidateSha256": "a35c69d07af5f47401eecb93aa74063ffcf7f72a1dc5514eb482a11bb6ce8190"
+      }
+    ],
+    "priorCandidate": "/tmp/lodekeeper-follow-goal-settlement-prepared-r1",
+    "rootChanges": [
+      "Correct actual modern native API bindings",
+      "Require movement-only profile, live lease, no cancellation and actual controlling follow process"
+    ],
+    "unchangedAcceptance": [
+      "1200 native ticks/90seconds",
+      "original20secFOLLOW_EXPIRED",
+      "peer movements",
+      "fresh post-idle",
+      "teardown",
+      "stock/input/selection/settings restoration"
+    ]
+  },
+  "patchSha256": "093182a26b385cdca7c74dac903291a7df9e0f6b6abf087571937f93d000b82f",
+  "patch": "--- a/fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java\n+++ b/fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java\n@@ -472,6 +472,31 @@\n     }\n \n     void abandonRequestContext() { releaseLostAirRecoveryOwnership(); bot = null; }\n+\n+    boolean followGoalSettled(Entity target, UUID targetId) {\n+        if (mode != Mode.FOLLOW || routeEffects != RouteEffects.MOVEMENT_ONLY\n+                || lease == null || cancelling || followCancellationPending || target == null || targetId == null\n+                || !targetId.equals(followTargetId) || followFilter == null || bot == null\n+                || client.player == null || client.world == null\n+                || client.player != followOwnerPlayer || client.world != followOwnerWorld\n+                || target.getWorld() != followOwnerWorld || !targetId.equals(target.getUuid())\n+                || !target.isAlive() || target.isRemoved()\n+                || bot.getPlayerContext().player() != client.player\n+                || bot.getPlayerContext().world() != client.world\n+                || OwnedKernelAPI.getSettings().followRadius.value != followRadius\n+                || OwnedKernelAPI.getSettings().followOffsetDistance.value != 0.0\n+                || bot.getPathingControlManager().mostRecentInControl().orElse(null) != bot.getFollowProcess()\n+                || bot.getFollowProcess().currentFilter() != followFilter\n+                || !followFilter.test(target)) return false;\n+        var following = bot.getFollowProcess().following();\n+        if (following == null || following.size() != 1 || following.get(0) != target) return false;\n+        var nativeGoal = bot.getPathingBehavior().getGoal();\n+        var feet = bot.getPlayerContext().playerFeet();\n+        BlockPos targetFeet = target.getBlockPos();\n+        GoalNear acceptedGoal = new GoalNear(targetFeet, followRadius);\n+        return nativeGoal != null && nativeGoal.isInGoal(feet)\n+                && acceptedGoal.isInGoal(feet.getX(), feet.getY(), feet.getZ());\n+    }\n \n     boolean travelReleased() {\n         return mode == Mode.IDLE && resumeMode == Mode.IDLE && !cancelling && lease == null\n--- a/fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java\n+++ b/fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java\n@@ -191,8 +191,7 @@\n             return;\n         }\n         missingSince = 0;\n-        double dx = target.getX() - client.player.getX(), dy = target.getY() - client.player.getY(), dz = target.getZ() - client.player.getZ();\n-        boolean waiting = dx * dx + dy * dy + dz * dz <= 4;\n+        boolean waiting = routeStarted && movement.followGoalSettled(target, goal.target());\n         if (waiting || progressed()) lastProgressNanos = now;\n         if (now - lastProgressNanos >= 15_000_000_000L) { end(TravelResult.REFUSED, \"15 seconds without observed follow progress\"); return; }\n         if (!routeStarted) {\n@@ -202,7 +201,7 @@\n             routeStarted = true;\n         }\n         movement.tick();\n-        outcome = new Outcome.Pending(waiting ? \"following; waiting within two blocks\" : \"following the pinned player\");\n+        outcome = new Outcome.Pending(waiting ? \"following; waiting at native goal\" : \"following the pinned player\");\n     }\n \n     private boolean destinationAdmitted(ExplorationFrontier.Waypoint destination, int radius) {\n--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java\n+++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java\n@@ -481,6 +481,31 @@\n     }\n \n     void abandonRequestContext() { releaseLostAirRecoveryOwnership(); bot = null; }\n+\n+    boolean followGoalSettled(Entity target, UUID targetId) {\n+        if (mode != Mode.FOLLOW || routeEffects != RouteEffects.MOVEMENT_ONLY\n+                || lease == null || cancelling || followCancellationPending || target == null || targetId == null\n+                || !targetId.equals(followTargetId) || followFilter == null || bot == null\n+                || client.player == null || client.level == null\n+                || client.player != followOwnerPlayer || client.level != followOwnerWorld\n+                || target.level() != followOwnerWorld || !targetId.equals(target.getUUID())\n+                || !target.isAlive() || target.isRemoved()\n+                || bot.getPlayerContext().player() != client.player\n+                || bot.getPlayerContext().world() != client.level\n+                || OwnedKernelAPI.getSettings().followRadius.value != followRadius\n+                || OwnedKernelAPI.getSettings().followOffsetDistance.value != 0.0\n+                || bot.getPathingControlManager().mostRecentInControl().orElse(null) != bot.getFollowProcess()\n+                || bot.getFollowProcess().currentFilter() != followFilter\n+                || !followFilter.test(target)) return false;\n+        var following = bot.getFollowProcess().following();\n+        if (following == null || following.size() != 1 || following.get(0) != target) return false;\n+        var nativeGoal = bot.getPathingBehavior().getGoal();\n+        var feet = bot.getPlayerContext().playerFeet();\n+        BlockPos targetFeet = target.blockPosition();\n+        GoalNear acceptedGoal = new GoalNear(targetFeet, followRadius);\n+        return nativeGoal != null && nativeGoal.isInGoal(feet)\n+                && acceptedGoal.isInGoal(feet.getX(), feet.getY(), feet.getZ());\n+    }\n \n     boolean travelReleased() {\n         return mode == Mode.IDLE && resumeMode == Mode.IDLE && !cancelling && lease == null\n--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java\n+++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java\n@@ -191,8 +191,7 @@\n             return;\n         }\n         missingSince = 0;\n-        double dx = target.getX() - client.player.getX(), dy = target.getY() - client.player.getY(), dz = target.getZ() - client.player.getZ();\n-        boolean waiting = dx * dx + dy * dy + dz * dz <= 4;\n+        boolean waiting = routeStarted && movement.followGoalSettled(target, goal.target());\n         if (waiting || progressed()) lastProgressNanos = now;\n         if (now - lastProgressNanos >= 15_000_000_000L) { end(TravelResult.REFUSED, \"15 seconds without observed follow progress\"); return; }\n         if (!routeStarted) {\n@@ -202,7 +201,7 @@\n             routeStarted = true;\n         }\n         movement.tick();\n-        outcome = new Outcome.Pending(waiting ? \"following; waiting within two blocks\" : \"following the pinned player\");\n+        outcome = new Outcome.Pending(waiting ? \"following; waiting at native goal\" : \"following the pinned player\");\n     }\n \n     private boolean destinationAdmitted(ExplorationFrontier.Waypoint destination, int radius) {\n",
+  "independentSourceReview": {
+    "path": "/tmp/lodekeeper-follow-goal-settlement-source-review-r2-luna.md",
+    "sha256": "b1c5c108cbeb1981edee0ec95781fcd437339f4b6dbc81a8239d62aaa762c04e",
+    "verdict": "CLEAN",
+    "report": "# Follow goal settlement ROOT R1 source review\n\n**Verdict: CLEAN.** This review covers the immutable ROOT R1 patch at `/tmp/lodekeeper-follow-goal-settlement-root-r1/source.patch`, against canonical source commit `5d2ef0768deba94be4f78fad366a2a5b5518ce6d` in `/Users/luinbytes/src/lodekeeper`. No repository files were changed. The canonical checkout reported no working-tree changes, and its four candidate files match the manifest's baseline SHA-256 values.\n\nThe package source patch SHA-256 is `093182a26b385cdca7c74dac903291a7df9e0f6b6abf087571937f93d000b82f`. The patch changes only `MovementController.java` and `TravelAction.java` in each of the primary and modern Fabric adapters. It does not change the verifier, navigation kernel, dependency locks, or notices.\n\n## Findings\n\nThe prior modern run's refusal has a source-level cause and the candidate addresses it. The old `TravelAction.follow()` at modern lines 194-197 counted waiting only when full 3D entity distance squared was at most four. The retained run report records host x `14.3904679` and peer x `16.5`, approximately `2.1095` blocks apart, so stationary arrival did not refresh the 15-second progress watchdog. The ROOT patch replaces that threshold with `routeStarted && movement.followGoalSettled(target, goal.target())` in both adapters. Ordinary `progressed()` remains an independent progress signal, and the 15-second refusal remains in place.\n\nModern `MovementController.followGoalSettled()` binds acceptance to the original follow request: `Mode.FOLLOW`, `MOVEMENT_ONLY`, a non-null settings lease, no cancellation, the pinned UUID and live entity, the same captured player and world, the kernel player/world context, the captured `followFilter`, and its successful evaluation. It also requires follow radius to equal the controller's declared radius, zero follow offset, the native follow process to be the most recent controller, and that process's current filter to be the exact captured filter. The native process cache must contain exactly one entry and that entry must be the same target object. See modern `MovementController.java`, candidate insertion after line 483; the primary insertion is the corresponding method after line 474.\n\nThe actual-goal checks align with the retained native implementation. `modern-FollowProcess.java.readonly` constructs its follow goal from each cached entity's `blockPosition()` when offset is zero, then wraps that position in `GoalNear` using the active `followRadius`; its cache is populated by the current filter. ROOT requires the current native goal to accept `playerFeet()` and also requires a `GoalNear` centered on the pinned target's current block position with the same radius to accept those feet. That second check prevents a stale goal for a former target position from counting as settlement. The modern bindings in the patch use `target.level()`, `target.getUUID()`, and `target.blockPosition()`, matching this source family. The primary equivalents use `getWorld()`, `getUuid()`, and `getBlockPos()`.\n\nCaller ordering preserves timeout and ownership behavior. `TravelAction.tick()` checks context expiry and the original deadline at lines 56-60 before dispatching to `follow()`. The patched `follow()` still checks missing-player timeout first, still updates progress only on settlement or physical progress, and still refuses at 15 seconds without either. Before route start it retains its deadline guard. Starting the route still calls `startFollowingPlayer(..., MOVEMENT_ONLY, effectCurrent)`; the controller's existing start path validates authority, captures the session and identity, installs the exact entity filter, leases radius 2 and zero offset, and starts the native follow process. The candidate does not refresh session authority, cancel movement, or restore state from the observer.\n\nThe `routeStarted` condition prevents early settlement before this request has started native follow. Stale, foreign, replaced, or independently controlled native follows fail the exact filter, sole-cache-entity, target-identity, or controlling-process checks. The `Outcome.Pending` status now says `following; waiting at native goal`; all other existing watchdog and route paths are unchanged in the patch.\n\n## Scope and limits\n\nThe baseline hashes for all four candidate files match the canonical checkout. The ROOT patch's source hashes match the manifest. Review was static and read-only. No compiler, native runtime, build, test, verifier, or client was run. The previous native run and verifier evidence were read as supplied context, not rerun here. The original verifier and its 1200-tick limit, exact 20-second `FOLLOW_EXPIRED` receipt, peer movements, post-idle checks, teardown, and restoration acceptance remain unchanged. No future remote authentication or handoff acceptance is implied.\n"
+  },
+  "checks": {
+    "primary": {
+      "version": "1.21.1",
+      "module": "fabric-1211",
+      "buildLog": "/tmp/lodekeeper-follow-goal-settlement-1.21.1-r1-build.log",
+      "buildLogSha256": "255d4730dede8e1cfe9c6959c4a3323d904badf624cd6f596c325fba2512cbc0",
+      "existingChecks": {
+        "core": {
+          "tests": 173,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1211": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "sum": 319,
+      "productionJar": {
+        "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "sha256": "18cc5113c01f6a46065e89b323054b5bffb3884fcf88416be46622812ee50fae",
+        "bytes": 1895471
+      }
+    },
+    "modern": {
+      "version": "26.3",
+      "module": "fabric-modern",
+      "buildLog": "/tmp/lodekeeper-follow-goal-settlement-26.3-r1-build.log",
+      "buildLogSha256": "fddeebb5a4f9312be6e4e4d58c76bad13f7783e8d6f7a2c7add525fbde5dade2",
+      "existingChecks": {
+        "core": {
+          "tests": 173,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-modern": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "sum": 274,
+      "productionJar": {
+        "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "sha256": "4936151f4fbea90f46a32d399543cc76657e564cffecdecfac18f0307ccbc3dc",
+        "bytes": 1967985
+      }
+    },
+    "recent": {
+      "version": "1.21.11",
+      "module": "fabric-1212",
+      "buildLog": "/tmp/lodekeeper-follow-goal-settlement-1.21.11-r1-build.log",
+      "buildLogSha256": "aee39086ca963e325271f95d676e92683ddfb4dda200bfe53671988d8736809d",
+      "existingChecks": {
+        "core": {
+          "tests": 173,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1212": {
+          "tests": 53,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "sum": 324,
+      "productionJar": {
+        "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+        "sha256": "86803ba4d870ad1386623c02743002467d7819b5bd066e437c0bb9aab10ec6f3",
+        "bytes": 1910230
+      }
+    }
+  },
+  "compiledSourceManifest": "755d85e8c90dcfb827609298d6d7af025ec245ecafc977cbdbad88e74051d4bf  core/src/main/java/dev/lodekeeper/core/CommandParser.java\nb11cc034094f4ed6df97f04f432ac0d35703f8e0db4dc063b91e154146aa8cc6  core/src/main/java/dev/lodekeeper/core/TravelGoal.java\n1858232c69a2c1ad8cb1fb38f6b2dc7c291af48d0cad55810abb07f319415081  core/src/test/java/dev/lodekeeper/core/TravelCommandParserTest.java\n08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79  fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java\n96dbfa00dc8dda773fe02186ac1f0af41c9175782fb8c8775332de1ad8a76974  fabric-1211/build.gradle\n407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c  fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java\ne264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad  fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java\ne3c2d3f1b60f17570c38b0d426e87b6642f4315ee9764c23bfab668776116042  fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java\nfd37cb6ecadc014648451f6110f9bad8ee31982588cca1ff898cef553d46feb0  fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java\ncd02bf2b461d5d7aa2f5665d9313b09e377a5f017c3fd6fa61e8cd5a2c52b9e7  fabric-1212/build.gradle\n37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765  fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java\n4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe  fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java\nc4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194  fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java\n99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349  fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java\n81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java\n8aa041815f5c334a94b4bcf5f8cea7addddb296af09c70322f2224e2c992d84b  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CraftingAction.java\neaa9fc87aad465cbb5d75283475b27902cc2dc079b7f7af3aac391646927e831  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java\n0fb89468550a13ffd0090de9a1b523756441e6e88b086801a113f0788db7e943  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java\n16000af9c0711f5568a98efd6dc8fa9c6d7eea985de9836342fc270768ee4c38  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java\n9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java\n72f06cb2e57f88937172df47ab38a0f5578685492568331938b72964b1302d05  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedStationRecoveryAction.java\n350d97a6b73e19ba1613dc80731150b607fd3b9466edfbd802cff1447af6c31a  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java\n55eb0c87557b9eebe76dfda14315cd656bf14cde50c5d98cadf3e98710c4fefb  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SmeltingAction.java\na35c69d07af5f47401eecb93aa74063ffcf7f72a1dc5514eb482a11bb6ce8190  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java\n51263bd6c65e131034e2340c7bed1c2772eda6c302677e9828cb4cc85f4b3c15  fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WaypointStore.java\n0cbd32f473eabccf9c4778d0132c11b10845b2f18b9cb5e43f43de97126289d7  fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java\nbdb12a4e22cf96bd6dd9b03cef1ea4efbfe4aedb6e64abaf9ea2136175b7e1d8  fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java\nf0f3bd30217a1083478486f6e06ab72a2a6d5a1d7ecb7e69d8114f884276d0e6  fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java\n614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a  fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java\nb442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6  fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java\n259a4a8515731c38ce37eeddd1797e4f9857c67109d88c521c26ef735471d447  fabric/src/main/java/dev/lodekeeper/fabric/CraftingAction.java\n2c1628c5e4c9299a76de061d46cf5e3186b609e2ee77e8aa5648c64cca1e94b8  fabric/src/main/java/dev/lodekeeper/fabric/GameTerrain.java\n8e6ddc6cb7e87c81857f0aa920913276db69d65e6117d6b573a4c7003f4e990e  fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperClient.java\ne71dfb764e18369a7e3696a13e204c5b665cbd3a651eb0f97c1c80ad6bbf5685  fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java\nc0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c  fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java\nc4c9a7c101076d2ea8288fa683baf237fb6d61d6de12477cb865ea8452b75cff  fabric/src/main/java/dev/lodekeeper/fabric/OwnedStationRecoveryAction.java\n09218a95d8dbb8d0450b4652d4a4eed3f3ae4bf3327016d42c56a662add61673  fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java\n5dc4b081d2f0b52643b8504a416bc2be8a9ac83bd27759e0a997005ffe22f975  fabric/src/main/java/dev/lodekeeper/fabric/SmeltingAction.java\nc6a8ac67b4ae4fe2ce16338c1f24314a1fe6c0451f27ddf58ac50653ad401314  fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java\n0ebd3a5cb92ead9ad98d9df218c5a4bab7173d27bf9b4f305c9b67c388c7693b  fabric/src/main/java/dev/lodekeeper/fabric/WaypointStore.java\n667252c5efe94eaf1b76815539e5c52f489b82618e819be5b586b32df6081c4f  fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java\n",
+  "compiledSourceManifestSha256": "81226b16c301bd8da15547a300bb2ad352e15d50e851d19f78bd8598b3d32bb7",
+  "integrationStateSha256": "59e308e292551d84456169b12544d7c7ff0bac29388ffc0f8772ba4a19faf771",
+  "originalFailureEvidence": "docs/evidence/cooperative/main-5d2ef07-follow-initial.json",
+  "nativeStatus": "UNRUN for corrected jars",
+  "limits": [
+    "Original verifier acceptance and time bounds unchanged.",
+    "Actual canonical APIs corrected before source review, rather than copying primary names into modern.",
+    "Older travel capabilities remain closed; compilation is separate from gameplay.",
+    "Current correction CI pending its commit and push.",
+    "Handoff and certified signed chat remain separate gates."
+  ]
+}
