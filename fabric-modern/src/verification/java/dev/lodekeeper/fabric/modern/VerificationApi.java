@@ -1805,11 +1805,19 @@ final class VerificationApi {
             nearbyStoneCells[index++] = new BlockPos(x, y, z);
         }
         if (index != nearbyStoneCells.length) throw new IllegalStateException("station-room receipt cell count differs");
-        return new PreparedSafetyStationRoomFixture(nearbyStoneCells, tunnel, approach);
+        var fixture = new PreparedSafetyStationRoomFixture(player, world, nearbyStoneCells, tunnel, approach);
+        if (!tunnel && !approach) collectPreparedSafetyStationRoomReceipt(player, world, fixture, true);
+        return fixture;
     }
 
     static Map<String, String> preparedSafetyStationRoomReceipt(ServerPlayer player, ServerLevel world,
                                                                   PreparedSafetyStationRoomFixture fixture) {
+        return collectPreparedSafetyStationRoomReceipt(player, world, fixture, false);
+    }
+
+    private static Map<String, String> collectPreparedSafetyStationRoomReceipt(ServerPlayer player, ServerLevel world,
+                                                                            PreparedSafetyStationRoomFixture fixture, boolean advanceHistory) {
+        if (!fixture.tunnel && !fixture.approach) fixture.requireContext(player, world);
         int stillStone = 0;
         int changedStone = 0;
         StringBuilder changedPositions = new StringBuilder();
@@ -1827,10 +1835,12 @@ final class VerificationApi {
         int furnaceInput = 0, furnaceFuel = 0, furnaceOutput = 0;
         boolean allFurnaceFloorsBedrock = true;
         StringBuilder furnacePositions = new StringBuilder();
+        BlockPos firstFurnacePosition = null;
         for (int x = -2; x <= 2; x++) for (int y = 64; y <= 70; y++) for (int z = -2; z <= 2; z++) {
             if (x * x + z * z > 4) continue;
             BlockPos position = new BlockPos(x, y, z);
             if (!world.getBlockState(position).is(Blocks.FURNACE)) continue;
+            if (firstFurnacePosition == null) firstFurnacePosition = position;
             if (nearbyFurnaces++ > 0) furnacePositions.append(';');
             furnacePositions.append(x).append(',').append(y).append(',').append(z);
             allFurnaceFloorsBedrock &= world.getBlockState(position.below()).is(Blocks.BEDROCK);
@@ -1910,6 +1920,15 @@ final class VerificationApi {
                 && world.getBlockState(new BlockPos(0, 63, 1)).is(Blocks.CRAFTING_TABLE)));
             result.put("approachCeilingPresent", Boolean.toString(world.getBlockState(new BlockPos(0, 65, 0)).is(Blocks.BEDROCK)));
         }
+        if (!fixture.tunnel && !fixture.approach) {
+            if (advanceHistory) {
+                Map<String, String> history = new LinkedHashMap<>();
+                fixture.observeHistory(player, world, nearbyFurnaces, firstFurnacePosition, allFurnaceFloorsBedrock, history);
+                fixture.publishedHistory = Map.copyOf(history);
+            }
+            result.putAll(fixture.publishedHistory);
+            result.put("stationCurrentOrdinaryFurnaceCount", Integer.toString(fixture.ordinaryFurnaceCount(player)));
+        }
         return Map.copyOf(result);
     }
 
@@ -1918,13 +1937,36 @@ final class VerificationApi {
             new BlockPos(1, 64, 1), new BlockPos(1, 65, 1), new BlockPos(1, 66, 1), new BlockPos(0, 64, 1), new BlockPos(0, 65, 1)};
     }
 
-    static final class PreparedSafetyStationRoomFixture {
+    static final class PreparedSafetyStationRoomFixture implements Runnable {
         private final BlockPos[] nearbyStoneCells;
         private final boolean tunnel;
         private final boolean approach;
         private final BlockPos[] bedrockShellCells;
+        private final ServerPlayer capturedPlayer;
+        private final ServerLevel capturedWorld;
+        private final Object capturedServer;
+        private final Thread capturedThread;
+        private final int seededAtTick;
+        private int lastObservedTick;
+        private BlockPos placedPosition;
+        private int debitTick = -1, placementTick = -1, removalTick = -1, returnTick = -1;
+        private boolean placedOnBedrock;
+        private boolean historyValid = true;
+        private int endTickObservations;
+        private int lastEndTick = -1;
+        private Map<String, String> publishedHistory = Map.of();
 
-        private PreparedSafetyStationRoomFixture(BlockPos[] nearbyStoneCells, boolean tunnel, boolean approach) {
+        private PreparedSafetyStationRoomFixture(ServerPlayer player, ServerLevel world,
+                                                 BlockPos[] nearbyStoneCells, boolean tunnel, boolean approach) {
+            this.capturedPlayer = player;
+            this.capturedWorld = world;
+            this.capturedServer = world.getServer();
+            this.capturedThread = Thread.currentThread();
+            this.seededAtTick = world.getServer().getTickCount();
+            this.lastObservedTick = seededAtTick;
+            if (!tunnel && !approach && ordinaryFurnaceCount(player) != 1) {
+                throw new IllegalStateException("station-room history requires exactly one seeded ordinary furnace");
+            }
             this.nearbyStoneCells = nearbyStoneCells.clone();
             this.tunnel = tunnel;
             this.approach = approach;
@@ -1939,6 +1981,77 @@ final class VerificationApi {
                 }
             }
             this.bedrockShellCells = shell.toArray(BlockPos[]::new);
+        }
+
+        private int ordinaryFurnaceCount(ServerPlayer player) {
+            int count = 0;
+            ItemStack ordinary = new ItemStack(Items.FURNACE);
+            for (int slot = 0; slot < 36; slot++) {
+                ItemStack stack = player.getInventory().getItem(slot);
+                if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(ordinary, stack)) count += stack.getCount();
+            }
+            return count;
+        }
+
+        private void requireContext(ServerPlayer player, ServerLevel world) {
+            if (Thread.currentThread() != capturedThread || player != capturedPlayer || world != capturedWorld
+                    || world.getServer() != capturedServer || player.level() != world
+                    || world.getServer().getPlayerList().getPlayer(player.getUUID()) != player) {
+                throw new IllegalStateException("station-room history lost its exact native server context");
+            }
+        }
+
+        @Override public void run() {
+            requireContext(capturedPlayer, capturedWorld);
+            int tick = capturedWorld.getServer().getTickCount();
+            if (lastEndTick < 0 ? tick < seededAtTick || tick > seededAtTick + 1 : tick != lastEndTick + 1) historyValid = false;
+            lastEndTick = tick;
+            endTickObservations++;
+            collectPreparedSafetyStationRoomReceipt(capturedPlayer, capturedWorld, this, true);
+        }
+
+        private void observeHistory(ServerPlayer player, ServerLevel world, int furnaces,
+                                    BlockPos position, boolean floorsBedrock, Map<String, String> result) {
+            requireContext(player, world);
+            int tick = world.getServer().getTickCount();
+            int stock = ordinaryFurnaceCount(player);
+            if (tick < lastObservedTick || stock < 0 || stock > 1 || furnaces > 1 || !world.getBlockState(new BlockPos(0, 63, 0)).is(Blocks.BEDROCK)) historyValid = false;
+            lastObservedTick = tick;
+            if (debitTick >= 0 && placementTick < 0 && stock != 0) historyValid = false;
+            if (debitTick < 0 && stock == 0) debitTick = tick;
+            if (placementTick < 0 && furnaces == 1) {
+                placedPosition = position;
+                placementTick = tick;
+                placedOnBedrock = floorsBedrock;
+                if (stock != 0 || debitTick < seededAtTick || debitTick > placementTick || !placedOnBedrock) historyValid = false;
+            }
+            if (placementTick >= 0) {
+                if (!world.getBlockState(placedPosition.below()).is(Blocks.BEDROCK)) historyValid = false;
+                if (removalTick < 0) {
+                    if (furnaces == 0 && world.getBlockState(placedPosition).isAir()) {
+                        removalTick = tick;
+                        if (removalTick <= placementTick) historyValid = false;
+                    } else if (furnaces != 1 || !placedPosition.equals(position) || stock != 0) {
+                        historyValid = false;
+                    }
+                } else if (furnaces != 0 || !world.getBlockState(placedPosition).isAir()) {
+                    historyValid = false;
+                }
+                if (removalTick >= 0 && returnTick < 0 && stock == 1) returnTick = tick;
+                if (returnTick >= 0 && stock != 1) historyValid = false;
+            }
+            result.put("stationHistoryEndTickObservations", Integer.toString(endTickObservations));
+            result.put("stationHistoryLastEndServerTick", Integer.toString(lastEndTick));
+            result.put("stationHistoryValid", Boolean.toString(historyValid));
+            result.put("stationSeededAtServerTick", Integer.toString(seededAtTick));
+            result.put("stationObservedAtServerTick", Integer.toString(tick));
+            result.put("stationFurnaceDebitServerTick", Integer.toString(debitTick));
+            result.put("stationPlacedServerTick", Integer.toString(placementTick));
+            result.put("stationRemovedServerTick", Integer.toString(removalTick));
+            result.put("stationReturnedServerTick", Integer.toString(returnTick));
+            result.put("stationPlacedPosition", placedPosition == null ? "" : placedPosition.getX() + "," + placedPosition.getY() + "," + placedPosition.getZ());
+            result.put("stationPlacedOnBedrock", Boolean.toString(placedOnBedrock));
+            result.put("stationOrdinaryFurnaceCount", Integer.toString(stock));
         }
     }
 

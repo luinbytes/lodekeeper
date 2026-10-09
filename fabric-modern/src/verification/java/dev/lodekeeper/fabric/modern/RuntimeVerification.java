@@ -637,6 +637,8 @@ public final class RuntimeVerification implements ClientModInitializer {
     private VerificationApi.PreparedSafetyStationRoomFixture preparedSafetyStationRoomFixture;
     private String stationRoomSetupScreenshot;
     private Map<String, String> activeInitialStationRoomReceipt = Map.of();
+    private long stationRoomCompletionRequestFence = -1, stationRoomCompletionServerFenceSequence = -1;
+    private int stationRoomCompletionServerFenceTick = -1;
     private VerificationApi.PreparedSafetyPursuitFixture preparedSafetyPursuitFixture;
     private Map<String, String> activeInitialPursuitReceipt = Map.of();
     private VerificationApi.PreparedSafetyAirFixture preparedSafetyAirFixture;
@@ -2347,6 +2349,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (preparedSafetyAirFixture != null) {
             VerificationApi.observePreparedSafetyAirTick(preparedSafetyAirFixture, player, server.getTickCount());
         }
+        if (preparedSafetyStationRoomFixture != null && stationRoomHistorySupported()
+                && !STATION_ROOM_TUNNEL_MODE && !STATION_ROOM_APPROACH_MODE) {
+            if (!((Object) preparedSafetyStationRoomFixture instanceof Runnable observer))
+                throw new IllegalStateException("normal station-room fixture lacks its native server-tick observer");
+            observer.run();
+        }
         if (ANIMAL_MODE && nativeAnimalFixture != null) {
             @SuppressWarnings("unchecked") Map<String, String> receipt = (Map<String, String>) nativeAnimalApi(
                     "nativeAnimalReceipt", nativeAnimalFixture, player, server.getTickCount());
@@ -2955,6 +2963,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("roomStoneCellsChangedCount"))
                 && "0".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(latestSnapshot.preparedSafetyStationRoomReceipt.get("playerSupportBedrock"))
+                && stationRoomHistorySetupReady(latestSnapshot.preparedSafetyStationRoomReceipt)
                 && (!STATION_ROOM_TUNNEL_MODE || stationRoomTunnelSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt))
                 && (!STATION_ROOM_APPROACH_MODE || (stationRoomApproachSetupReady(latestSnapshot.preparedSafetyStationRoomReceipt)
                     && Math.abs(client.player.getX() - 1.5) < 0.001 && Math.abs(client.player.getY() - 65.0) < 0.001
@@ -3717,6 +3726,109 @@ public final class RuntimeVerification implements ClientModInitializer {
                 || System.getProperty("lodekeeper.verify.naturalGoal") != null);
     }
 
+    private static boolean stationRoomHistorySupported() {
+        return List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion());
+    }
+
+    private static boolean stationRoomHistorySetupReady(Map<String, String> receipt) {
+        if (!stationRoomHistorySupported() || STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) return true;
+        try {
+            return Integer.parseInt(receipt.get("stationHistoryEndTickObservations")) > 0
+                && "true".equals(receipt.get("stationHistoryValid"))
+                && "1".equals(receipt.get("stationOrdinaryFurnaceCount"))
+                && "1".equals(receipt.get("stationCurrentOrdinaryFurnaceCount"))
+                && "".equals(receipt.get("stationPlacedPosition"))
+                && "-1".equals(receipt.get("stationFurnaceDebitServerTick"))
+                && "-1".equals(receipt.get("stationPlacedServerTick"))
+                && "-1".equals(receipt.get("stationRemovedServerTick"))
+                && "-1".equals(receipt.get("stationReturnedServerTick"));
+        } catch (NumberFormatException | NullPointerException malformed) {
+            return false;
+        }
+    }
+
+    private boolean normalStationRoomHistoryCase() {
+        return preparedSafetyPhase == PreparedSafetyPhase.STATION_ROOM && stationRoomHistorySupported()
+            && !STATION_ROOM_TUNNEL_MODE && !STATION_ROOM_APPROACH_MODE;
+    }
+
+    private void resetStationRoomCompletionFence() {
+        stationRoomCompletionRequestFence = stationRoomCompletionServerFenceSequence = -1;
+        stationRoomCompletionServerFenceTick = -1;
+    }
+
+    private boolean stationRoomCompletionObservationReady() {
+        if (stationRoomCompletionRequestFence < 0) {
+            stationRoomCompletionRequestFence = observationRequestSequence;
+            requestObservation();
+            return false;
+        }
+        if (latestObservationRequestSequence <= stationRoomCompletionRequestFence) {
+            requestObservation();
+            return false;
+        }
+        if (stationRoomCompletionServerFenceTick < 0) {
+            stationRoomCompletionServerFenceTick = latestSnapshot.serverTick;
+            stationRoomCompletionServerFenceSequence = latestObservationRequestSequence;
+            requestObservation();
+            return false;
+        }
+        try {
+            if (latestObservationRequestSequence > stationRoomCompletionServerFenceSequence
+                    && Integer.parseInt(latestSnapshot.preparedSafetyStationRoomReceipt.get("stationHistoryLastEndServerTick"))
+                        > stationRoomCompletionServerFenceTick) return true;
+        } catch (NumberFormatException | NullPointerException malformed) {
+            // Malformed history cannot certify the completion fence.
+        }
+        requestObservation();
+        return false;
+    }
+
+    private Map<String, String> stationRoomResultReceipt() {
+        if (latestSnapshot == null) return Map.of();
+        if (!normalStationRoomHistoryCase()) return latestSnapshot.preparedSafetyStationRoomReceipt;
+        Map<String, String> receipt = new LinkedHashMap<>(latestSnapshot.preparedSafetyStationRoomReceipt);
+        receipt.put("stationCompletionRequestFence", Long.toString(stationRoomCompletionRequestFence));
+        receipt.put("stationCompletionServerFenceSequence", Long.toString(stationRoomCompletionServerFenceSequence));
+        receipt.put("stationCompletionServerFenceTick", Integer.toString(stationRoomCompletionServerFenceTick));
+        receipt.put("stationCompletionObservationSequence", Long.toString(latestObservationRequestSequence));
+        receipt.put("stationCompletionObservationServerTick", Integer.toString(latestSnapshot.serverTick));
+        return Map.copyOf(receipt);
+    }
+
+    private static boolean stationRoomHistoryCompleted(Map<String, String> initial, Map<String, String> receipt) {
+        if (!"true".equals(initial.get("stationHistoryValid")) || !"true".equals(receipt.get("stationHistoryValid"))
+                || !"1".equals(receipt.get("stationCurrentOrdinaryFurnaceCount"))
+                || !"1".equals(initial.get("stationOrdinaryFurnaceCount"))
+                || !"1".equals(receipt.get("stationOrdinaryFurnaceCount"))
+                || !"".equals(initial.get("stationPlacedPosition"))
+                || !"-1".equals(initial.get("stationFurnaceDebitServerTick"))
+                || !"-1".equals(initial.get("stationPlacedServerTick"))
+                || !"-1".equals(initial.get("stationRemovedServerTick"))
+                || !"-1".equals(initial.get("stationReturnedServerTick"))
+                || !"false".equals(initial.get("stationPlacedOnBedrock"))
+                || !"true".equals(receipt.get("stationPlacedOnBedrock"))
+                || receipt.getOrDefault("stationPlacedPosition", "").isEmpty()) return false;
+        try {
+            int initialEndObservations = Integer.parseInt(initial.get("stationHistoryEndTickObservations"));
+            int finalEndObservations = Integer.parseInt(receipt.get("stationHistoryEndTickObservations"));
+            int lastEndTick = Integer.parseInt(receipt.get("stationHistoryLastEndServerTick"));
+            int seeded = Integer.parseInt(initial.get("stationSeededAtServerTick"));
+            int initialObserved = Integer.parseInt(initial.get("stationObservedAtServerTick"));
+            int observed = Integer.parseInt(receipt.get("stationObservedAtServerTick"));
+            int debit = Integer.parseInt(receipt.get("stationFurnaceDebitServerTick"));
+            int placed = Integer.parseInt(receipt.get("stationPlacedServerTick"));
+            int removed = Integer.parseInt(receipt.get("stationRemovedServerTick"));
+            int returned = Integer.parseInt(receipt.get("stationReturnedServerTick"));
+            return initialEndObservations > 0 && finalEndObservations > initialEndObservations && lastEndTick == observed
+                && seeded >= 0 && Integer.toString(seeded).equals(receipt.get("stationSeededAtServerTick"))
+                && initialObserved >= seeded && debit > initialObserved && placed >= debit
+                && removed > placed && returned >= removed && observed >= returned;
+        } catch (NumberFormatException | NullPointerException malformed) {
+            return false;
+        }
+    }
+
     private static boolean stationRoomTunnelSetupReady(Map<String, String> receipt) {
         return "tunnel".equals(receipt.get("stationRoomSubmode"))
             && "0.367555,64.0,0.505802".equals(receipt.get("playerPosition"))
@@ -3767,6 +3879,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
         activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
         activeInitialStationRoomReceipt = Map.copyOf(latestSnapshot.preparedSafetyStationRoomReceipt);
+        resetStationRoomCompletionFence();
         if (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE) stationRoomSetupScreenshot = capture(
             STATION_ROOM_APPROACH_MODE ? "prepared-safety-station-room-approach-setup" : "prepared-safety-station-room-tunnel-setup");
         preparedSafetyForegroundStarted = true;
@@ -4262,9 +4375,15 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         boolean navigationStopped = baritoneNavigationStopped();
         if (!engineStatus.startsWith("idle") || !navigationStopped) {
+            if (normalStationRoomHistoryCase()) resetStationRoomCompletionFence();
             if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS) {
                 fail("prepared safety case timed out after " + PREPARED_SAFETY_CASE_TIMEOUT_TICKS + " ticks: " + activeCase);
             }
+            return;
+        }
+        if (normalStationRoomHistoryCase() && !stationRoomCompletionObservationReady()) {
+            if (clientTicks - caseStartedAtTick > PREPARED_SAFETY_CASE_TIMEOUT_TICKS)
+                fail("prepared station-room completion lacks a fresh post-idle server-tick receipt");
             return;
         }
         if (preparedSafetyPhase == PreparedSafetyPhase.AIR && !preparedAirRecoveryCompletedBeforeCraft) {
@@ -4408,9 +4527,11 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && "0".equals(activeInitialStationRoomReceipt.get("nearbyFurnaceCount"))
                 && "true".equals(activeInitialStationRoomReceipt.get("playerSupportBedrock"))
                 && "true".equals(receipt.get("playerSupportBedrock"))
-                && "true".equals(receipt.get("stationFloorBedrock"))
+                && (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE || !stationRoomHistorySupported()
+                    ? "true".equals(receipt.get("stationFloorBedrock")) : stationRoomHistoryCompleted(activeInitialStationRoomReceipt, receipt))
                 && (STATION_ROOM_APPROACH_MODE ? "0" : STATION_ROOM_TUNNEL_MODE ? "66" : "73").equals(receipt.get("roomStoneCellCandidateCount"))
-                && Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1
+                && (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE || !stationRoomHistorySupported()
+                    ? Integer.parseInt(receipt.getOrDefault("nearbyFurnaceCount", "0")) >= 1 : "0".equals(receipt.get("nearbyFurnaceCount")))
                 && (STATION_ROOM_APPROACH_MODE ? "1.5,65,0.5" : STATION_ROOM_TUNNEL_MODE ? "0.367555,64,0.505802" : "0.5,64,0.5").equals(receipt.get("preparedRoomStartPosition"))
                 && (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE ? changedStoneCells == 0 : changedStoneCells >= 1 && changedStoneCells <= 2)
                 && (!STATION_ROOM_TUNNEL_MODE || (stationRoomTunnelSetupReady(activeInitialStationRoomReceipt)
@@ -4432,7 +4553,9 @@ public final class RuntimeVerification implements ClientModInitializer {
                     && "0".equals(receipt.get("furnaceOutputCount"))));
             detail = passed
                 ? "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded " + changedStoneCells
-                    + " changed native stone cell(s), with the original support and furnace floor still bedrock"
+                    + " changed native stone cell(s), with preserved support and "
+                    + (STATION_ROOM_TUNNEL_MODE || STATION_ROOM_APPROACH_MODE || !stationRoomHistorySupported() ? "the furnace floor still bedrock"
+                        : "ordered native furnace placement on bedrock, same-position removal and ordinary return")
                 : "the prepared station-room goal did not produce the required ingot, raw-iron, furnace-menu, nearby placement, bounded stone-change, floor, health, cursor, and idle receipts";
         } else if (preparedSafetyPhase == PreparedSafetyPhase.AIR) {
             observed = latestSnapshot.count(activeItem);
@@ -5805,7 +5928,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             activeInitialThreatReceipt,
             latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyThreatReceipt,
             activeInitialStationRoomReceipt,
-            latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyStationRoomReceipt,
+            stationRoomResultReceipt(),
             activeInitialPursuitReceipt,
             latestSnapshot == null ? Map.of() : latestSnapshot.preparedSafetyPursuitReceipt,
             activeInitialAirReceipt,
