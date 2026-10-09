@@ -12,6 +12,7 @@ final class AirRecoveryAction {
     private static final int MAX_DIAGNOSTIC_SAMPLES = 16;
     private static final int MAX_DIAGNOSTIC_ENTITIES = 32;
     private static final int MAX_DIAGNOSTIC_HOSTILES = 8;
+    private static final int MAX_DIAGNOSTIC_HEIGHT_HOLDS = 8;
     private enum Phase { IDLE, DRAINING, STOPPING, PLANNING, SWIMMING, ESCAPING, REFILLING }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
@@ -25,6 +26,7 @@ final class AirRecoveryAction {
     private boolean planningStarted, planningSwim;
     private MovementController.AirExitPreference planningPreference;
     private final Set<BlockPos> rejected = new HashSet<>();
+    private final Set<BlockPos> heightHolds = new HashSet<>();
     private List<BlockPos> offeredGoals = List.of();
     private List<BlockPos> swimRoute = List.of();
     private int swimIndex;
@@ -48,7 +50,7 @@ final class AirRecoveryAction {
         ownerPlayer = client.player; ownerWorld = client.world;
         startedAt = progressAt = System.nanoTime();
         attempts = 0; rejected.clear(); phase = Phase.DRAINING;
-        diagnosticSamples = 0; diagnosticLastSampleAt = 0;
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear();
         log("begin");
     }
 
@@ -180,8 +182,10 @@ final class AirRecoveryAction {
             dz = next.getZ() + .5 - client.player.getZ();
             dy = next.getY() - client.player.getY();
             boolean terminal = swimIndex == swimRoute.size() - 1;
+            if (!terminal && dy > 0 && dy <= .35 && dx * dx + dz * dz <= .0784) logHeightHold(next);
+            // Reach the waypoint's feet height before a following-edge refusal can enable lateral centering.
             if (dx * dx + dz * dz > .0784
-                    || (terminal ? Math.floor(client.player.getY()) < next.getY() : Math.abs(dy) > .35)) break;
+                    || (terminal ? Math.floor(client.player.getY()) < next.getY() : dy > 0 || Math.abs(dy) > .35)) break;
             // Finish a clear current segment before a conservative actual-body sweep can take the turn.
             BlockPos following = terminal ? null : swimRoute.get(swimIndex + 1);
             if (!terminal && !movement.airSwimStepClear(following, deadline)) {
@@ -226,6 +230,19 @@ final class AirRecoveryAction {
         input.drive(forward, 0, !descend, descend);
     }
 
+    private void logHeightHold(BlockPos waypoint) {
+        if (!config.debugLogging || heightHolds.size() >= MAX_DIAGNOSTIC_HEIGHT_HOLDS || heightHolds.contains(waypoint)) return;
+        try {
+            var logger = org.slf4j.LoggerFactory.getLogger("lodekeeper");
+            if (!logger.isInfoEnabled()) return;
+            heightHolds.add(waypoint.toImmutable());
+            logger.info("[Lodekeeper] AIR_HEIGHT_HOLD observationPoint=arrival-check sample={} sampleCap=8 waypoint={} actualY={} targetY={} acceptedAbove=.35 horizontalRadius=.28 attempts={} elapsedMs={}",
+                    heightHolds.size(), waypoint, client.player.getY(), waypoint.getY(), attempts,
+                    (System.nanoTime() - startedAt) / 1_000_000L);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void observeProgress() {
         progressAt = System.nanoTime();
         progressX = client.player.getX(); progressY = client.player.getY(); progressZ = client.player.getZ();
@@ -244,7 +261,7 @@ final class AirRecoveryAction {
         movement.discardAirPlanning(); planningStarted = false;
         input.release(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
-        diagnosticSamples = 0; diagnosticLastSampleAt = 0;
+        diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear();
     }
 
     String status() {
