@@ -13,6 +13,7 @@ final class AirRecoveryAction {
     private static final int MAX_DIAGNOSTIC_ENTITIES = 32;
     private static final int MAX_DIAGNOSTIC_HOSTILES = 8;
     private static final int MAX_DIAGNOSTIC_HEIGHT_HOLDS = 8;
+    private static final int MAX_DIAGNOSTIC_RISER_HOLDS = 8;
     private enum Phase { IDLE, DRAINING, STOPPING, PLANNING, SWIMMING, ESCAPING, REFILLING }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
@@ -30,6 +31,14 @@ final class AirRecoveryAction {
     private record HeightHoldObservation(int sample, BlockPos waypoint, double actualY, int targetY,
                                          int attempts, long elapsedMs) {}
     private HeightHoldObservation pendingHeightHold;
+    private final Set<Integer> riserHolds = new HashSet<>();
+    private record RiserHoldObservation(int sample, int originalIndex, int candidateIndex, int committedIndex,
+                                        int routeIdentity, int routeSize, int attempts, Phase phase,
+                                        double x, double y, double z, double minX, double minY, double minZ,
+                                        double maxX, double maxY, double maxZ, boolean waterContact,
+                                        BlockPos target, float forward, boolean jump, boolean descend,
+                                        boolean inputOwned, long elapsedMs, long stallMs) {}
+    private RiserHoldObservation pendingRiserHold;
     private record LivePendingObservation(int sample, String stage, int originalIndex, int candidateIndex,
                                           int committedIndex, List<BlockPos> route, int routeIdentity, Phase phase,
                                           boolean inputOwned, int attempts, int work, boolean deadlineExpired,
@@ -62,13 +71,14 @@ final class AirRecoveryAction {
         attempts = 0; rejected.clear(); phase = Phase.DRAINING;
         diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
         livePendingSamples = 0; livePendingLastSampleAt = 0; pendingLiveObservation = null;
+        riserHolds.clear(); pendingRiserHold = null;
         log("begin");
     }
 
     boolean tick() {
         try { return tickOwned(); }
         catch (RuntimeException failed) { movement.discardAirPlanning(); input.release(); throw failed; }
-        finally { logPendingHeightHold(); logPendingLive(); sampleDiagnostics(); }
+        finally { logPendingHeightHold(); logPendingLive(); logPendingRiserHold(); sampleDiagnostics(); }
     }
 
     private boolean tickOwned() {
@@ -191,7 +201,7 @@ final class AirRecoveryAction {
         MovementController.LiveAirSlice live = movement.beginLiveAirSlice();
         int originalIndex = swimIndex, candidateIndex = originalIndex;
         BlockPos admitted = null;
-        boolean centering = false;
+        boolean centering = false, riserHold = false;
         while (candidateIndex < swimRoute.size()) {
             BlockPos next = swimRoute.get(candidateIndex);
             dx = next.getX() + .5 - client.player.getX();
@@ -238,7 +248,22 @@ final class AirRecoveryAction {
                 input.release(); throw new IllegalStateException(live.refusalReason());
             }
             if (result == MovementController.LiveAirResult.BLOCKED) {
-                input.release(); phase = Phase.STOPPING; log("swim-retry"); return;
+                BlockPos prior = riserRecoveryTarget(originalIndex, candidateIndex, next);
+                if (prior == null) {
+                    input.release(); phase = Phase.STOPPING; log("swim-retry"); return;
+                }
+                MovementController.LiveAirResult recovery = movement.observeLiveAirStep(prior, live);
+                if (recovery == MovementController.LiveAirResult.PENDING) {
+                    pendingLive(live, "riser-hold", originalIndex, candidateIndex); return;
+                }
+                if (recovery == MovementController.LiveAirResult.REFUSED) {
+                    input.release(); throw new IllegalStateException(live.refusalReason());
+                }
+                if (recovery == MovementController.LiveAirResult.BLOCKED) {
+                    input.release(); phase = Phase.STOPPING; log("swim-retry"); return;
+                }
+                // The prior column is only this tick's proved input target; the route index stays committed.
+                next = prior; centering = false; riserHold = true;
             }
         }
         dx = next.getX() + .5 - client.player.getX();
@@ -261,6 +286,56 @@ final class AirRecoveryAction {
         }
         input.acquire();
         input.drive(forward, 0, !descend, descend);
+        if (riserHold) captureRiserHold(originalIndex, candidateIndex, next, forward, !descend, descend);
+    }
+
+    private BlockPos riserRecoveryTarget(int originalIndex, int candidateIndex, BlockPos current) {
+        if (candidateIndex != originalIndex || originalIndex < 2) return null;
+        BlockPos prior = swimRoute.get(originalIndex - 1), below = swimRoute.get(originalIndex - 2);
+        if (prior.getY() != current.getY()
+                || Math.abs(prior.getX() - current.getX()) + Math.abs(prior.getZ() - current.getZ()) != 1
+                || below.getX() != prior.getX() || below.getZ() != prior.getZ()
+                || below.getY() + 1 != prior.getY()) return null;
+        double deficit = prior.getY() - client.player.getY();
+        if (!(deficit > 0 && deficit <= .35) || !client.player.isTouchingWater()) return null;
+        var body = client.player.getBoundingBox();
+        return body.minX >= prior.getX() && body.maxX <= prior.getX() + 1
+                && body.minZ >= prior.getZ() && body.maxZ <= prior.getZ() + 1 ? prior : null;
+    }
+
+    private void captureRiserHold(int originalIndex, int candidateIndex, BlockPos target,
+                                  float forward, boolean jump, boolean descend) {
+        if (!config.debugLogging || riserHolds.size() >= MAX_DIAGNOSTIC_RISER_HOLDS
+                || riserHolds.contains(originalIndex)) return;
+        try {
+            var player = client.player;
+            var body = player.getBoundingBox();
+            long now = System.nanoTime();
+            riserHolds.add(originalIndex);
+            pendingRiserHold = new RiserHoldObservation(riserHolds.size(), originalIndex, candidateIndex, swimIndex,
+                    System.identityHashCode(swimRoute), swimRoute.size(), attempts, phase,
+                    player.getX(), player.getY(), player.getZ(), body.minX, body.minY, body.minZ,
+                    body.maxX, body.maxY, body.maxZ, player.isTouchingWater(), target.toImmutable(), forward, jump, descend,
+                    player.input == input, (now - startedAt) / 1_000_000L, (now - progressAt) / 1_000_000L);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void logPendingRiserHold() {
+        RiserHoldObservation observed = pendingRiserHold;
+        pendingRiserHold = null;
+        if (observed == null) return;
+        try {
+            var logger = org.slf4j.LoggerFactory.getLogger("lodekeeper");
+            if (!logger.isInfoEnabled()) return;
+            logger.info("[Lodekeeper] AIR_RISER_HOLD observationPoint=admitted-swim-input sample={} sampleCap=8 oncePerIndex=true originalIndex={} candidateIndex={} committedIndex={} routeIdentity={} routeSize={} attempts={} phase={} feet={},{},{} bodyMin={},{},{} bodyMax={},{},{} waterContact={} requestedPriorTarget={} requestedForward={} requestedJump={} requestedDescend={} inputOwned={} elapsedMs={} stallMs={}",
+                    observed.sample(), observed.originalIndex(), observed.candidateIndex(), observed.committedIndex(),
+                    observed.routeIdentity(), observed.routeSize(), observed.attempts(), observed.phase(),
+                    observed.x(), observed.y(), observed.z(), observed.minX(), observed.minY(), observed.minZ(),
+                    observed.maxX(), observed.maxY(), observed.maxZ(), observed.waterContact(), observed.target(),
+                    observed.forward(), observed.jump(), observed.descend(), observed.inputOwned(), observed.elapsedMs(), observed.stallMs());
+        } catch (Throwable ignored) {
+        }
     }
 
     private void pendingLive(MovementController.LiveAirSlice live, String stage, int originalIndex, int candidateIndex) {
@@ -339,6 +414,7 @@ final class AirRecoveryAction {
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
         diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
         livePendingSamples = 0; livePendingLastSampleAt = 0; pendingLiveObservation = null;
+        riserHolds.clear(); pendingRiserHold = null;
     }
 
     String status() {
