@@ -1,0 +1,996 @@
+{
+  "recordedAtUtc": "2026-10-09T00:19:54.729667+00:00",
+  "sourceCommit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+  "scope": "Five prepared native animal gate runs. Four pass; primary pending-attack AIR fails and stops that batch. Remaining resource and AIR cases are separate.",
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "woolObservedBoth": 4,
+    "primarySheared": 4,
+    "modernSheared": 3,
+    "primaryShearsWear": 4,
+    "modernShearsWear": 3,
+    "postInteractionStopBoth": true,
+    "airPendingAttackPrimaryDeathCount": 1,
+    "airPendingAttackPrimaryFinalHealth": 0,
+    "airPendingAttackPrimaryEffectsSent": 1,
+    "airPendingAttackPrimaryDamageEffects": 0,
+    "airPendingAttackPrimaryObservedRoutes": "Three SWIMMING attempts, each stuck at swimIndex0; no breathable exit or refill.",
+    "airPendingAttackModern": "unrun",
+    "airPendingTransferBoth": "unrun",
+    "fixtureOrProductionCause": "Source and saved native entity diagnosis recorded separately; this receipt preserves the original failed behavior."
+  },
+  "limits": [
+    "Prepared supplied animals and bedrock geometry.",
+    "These runs do not prove fresh Survival reliability, comparative performance or the full parity scope.",
+    "Post-interaction stop expects zero output after exactly one attack and gives no acquisition completion credit."
+  ],
+  "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-8592d5f-animal-gates-screenshots.json",
+  "publicScreenshotChecks": [
+    {
+      "assetName": "lodekeeper-2026-10-09T00-03-58-798210Z-f65ea6bd-native_animal_white_wool_inventory.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-03-58-798210Z-f65ea6bd-native_animal_white_wool_inventory.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 81554,
+      "sha256": "71ac33169256ee85e34f22385fd6d033c01901e83fb5f1b9552309d9babca868"
+    },
+    {
+      "assetName": "lodekeeper-2026-10-09T00-10-01-699272Z-121fbce7-native_animal_white_wool_inventory.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-01-699272Z-121fbce7-native_animal_white_wool_inventory.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 116000,
+      "sha256": "11bdd1e26a3d328e7fcb4eb4c84aee83ef36a71abd69cc4f8757295a6955ccde"
+    },
+    {
+      "assetName": "lodekeeper-2026-10-09T00-10-55-287447Z-cc38d21c-native_animal_stop_after_interaction.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-55-287447Z-cc38d21c-native_animal_stop_after_interaction.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 125628,
+      "sha256": "af75883e3beb54240b68b16bccf9958b3fe4985ebec7ff6336c407ae79aeceb2"
+    },
+    {
+      "assetName": "lodekeeper-2026-10-09T00-11-34-310209Z-297443fe-native_animal_stop_after_interaction.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-11-34-310209Z-297443fe-native_animal_stop_after_interaction.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 217146,
+      "sha256": "15542ac1469de3f4065642307da33b6d2b41a117adcc9a7d08f78a657b2c16b2"
+    },
+    {
+      "assetName": "lodekeeper-2026-10-09T00-12-21-293504Z-490cb83a-failed-native_animal_air_pending_attack.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-12-21-293504Z-490cb83a-failed-native_animal_air_pending_attack.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 111130,
+      "sha256": "cb5f19f2210f2a9618fd6ac8af38f46d0635d2334d755c25a3dd6538fb2822f2"
+    },
+    {
+      "assetName": "main-8592d5f-animal-gates-screenshots.json",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-8592d5f-animal-gates-screenshots.json",
+      "anonymousHttpStatus": 200,
+      "bytes": 4188,
+      "sha256": "98a2cb25180a102306ea3a50798034a552d66c0b94206c034d9065caebb42b94"
+    }
+  ],
+  "browserReceipt": {
+    "verifiedAtUtc": "2026-10-09T00:17:13.346Z",
+    "loggedOut": true,
+    "count": 5,
+    "loaded": 5,
+    "failures": [],
+    "verifiedUrls": [
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-03-58-798210Z-f65ea6bd-native_animal_white_wool_inventory.png",
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-01-699272Z-121fbce7-native_animal_white_wool_inventory.png",
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-55-287447Z-cc38d21c-native_animal_stop_after_interaction.png",
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-11-34-310209Z-297443fe-native_animal_stop_after_interaction.png",
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-12-21-293504Z-490cb83a-failed-native_animal_air_pending_attack.png"
+    ],
+    "rows": [
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-03-58-798210Z-f65ea6bd-native_animal_white_wool_inventory.png",
+        "decoded": true,
+        "width": 640,
+        "height": 360
+      },
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-01-699272Z-121fbce7-native_animal_white_wool_inventory.png",
+        "decoded": true,
+        "width": 640,
+        "height": 360
+      },
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-10-55-287447Z-cc38d21c-native_animal_stop_after_interaction.png",
+        "decoded": true,
+        "width": 640,
+        "height": 360
+      },
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-11-34-310209Z-297443fe-native_animal_stop_after_interaction.png",
+        "decoded": true,
+        "width": 640,
+        "height": 360
+      },
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/lodekeeper-2026-10-09T00-12-21-293504Z-490cb83a-failed-native_animal_air_pending_attack.png",
+        "decoded": true,
+        "width": 640,
+        "height": 360
+      }
+    ],
+    "tabId": "tab_3_7328e8c3-68b8-407d-a0f4-401398de1304"
+  },
+  "localScreenshotCopiesDeleted": 10,
+  "runs": [
+    {
+      "case": "white_wool_inventory",
+      "family": "primary",
+      "minecraftVersion": "1.21.1",
+      "status": "passed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/runner-receipt.json",
+      "runnerReceiptSha256": "0b41802a88172d6b71ff1653c10f057d45375bb1963df7b02cdff0060a63ca8c",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/run/verification/evidence/run-2026-10-09T00-03-58-798210Z-f65ea6bd.json",
+      "nativeEvidenceSha256": "4c828c8d32aa9bf0e89ed0b77c13d45fb2b58c809009de5f690ee6aa37926266",
+      "startedAtUtc": "2026-10-09T00:03:39.138958+00:00",
+      "finishedAtUtc": "2026-10-09T00:04:36.659211+00:00",
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+      },
+      "source": {
+        "commit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "repositoryAtLaunch": "/Users/luinbytes/src/lodekeeper",
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "violations": [],
+        "productionArtifactClasses": 454,
+        "verifierClasses": 29,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 797,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 145,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+          },
+          "loadedClassCount": 454,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "35f73e896cea932b2fac553f65f2aa8accb75a7cd8e860906a9d1dc09a6360cb"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        }
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T00:04:36.348298+00:00",
+        "pid": 53903,
+        "processLog": "/private/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-primary-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T00:03:39.315857+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "passed",
+      "nativeFailure": "",
+      "nativeAnimal": {
+        "scenario": "white_wool_inventory",
+        "command": "!lk get minecraft:white_wool 4",
+        "fixtureGrants": "bounded bedrock pad; adult NoAI vanilla animals; no supplied requested output except 2 ordinary beef for beef_partial or 3 named beef for wrong_components; wool cases have one ordinary shears in hotbar 7 (inventory case uses main slot 20 and requires return there) and one nearer wrong-color sheep; cooking has one furnace and 2 coal; full health and hunger; no fixture mutation after command",
+        "autoEat": false,
+        "allowBreaking": false,
+        "restorationObserved": true,
+        "originalInputRestored": true,
+        "nativeSettingsRestored": true,
+        "nativeSettingsChecked": 249,
+        "result": "requested_server_stock_observed",
+        "initialServerReceipt": {
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "89",
+          "shearsPresent": "true",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "0",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0",
+          "targets": "f2fcc9af-5588-422a-99e2-3b7412f33c62/entity.minecraft.sheep/8.0;4249a1b1-5429-4dba-92ba-222d8e7f63e7/entity.minecraft.sheep/8.0;3976a54c-6bb8-4743-944f-dca57257c982/entity.minecraft.sheep/8.0;8c42dfae-6c6f-4e34-aa72-5c598da3a234/entity.minecraft.sheep/8.0;56411bf6-ce43-49da-b04f-8d9bde5ccaad/entity.minecraft.sheep/8.0;",
+          "shearsOrdinary": "true",
+          "submersionTick": "-1",
+          "playerX": "0.5",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true"
+        },
+        "finalServerReceipt": {
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "-2.5031207862381106",
+          "maxAirSupply": "300",
+          "serverTick": "372",
+          "shearsPresent": "true",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "4",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0",
+          "targets": "f2fcc9af-5588-422a-99e2-3b7412f33c62/entity.minecraft.sheep/8.0;4249a1b1-5429-4dba-92ba-222d8e7f63e7/entity.minecraft.sheep/8.0;3976a54c-6bb8-4743-944f-dca57257c982/entity.minecraft.sheep/8.0;8c42dfae-6c6f-4e34-aa72-5c598da3a234/entity.minecraft.sheep/8.0;56411bf6-ce43-49da-b04f-8d9bde5ccaad/entity.minecraft.sheep/8.0;",
+          "shearsOrdinary": "true",
+          "submersionTick": "-1",
+          "playerX": "11.195381095155964",
+          "sheared": "4",
+          "stagedHotbarEmpty": "false"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_white_wool_inventory",
+          "item": "minecraft:white_wool",
+          "expected": 4,
+          "serverObserved": 4,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 263,
+          "worldTicks": 263,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt={selectedSlot=0, playerY=64.0, playerZ=-2.5031207862381106, maxAirSupply=300, serverTick=352, shearsPresent=true, wrongColorSheared=0, cursorEmpty=true, airSupply=300, dead=0, shearsDamage=4, effects=0, headInWater=false, ordinaryBeef=0, targets=f2fcc9af-5588-422a-99e2-3b7412f33c62/entity.minecraft.sheep/8.0;4249a1b1-5429-4dba-92ba-222d8e7f63e7/entity.minecraft.sheep/8.0;3976a54c-6bb8-4743-944f-dca57257c982/entity.minecraft.sheep/8.0;8c42dfae-6c6f-4e34-aa72-5c598da3a234/entity.minecraft.sheep/8.0;56411bf6-ce43-49da-b04f-8d9bde5ccaad/entity.minecraft.sheep/8.0;, shearsOrdinary=true, submersionTick=-1, playerX=11.195381095155964, sheared=4, stagedHotbarEmpty=false}",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            11.195381095155964,
+            64.0,
+            -2.5031207862381106
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-09T00-03-58-798210Z-f65ea6bd-native_animal_white_wool_inventory.png"
+        }
+      ],
+      "runnerFailures": []
+    },
+    {
+      "case": "white_wool_inventory",
+      "family": "modern",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-modern-r1/runner-receipt.json",
+      "runnerReceiptSha256": "ddd574c238f59a61a86f6b7bd898c352adafd772553c58c2eb19401d9b37703d",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-modern-r1/run-verification/verification/2026-10-09T00-10-01-699272Z-121fbce7/evidence/run-2026-10-09T00-10-01-699272Z-121fbce7.json",
+      "nativeEvidenceSha256": "806873b748171badac981f7082498ac29f59b6139a9a5e38393ab2bd0a315cdb",
+      "startedAtUtc": "2026-10-09T00:09:47.645302+00:00",
+      "finishedAtUtc": "2026-10-09T00:10:34.762330+00:00",
+      "productionJar": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "a253addb7dcc4d22b56cc98888a88416fe993af6e41edbe87a62e29f2cb716aa"
+      },
+      "source": {
+        "commit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+        "dirty": true,
+        "dirtyPaths": [
+          "core/src/main/java/dev/lodekeeper/core/CommandParser.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java",
+          "fabric-modern/src/verification-261/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java",
+          "core/src/main/java/dev/lodekeeper/core/StorageGoal.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageCatalog.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageMenuObservation.java"
+        ],
+        "gitStatusError": null
+      },
+      "repositoryAtLaunch": "/Users/luinbytes/src/lodekeeper",
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "violations": [],
+        "productionArtifactClasses": 462,
+        "verifierClasses": 27,
+        "runtimeArtifactTransformation": null
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T00:10:34.576468+00:00",
+        "pid": 57690,
+        "processLog": "/private/tmp/lodekeeper-native-animal-8592d5f-white_wool_inventory-modern-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T00:09:47.827297+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "passed",
+      "nativeFailure": "",
+      "nativeAnimal": {
+        "scenario": "white_wool_inventory",
+        "command": "!lk get minecraft:white_wool 4",
+        "fixtureGrants": "bounded bedrock pad; adult NoAI vanilla animals; no supplied requested output except 2 ordinary beef for beef_partial or 3 named beef for wrong_components; wool cases have one ordinary shears in hotbar 7 (inventory case uses main slot 20 and requires return there) and one nearer wrong-color sheep; cooking has one furnace and 2 coal; full health and hunger; no fixture mutation after command",
+        "autoEat": false,
+        "allowBreaking": false,
+        "restorationObserved": true,
+        "originalInputRestored": true,
+        "nativeSettingsRestored": true,
+        "nativeSettingsChecked": 248,
+        "result": "requested_server_stock_observed",
+        "screenshot": "screenshots/lodekeeper-2026-10-09T00-10-01-699272Z-121fbce7-native_animal_white_wool_inventory.png",
+        "initialServerReceipt": {
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "0",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0",
+          "targets": "d7e692dd-fa62-47fc-ad33-3d671430a6b9/entity.minecraft.sheep/8.0;f0a6e92c-c561-44a4-a3bf-006da47c62e2/entity.minecraft.sheep/8.0;2c593818-e81a-429c-910a-7e1bb714e790/entity.minecraft.sheep/8.0;5875f6f4-21ed-4e93-860c-79760d499bf6/entity.minecraft.sheep/8.0;96ca757d-2265-4826-9296-eeb1a80f5cca/entity.minecraft.sheep/8.0;",
+          "shearsOrdinary": "true",
+          "submersionTick": "-1",
+          "playerX": "0.5",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "94",
+          "shearsPresent": "true",
+          "wrongColorSheared": "0"
+        },
+        "finalServerReceipt": {
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "3",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0",
+          "targets": "d7e692dd-fa62-47fc-ad33-3d671430a6b9/entity.minecraft.sheep/8.0;f0a6e92c-c561-44a4-a3bf-006da47c62e2/entity.minecraft.sheep/8.0;2c593818-e81a-429c-910a-7e1bb714e790/entity.minecraft.sheep/8.0;5875f6f4-21ed-4e93-860c-79760d499bf6/entity.minecraft.sheep/8.0;96ca757d-2265-4826-9296-eeb1a80f5cca/entity.minecraft.sheep/8.0;",
+          "shearsOrdinary": "true",
+          "submersionTick": "-1",
+          "playerX": "11.2805580702165",
+          "sheared": "3",
+          "stagedHotbarEmpty": "false",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "-4.140817711814811",
+          "maxAirSupply": "300",
+          "serverTick": "336",
+          "shearsPresent": "true",
+          "wrongColorSheared": "0"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_white_wool_inventory",
+          "item": "minecraft:white_wool",
+          "expected": 4,
+          "serverObserved": 4,
+          "inventoryEmptyAtStart": false,
+          "passed": true,
+          "clientTicks": 222,
+          "worldTicks": 222,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt={cursorEmpty=true, airSupply=300, dead=0, shearsDamage=3, effects=0, headInWater=false, ordinaryBeef=0, targets=d7e692dd-fa62-47fc-ad33-3d671430a6b9/entity.minecraft.sheep/8.0;f0a6e92c-c561-44a4-a3bf-006da47c62e2/entity.minecraft.sheep/8.0;2c593818-e81a-429c-910a-7e1bb714e790/entity.minecraft.sheep/8.0;5875f6f4-21ed-4e93-860c-79760d499bf6/entity.minecraft.sheep/8.0;96ca757d-2265-4826-9296-eeb1a80f5cca/entity.minecraft.sheep/8.0;, shearsOrdinary=true, submersionTick=-1, playerX=11.2805580702165, sheared=3, stagedHotbarEmpty=false, selectedSlot=0, playerY=64.0, playerZ=-4.140817711814811, maxAirSupply=300, serverTick=316, shearsPresent=true, wrongColorSheared=0}",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": "11.2805580702165,64.0,-4.140817711814811"
+        }
+      ],
+      "runnerFailures": []
+    },
+    {
+      "case": "stop_after_interaction",
+      "family": "primary",
+      "minecraftVersion": "1.21.1",
+      "status": "passed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/runner-receipt.json",
+      "runnerReceiptSha256": "00f77bd218f68b4cd155e77d215fc4624bea620397d67d10d92f0f76a0f959cd",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/run/verification/evidence/run-2026-10-09T00-10-55-287447Z-cc38d21c.json",
+      "nativeEvidenceSha256": "b5dc991a6efab4320259509662b71132f2a2c61aa916c5a21de4d07d1b88d5c3",
+      "startedAtUtc": "2026-10-09T00:10:36.421975+00:00",
+      "finishedAtUtc": "2026-10-09T00:11:19.728010+00:00",
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+      },
+      "source": {
+        "commit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+        "dirty": true,
+        "dirtyPaths": [
+          "core/src/main/java/dev/lodekeeper/core/CommandParser.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java",
+          "fabric-modern/src/verification-261/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java",
+          "core/src/main/java/dev/lodekeeper/core/StorageGoal.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageCatalog.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageMenuObservation.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageCatalog.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageMenuObservation.java"
+        ],
+        "gitStatusError": null
+      },
+      "repositoryAtLaunch": "/Users/luinbytes/src/lodekeeper",
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "violations": [],
+        "productionArtifactClasses": 441,
+        "verifierClasses": 29,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 797,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 145,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+          },
+          "loadedClassCount": 441,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "70ebfb08ff9f31062cbd96d9e5b5a65d401439bbc47e9cc0eae17765dae57a83"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        }
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T00:11:19.514836+00:00",
+        "pid": 58023,
+        "processLog": "/private/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-primary-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T00:10:36.606693+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "passed",
+      "nativeFailure": "",
+      "nativeAnimal": {
+        "scenario": "stop_after_interaction",
+        "command": "!lk get minecraft:beef 1",
+        "fixtureGrants": "bounded bedrock pad; adult NoAI vanilla animals; no supplied requested output except 2 ordinary beef for beef_partial or 3 named beef for wrong_components; wool cases have one ordinary shears in hotbar 7 (inventory case uses main slot 20 and requires return there) and one nearer wrong-color sheep; cooking has one furnace and 2 coal; full health and hunger; no fixture mutation after command",
+        "autoEat": false,
+        "allowBreaking": false,
+        "stopAfterFirstObservedInteractionClientTick": 255,
+        "effectsObservedAtStop": 1,
+        "effectsSentAtStop": 1,
+        "alreadySentPendingEffectsAtStop": 0,
+        "originalNativeActionActiveAtStop": true,
+        "restorationObserved": true,
+        "originalInputRestored": true,
+        "nativeSettingsRestored": true,
+        "nativeSettingsChecked": 249,
+        "result": "drained_after_interaction",
+        "initialServerReceipt": {
+          "targets": "efb9f894-f92b-4e4a-af53-c0928111ea1a/entity.minecraft.cow/10.0;",
+          "shearsOrdinary": "false",
+          "submersionTick": "-1",
+          "playerX": "0.5",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "87",
+          "shearsPresent": "false",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "-1",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0"
+        },
+        "finalServerReceipt": {
+          "targets": "efb9f894-f92b-4e4a-af53-c0928111ea1a/entity.minecraft.cow/9.0;",
+          "shearsOrdinary": "false",
+          "submersionTick": "-1",
+          "playerX": "1.8863707128235712",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "-0.8789123675079852",
+          "maxAirSupply": "300",
+          "serverTick": "226",
+          "shearsPresent": "false",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "-1",
+          "effects": "1",
+          "headInWater": "false",
+          "ordinaryBeef": "0"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_stop_after_interaction",
+          "item": "minecraft:beef",
+          "expected": 1,
+          "serverObserved": 0,
+          "inventoryEmptyAtStart": true,
+          "passed": true,
+          "clientTicks": 119,
+          "worldTicks": 119,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt={targets=efb9f894-f92b-4e4a-af53-c0928111ea1a/entity.minecraft.cow/9.0;, shearsOrdinary=false, submersionTick=-1, playerX=1.8863707128235712, sheared=0, stagedHotbarEmpty=true, selectedSlot=0, playerY=64.0, playerZ=-0.8789123675079852, maxAirSupply=300, serverTick=206, shearsPresent=false, wrongColorSheared=0, cursorEmpty=true, airSupply=300, dead=0, shearsDamage=-1, effects=1, headInWater=false, ordinaryBeef=0}",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            1.8863707128235712,
+            64.0,
+            -0.8789123675079852
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-09T00-10-55-287447Z-cc38d21c-native_animal_stop_after_interaction.png"
+        }
+      ],
+      "runnerFailures": []
+    },
+    {
+      "case": "stop_after_interaction",
+      "family": "modern",
+      "minecraftVersion": "26.3",
+      "status": "passed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-modern-r1/runner-receipt.json",
+      "runnerReceiptSha256": "d0248a1e02556e85e463c0f177a420b790481c5690033324226b2e84a92ee878",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-modern-r1/run-verification/verification/2026-10-09T00-11-34-310209Z-297443fe/evidence/run-2026-10-09T00-11-34-310209Z-297443fe.json",
+      "nativeEvidenceSha256": "f24d6ed4221aa94530d5fdf1d01070604dac254f4c239f94151b20c49c9fc1dd",
+      "startedAtUtc": "2026-10-09T00:11:21.829678+00:00",
+      "finishedAtUtc": "2026-10-09T00:12:00.448293+00:00",
+      "productionJar": {
+        "minecraftDependency": "26.3",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+        ],
+        "sha256": "a253addb7dcc4d22b56cc98888a88416fe993af6e41edbe87a62e29f2cb716aa"
+      },
+      "source": {
+        "commit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+        "dirty": true,
+        "dirtyPaths": [
+          "core/src/main/java/dev/lodekeeper/core/CommandParser.java",
+          "docs/evidence/parity-decisions.tsv",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java",
+          "fabric-modern/src/verification-261/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java",
+          "core/src/main/java/dev/lodekeeper/core/StorageGoal.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageCatalog.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageMenuObservation.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageCatalog.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageMenuObservation.java"
+        ],
+        "gitStatusError": null
+      },
+      "repositoryAtLaunch": "/Users/luinbytes/src/lodekeeper",
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "violations": [],
+        "productionArtifactClasses": 448,
+        "verifierClasses": 27,
+        "runtimeArtifactTransformation": null
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T00:12:00.296773+00:00",
+        "pid": 58370,
+        "processLog": "/private/tmp/lodekeeper-native-animal-8592d5f-stop_after_interaction-modern-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T00:11:21.926101+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "passed",
+      "nativeFailure": "",
+      "nativeAnimal": {
+        "scenario": "stop_after_interaction",
+        "command": "!lk get minecraft:beef 1",
+        "fixtureGrants": "bounded bedrock pad; adult NoAI vanilla animals; no supplied requested output except 2 ordinary beef for beef_partial or 3 named beef for wrong_components; wool cases have one ordinary shears in hotbar 7 (inventory case uses main slot 20 and requires return there) and one nearer wrong-color sheep; cooking has one furnace and 2 coal; full health and hunger; no fixture mutation after command",
+        "autoEat": false,
+        "allowBreaking": false,
+        "stopAfterFirstObservedInteractionClientTick": 200,
+        "effectsObservedAtStop": 1,
+        "effectsSentAtStop": 1,
+        "alreadySentPendingEffectsAtStop": 0,
+        "originalNativeActionActiveAtStop": true,
+        "restorationObserved": true,
+        "originalInputRestored": true,
+        "nativeSettingsRestored": true,
+        "nativeSettingsChecked": 248,
+        "result": "drained_after_interaction",
+        "screenshot": "screenshots/lodekeeper-2026-10-09T00-11-34-310209Z-297443fe-native_animal_stop_after_interaction.png",
+        "initialServerReceipt": {
+          "dead": "0",
+          "airSupply": "300",
+          "cursorEmpty": "true",
+          "wrongColorSheared": "0",
+          "shearsPresent": "false",
+          "serverTick": "92",
+          "maxAirSupply": "300",
+          "playerZ": "0.5",
+          "playerY": "64.0",
+          "selectedSlot": "0",
+          "stagedHotbarEmpty": "true",
+          "sheared": "0",
+          "playerX": "0.5",
+          "submersionTick": "-1",
+          "shearsOrdinary": "false",
+          "targets": "82ab283a-0379-4e4a-9a3d-403b8b5f36d7/entity.minecraft.cow/10.0;",
+          "ordinaryBeef": "0",
+          "headInWater": "false",
+          "effects": "0",
+          "shearsDamage": "-1"
+        },
+        "finalServerReceipt": {
+          "dead": "0",
+          "airSupply": "300",
+          "cursorEmpty": "true",
+          "wrongColorSheared": "0",
+          "shearsPresent": "false",
+          "serverTick": "234",
+          "maxAirSupply": "300",
+          "playerZ": "-0.8864399146835041",
+          "playerY": "64.0",
+          "selectedSlot": "0",
+          "stagedHotbarEmpty": "true",
+          "sheared": "0",
+          "playerX": "1.884530201420917",
+          "submersionTick": "-1",
+          "shearsOrdinary": "false",
+          "targets": "82ab283a-0379-4e4a-9a3d-403b8b5f36d7/entity.minecraft.cow/9.0;",
+          "ordinaryBeef": "0",
+          "headInWater": "false",
+          "effects": "1",
+          "shearsDamage": "-1"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_stop_after_interaction",
+          "item": "minecraft:beef",
+          "expected": 1,
+          "serverObserved": 0,
+          "inventoryEmptyAtStart": true,
+          "passed": true,
+          "clientTicks": 122,
+          "worldTicks": 122,
+          "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal server stock, exact target receipts, safe cancellation and hand restoration observed; receipt={dead=0, airSupply=300, cursorEmpty=true, wrongColorSheared=0, shearsPresent=false, serverTick=214, maxAirSupply=300, playerZ=-0.8864399146835041, playerY=64.0, selectedSlot=0, stagedHotbarEmpty=true, sheared=0, playerX=1.884530201420917, submersionTick=-1, shearsOrdinary=false, targets=82ab283a-0379-4e4a-9a3d-403b8b5f36d7/entity.minecraft.cow/9.0;, ordinaryBeef=0, headInWater=false, effects=1, shearsDamage=-1}",
+          "serverHealth": 20.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": "1.884530201420917,64.0,-0.8864399146835041"
+        }
+      ],
+      "runnerFailures": []
+    },
+    {
+      "case": "air_pending_attack",
+      "family": "primary",
+      "minecraftVersion": "1.21.1",
+      "status": "failed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/runner-receipt.json",
+      "runnerReceiptSha256": "3add3b21ad4bbba648b47d649823f144a2cafeedecd7ed55fd62d152a5a06e47",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/run/verification/evidence/run-2026-10-09T00-12-21-293504Z-490cb83a.json",
+      "nativeEvidenceSha256": "33faf34297532d12835ed31ad7741f8d5329c2e56baa60e2a3fce1c895ed8d72",
+      "startedAtUtc": "2026-10-09T00:12:02.182621+00:00",
+      "finishedAtUtc": "2026-10-09T00:14:39.417665+00:00",
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+      },
+      "source": {
+        "commit": "8592d5fcce4a3c8053427f8ac9cc099c7a19832e",
+        "dirty": true,
+        "dirtyPaths": [
+          "core/src/main/java/dev/lodekeeper/core/CommandParser.java",
+          "docs/evidence/parity-decisions.tsv",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java",
+          "fabric-modern/src/verification-261/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativeSettingsInput.java",
+          "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java",
+          "core/src/main/java/dev/lodekeeper/core/StorageGoal.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageCatalog.java",
+          "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/StorageMenuObservation.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageCatalog.java",
+          "fabric/src/main/java/dev/lodekeeper/fabric/StorageMenuObservation.java"
+        ],
+        "gitStatusError": null
+      },
+      "repositoryAtLaunch": "/Users/luinbytes/src/lodekeeper",
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "violations": [],
+        "productionArtifactClasses": 372,
+        "verifierClasses": 29,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 797,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 145,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "sha256": "67b15595b443c62dc2e96f290a7f2ccbd8e0a3e05cb317ce71b42d505ce8ce5d"
+          },
+          "loadedClassCount": 372,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "029bf8c8ad9d9bb9763e813a619e63d2d967440c5882073a9aa3f2241cc54981"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        }
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T00:14:39.196785+00:00",
+        "pid": 58520,
+        "processLog": "/private/tmp/lodekeeper-native-animal-8592d5f-air_pending_attack-primary-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T00:12:02.284700+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "failed",
+      "nativeFailure": "native animal case exceeded 120 seconds; receipt={shearsOrdinary=false, submersionTick=117, playerX=0.7237184542788196, sheared=0, stagedHotbarEmpty=true, selectedSlot=0, playerY=64.0, playerZ=0.5, maxAirSupply=300, serverTick=2489, shearsPresent=false, wrongColorSheared=0, cursorEmpty=true, airSupply=0, dead=0, shearsDamage=-1, effects=0, headInWater=true, ordinaryBeef=0, targets=e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;}",
+      "nativeAnimal": {
+        "scenario": "air_pending_attack",
+        "command": "!lk get minecraft:beef 1",
+        "fixtureGrants": "bounded bedrock pad; one adult NoAI invulnerable vanilla cow rejects the real native attack; after exactly one send is retained without damage, server fixture builds a roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air to 170; no granted items, output, damage or actor/receipt state; real AIR movement and refill follow; full starting health and hunger",
+        "autoEat": false,
+        "allowBreaking": false,
+        "pendingInteractionObservedClientTick": 241,
+        "pendingInteractionJob": 1,
+        "pendingInteractionTarget": "e243701b-5caf-44df-b5b3-a8d80ac2b01c",
+        "pendingInteractionSentEffects": 1,
+        "airRouteObservedClientTick": 245,
+        "airRouteServerReceipt": {
+          "shearsOrdinary": "false",
+          "submersionTick": "117",
+          "playerX": "0.5",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "120",
+          "shearsPresent": "false",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "167",
+          "dead": "0",
+          "shearsDamage": "-1",
+          "effects": "0",
+          "headInWater": "true",
+          "ordinaryBeef": "0",
+          "targets": "e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;"
+        },
+        "pendingEvidenceAtAirRoute": true,
+        "initialServerReceipt": {
+          "shearsOrdinary": "false",
+          "submersionTick": "-1",
+          "playerX": "0.5",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "89",
+          "shearsPresent": "false",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "300",
+          "dead": "0",
+          "shearsDamage": "-1",
+          "effects": "0",
+          "headInWater": "false",
+          "ordinaryBeef": "0",
+          "targets": "e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;"
+        },
+        "finalServerReceipt": {
+          "shearsOrdinary": "false",
+          "submersionTick": "117",
+          "playerX": "0.7237184542788196",
+          "sheared": "0",
+          "stagedHotbarEmpty": "true",
+          "selectedSlot": "0",
+          "playerY": "64.0",
+          "playerZ": "0.5",
+          "maxAirSupply": "300",
+          "serverTick": "2490",
+          "shearsPresent": "false",
+          "wrongColorSheared": "0",
+          "cursorEmpty": "true",
+          "airSupply": "0",
+          "dead": "0",
+          "shearsDamage": "-1",
+          "effects": "0",
+          "headInWater": "true",
+          "ordinaryBeef": "0",
+          "targets": "e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_air_pending_attack",
+          "item": "minecraft:beef",
+          "expected": 1,
+          "serverObserved": 0,
+          "inventoryEmptyAtStart": true,
+          "passed": false,
+          "clientTicks": 2400,
+          "worldTicks": 2399,
+          "engineStatus": "paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal case exceeded 120 seconds; receipt={shearsOrdinary=false, submersionTick=117, playerX=0.7237184542788196, sheared=0, stagedHotbarEmpty=true, selectedSlot=0, playerY=64.0, playerZ=0.5, maxAirSupply=300, serverTick=2489, shearsPresent=false, wrongColorSheared=0, cursorEmpty=true, airSupply=0, dead=0, shearsDamage=-1, effects=0, headInWater=true, ordinaryBeef=0, targets=e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;}",
+          "serverHealth": 0.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            0.7237184542788196,
+            64.0,
+            0.5
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-09T00-12-21-293504Z-490cb83a-failed-native_animal_air_pending_attack.png"
+        }
+      ],
+      "runnerFailures": [
+        "native run receipt verification/evidence/run-2026-10-09T00-12-21-293504Z-490cb83a.json status is 'failed'",
+        "native run receipt verification/evidence/run-2026-10-09T00-12-21-293504Z-490cb83a.json reports failure 'native animal case exceeded 120 seconds; receipt={shearsOrdinary=false, submersionTick=117, playerX=0.7237184542788196, sheared=0, stagedHotbarEmpty=true, selectedSlot=0, playerY=64.0, playerZ=0.5, maxAirSupply=300, serverTick=2489, shearsPresent=false, wrongColorSheared=0, cursorEmpty=true, airSupply=0, dead=0, shearsDamage=-1, effects=0, headInWater=true, ordinaryBeef=0, targets=e243701b-5caf-44df-b5b3-a8d80ac2b01c/entity.minecraft.cow/10.0;}'"
+      ]
+    }
+  ]
+}
