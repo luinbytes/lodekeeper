@@ -2,13 +2,13 @@
 
 Travel uses the foreground queue shared with acquisition and projects. Each accepted command prints its job token. `!lk queue` lists queued jobs, and `!lk status` reports the current job.
 
-The 1.21.1 and 26.3 artifacts compile with these commands. Coordinate travel passes the prepared native case on both. After the peer PLAY correction, 1.21.1 passes moving-player follow, original expiry, control restoration, peer teardown and fresh post-idle observation. The 26.3 case enrolls the peer and follows both moves but returns REFUSED at the progress watchdog; its outer case then times out. Other adapters refuse travel before starting a route. The [initial native evidence](evidence/cooperative/main-5108f5b-travel-initial.json) preserves all three results.
+The 1.21.1 and 26.3 artifacts compile with these commands. Coordinate travel passes the prepared native case on both. Both pass moving-player follow on frozen 675caa5, including original expiry, control restoration, peer teardown and fresh post-idle observation. The earlier modern watchdog failure remains in the evidence history. Other adapters refuse travel before starting a route. The [initial native evidence](evidence/cooperative/main-5108f5b-travel-initial.json) preserves all three results.
 
 | Command | Behavior and limits |
 | --- | --- |
 | `!lk goto <x> <feetY> <z>` | Travels to a loaded, supported feet stance within 256 horizontal blocks. Its two-minute deadline starts at admission. |
 | `!lk explore [radius [segments]]` | Visits observed safe destinations when `allowExploration` is enabled. Defaults to radius 64 and four segments. Radius is 16 through 256, with one through sixteen segments and a two-minute deadline. |
-| `!lk follow <exactName\|UUID> [seconds]` | Pins a currently loaded player by UUID. Defaults to 120 seconds, with a limit of one through 600 seconds. Waits within two blocks. |
+| `!lk follow <exactName\|UUID> [seconds]` | Pins a currently loaded player by UUID. Defaults to 120 seconds, with a limit of one through 600 seconds. Waits at the native radius-two block goal around the same pinned player. |
 | `!lk waypoint set <name>` | Saves the current safe integer feet stance for this world and dimension. Names use lowercase letters, digits, underscores or hyphens and contain at most 32 characters. |
 | `!lk waypoint goto <name>` | Queues coordinate travel to the saved stance under the current travel limits. |
 | `!lk waypoint list` | Lists waypoints in the current world and dimension. |
@@ -29,4 +29,6 @@ The [parity implementation ledger](PARITY-IMPLEMENTATION.md) records native veri
 
 The [5d2ef07 follow evidence](evidence/cooperative/main-5d2ef07-follow-initial.json) records both results and all 24 passing CI jobs for that exact commit. The primary original capture passed anonymous byte/hash read-back and signed-out browser decoding; its two local copies were deleted. Modern produced no capture. The goal-settlement source correction has separate build and native gates.
 
-The [follow goal-settlement correction](evidence/cooperative/follow-goal-settlement-source-r2.json) passes independent source review and builds for 1.21.1, 26.3 and the mapped 1.21.11 adapter, with 319, 274 and 324 existing checks. Waiting now observes the current owned native block goal and the same pinned target, while preserving the original deadline, missing-target and progress bounds. The unchanged native follow acceptance cases remain pending for these corrected jars.
+The [follow goal-settlement correction](evidence/cooperative/follow-goal-settlement-source-r2.json) passes independent source review and builds for 1.21.1, 26.3 and the mapped 1.21.11 adapter, with 319, 274 and 324 existing checks. Waiting now observes the current owned native block goal and the same pinned target, while preserving the original deadline, missing-target and progress bounds. Both unchanged native acceptance cases pass for the corrected frozen jars.
+
+The [675caa5 native follow evidence](evidence/cooperative/main-675caa5-follow-gates.json) confirms both acknowledged player moves, expiry at the original twenty-second deadline, restoration of input, original selection and 249 primary or 248 modern native settings, normal peer teardown, unchanged server stock/equipment and a fresh post-idle observation at least twenty server ticks later. Both original captures passed anonymous byte/hash read-back and signed-out browser decoding; four exact local copies were deleted. The recorded CI snapshot is queued; authenticated chat, item handoff and broader travel cases remain separate gates.
