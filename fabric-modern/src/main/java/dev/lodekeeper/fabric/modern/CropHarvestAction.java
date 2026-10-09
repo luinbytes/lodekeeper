@@ -259,6 +259,10 @@ final class CropHarvestAction implements NativeRun {
     private void collect() {
         if (!airTarget()) { block("harvested crop cell or original farmland changed before repair"); return; }
         if (!effectAdmission(false)) { requestDrain(DrainReason.PREEMPT); return; }
+        if (plantingReady() && outputGained()) {
+            if (!quiesce()) return;
+            preparePlanting(); return;
+        }
         List<ItemEntity> available = drops();
         if (dropOverflow) { block("crop drop query exceeded 128 matching entities"); return; }
         List<ItemEntity> fresh = available.stream().filter(item -> item.getItem().getCount() > oldDrops.getOrDefault(item.getUUID(), 0))
@@ -360,12 +364,12 @@ final class CropHarvestAction implements NativeRun {
     }
     private boolean plantConfirmed() {
         return plantAcknowledged && loaded(target) && loaded(target.below())
-                && client.level.getBlockState(target.below()).equals(farmlandState)
+                && sameFarmland(client.level.getBlockState(target.below()))
                 && GameApi.cropMatches(client.level.getBlockState(target), crop);
     }
     private boolean provePlant() {
         if (!plantSent || replantReceipt <= plantSequence || beforePlant == null || !loaded(target)
-                || !loaded(target.below()) || !client.level.getBlockState(target.below()).equals(farmlandState)
+                || !loaded(target.below()) || !sameFarmland(client.level.getBlockState(target.below()))
                 || !GameApi.cropMatches(client.level.getBlockState(target), crop)) return false;
         PlacementProvenance.JointStock live = stock();
         if (live == null || live.sequence() <= plantSequence) return false;
@@ -503,7 +507,7 @@ final class CropHarvestAction implements NativeRun {
     private boolean unrepaired() {
         return harvestSent && !(plantSent && plantConfirmed())
                 && !(manualRepairReceipt > breakSequence && loaded(target) && loaded(target.below())
-                    && client.level.getBlockState(target.below()).equals(farmlandState)
+                    && sameFarmland(client.level.getBlockState(target.below()))
                     && GameApi.cropMatches(client.level.getBlockState(target), crop));
     }
     private void block(String reason) {
@@ -638,17 +642,22 @@ final class CropHarvestAction implements NativeRun {
         WorldRevision.watch(pos.getX() >> 4, pos.getZ() >> 4);
         return client.level.hasChunkAt(pos);
     }
+    private boolean sameFarmland(BlockState live) {
+        return farmlandState != null && farmlandState.is(Blocks.FARMLAND)
+                && live.is(Blocks.FARMLAND)
+                && live.setValue(net.minecraft.world.level.block.FarmlandBlock.MOISTURE, farmlandState.getValue(net.minecraft.world.level.block.FarmlandBlock.MOISTURE)).equals(farmlandState);
+    }
     private boolean matureTarget() {
         return target != null && loaded(target) && loaded(target.below())
                 && client.level.getBlockState(target).equals(matureState) && GameApi.cropMature(matureState, crop)
-                && client.level.getBlockState(target.below()).equals(farmlandState) && farmlandState.is(Blocks.FARMLAND)
+                && sameFarmland(client.level.getBlockState(target.below()))
                 && protection.mayBreak(target) && protection.mayPlace(target) && protection.mayInteractBlock(target.below())
                 && actions.cropRepairPermitted(target);
     }
     private boolean airTarget() {
         return target != null && loaded(target) && loaded(target.below()) && client.level.getBlockState(target).isAir()
                 && client.level.getBlockState(target).getFluidState().isEmpty()
-                && client.level.getBlockState(target.below()).equals(farmlandState)
+                && sameFarmland(client.level.getBlockState(target.below()))
                 && protection.mayPlace(target) && protection.mayInteractBlock(target.below());
     }
     private PlacementProvenance.JointStock stock() {

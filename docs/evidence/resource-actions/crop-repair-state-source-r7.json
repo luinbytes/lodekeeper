@@ -1,0 +1,474 @@
+{
+  "recordedAtUtc": "2026-10-09T13:58:02.490101+00:00",
+  "sourceBaselineCommit": "6af97285d034ab3b4df3ae3c774daf2aca837bec",
+  "status": "compiled_correction_native_unrun",
+  "changedSources": [
+    {
+      "path": "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java",
+      "baseline_sha256": "1ee48db18a4b6bc53a434e2b4a1bbe2083d5439f8c6cf39060d81d951103b502",
+      "candidate_sha256": "802cc450ee3c8e91fe53f072584b152c8b66c9caacb7a6671054555fc00b62c0",
+      "baseline_bytes": 47385,
+      "candidate_bytes": 47779
+    },
+    {
+      "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java",
+      "baseline_sha256": "052c1ef607ae047c8974c5a51f4b16aa8baeb18c29b483b9c5298e087ed0cf4f",
+      "candidate_sha256": "13259e007d308844fc98732c2fe8d9f09d3251ff13d59e0fd616073aee5af302",
+      "baseline_bytes": 47236,
+      "candidate_bytes": 47661
+    }
+  ],
+  "sourceManifest": {
+    "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+    "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+    "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "13259e007d308844fc98732c2fe8d9f09d3251ff13d59e0fd616073aee5af302",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "a0df9378d1d248673d21fa1e71123afb8470e39d30ae776296194798c184c724",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+    "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "802cc450ee3c8e91fe53f072584b152c8b66c9caacb7a6671054555fc00b62c0",
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6",
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+    "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+    "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+    "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+    "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+    "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+    "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+  },
+  "verifierSourceManifest": {
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "a7aa278db4f7502969aedbfee9a2390cb5a9d2d980fb182806b001d3b15ce03d",
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "78888f127529e6b51e9f501b69867a39e1577e681b83f3eaec8b78f7b9d20957",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "9b4c27d8baeb30b72c5af3269610694539b24e2a1dca2b93b937cd3c822f1e88",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": "576a280bbb56991d26db6dd151ed46b715e8159108cadc5c98e57003af164b1b"
+  },
+  "verifierUnchanged": true,
+  "patch": {
+    "sha256": "0927d628a65ee2df2004da264fdcdce72b37419f09375b2638726eed09c373da",
+    "reconstruction": "two files byte-identical after replay"
+  },
+  "sourceReports": [
+    {
+      "path": "/tmp/lodekeeper-crop-repair-ready-moisture-r6-review-luna.md",
+      "sha256": "dce63e29d355153103b4292385aef7fc65134aa488ee6aff82831ea67a2e864c",
+      "report": "# R6 crop checkpoint source review\n\n## Verdict\n\n**Source: CLEAN.** The two changes are narrowly scoped and preserve the repair, ownership, input, stock-floor, and receipt gates visible in the reviewed adapters. No source finding requires a fix in this checkpoint.\n\n**Artifact bookkeeping: one mismatch.** `manifest.json` records patch SHA-256 `e6d7663574f91feae77ac86653d3a5f4e7c9891258d3cbbe64d648898aa5ecf9`, but the only patch file present, `source.patch`, hashes to `510d0320a16d12bc826dcb203715a709f697c32cd357860d75c8e4802b0034cf`. Smallest fix: update the manifest to the hash of `source.patch`, or restore the file whose hash it currently records. This does not affect the candidate source hashes or the source verdict.\n\n## Scope and evidence\n\nReviewed only `CropHarvestAction.java` in both adapters, their complete R6 diffs against the copied baselines, the crop workflow around collection, reservation, placement, receipts, drain and completion, and the relevant native crop fixture definitions in both adapter families. No nested agents, Git commands, builds, tests, Java/native runs, restarts, uploads, or canonical writes were performed.\n\nCandidate SHA-256 values, independently recomputed and matching `manifest.json`:\n\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java`: `802cc450ee3c8e91fe53f072584b152c8b66c9caacb7a6671054555fc00b62c0`.\n- `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java`: `e5331bd74bbdca33f225ec240d11371ebecba151db0c87f7337ad82f1ec01ca6`.\n\nThe candidate files byte-match those same paths in the supplied canonical checkout. The manifest identifies baseline `6af97285d034ab3b4df3ae3c774daf2aca837bec`. Commands used were `diff -u baseline/... candidate/...`, `shasum -a 256 ...`, and focused `rg`/`sed` reads. The diffs each contain the same five edits: collection short-circuit, three repair proof checks, and the same-farmland helper plus its use in harvest/air checks.\n\n## Findings by behavior\n\n- `sameFarmland` first requires both captured and live states to be vanilla farmland. It copies only the captured moisture into the live state, then compares the full resulting state to the captured state. A different block, or a difference in any other property, still fails. Position remains tied to `target.below()` at each existing loaded-position guard. Thus this does not normalize crop-cell state, geometry, ownership, protection, loaded state, or block type.\n- The helper is used at all five relevant comparisons: mature target, air target, plant confirmation, plant proof, and manual-repair/unrepaired proof. Crop age-zero proof, post-break server receipt sequence, exact inventory debit, and ordinary stock checks remain in place. The supported mappings expose farmland moisture as `FarmlandBlock.MOISTURE` in the primary adapter and `FarmBlock.MOISTURE` in the modern adapter. The fluent `with`/`setValue` forms and matching `get`/`getValue` accessors follow each adapter's mapped state API. This is source inspection only, not a compile claim.\n- The collection shortcut occurs only after `airTarget()` and non-repair `effectAdmission(false)`, and requires both `plantingReady()` and `outputGained()`. It quiesces owned movement/input before calling the existing `preparePlanting()`. That method still checks `reservedPlanting`, repair admission, `airTarget()`, a live coherent joint-stock receipt, an ordinary planting stack, and then the existing swap path. `plant()` retains fresh repair/send admission, held-stack identity, the shared stock floor, receipt sequence capture, and no-resend wait behavior. The shortcut therefore skips repeated drop enumeration only after the output and reserved seed predicates hold; it does not assert the drop was delivered or add an action send.\n- `plantingReady()` can remain true from an earlier reservation without a new seed increase on this tick. The shortcut also requires `outputGained()`, whose post-break output increase check prevents that reservation alone from triggering repair. The source requires post-break output receipt/stock evidence; it does not prove a particular pickup entity caused that increase.\n- The exact 36-slot inventory and equipment data shape is not altered. `preparePlanting()` searches the existing 36 main slots; `plant()` checks `plantingFloor()` before debit. Reserved initial planting stock remains admissible under the existing reservation rules, and debit still must not cross the current shared floor. No changes touch manual input priority, AIR predecessor handling, UNKNOWN input withholding, original session/owner authority, edit permission epoch, or uncertain-dispatch no-resend behavior.\n- The source fixtures for focused native wheat verification exist in both primary and modern adapter families. The modern-only fixture characterization in the supplied diagnosis is incorrect.\n\n## Runtime boundary\n\nThe saved-world census shows the final snapshot has the harvested cell at air, the remaining five cells mature, and all six soils still vanilla farmland with differing moisture values. It is consistent with the moisture-only mismatch hypothesis, but it is a later saved snapshot and does not prove the first mismatch tick or its cause. The reported native run collected one wheat and 24 seeds, then paused before replanting; R6 has not been rerun. Native acceptance, including a successful repair and full checkpoint parity, remains unverified. That limitation does not change the source-only CLEAN verdict.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-repair-ready-moisture-r7-review-luna.md",
+      "sha256": "66c21b5531663ca830ec4295cf4d3f3561faa5f17c555718bf635fa4c22dbc7b",
+      "report": "# R7 crop repair checkpoint review\n\n## Verdict\n\n**CLEAN for source review.** Both current crop-action mirrors contain the requested bounded changes. I found no source defect in the early collect shortcut or in the moisture-normalized farmland comparison.\n\nThis verdict covers source only. It does not grant compile, native fixture, parity, or runtime acceptance. R6's primary compile passed and modern compile failed; this review did not rerun either. R7 corrects the modern symbol based on unchanged verifier source, which is useful API evidence but is not a substitute for compiling the modern artifact or checking its mapped binary.\n\n## Packet and reconstruction\n\n- The manifest names baseline `6af97285d034ab3b4df3ae3c774daf2aca837bec`. I did not use Git to independently prove the copied baseline came from that commit.\n- The primary candidate hash is `802cc450ee3c8e91fe53f072584b152c8b66c9caacb7a6671054555fc00b62c0`; the modern candidate hash is `13259e007d308844fc98732c2fe8d9f09d3251ff13d59e0fd616073aee5af302`. Both match the manifest and the canonical source files read-only.\n- `source.patch` hashes to `0927d628a65ee2df2004da264fdcdce72b37419f09375b2638726eed09c373da`, matching the manifest. A dry-run patch against the copied baselines applies cleanly. Both reconstruction outputs byte-match their candidate files.\n\n## Source findings\n\nThe collect shortcut is after `airTarget()` and `effectAdmission(false)`. It requires both `plantingReady()` and `outputGained()`, quiesces through the existing `quiesce()` path, then calls the existing `preparePlanting()`. That method still requires the reserved planting unit, fresh repair admission, and `airTarget()`, then checks a coherent stock receipt and finds an ordinary planting stack in the existing 36-slot inventory. `plant()` retains its repair admission, held-stack identity, live stock-floor check, receipt sequencing, and inventory debit proof. The shortcut can skip repeated drop enumeration once stock evidence is ready; it does not create a new send path.\n\n`sameFarmland` is used at all five soil comparisons: mature target, air target, plant confirmation, plant proof, and unrepaired/manual-repair proof. It requires both states to be vanilla farmland, copies only the expected moisture value into the live state, then compares the full state. Other farmland properties and block identity remain exact. Crop cell state, loaded geometry, ownership, protection, and edit checks are outside this normalization and remain in their existing guards.\n\nThe modern adapter now refers to `net.minecraft.world.level.block.FarmlandBlock.MOISTURE`. The unchanged modern verifier sources use that same fully qualified property in `VerificationApi.java:120`, and the imported symbol in `RuntimeVerification.java:45` at its farmland moisture fixture. The primary verifier likewise uses `FarmlandBlock.MOISTURE`. This supports the source-level correction from `FarmBlock`; it is not direct mapped-binary or compilation evidence.\n\nThe diffs do not alter original authority, server receipt handling, actual stock floors, ordinary component checks, UNKNOWN no-resend behavior, manual/native input ownership, AIR predecessor handling, loaded-position checks, or crop-cell invariants. No new source finding surfaced in those paths.\n\n## Remaining evidence gap\n\nThe saved-world census is consistent with moisture drift but does not establish the first mismatch tick or its cause. The recorded native fixture stopped after gaining one wheat and 24 seeds, before replanting. No successful repair, full native checkpoint parity, or runtime pass is established here. Keep those as open release gates.\n\n## Review limits\n\nRead the R7 packet, both canonical mirror files, and the unchanged verifier source lines cited above. Used only source reads, hashes, comparisons, and a patch dry-run. No Git, build, test, Java/native run, restart, upload, or write outside this review file.\n"
+    }
+  ],
+  "buildAttempts": [
+    {
+      "version": "1.21.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T13:04:59.183238+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-1211:verificationClasses",
+        ":fabric-1211:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-ready-repair-1.21.1-r6-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T13:05:40.285971+00:00",
+      "round": 6,
+      "logSha256": "255d4730dede8e1cfe9c6959c4a3323d904badf624cd6f596c325fba2512cbc0",
+      "resultLine": "BUILD SUCCESSFUL in 40s"
+    },
+    {
+      "version": "26.3",
+      "status": "FAILED",
+      "startedAtUtc": "2026-10-09T13:05:40.288026+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-ready-repair-26.3-r6-build.log",
+      "exitCode": 1,
+      "finishedAtUtc": "2026-10-09T13:06:07.191785+00:00",
+      "round": 6,
+      "logSha256": "e0ad8d409b65aa7c321ddf76581ae3325244d7ecb6b050e2f59a436bf28b9287",
+      "resultLine": "BUILD FAILED in 26s"
+    },
+    {
+      "version": "26.3",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T13:55:46.883254+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-ready-repair-26.3-r7-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T13:56:11.363993+00:00",
+      "round": 7,
+      "logSha256": "6184b08708ef03de78947a6bd124442f952d8e9f8fc31147d00e17b9df75649c",
+      "resultLine": "BUILD SUCCESSFUL in 23s"
+    },
+    {
+      "version": "1.20.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T13:56:11.365785+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.20.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/usr/local/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-ready-repair-1.20.1-r7-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T13:56:53.611154+00:00",
+      "round": 7,
+      "logSha256": "6b29de42239ea486c2c5366ba308a71ad0a51e4f42f31db9cf4041c6d95b1a1a",
+      "resultLine": "BUILD SUCCESSFUL in 41s"
+    },
+    {
+      "version": "1.21.11",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T13:56:53.615139+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.11",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-ready-repair-1.21.11-r7-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T13:57:44.534255+00:00",
+      "round": 7,
+      "logSha256": "add786f943c0e883b598c473fbb4d3ca8c58460ca75c126b693ae3e98dcf2b62",
+      "resultLine": "BUILD SUCCESSFUL in 50s"
+    }
+  ],
+  "existingChecks": {
+    "core": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-modern": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1212": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "b10ccf251f9a450208ffa1d0c75c7d6635bca840a4478b42f720191252f8beb9",
+      "bytes": 1955793,
+      "checks": 319,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 6
+    },
+    {
+      "minecraftVersion": "26.3",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "8e184c7789bfed7883cec1dc3b0137348b183a35b39826927e551bea4b893289",
+      "bytes": 2028979,
+      "checks": 274,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 7
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric/build/libs/lodekeeper-1.20.1-0.1.0-preview.11.jar",
+      "sha256": "7d2c09f49802880c15d9a60d71ce463a88e0c6500d8fadc87beb58ecfa7bf84e",
+      "bytes": 1951137,
+      "checks": 319,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 7
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+      "sha256": "9e688d8f9cfc32f19ac4a7abfed2da84efc720e40530b454f620e1ff17cf505b",
+      "bytes": 1968708,
+      "checks": 324,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 7
+    }
+  ],
+  "precedingNativeFailure": {
+    "path": "docs/evidence/resource-actions/main-6af9728-crop-wheat-failed.json",
+    "sha256": "d48ca913b19ee39a817d34addc92c2bb1e89afffc9b4cfe92d68eac4a40c3da7",
+    "status": "FAILED"
+  },
+  "savedWorldCensus": {
+    "blocks": [
+      {
+        "crop_y64": {
+          "name": "minecraft:air",
+          "palette_index": 0,
+          "properties": {},
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 2,
+          "properties": {
+            "moisture": "5"
+          },
+          "section_y": 3
+        },
+        "x": 4,
+        "z": 0
+      },
+      {
+        "crop_y64": {
+          "name": "minecraft:wheat",
+          "palette_index": 1,
+          "properties": {
+            "age": "7"
+          },
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 3,
+          "properties": {
+            "moisture": "6"
+          },
+          "section_y": 3
+        },
+        "x": 5,
+        "z": 0
+      },
+      {
+        "crop_y64": {
+          "name": "minecraft:wheat",
+          "palette_index": 1,
+          "properties": {
+            "age": "7"
+          },
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 3,
+          "properties": {
+            "moisture": "6"
+          },
+          "section_y": 3
+        },
+        "x": 6,
+        "z": 0
+      },
+      {
+        "crop_y64": {
+          "name": "minecraft:wheat",
+          "palette_index": 1,
+          "properties": {
+            "age": "7"
+          },
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 3,
+          "properties": {
+            "moisture": "6"
+          },
+          "section_y": 3
+        },
+        "x": 7,
+        "z": 0
+      },
+      {
+        "crop_y64": {
+          "name": "minecraft:wheat",
+          "palette_index": 1,
+          "properties": {
+            "age": "7"
+          },
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 3,
+          "properties": {
+            "moisture": "6"
+          },
+          "section_y": 3
+        },
+        "x": 8,
+        "z": 0
+      },
+      {
+        "crop_y64": {
+          "name": "minecraft:wheat",
+          "palette_index": 1,
+          "properties": {
+            "age": "7"
+          },
+          "section_y": 4
+        },
+        "soil_y63": {
+          "name": "minecraft:farmland",
+          "palette_index": 4,
+          "properties": {
+            "moisture": "4"
+          },
+          "section_y": 3
+        },
+        "x": 9,
+        "z": 0
+      }
+    ],
+    "files": [
+      {
+        "mtime_local": "2026-10-09T13:50:39+01:00",
+        "path": "/tmp/lodekeeper-native-crop-6af9728-primary-wheat-r1/run/verification/worlds/run-5a1f8aac/region/r.0.0.mca",
+        "sha256": "d4b3d7330d04f2d9bce44e3d840d7c363f6f1a671ee60f083dcfe3f1f0cd5ea2",
+        "size_bytes": 1056768
+      },
+      {
+        "mtime_local": "2026-10-09T13:50:39+01:00",
+        "path": "/tmp/lodekeeper-native-crop-6af9728-primary-wheat-r1/run/verification/worlds/run-5a1f8aac/entities/r.0.0.mca",
+        "sha256": "1ee84fdd5af4fb54b1bd72d2452259520b3d3bf30bfc925bd9dab928e66a246f",
+        "size_bytes": 24576
+      }
+    ],
+    "item_entities": [
+      {
+        "Age": 1165,
+        "Motion": [
+          6.846162305149766e-70,
+          -0.04,
+          1.0183223199366534e-69
+        ],
+        "OnGround": 1,
+        "PickupDelay": 0,
+        "Pos": [
+          4.687061878170997,
+          64.0,
+          1.0774338087451456
+        ],
+        "UUID": [
+          1134993622,
+          1969049155,
+          -1353055496,
+          -1393653023
+        ],
+        "id": "minecraft:item",
+        "stack": {
+          "count": 2,
+          "id": "minecraft:wheat_seeds"
+        }
+      }
+    ],
+    "parser": "Python 3 standard library only: read MCA location table, decompress zlib/gzip/raw chunks, parse NBT tags, decode paletted block states using padded modern long packing (floor(64/bits) entries per 64-bit long); no world writes.",
+    "scope": {
+      "chunk": [
+        0,
+        0
+      ],
+      "crop_x": [
+        4,
+        9
+      ],
+      "crop_y": 64,
+      "crop_z": 0,
+      "soil_y": 63
+    }
+  },
+  "preservation": [
+    "After unchanged AIR and effect admission, actual post-break output gain plus reserved real planting stock can enter existing repair after owned quiescence.",
+    "Only vanilla farmland MOISTURE is normalized; block type, all other state properties, captured position, crop cell and loaded geometry remain guarded.",
+    "Original authority, repair/cleanup permissions, receipts, stock floors, ordinary components, native input, AIR predecessor and UNKNOWN no-resend remain guarded.",
+    "All four native verifier sources, 1200-tick/90-second gate and stable restoration/stock/history predicates are unchanged."
+  ],
+  "corrections": [
+    "R6 modern FarmBlock reference failed compilation. R7 uses FarmlandBlock already present in unchanged modern fixture sources.",
+    "R6 review missed that API defect and its stale patch hash. R7 packet replay and metadata are independently verified.",
+    "Prior diagnosis incorrectly described a modern-only fixture and fresh-seed-only planting readiness. Both adapters have fixtures; previously reserved initial real seeds can satisfy readiness."
+  ],
+  "runtimeLimits": [
+    "Saved-world moisture drift does not establish the exact first failed guard tick.",
+    "Native acceptance, AIR regression, other crop/refusal/cancellation cases, repeated renewable farming and FULL11 parity remain separate gates."
+  ],
+  "nativeCrop": "unrun for this correction",
+  "nativeAirRegression": "unrun for this correction",
+  "userAcceptance": "pending"
+}
