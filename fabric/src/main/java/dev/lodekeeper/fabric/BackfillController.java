@@ -50,7 +50,6 @@ final class BackfillController {
         this.provenance = provenance;
         this.currentJob = currentJob;
         actions.attachBackfill(this);
-        provenance.observeServerBlocks(this::serverBlock);
     }
 
     void tick() {
@@ -111,7 +110,7 @@ final class BackfillController {
                 && Registries.BLOCK.getId(block).equals(Registries.ITEM.getId(item));
     }
 
-    private void serverBlock(PlacementProvenance.ServerBlockReceipt received) {
+    void serverBlock(PlacementProvenance.ServerBlockReceipt received) {
         if (!refreshSession()) return;
         var session = new RestorationQueue.Session(received.session().worldScope(), received.session().generation());
         if (!session.equals(queue.currentSession())) return;

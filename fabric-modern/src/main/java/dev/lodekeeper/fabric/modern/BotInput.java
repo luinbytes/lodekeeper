@@ -25,6 +25,10 @@ final class BotInput extends ClientInput implements AirRecoveryAction.Diagnostic
         }
     }
 
+    Object ownedPredecessor(Object player, Object installedInput) {
+        return owner != null && owner == player && installedInput == this && owner.input == this
+                && previous != null && previous != this ? previous : null;
+    }
     void drive(float forward, float sideways, boolean jump, boolean sneak) {
         this.forward = forward;
         this.sideways = sideways;
@@ -40,6 +44,9 @@ final class BotInput extends ClientInput implements AirRecoveryAction.Diagnostic
                 + ",appliedJump=" + keyPresses.jump() + ",appliedSneak=" + keyPresses.shift();
     }
 
+    void discardOwnership() {
+        owner = null; previous = null;
+    }
     void release() {
         idle();
         if (owner != null && owner.input == this) owner.input = previous != null ? previous : new ClientInput();

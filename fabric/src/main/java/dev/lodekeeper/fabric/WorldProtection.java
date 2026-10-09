@@ -129,6 +129,14 @@ final class WorldProtection {
         return true;
     }
 
+    boolean mayInteractBlock(BlockPos position) {
+        sync();
+        return position != null && boundWorld != null && client.world == boundWorld
+                && boundWorld.isChunkLoaded(position) && policy.mayPlace(position.getX(), position.getY(), position.getZ());
+    }
+
+    boolean mayPickupDrop(net.minecraft.entity.ItemEntity item) { return mayInteractEntity(item); }
+
     boolean mayBreak(BlockPos position) {
         return mayEdit(position, true);
     }

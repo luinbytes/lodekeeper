@@ -311,6 +311,29 @@ final class MovementController {
         }
     }
 
+    enum InputLeaseState { ACTIVE, RESTORING, LOST }
+
+    static final class InputLease {
+        private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner;
+        private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session;
+        private final Object player, world;
+        private final IBaritone bot;
+        private final SettingsLease settings;
+        private final Mode kind;
+        private final IBaritoneProcess process;
+        private final dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal goal;
+        private final Predicate<Entity> filter;
+        private InputLease(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                           dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                           Object player, Object world, IBaritone bot, SettingsLease settings,
+                           Mode kind, IBaritoneProcess process,
+                           dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal goal, Predicate<Entity> filter) {
+            this.owner = owner; this.session = session; this.player = player; this.world = world;
+            this.bot = bot; this.settings = settings; this.kind = kind; this.process = process;
+            this.goal = goal; this.filter = filter;
+        }
+    }
+
     enum RouteEffects { CONFIGURED, MOVEMENT_ONLY }
     private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private record OwnedPickupTarget(ItemEntity entity, UUID entityId, Item item, int startingCount,
@@ -398,6 +421,93 @@ final class MovementController {
     MovementController(MinecraftClient client, LodekeeperConfig config, PlayerActions actions,
                        BotInput input, GameTerrain terrain) {
         this.client = client; this.config = config; this.actions = actions; this.input = input; this.terrain = terrain;
+    }
+
+    InputLease captureCropInputLease(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                    dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                    Object provenanceSession, boolean pickup) {
+        if (routeEffects != RouteEffects.MOVEMENT_ONLY || mode != (pickup ? Mode.PICKUP : Mode.MOVE)) return null;
+        if (pickup && (pickupTarget == null || pickupTarget.ownerSession() != provenanceSession
+                || pickupTarget.ownerPlayer() != client.player || pickupTarget.ownerWorld() != client.world)) return null;
+        return captureInputLease(owner, session);
+    }
+
+    InputLease captureAirInputLease(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                   dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session) {
+        return mode == Mode.AIR ? captureInputLease(owner, session) : null;
+    }
+
+    boolean manualAirInputQuiescent(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                    dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || !owner.isCurrent(session) || session.world() != client.world || client.player == null
+                || pendingOwnershipFailure != null || mode != Mode.IDLE || resumeMode != Mode.IDLE || lease != null
+                || cancelling || cancellationProcess != null || followCancellationPending || airRecoveryCancellationPending) return false;
+        var activeBot = owner.getPrimaryBaritone();
+        return activeBot != null && (bot == null || bot == activeBot)
+                && activeBot.getPlayerContext().player() == client.player
+                && activeBot.getPlayerContext().world() == client.world && actions.cropNativeQuiescent(owner);
+    }
+
+    private InputLease captureInputLease(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                        dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session) {
+        try {
+            if (owner == null || lease == null || bot == null || client.player == null || client.world == null
+                    || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                    || !owner.isCurrent(session) || session.world() != client.world || owner.getPrimaryBaritone() != bot
+                    || bot.getPlayerContext().player() != client.player || bot.getPlayerContext().world() != client.world
+                    || cancelling || mode != Mode.MOVE && mode != Mode.PICKUP && mode != Mode.AIR) return null;
+            var expected = expectedProcessForMode(bot, mode);
+            var goal = mode == Mode.AIR ? airRecoveryGoal : mode == Mode.MOVE ? routeGoal : null;
+            InputLease captured = new InputLease(owner, session, client.player, client.world, bot, lease,
+                    mode, expected, goal, mode == Mode.PICKUP ? followFilter : null);
+            return observeInputLease(captured) == InputLeaseState.ACTIVE ? captured : null;
+        } catch (RuntimeException unavailable) { return null; }
+    }
+
+    InputLeaseState observeInputLease(InputLease captured) {
+        if (captured == null || pendingOwnershipFailure != null || captured.owner == null
+                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != captured.owner
+                || !captured.owner.isCurrent(captured.session) || captured.session.world() != captured.world
+                || client.player != captured.player || client.world != captured.world || bot != captured.bot
+                || captured.owner.getPrimaryBaritone() != bot || bot.getPlayerContext().player() != captured.player
+                || bot.getPlayerContext().world() != captured.world || captured.settings == null
+                || captured.process == null || lease != null && lease != captured.settings
+                || cancellationProcess != null && cancellationProcess != captured.process
+                || hasForeignInputProcess(bot, captured.process)) return InputLeaseState.LOST;
+        var recent = bot.getPathingControlManager().mostRecentInControl();
+        if (recent.isPresent() && recent.get() != captured.process && inputProcessActive(bot, recent.get())) return InputLeaseState.LOST;
+        if (captured.kind == Mode.PICKUP) {
+            var currentFilter = bot.getFollowProcess().currentFilter();
+            if (captured.filter == null || currentFilter != null && currentFilter != captured.filter) return InputLeaseState.LOST;
+        } else if (!matchesOwnedCustomGoal(bot.getCustomGoalProcess(), captured.goal)) return InputLeaseState.LOST;
+        Mode current = mode == Mode.SUSPENDED ? resumeMode : mode;
+        if (lease == captured.settings && current == captured.kind && !cancelling) {
+            if (captured.kind != Mode.AIR && routeEffects != RouteEffects.MOVEMENT_ONLY) return InputLeaseState.LOST;
+            return InputLeaseState.ACTIVE;
+        }
+        if ((mode == Mode.IDLE && resumeMode == Mode.IDLE || mode == Mode.SUSPENDED && resumeMode == captured.kind)
+                && (lease == null || lease == captured.settings)) return InputLeaseState.RESTORING;
+        return InputLeaseState.LOST;
+    }
+
+    private boolean hasForeignInputProcess(IBaritone activeBot, IBaritoneProcess expected) {
+        IBaritoneProcess[] processes = {
+                activeBot.getCustomGoalProcess(), activeBot.getMineProcess(), activeBot.getFollowProcess(),
+                activeBot.getBuilderProcess(), activeBot.getExploreProcess(), activeBot.getFarmProcess(),
+                activeBot.getGetToBlockProcess(), activeBot.getElytraProcess()
+        };
+        for (var process : processes) if (process != expected && inputProcessActive(activeBot, process)) return true;
+        return false;
+    }
+    private boolean inputProcessActive(IBaritone activeBot, IBaritoneProcess process) {
+        // Follow.isActive scans and writes its entity cache. A stored filter is a conservative read-only witness.
+        if (process == activeBot.getFollowProcess()) return activeBot.getFollowProcess().currentFilter() != null;
+        if (process == activeBot.getCustomGoalProcess() || process == activeBot.getMineProcess()
+                || process == activeBot.getBuilderProcess() || process == activeBot.getExploreProcess()
+                || process == activeBot.getFarmProcess() || process == activeBot.getGetToBlockProcess()
+                || process == activeBot.getElytraProcess()) return process.isActive();
+        return true;
     }
 
     void updateProtection(Set<Item> reserved, Set<Block> protectedBlocks) {
@@ -1630,8 +1740,15 @@ final class MovementController {
         if (airRecoveryGoal.isInGoal(destination)) lastAirRecoveryDestination = destination.toImmutable();
     }
 
-    void startInteraction(BlockPos target) {
-        startMove(new GoalGetToBlock(target), dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32));
+    void startInteraction(BlockPos target) { startInteraction(target, RouteEffects.CONFIGURED); }
+
+    void startInteraction(BlockPos target, RouteEffects effects) {
+        Objects.requireNonNull(effects);
+        if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
+        prepare(); routeEffects = effects;
+        routeGoal = new GoalGetToBlock(target);
+        diagnosticGoal = dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32);
+        mode = Mode.MOVE; launch();
     }
 
     void startPlacement(BlockPos target) {

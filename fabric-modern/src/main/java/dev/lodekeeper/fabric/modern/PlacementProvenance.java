@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -44,6 +45,8 @@ public final class PlacementProvenance {
     private PlacementWarmup warmup;
     private long generation = -1;
     private long receiptSequence;
+    private long inventoryReceiptSequence;
+    private final Map<ItemId, Long> ordinaryInventoryChangeSequences = new HashMap<>();
     private long clientTicks;
     private boolean inventoryComplete;
     private int receiptDiagnostics;
@@ -388,6 +391,7 @@ public final class PlacementProvenance {
     }
 
     private void acceptInventorySnapshot(StackCount[] next, long sequence) {
+        inventoryReceiptSequence = sequence;
         StackCount[] previous = serverMainInventory.clone();
         boolean wasComplete = inventoryComplete;
         System.arraycopy(next, 0, serverMainInventory, 0, serverMainInventory.length);
@@ -619,6 +623,23 @@ public final class PlacementProvenance {
                 ordinaryInventoryIncreaseSequences.getOrDefault(item, 0L)));
     }
 
+    record OrdinaryStock(int count, long increaseSequence, long changeSequence) { }
+    record JointStock(OwnedStationLedger.Session session, long sequence,
+                      Map<ItemId, OrdinaryStock> items, List<ItemStack> slots) { }
+
+    Optional<JointStock> confirmedOrdinaryJointStock(Set<ItemId> items) {
+        if (items == null || items.isEmpty() || items.size() > 8 || items.stream().anyMatch(Objects::isNull)
+                || !refreshBinding() || !inventoryComplete || inventoryIncreaseTrackingOverflowed
+                || !inventoryMatchesLocal()) return Optional.empty();
+        Map<ItemId, OrdinaryStock> counts = new HashMap<>();
+        for (ItemId item : items) counts.put(item, new OrdinaryStock(countOrdinary(item, serverMainInventory),
+                ordinaryInventoryIncreaseSequences.getOrDefault(item, 0L),
+                ordinaryInventoryChangeSequences.getOrDefault(item, 0L)));
+        List<ItemStack> slots = new ArrayList<>();
+        for (StackCount slot : serverMainInventory) slots.add(slot.count == 0 ? ItemStack.EMPTY : slot.stack.copy());
+        return Optional.of(new JointStock(binding.session, inventoryReceiptSequence, Map.copyOf(counts), List.copyOf(slots)));
+    }
+
     Optional<ItemStack> confirmedOrdinaryStack(int slot) {
         if (slot < 0 || slot >= serverMainInventory.length || !refreshBinding() || !inventoryComplete
                 || !inventoryMatchesLocal()) return Optional.empty();
@@ -722,6 +743,15 @@ public final class PlacementProvenance {
         for (StackCount slot : previous) if (slot.itemId != null) itemIds.add(slot.itemId);
         for (StackCount slot : next) if (slot.itemId != null) itemIds.add(slot.itemId);
         for (ItemId itemId : itemIds) {
+            if (countOrdinary(itemId, next) != countOrdinary(itemId, previous)) {
+                if (!ordinaryInventoryChangeSequences.containsKey(itemId)
+                        && ordinaryInventoryChangeSequences.size() >= MAX_TRACKED_INVENTORY_ITEMS) {
+                    inventoryIncreaseTrackingOverflowed = true;
+                    ordinaryInventoryChangeSequences.clear();
+                    return;
+                }
+                ordinaryInventoryChangeSequences.put(itemId, sequence);
+            }
             if (countOrdinary(itemId, next) > countOrdinary(itemId, previous)) {
                 if (!ordinaryInventoryIncreaseSequences.containsKey(itemId)
                         && ordinaryInventoryIncreaseSequences.size() >= MAX_TRACKED_INVENTORY_ITEMS) {
@@ -753,6 +783,8 @@ public final class PlacementProvenance {
         recentStationBlocks.clear();
         inventoryIncreaseSequences.clear();
         ordinaryInventoryIncreaseSequences.clear();
+        ordinaryInventoryChangeSequences.clear();
+        inventoryReceiptSequence = 0;
         inventoryIncreaseTrackingOverflowed = false;
         java.util.Arrays.fill(serverMainInventory, null);
         inventoryComplete = false;

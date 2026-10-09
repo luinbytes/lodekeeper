@@ -23,6 +23,37 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean cropMovementInputWitness(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                           dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                           Object player, Object observedInput, Object installedInput, Object predecessor) {
+        return false;
+    }
+    static Object airMovementInputPredecessor(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                              dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                              Object player, Object observedInput) {
+        return null;
+    }
+    static boolean supportsCropHarvest() { return false; }
+    static boolean cropMatches(net.minecraft.world.level.block.state.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return false;
+    }
+    static boolean cropMature(net.minecraft.world.level.block.state.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return false;
+    }
+    static boolean cropReplanted(net.minecraft.world.level.block.state.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return false;
+    }
+
+    static boolean cropInstantBreak(net.minecraft.client.Minecraft client, net.minecraft.core.BlockPos position, net.minecraft.world.level.block.state.BlockState state) {
+        return false;
+    }
+    static void sendCropBreak(net.minecraft.client.Minecraft client, net.minecraft.core.BlockPos position, net.minecraft.core.Direction face) {
+        throw new IllegalStateException("Mature crop execution is unsupported on this artifact");
+    }
+    static void sendCropPlant(net.minecraft.client.Minecraft client, net.minecraft.world.phys.BlockHitResult hit) {
+        throw new IllegalStateException("Mature crop execution is unsupported on this artifact");
+    }
+
     static boolean supportsTravel() { return false; }
     static java.util.UUID resolveTravelPlayer(net.minecraft.client.Minecraft client, String selector) {
         throw new IllegalStateException("Player travel is unsupported in this game family");

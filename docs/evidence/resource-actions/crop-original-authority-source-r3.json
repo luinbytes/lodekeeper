@@ -1,0 +1,391 @@
+{
+  "recordedAtUtc": "2026-10-09T11:42:43.050646+00:00",
+  "sourceBaselineCommit": "e5353bb1eb6e68b08a0dcb142c260eb0d1c7c2a3",
+  "status": "compiled_source_native_unrun",
+  "sourceManifest": {
+    "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+    "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+    "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "5ae76181487d660f1d4f93fde4943410151d779f1d67615ba9c4670bea5c62dc",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "23bfd00aa160fc23b6ddfeb3baf0c89c261c890ecb0c85d12f7572af5aee1174",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+    "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "2b542eb7392a4773b40eadad7505d3b2328f78449ab0b516594307b0f1c54d8b",
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "0a91afbf64050d012ced2f5b91dc0b7c1c981c820961b73d3d552da6ef193599",
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+    "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+    "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+    "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+    "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+    "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+    "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+  },
+  "originalAuthority": "Original local issuer and grant epoch zero, captured request, acquisition scope, plan identity, phase, serial, catalog identity/generation and native session. Distinct original REPAIR and CLEANUP debt permissions survive only within their original current scope.",
+  "supportedRequestedOutputs": [
+    "minecraft:wheat",
+    "minecraft:wheat_seeds",
+    "minecraft:carrot",
+    "minecraft:potato",
+    "minecraft:beetroot",
+    "minecraft:beetroot_seeds"
+  ],
+  "sourceReviews": [
+    {
+      "path": "/tmp/lodekeeper-crop-original-authority-source-review-r1.md",
+      "sha256": "924b198484b7f24c588ea5530f401839397b095fcea8f4ee87e337c2e6c3d998",
+      "text": "ISSUES. One P3 finding in the modern crop actor's upper-height check. No additional actionable defect was identified in the original-authority Engine port or retained receipt/input protocol. R4's original Engine authority condition is satisfied in the inspected source, subject to the finding below. This candidate is not source CLEAN as a whole.\n\nThere is also a closing integration hold: canonical acquired new peer-follow methods in both MovementController files during review. Those changes postdate the frozen crop baselines and must be preserved when root installs the candidate. Their current callers would lose the required method if these frozen MovementController files simply replaced canonical. This drift is reported separately from the crop defect.\n\nReviewed source: `/tmp/lodekeeper-crop-original-authority-root-r1/source`, exactly 37 production paths: 35 Java files and two native locks. Patch SHA256 `79e647170c1eb50a9ef876aa547dcbd2d5bbe1efae99f51bc555c4e009c8d18e`. Candidate compiler, tests and native behavior are UNRUN. FULL11 and client acceptance remain open.\n\n**P3: a valid 26.3 crop at the maximum build height is excluded.** [CropHarvestAction.java:626](/tmp/lodekeeper-crop-original-authority-root-r1/source/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java:626) rejects `pos.getY() >= client.level.getMaxY()` in its loaded helper.\n\nThe actual pinned 26.3 `LevelHeightAccessor.getMaxY()` returns `getMinY() + getHeight() - 1`, the last valid block height. Its `isInsideBuildHeight(int)` accepts that maximum and rejects values greater than it. I verified the method bodies directly from the cached class bytes using Python ZIP/constant-pool/Code parsing, without a Java process or class execution. Cached jar: `/Users/luinbytes/src/lodekeeper/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-7e9a32a5b8/26.3/minecraft-merged-7e9a32a5b8-26.3.jar`, SHA256 `9efea1f5fc02fd49f34607cbac755671d905acdaa933dc20ff0596c100a1d2c4`. Class entry `net/minecraft/world/level/LevelHeightAccessor.class` SHA256 `0c8aef17fd48078a0b1448658881bd463f54f705ca748beb60f727fc165d79ee`.\n\nTrigger: a mature supported crop at the maximum valid Y, on farmland one block below, with loaded chunks, permission, ordinary stock and a safe reachable stance inside the bounded search. Normal overworld coordinates are crop Y=319 and farmland Y=318. Search lines 221\u2013225 always skip that crop before checking maturity or admitting an approach. The same helper gates later target and planting observations. This establishes an incorrect refusal in source; no native crop failure or unsafe send was observed. Travel R4 repaired its own height helper, but this crop helper remains separate.\n\nSmallest proper repair: replace the manual min/max expression with `!client.level.isInsideBuildHeight(pos)`, retaining the null, world-border and loaded-chunk checks. The exact modern GameApi already uses that predicate at [GameApi.java:141](/tmp/lodekeeper-crop-original-authority-root-r1/source/fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java:141). Preserve the primary actor's Yarn `isOutOfHeightLimit` check. Root should compile the repaired exact-family source and include this boundary in its previously authorized crop verification work. No test or test file was added here.\n\n**Read-only scope and evidence.** Only this report was written. Candidate, canonical, lineage and obsolete worktree source were untouched by this reviewer. No Git command, build, javac, javap, test, native client, app/service restart, memory access or nested agent was used. Read-only Python inspected hashes, class bytes and in-memory patch/text reconstructions. None of the author's staging or audit scripts was executed or imported.\n\nThe actual anti-AI skill, pstack host runtime and poteto-mode skill were read, with investigation/how and prose guidance. The explicit review scope overrides their reproduction, editing, delegation, Git and delivery defaults. No user questions were asked.\n\nThe review read the original crop/fluid brief and design; frozen R1/R2/R3 crop reports, reviews, findings/responses and retained closure/input contracts; the whole terminal R4 crop review; latest original Travel R4/R4c/R4d and animal Engine source context. Actual animal authority, AIR, cancellation and stock code, native input handlers, packet receipts and family/build selection were inspected where they meet this integration. All three root scripts were read in full as code: `/tmp/lodekeeper-stage-crop-original-authority-r1.py`, `/tmp/lodekeeper-continue-crop-staging-r1.py` and `/tmp/lodekeeper-port-crop-engine-original-authority-r1.py`. ROOT-PORT.md, state.json, final-source-manifest.json and every Engine conflict response were compared with actual final source.\n\n**Exact reconstruction.** Final manifest, state and actual source path sets agree on all 37 paths. Every final source digest and captured original canonical baseline matches actual bytes. The three new files have null baselines: their empty captured files do not mean that empty canonical source existed. The actual new canonical files remain absent at the closing check.\n\nAll 37 final patch sections were independently applied in memory with exact old context/deletion matching, hunk positions, counts and preserved tails; all outputs equal staged bytes. No fuzzy matching or author audit execution was used. Measured patch size is 4,442 lines and 289,029 bytes, with 166 hunks, 2,986 additions and 138 deletions. The measured byte count differs by two from the task's 289,027-byte description; the actual patch digest matches the final manifest.\n\nCaptured crop baseline/candidate trees match frozen R4, including historical absences. All 2,129 R4 manifest entries were independently hashed, with a final repeat before this report. The original-to-R4 37-path patch and R3-to-R4 16-path delta were independently reconstructed against retained predecessors. R4 changes exactly the declared 16 input/helper paths; its Engine delta is empty.\n\nRoot's final 37 files comprise 21 exact R4 files, eight additive GameApi ports, six clean three-way helper ports and two original-authority Engine ports. Removing precisely the original crop seam insertion from each of the eight final GameApi files yields its complete captured current canonical file. This proves retention of the current Travel helpers and other API changes. The clean MovementController, NativeRun and PlayerActions mirror merges were independently reconstructed from non-overlapping old/crop/current differences and equal final bytes. Both complete Engine diffs\u2014587 primary and 605 modern lines\u2014and all 22 conflict responses, 11 per mirror, were read. Older direct AcquireRequest fields were translated to current stable view/demand rather than copied from an old Engine.\n\nBoth native locks were checked against actual candidate-overlaid canonical sources: 51 primary and 52 modern rows. Only the two InputOverrideHandler rows change. The other 101 rows remain exact. The added handler observations preserve installation, native tick, key maps and restoration. Dependency/source-lock pins, license, notices and source-access packaging are not replaced by this candidate. Source/hash checks supply no artifact, compiler or runtime credit.\n\n**Closing canonical drift.** Earlier checks matched all 37 live canonical baselines. The check immediately before report creation found two subsequent changes: primary and modern MovementController each gained a 25-line `followGoalSettled(Entity, UUID)` method. The actual diff contains only that additive method in each file. Their current TravelAction callers are at `/Users/luinbytes/src/lodekeeper/fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java:194` and its modern mirror at line 194. The frozen crop candidate lacks those methods. Its preservation proof therefore applies to the recorded canonical baselines, not to these later peer repairs.\n\nRoot must preserve the new helpers and their peer-follow integration while applying the crop MovementController deltas, then regenerate the relevant final hashes/locks or source manifest as appropriate and compile the resulting union. No kernel-lock source changed in this observed drift. This review does not assess or claim runtime success for the new peer helper. Canonical Git was not queried; `5108f5b873d55d9d77fc086a63ee34568f03aa2d` remains the recorded staging base, not a claim about the current tip.\n\n**Original authority and debt permissions.** P/M below identify the primary/modern candidate AutomationEngine; actor line references use the corresponding CropHarvestAction.\n\nEngine P:1957\u20132006 / M:2324\u20132373 captures the original AcquisitionScope, stable view, parent Request, PlanIdentity, JobContext, step, catalog, phase generation, plan serial, catalog generation, protection epoch and native-policy generation. Admission receives the original context's owner, native Session and provenance Session. It does not fresh-capture a replacement context/token or derive authority from whichever parent later becomes active.\n\nThe crop hold is installed before actor begin at P:1994\u20132002 / M:2361\u20132369 so the closures called by begin see the actual original witness. The guard rejects any retained native actor. False begin clears only this newly installed hold and pauses. Original ownership at P:2008\u20132022 / M:2375\u20132389 checks the same parent, scope/view, plan object/serial, step, catalog object/generation, original context, local issuer and runtime/session/player/network binding. New scope/plan/catalog/context or observed policy revocation invalidates it; actor rights loss stays latched.\n\nNew effects at P:2035\u20132038 / M:2402\u20132405 additionally require `newEffectCurrent`, `planIdentityCurrent`, no foreground yield, runtime safety and hunger availability. Persistent ownership avoids those whole new-effect predicates so cancellation/deadline can retain permission to settle original debt.\n\nSeparate REPAIR/CLEANUP CropDebtPermission instances capture the exact original scope/plan/context, real local player UUID and original grant epoch zero. Initial admission requires original protection allowBreak/allowPlace and rejects nonzero remote grant epochs. Debt evaluation P:2040\u20132046 / M:2407\u20132413 compares the appropriate captured permission by identity, validates its scope/plan/context/issuer/epoch and requires original ownership plus runtime safety. These are concrete local permissions for this scope's own settlement, not constant suppliers or a fresh remote grant.\n\nActor checks add exact captured protection/native-policy epochs, original restored input, current menu/cursor, all slot/component stock, and native movement/process ownership. First drain freezes repair eligibility to an actually issued harvest with an already reserved planting unit. No issued harvest means no manufactured repair. Cycle expiry blocks an unsent replant. Captured cleanup does not bypass survival, policy, stock, native ownership or the original hand state.\n\nThe broad guards use `nativeAcquisitionActive = animal || crop` in planning, transactions, finish, reset, optional Travel preparation, survival, equipment and disposal. Reset P:5477\u20135518 and the corresponding modern method retain the actor before clearing step/context. Resume neither recaptures crop authority nor resets its job budget. Current scope creation sites install a replacement scope; plan serial/current scope and view checks prevent stale phase/plan reuse. Recovery/replan cannot erase a retained actor merely to resume ordinary work.\n\n**Receipts and retained flows.** One PlacementProvenance listener at Engine P:500\u2013503 and its modern counterpart fans out the actual server block receipt to Backfill first, then the retained crop actor. Backfill has no competing registration. Native packet TAIL callbacks, current source/connection binding and server slot snapshots remain the receipt sources; local prediction does not create a recorded receipt.\n\nBreak/use/SWAP callbacks latch possible-send state before the actual native attempt. Proof requires later real monotonic block/inventory sequences at exact crop/farmland cells. Planting requires a fresh age-zero receipt, exact one-unit ordinary debit and the full 36-slot/component layout expected after that debit. Staging and RETURN use real native SWAP sends with later exact full joint slot receipts and current owned menu/empty-cursor gates. Original selected slot/main hand can be restored only in that same original owned state. Unknown effects retain their evidence indefinitely without guessed timeout success, resend or reacquisition.\n\nThe crop catalog models one physical mature wheat/carrot/potato/beetroot plant per cycle and six output pairings. Pure core types retain Java-17-compatible, Minecraft-free contracts. Sources have no fictional seed prerequisite or byproduct credit. Actual ordinary stock reserves the real planting unit while retaining protected stock/components. Loaded, safe, permitted crop/farmland and bounded movement remain required, subject to the P3 height refusal. The original-job budget retains 32 cycles/ten active minutes across pause/replan/queue/project ownership; the 30-second cycle and three-route bounds remain.\n\nReal movement/AIR input leases bind the launched runtime/session/process/goal/filter/player/world. Exact handler observations compare actual input head and private predecessor. R4 retains the true kernel N\u2192O restoration wait before manual BotInput captures O. The manual exception accepts only the original Engine-owned BotInput and its actual predecessor/context under broad native quiescence. There is no synchronous restoration rewrite, inferred predecessor ownership, arbitrary foreign controller activity or reacquisition to repair an unproved chain. Unavailable observations withhold effects; foreign input/controller/menu/selection/session observations permanently revoke rights.\n\nEarly crop tick P:2053\u20132104 / M:2420\u20132472 retains the original nativeRun metadata. Replaced native session abandons metadata without issuing old cleanup. Pause/AIR retain passive evidence; owned AIR alone controls movement and forbids crop edits, pickup, stage or RETURN while that input owns movement. Rights loss and unproved harvest/plant/SWAP acknowledgment keep the actor retained. Broad ownership is checked before movement cancellation; cleanup cannot cancel a foreign native controller to regain admission.\n\nSafe release captures original authority before clearing the handle at P:2081\u20132083 / M:2448\u20132450. Crop Delivered is explicitly rejected. Yielded must match original job/catalog/output, current ordinary count and original provenance session. This is an absolute stock census, with no claimed recipient or causal pickup. Global STOP precedes targeted cancellation and all subsequent reset/replan; the ordinary goal compares the original acquisition demand.\n\nAgainst the captured baseline, the port preserves Travel global STOP/targeted cancellation, optional food/shield original suppliers and real floors, diagnostics/log latch, completion observer/read-only getters, and animal AIR/UNKNOWN behavior. NativeRun retains TravelFinished. Actual animal gains still yield ordinary stock without attribution. Crop uses the shared native acquisition barrier and does not create a second scheduler. The later peer-helper drift above remains an installation concern.\n\n**Prior crop findings.** These dispositions establish source behavior only.\n\n| Prior objection | Final source disposition |\n| --- | --- |\n| R1 P1: hand restoration bypasses survival/admission | Closed by actor cleanup P/M:533\u2013559 and original Engine cleanup permission plus runtime safety. |\n| R1 P1: revoked permission can later revive repair | Closed by original scope/plan/session/protection/native-policy witnesses and sticky rightsLost. Later grant or restored manual state cannot revive them. |\n| R1 P2: aggregate gain/drop presence becomes Delivered | Closed. Crop returns Yielded; Engine rejects Delivered and validates the original absolute census. |\n| R2 P1: owned movement revokes crop rights | Closed by actual launched movement/AIR leases and ORIGINAL/OWNED/RESTORING/UNAVAILABLE/FOREIGN distinctions. Effects still require original input. |\n| R3 P1: native AIR\u2192manual floating REFILLING loses predecessor | Closed in retained R4 sixteen-path input correction: real handler predecessor observations and pre-acquire restoration wait. Native timing/foreign controls are UNRUN here. |\n| R4 conditional original Engine scope/Plan/issuer/repair/cleanup gate | Satisfied by concrete original captures and separate typed local debt permissions. The new P3 height finding remains open. |\n\n**Validation and handoff boundary.** These 37 production paths contain no new crop verifier cases. Root owns authorized focused crop/native groups, actual builds, six AIR regressions, real peer-follow repair/native evidence, installation, commits/pushes and evidence publication. The supplied CLEAN verdict for five separate peer/verifier/build repairs and root's exact P319/M274/recent 1.21.11 324-pass checks belong to separate source/check states. They confer no compiler or native credit on this uninstalled crop candidate. FULL11 and Lu's acceptance remain unestablished.\n\nRoot can inspect this immutable report, repair the height predicate, preserve the new canonical peer helpers, and verify the resulting exact artifact/native union under its existing authorization. No source correction or new test was made here.\n\n**Artifact digests and complete source inventory.** Digests are recomputed from actual bytes. ABSENT below is a null original canonical baseline, not an empty canonical file.\n\n| Artifact | SHA256 |\n| --- | --- |\n| `ROOT-PORT.md` | `e36dc279c49a5a6c51ef407508f36674b80b9343f7f715e54a9907c7136bf9f2` |\n| `state.json` | `bf1b036c66db07a8fb70a14dd876bc1079d7718d187ec13ded078cd9bc268564` |\n| `final-source-manifest.json` | `368ab99d8a355db92cc26ce414906d71f9e5ce618815a5e0ed4afe5847c6d403` |\n| `source.patch` | `79e647170c1eb50a9ef876aa547dcbd2d5bbe1efae99f51bc555c4e009c8d18e` |\n| `source.sha256` | `0bf3c890d0412e5afb5e7c77e13952e2a7bca62d369133d9cfa4a234fd2488a2` |\n| `baseline.sha256` | `25582f2feeeb150c688e5265a7b7eb2cfa9b30067e682a644b35f9c0e826303f` |\n| `engine-port-responses.json` | `b0388b16bddf244503a4b54b4a34f2ed7de006abc24c5e7448e861673f660f8a` |\n| Frozen R4 `hash/manifest.json` | `b20be802cac82a93b1c21415bfedd51a2591c1b764b78f5b62c5e49b0f5cd0b9` |\n\n| Production path | Original canonical baseline SHA256 | Final source SHA256 | Relationship to R4 |\n| --- | --- | --- | --- |\n| `core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java` | ABSENT | `de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81` | Exact R4 |\n| `core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java` | `b6521fe60a68ea0307f6444f3f3fa35a34e382aed8bc682a3af25198e617f1fb` | `42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353` | Exact R4 |\n| `core/src/main/java/dev/lodekeeper/core/NativeWork.java` | `fce4bbb499ae436f9750e7adc53352976568094a546c1323d5f79fb7ebab05cd` | `8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e` | Exact R4 |\n| `fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79` | `28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2` | Additive GameApi port |\n| `fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java` | `407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c` | `1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2` | Additive GameApi port |\n| `fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `e264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad` | `37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd` | Additive GameApi port |\n| `fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765` | `976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4` | Additive GameApi port |\n| `fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java` | `4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe` | `3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44` | Additive GameApi port |\n| `fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java` | `c4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194` | `fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e` | Additive GameApi port |\n| `fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java` | `99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349` | `0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea` | Additive GameApi port |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java` | `9c06c3f0ac06440cef031375b9788f33221d2574e19c1a4536794954b4d263c8` | `483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java` | `81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572` | `b603e08a216213539de8cdd0086d5f29ee480dc5901e84570d261e81dce889ec` | Original-authority Engine port |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java` | `d9ec8c08cb7e45438ea19353ab5545870513a0db366b3ea9ad05c936109429c1` | `90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java` | `79d33641b0655541554da5170db6be0320ce84c6ace3f59ffb37cf665f8374c3` | `ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java` | ABSENT | `2312ac99810e49a70bf75017d7231f735f0422bf052d6403ac9dd61cddebff35` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java` | `2d3234a9fda4605ac3c767e8c1223fb3bf60f7e04441d5999ad1f0a5b5b8f7a0` | `128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java` | `7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6` | `b07763ab94c9b7bbbc47f4256229ab35e556617dcd6083fa97803d0dec90fd3f` | Clean three-way port |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java` | `9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4` | `3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1` | Clean three-way port |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java` | `2e659ae4e2f857d021c80e732d44ac4522ecebe30d23531319564888398da1bc` | `77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b` | Exact R4 |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java` | `24061e063112402d1c3ba20abc92ad1a9a2df778cbed14dae6814da7b48a3ad0` | `c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3` | Clean three-way port |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java` | `e391e3831bdae46c1d6cb0c1bdf42c39c769919b7d7a92487f885170325499cb` | `7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc` | Exact R4 |\n| `fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java` | `614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a` | `6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2` | Additive GameApi port |\n| `fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java` | `daba75312dc4e48f89633d74cdf082e79dd71409af51f98ac543f850866b9dd5` | `3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java` | `b442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6` | `9953e8908211861bfdd60c950170397b11831922f6fd26acd20b2f20261e1ce8` | Original-authority Engine port |\n| `fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java` | `deb2e01527ffca116ecddaeb8b825f85bc1e58f4307722dc2c471b7fe7eed006` | `fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java` | `15a746fd2df11daa356a480674f2c770eae4ea136d2e4ab87b288590747770da` | `bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java` | ABSENT | `d678e22cf89f6955f88e1fe491e68d87e12717acae340e4a3a4f147c34921f72` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java` | `1be17a6c08054cb5ff08c1cfa52ad265149b2dd4acc6ba44194c5b9d159794b4` | `7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java` | `d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da` | `18d5b74a52f04761393f219b7b7013f9f09cf4ec46622dd863c016ce6d18b458` | Clean three-way port |\n| `fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java` | `c0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c` | `72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791` | Clean three-way port |\n| `fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java` | `31f8ba7eac9288db8d7fe73d58f01efae0874ae277001b0dcf894b5dd61679e7` | `61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94` | Exact R4 |\n| `fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java` | `c7df60c3b899f71147e40e8d6a65b0de6f60729d6fe14f18b57630fae11698b4` | `376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335` | Clean three-way port |\n| `fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java` | `91d85a5fd53bbb5b3a4d0b96a2d92ad2d7c024776c854c32057a6e1102e620c0` | `ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c` | Exact R4 |\n| `owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256` | `c044d879d0fc4bbe597cb54334f0a710023ca704122f9697f82c9babecf842fc` | `639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1` | Exact R4 |\n| `owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java` | `4c7de3986e284dafeba9ff32f1dc26a18b0cd930347c00b425aa014379eb2539` | `d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a` | Exact R4 |\n| `owned-kernel/primary1.21.1/lifecycle-overrides.sha256` | `18858fc521ea219116674123983c370c2c972e12a4f4ab83b8047a15025a85b7` | `d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72` | Exact R4 |\n| `owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java` | `77e68616f0f065c7efbf7b25e224a6cac98f784f133b2919247140390123acb5` | `25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f` | Exact R4 |\n\nClosing live canonical differences from the recorded original baselines:\n\n| Canonical path | Recorded baseline SHA256 | Closing live SHA256 |\n| --- | --- | --- |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java` | `7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6` | `16000af9c0711f5568a98efd6dc8fa9c6d7eea985de9836342fc270768ee4c38` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java` | `d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da` | `e71dfb764e18369a7e3696a13e204c5b665cbd3a651eb0f97c1c80ad6bbf5685` |\n\nFinal byte check 2026-10-09 10:56:39 UTC: all 37 candidate source hashes and captured baseline hashes match; all 2,129 R4 manifest entries match. 35 live canonical crop baselines match, including the three absent new files; 2 differ as listed. Verdict applies to the frozen patch digest above, with the explicit live integration hold.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-original-authority-root-r2-source-review-luna.md",
+      "sha256": "7214fd9d65f6d7d7f19a2e43ba49bdc918fe6f6af04770baf895e56e8b31f5c9",
+      "text": "# Crop original-authority ROOT R2 source review\n\n**CLEAN for the bounded R2 correction and integration checks.** This is a source review of `/tmp/lodekeeper-crop-original-authority-root-r2`, not a build or runtime verdict. R1's architecture review remains the basis for the unchanged crop authority, receipts, input ownership, budgets, and no-Delivered behavior; this pass checked the R2 delta and its stated interactions.\n\n## R2 delta and lineage\n\nThe R2 and retained R1 manifests each list 37 production paths. Comparing their source digests yields exactly three changes:\n\n- `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java`\n- `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java`\n- `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java`\n\nThe other 34 source digests match R1. All 37 R2 source files match their R2 manifest hashes. `r1-to-r2.patch` contains only those three paths and only the intended height predicate replacement plus the two additive helper methods. The modern and primary lock inventories remain at 52 and 51 rows and match their recorded R2 SHA256 values; no lock source changed in this delta.\n\n## Modern height boundary\n\nAt candidate `fabric-modern/.../CropHarvestAction.java:625-629`, `loaded` now rejects null positions, a null level, positions outside `client.level.isInsideBuildHeight(pos)`, and positions outside the world border. It still calls `WorldRevision.watch` before requiring `hasChunkAt(pos)`. Candidate `GameApi.java` uses the same 26.3 height predicate at `fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java:141`.\n\nThis admits the last valid build-height block while rejecting positions outside the build range. The crop search and target checks continue to pass both crop and farmland positions through `loaded` (`CropHarvestAction.java:221-224, 631-639`). The primary actor retains its separate Yarn `isOutOfHeightLimit` guard and world-border, watch, and loaded-chunk checks at `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:625-629`. I found no weakened border, watch, or loaded-chunk gate in the R2 change.\n\n## Follow-helper integration\n\nThe candidate's `followGoalSettled(Entity, UUID)` method text is byte-for-byte identical to the method in each current canonical MovementController. Method SHA256 values:\n\n- Primary: `4db229d673591be91bc2ee3cbc6d8498ff30efbd8411fa4b3ca2cb219b4aab8e`\n- Modern: `4f9901fd7651aea7df562478cb84e83ef7eaae3e589502c4a03ab706adcb4125`\n\nCanonical HEAD is `675caa5dad0f4b2698566300605b4d442a4b4e7b`; `git show` for both committed controller paths matches their current working bytes, and `git status --short` is empty. Each helper checks FOLLOW mode, movement-only route effects, active lease and cancellation state, exact owner player/world and target identity, live target/filter, pathing process ownership, configured radius/offset, and both native and accepted goals. The current controller files have unrelated whole-file differences from the candidate, so whole-file hashes do not match; the helper bodies themselves match exactly. This review checked preservation of the helper source, not live follow behavior.\n\n## Scope limits\n\nNo new issue was found in the requested R2 delta. The existing R1 source-review conclusions apply to the 34 unchanged paths. No source in the frozen candidate was edited. No build, compiler, JVM, test, game client, restart, upload, or runtime check was run. Native crop behavior, AIR regressions, exact-family compilation, and end-to-end receipt behavior remain unverified; root owns those checks and installation.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-modern-binding-source-review-r3-luna.md",
+      "sha256": "67f30d7869c5555e8373e12bb96cde069d7c29ee082de98e272e6f1ddc72dc34",
+      "text": "# Modern crop binding source review R3\n\n**CLEAN for the two-line modern API binding correction and the bounded source checks below.** The prior height-boundary P3 is closed by the inherited R2 source: `CropHarvestAction.loaded` still uses `Level.isInsideBuildHeight(pos)` and now calls `WorldBorder.isWithinBounds(pos)`, while retaining `WorldRevision.watch(...)` before `hasChunkAt(pos)`. This is a source review, not crop runtime acceptance.\n\n## Frozen source and exact delta\n\nThe candidate has 37 source files, and every file hash matches its `source-manifest.json` `source` value. Comparing manifest `reviewedSource` and `source` hashes shows exactly two changed files, matching `source.patch`:\n\n- `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java`\n- `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java`\n\nThe other 35 paths are unchanged from the manifest's reviewed source digests. The patch changes only the provider call in `cropRuntimeAvailable` and the world-border predicate in `loaded`.\n\n## Catalog authority and provider binding\n\n`cropRuntimeAvailable` requires the captured original catalog to be ready and calls `usesCurrentStonecuttingProvider()`. In `GameCatalog`, `load()` records `GameApi.stonecuttingProviderIdentity(client)`, and the helper checks that the client still has a level and that the recorded provider object is identical to the current one. The per-tick engine refresh reloads the catalog when this identity is stale. The same provider predicate is already used by the engine's stonecutting execution guards.\n\nThis helper proves the stonecutting provider binding specifically. It is not a general recipe-catalog currentness check. General crop authority remains tied to the original catalog object and its generation: `cropOriginalAuthority` checks `catalog == original.catalog()`, matching catalog and step generations, the captured plan/catalog association, plan identity/serial, request and scope identity, player and issuer binding, and current context. Runtime checks are evaluated by the crop effect predicates; the provider identity is therefore checked again when crop effects are authorized. I found no path in this two-line change that creates fresh crop authority or bypasses these identity, generation, readiness, or context gates.\n\n## 26.3 API and inherited height fix\n\nThe R1 compiler log records that `GameCatalog.usesCurrentProvider()` and `WorldBorder.contains(BlockPos)` do not resolve in the selected 26.3 sources. R3 uses the repository's actual `GameCatalog.usesCurrentStonecuttingProvider()` helper and `WorldBorder.isWithinBounds(pos)`. The supplied 26.3 R2 build log records `BUILD SUCCESSFUL`; this is compiler evidence for the corrected API bindings, not runtime evidence.\n\nThe inherited height predicate admits the maximum valid build-height position according to the prior R2 review and keeps the world-border, watched-chunk, and loaded-chunk checks. No regression to the closed P3 was found.\n\n## Scope and limits\n\nNo edits were made to candidate or canonical source. No build, Java/JVM command, test, native client, restart, upload, Git operation, or nested agent was used in this review. I inspected the two-line patch, all 37 candidate manifest hashes and their reviewed-source digests, the crop authority and runtime gate methods, catalog load and tick-refresh logic, and the supplied R1/R2 compiler logs.\n\nThe primary 1.21.1 compiler result and modern 26.3 R2 compiler result are reported from the supplied logs. Actual crop-native execution, AIR regressions, and runtime behavior remain unverified; they are not established by compiler success.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-recent-input-compat-prepared-r1/report.md",
+      "sha256": "cdd51200ea02a62c41e3901ffa1612fafa65bc329e579f29b254863a35201126",
+      "text": "# CLEAN. Source-only input compatibility patch prepared.\n\nThe supplied 1.21.11 compiler log fails because the generated shared `AirRecoveryAction` calls `BotInput.ownedPredecessor(Object, Object)` and `BotInput.discardOwnership()`, while selected version overrides lack both methods. The log reports eight unresolved method calls at generated `AirRecoveryAction.java:101, 121, 148, 150, 184, 193, 515, 521`.\n\n`fabric-1212/build.gradle:2-5, 8-14` maps 1.21.11 to source family `1215`, and lines 108-114 add only `src/${expectedInputApiFamily}/java` to main. It also maps 1.21.2-1.21.3 to `1212` and 1.21.4 to `1214`. All three family overrides need the shared methods because the same generated `AirRecoveryAction` is compiled with each selected input family.\n\nThe patch adds the exact identity semantics from current canonical `fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java:21-23, 34-36`. `ownedPredecessor` returns the captured predecessor only when the player object, installed input, current owner input, and predecessor all match by identity. `discardOwnership` clears the owner and predecessor references without restoring any input. Existing acquire, release, and tick methods are untouched, preserving each profile's API and movement behavior.\n\nCrop handoff remains guarded by canonical `AirRecoveryAction.java:24-30, 75-103` and `CropHarvestAction.java:587-608`. The AIR context captures exact owner, session, player, world and original input identities. Crop accepts the AIR input only when the predecessor returned by `ownedPredecessor` is the same object as its original input. Native input debt also retains installed input and predecessor identities at `AirRecoveryAction.java:30, 118-129`. The repository has no standalone `CropGrant` or `CropInputContext` symbols; the current equivalent input context is the nested `AirRecoveryAction.InputContext` record.\n\nAffected source variants:\n\n- `1212`, selected for Minecraft 1.21.2 and 1.21.3.\n- `1214`, selected for Minecraft 1.21.4.\n- `1215`, selected for Minecraft 1.21.5 through 1.21.11, including the reported failure.\n\nArtifacts are in this directory. `source.patch` is the exact three-file unified diff. `baseline/` contains byte-for-byte copies from current canonical source. `source/` contains the prepared replacements. `SHA256SUMS.txt` records current authority files, baselines, prepared files and patch hashes.\n\nThe patch dry-run applied cleanly to the mirrored baselines. No build, compiler, JVM, test, game client, Git command, restart, upload, or external mutation was run. This is static source evidence only. Compilation and native runtime behavior remain unverified; root owns those checks.\n"
+    }
+  ],
+  "buildAttempts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "round": 1,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.21.1-r1-build.log",
+      "sha256": "6d76b1f454e94efd4ec9d38af3e620290e4754ce8758f1ed65e4efeec51ec024",
+      "resultLine": "BUILD SUCCESSFUL in 39s"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "round": 1,
+      "status": "FAILED",
+      "log": "/tmp/lodekeeper-crop-root-r2-26.3-r1-build.log",
+      "sha256": "070ac5d186331d05889dee8ed5e80eee057eae5bd34ba09398c1f5b4f300fc8a",
+      "resultLine": "BUILD FAILED in 25s"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "round": 2,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-26.3-r2-build.log",
+      "sha256": "c464a0cd55e16c1624adead63bd6ba9320c562bbdfe53ba3d9b47a5449e2d356",
+      "resultLine": "BUILD SUCCESSFUL in 22s"
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "round": 1,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.20.1-r1-build.log",
+      "sha256": "65f238e9ce7ce258af857e2bae29ca8d10c0860978cb74dacc39679b74bb0041",
+      "resultLine": "BUILD SUCCESSFUL in 39s"
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "round": 1,
+      "status": "FAILED",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.21.11-r1-build.log",
+      "sha256": "6c2afbb451a8c68c990ea77e4b9391b34bbc1f6f0b29a00befa777445192f59f",
+      "resultLine": "BUILD FAILED in 33s"
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "round": 2,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.21.11-r2-build.log",
+      "sha256": "0c9ff9f90920e3bf17e8e238be75feeac56a546d98963c1b812277dad1177f15",
+      "resultLine": "BUILD SUCCESSFUL in 36s"
+    },
+    {
+      "minecraftVersion": "1.21.1",
+      "round": 3,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.21.1-r3-build.log",
+      "sha256": "6d76b1f454e94efd4ec9d38af3e620290e4754ce8758f1ed65e4efeec51ec024",
+      "resultLine": "BUILD SUCCESSFUL in 39s",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-1211:verificationClasses",
+        ":fabric-1211:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "startedAtUtc": "2026-10-09T11:56:00.017139+00:00",
+      "finishedAtUtc": "2026-10-09T11:56:40.138690+00:00"
+    },
+    {
+      "minecraftVersion": "26.3",
+      "round": 3,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-26.3-r3-build.log",
+      "sha256": "17d662d8f984cc7fe8b8ba3f58e0a9023c737be715888413c3179e7853541d4e",
+      "resultLine": "BUILD SUCCESSFUL in 31s",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "startedAtUtc": "2026-10-09T11:56:40.140526+00:00",
+      "finishedAtUtc": "2026-10-09T11:57:11.955699+00:00"
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "round": 3,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.20.1-r3-build.log",
+      "sha256": "662e5db9c193eee67e08e84686198a7a3832187934d2bf2d23c4b6b06b5575f2",
+      "resultLine": "BUILD SUCCESSFUL in 39s",
+      "command": [
+        "scripts/build-version.sh",
+        "1.20.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/usr/local/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home",
+      "startedAtUtc": "2026-10-09T11:57:11.956418+00:00",
+      "finishedAtUtc": "2026-10-09T11:57:52.433686+00:00"
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "round": 3,
+      "status": "PASS",
+      "log": "/tmp/lodekeeper-crop-root-r2-1.21.11-r3-build.log",
+      "sha256": "84e6057c1286ee8f2810a6b0814ecbe4568990be645345e76f528a863473561e",
+      "resultLine": "BUILD SUCCESSFUL in 1m 1s",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.11",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "startedAtUtc": "2026-10-09T11:57:52.437127+00:00",
+      "finishedAtUtc": "2026-10-09T11:58:54.597008+00:00"
+    }
+  ],
+  "existingChecks": {
+    "core": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-modern": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1212": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "c1c546a8c09ed35f3386e5608a6c94cd7617dc838a72228f63c0e86bb70641d3",
+      "bytes": 1954426,
+      "checks": 319,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun",
+      "sameArtifactBytesAsBeforeCommentTrim": true,
+      "finalBuildRound": 3
+    },
+    {
+      "minecraftVersion": "26.3",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "772bba8e080a6b6dcb8deffe2155bb22c2d21c89f53faf88e6cb5afefd7adfd9",
+      "bytes": 2027564,
+      "checks": 274,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun",
+      "sameArtifactBytesAsBeforeCommentTrim": true,
+      "finalBuildRound": 3
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric/build/libs/lodekeeper-1.20.1-0.1.0-preview.11.jar",
+      "sha256": "6d68a46c79c57f3d2f8efc5e89c5b49c286e0befcecb7da915278c20ed04f9c2",
+      "bytes": 1949719,
+      "checks": 319,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun",
+      "sameArtifactBytesAsBeforeCommentTrim": false,
+      "finalBuildRound": 3
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+      "sha256": "0eed149b8803deab72acd5c17658b073f4da192c574fa63f48df7ea54757d44c",
+      "bytes": 1967334,
+      "checks": 324,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun",
+      "sameArtifactBytesAsBeforeCommentTrim": true,
+      "finalBuildRound": 3
+    }
+  ],
+  "failuresRetained": [
+    "26.3 R1 called absent usesCurrentProvider and WorldBorder.contains methods. R2 uses the actual version APIs.",
+    "1.21.11 R1 selected a BotInput override missing ownedPredecessor and discardOwnership. R2 includes all three override families."
+  ],
+  "nativeCrop": "unrun",
+  "nativeAirRegression": "unrun",
+  "userAcceptance": "pending",
+  "limits": [
+    "Only 1.21.1 and 26.3 publish the crop mechanic. Compatibility builds do not enable unsupported crops.",
+    "Harvest/replant, refusal, seed protection, stop, max-height behavior and AIR preservation still require native gates.",
+    "No full parity, natural Survival reliability, renewable infinite farming or comparative timing is established.",
+    "The prepared wheat verifier is separate and remains uninstalled after the R3 review found an unreachable inventory predicate."
+  ],
+  "commentReview": {
+    "path": "/tmp/lodekeeper-crop-comment-review-luna-r1.md",
+    "sha256": "0620eef436c93403577164c99c1c5d1feba539c13c80c25c041b82bc6adbec3d",
+    "text": "# Comment review: integrated crop paths (Luna R1)\n\nScope: the 37 paths in `source-manifest.json` plus the three paths in `state.json`. Compared the integrated source at `/Users/luinbytes/src/lodekeeper` to the installed baseline copies and the three compatibility baseline copies. All 37 integrated files match their manifest `source` hashes. The three recent compatibility files match their state `sourceSha256` hashes and add no comments. No code or candidate file was changed.\n\n## Proposed deletions\n\nDelete six comments in six files. Hashes below are SHA-256 of the exact integrated source file.\n\n| File | SHA-256 | Anchor | Proposed deletion |\n|---|---|---|---|\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java` | `f9283e5f11d05e0423fd75af12795e333462fe64725293912b3c38f1714e11cc` | `AutomationEngine.beginCropStep`, line 2345 | `// Local admission retains only settlement of this scope's own repair and hand debts after cancellation.` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java` | `9953e8908211861bfdd60c950170397b11831922f6fd26acd20b2f20261e1ce8` | `AutomationEngine.beginCropStep`, line 1978 | Same comment as modern path. |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java` | `1d7206402a3e153c76f7974fe1e77bf6aa5cfdd3c3a1b7349272a4293828c841` | `CropHarvestAction`, line 15 | `/** Keeps a harvested cell owned until its server-confirmed repair and hand debt drain. */` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java` | `d678e22cf89f6955f88e1fe491e68d87e12717acae340e4a3a4f147c34921f72` | `CropHarvestAction`, line 15 | Same comment as modern path. |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java` | `4c1df2b988c54391c1bc9c97cf1d0b34a941f7b5027c603ea3915036a7763954` | `MovementController.InputLease`, line 322 | `/** Only this controller can capture an actual launched settings lease. */` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java` | `af354d191b5ff437fdbb2c95e8ff106279d2ed79fa86f481dc77623ae21b99a9` | `MovementController.InputLease`, line 313 | Same comment as modern path. |\n\nThese comments explain our own admission, ownership, and lease rules. The exact symbols to reshape so those rules read from code are `AutomationEngine.beginCropStep`, `CropHarvestAction`, and `MovementController.InputLease` (both version families). **MUST KILL** flags; this report does not alter application code.\n\n## Kept comments and skips\n\n- Kept `core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java` (`de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81`), line 6: its public record doc states the demand/yield contract.\n- Kept the two new public method doc comments in `owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java` (`d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a`) and its primary counterpart (`25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f`): they state the caller contract and predecessor-read contract for public methods.\n- Kept both `Follow.isActive()` comments in the modern and primary `MovementController` files. The inspected dependency source at `owned-kernel/modern26.3/build/generated/owned-kernel/src/main/java/dev/lodekeeper/navigation/kernel/process/FollowProcess.java:94-108` shows `isActive()` calls `scanWorld()`, and `scanWorld()` assigns a newly collected list to `cache`. The comment's claim that this call writes the entity cache is supported; checking `currentFilter()` is the read-only witness used at the live call site. This is a verified external behavior exception.\n- Preserved all upstream license and copied third-party notices.\n- The three recent `fabric-1212/.../BotInput.java` files (`72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0`, `a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c`, `05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac`) add no comments.\n\nDeletion count proposed: **6**. Restored comments: **0**. Reruns, implementation, builds, tests, Git operations, and runtime verification: **none**.\n",
+    "acceptedDeletions": 6,
+    "restored": 0,
+    "preservedLineNumbers": true,
+    "sourceChanges": [
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java",
+        "before": "f9283e5f11d05e0423fd75af12795e333462fe64725293912b3c38f1714e11cc",
+        "after": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+        "comment": "        // Local admission retains only settlement of this scope's own repair and hand debts after cancellation.\n"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java",
+        "before": "1d7206402a3e153c76f7974fe1e77bf6aa5cfdd3c3a1b7349272a4293828c841",
+        "after": "5ae76181487d660f1d4f93fde4943410151d779f1d67615ba9c4670bea5c62dc",
+        "comment": "/** Keeps a harvested cell owned until its server-confirmed repair and hand debt drain. */\n"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+        "before": "4c1df2b988c54391c1bc9c97cf1d0b34a941f7b5027c603ea3915036a7763954",
+        "after": "23bfd00aa160fc23b6ddfeb3baf0c89c261c890ecb0c85d12f7572af5aee1174",
+        "comment": "    /** Only this controller can capture an actual launched settings lease. */\n"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java",
+        "before": "9953e8908211861bfdd60c950170397b11831922f6fd26acd20b2f20261e1ce8",
+        "after": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+        "comment": "        // Local admission retains only settlement of this scope's own repair and hand debts after cancellation.\n"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java",
+        "before": "d678e22cf89f6955f88e1fe491e68d87e12717acae340e4a3a4f147c34921f72",
+        "after": "2b542eb7392a4773b40eadad7505d3b2328f78449ab0b516594307b0f1c54d8b",
+        "comment": "/** Keeps a harvested cell owned until its server-confirmed repair and hand debt drain. */\n"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+        "before": "af354d191b5ff437fdbb2c95e8ff106279d2ed79fa86f481dc77623ae21b99a9",
+        "after": "0a91afbf64050d012ced2f5b91dc0b7c1c981c820961b73d3d552da6ef193599",
+        "comment": "    /** Only this controller can capture an actual launched settings lease. */\n"
+      }
+    ],
+    "beforeSourceManifest": {
+      "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+      "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+      "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+      "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+      "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+      "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+      "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+      "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+      "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+      "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "f9283e5f11d05e0423fd75af12795e333462fe64725293912b3c38f1714e11cc",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "1d7206402a3e153c76f7974fe1e77bf6aa5cfdd3c3a1b7349272a4293828c841",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "4c1df2b988c54391c1bc9c97cf1d0b34a941f7b5027c603ea3915036a7763954",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+      "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+      "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+      "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+      "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "9953e8908211861bfdd60c950170397b11831922f6fd26acd20b2f20261e1ce8",
+      "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+      "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+      "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "d678e22cf89f6955f88e1fe491e68d87e12717acae340e4a3a4f147c34921f72",
+      "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+      "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "af354d191b5ff437fdbb2c95e8ff106279d2ed79fa86f481dc77623ae21b99a9",
+      "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+      "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+      "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+      "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+      "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+      "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+      "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+      "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+      "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+      "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+      "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+    }
+  },
+  "finalizedAtUtc": "2026-10-09T12:01:52.219830+00:00",
+  "nativeVerifierPreparation": "Primary R6 source review pending. Earlier R3 inventory contradiction and R5 timer symbol error remain in the preparation history. No crop verifier is installed in this source unit."
+}

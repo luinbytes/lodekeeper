@@ -7,7 +7,7 @@ interface NativeRun {
     enum DrainReason { STOP, REPLAN, PREEMPT, SCREEN, FAILURE }
     sealed interface Outcome {
         record Pending(String status) implements Outcome { }
-        record Delivered(ObservedStock stock, java.util.UUID target, java.util.UUID drop) implements Outcome { }
+        record Delivered(ObservedStock stock) implements Outcome { }
         record Yielded(ObservedStock stock, String reason) implements Outcome { }
         record TravelFinished(TravelReceipt receipt) implements Outcome { }
         record Drained() implements Outcome { }

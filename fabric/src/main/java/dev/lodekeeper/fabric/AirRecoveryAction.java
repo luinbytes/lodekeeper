@@ -21,6 +21,14 @@ final class AirRecoveryAction {
     private final BotInput input;
     private Phase phase = Phase.IDLE;
     private Object ownerPlayer, ownerWorld;
+    private record InputContext(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                Object player, Object world, Object originalInput) { }
+    private InputContext inputContext;
+    private MovementController.InputLease inputLease;
+    private enum InputHandoff { ORIGINAL, MANUAL, NATIVE, UNAVAILABLE, FOREIGN }
+    private record NativeInputDebt(MovementController.InputLease lease, Object installedInput, Object predecessor) { }
+    private NativeInputDebt nativeInputDebt;
     private long startedAt, progressAt;
     private double progressX, progressY, progressZ;
     private int attempts;
@@ -64,9 +72,98 @@ final class AirRecoveryAction {
 
     boolean active() { return phase != Phase.IDLE; }
 
+    private boolean cropInputContext(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                     dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                     Object player, Object world) {
+        return inputContext != null && owner != null
+                && inputContext.owner() == owner && inputContext.session() == session
+                && dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() == owner && owner.isCurrent(session)
+                && inputContext.player() == player && inputContext.world() == world && session.world() == world
+                && (active() ? ownerPlayer == player && ownerWorld == world : ownerPlayer == null && ownerWorld == null)
+                && client.player == player && client.world == world;
+    }
+
+    MovementController.InputLease cropInputLease(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                                dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                                Object player, Object world) {
+        if (!cropInputContext(owner, session, player, world) || inputLease == null) return null;
+        return active() || movement.observeInputLease(inputLease) == MovementController.InputLeaseState.RESTORING
+                ? inputLease : null;
+    }
+
+    Object cropInputPredecessor(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                               dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                               Object player, Object world, Object observedInput) {
+        return active() && cropInputContext(owner, session, player, world)
+                && (phase == Phase.SWIMMING || phase == Phase.REFILLING)
+                && movement.manualAirInputQuiescent(owner, session)
+                && (inputLease == null || movement.observeInputLease(inputLease) != MovementController.InputLeaseState.LOST)
+                && input.ownedPredecessor(player, observedInput) == inputContext.originalInput()
+                ? inputContext.originalInput() : null;
+    }
+
+    private boolean inputContextCurrent() {
+        return inputContext != null && cropInputContext(inputContext.owner(), inputContext.session(),
+                inputContext.player(), inputContext.world());
+    }
+
+    private InputHandoff observeInputHandoff() {
+        if (!inputContextCurrent()) return InputHandoff.FOREIGN;
+        Object observed = client.player.input;
+        if (observed == null) return InputHandoff.FOREIGN;
+        try {
+            if (phase == Phase.ESCAPING && inputLease == null) return InputHandoff.UNAVAILABLE;
+            if (inputLease != null && movement.observeInputLease(inputLease) == MovementController.InputLeaseState.LOST)
+                return InputHandoff.FOREIGN;
+            if (nativeInputDebt != null && (nativeInputDebt.lease() != inputLease
+                    || nativeInputDebt.predecessor() != inputContext.originalInput())) return InputHandoff.FOREIGN;
+            if (observed == inputContext.originalInput()) return InputHandoff.ORIGINAL;
+            if (input.ownedPredecessor(inputContext.player(), observed) == inputContext.originalInput())
+                return InputHandoff.MANUAL;
+            if (!GameApi.supportsCropHarvest()) return InputHandoff.UNAVAILABLE;
+            if (nativeInputDebt != null && observed == nativeInputDebt.installedInput()
+                    && GameApi.cropMovementInputWitness(inputContext.owner(), inputContext.session(), inputContext.player(),
+                        observed, nativeInputDebt.installedInput(), nativeInputDebt.predecessor())) return InputHandoff.NATIVE;
+            Object predecessor = GameApi.airMovementInputPredecessor(inputContext.owner(), inputContext.session(),
+                    inputContext.player(), observed);
+            if (predecessor != inputContext.originalInput()) return InputHandoff.FOREIGN;
+            if (inputLease == null) {
+                return phase == Phase.DRAINING || phase == Phase.STOPPING ? InputHandoff.NATIVE : InputHandoff.UNAVAILABLE;
+            }
+            nativeInputDebt = new NativeInputDebt(inputLease, observed, predecessor);
+            return InputHandoff.NATIVE;
+        } catch (RuntimeException unavailable) { return InputHandoff.UNAVAILABLE; }
+    }
+
+    private boolean manualInputReady() {
+        try {
+            InputHandoff observed = observeInputHandoff();
+            return (observed == InputHandoff.ORIGINAL || observed == InputHandoff.MANUAL)
+                    && movement.manualAirInputQuiescent(inputContext.owner(), inputContext.session());
+        } catch (RuntimeException unavailable) { return false; }
+    }
+
+    private void releaseAirInput() {
+        try {
+            if (inputContextCurrent() && input.ownedPredecessor(inputContext.player(), input) == inputContext.originalInput()) {
+                if (movement.manualAirInputQuiescent(inputContext.owner(), inputContext.session())) input.release();
+            } else input.discardOwnership();
+        } catch (RuntimeException unavailable) { return; }
+    }
+
     void begin() {
         movement.checkAirRecoveryOwnership();
         ownerPlayer = client.player; ownerWorld = client.world;
+        var inputOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var inputSession = inputOwner == null ? null : inputOwner.captureSession();
+        inputContext = null; inputLease = null; nativeInputDebt = null;
+        if (inputOwner != null && inputOwner.isCurrent(inputSession) && inputSession.world() == ownerWorld
+                && client.player != null && client.player.input != null) {
+            Object observed = client.player.input;
+            Object predecessor = GameApi.airMovementInputPredecessor(inputOwner, inputSession, ownerPlayer, observed);
+            inputContext = new InputContext(inputOwner, inputSession, ownerPlayer, ownerWorld,
+                    predecessor == null ? observed : predecessor);
+        }
         startedAt = progressAt = System.nanoTime();
         attempts = 0; rejected.clear(); phase = Phase.DRAINING;
         diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
@@ -77,21 +174,31 @@ final class AirRecoveryAction {
 
     boolean tick() {
         try { return tickOwned(); }
-        catch (RuntimeException failed) { movement.discardAirPlanning(); input.release(); throw failed; }
+        catch (RuntimeException failed) { movement.discardAirPlanning(); releaseAirInput(); throw failed; }
         finally { logPendingHeightHold(); logPendingLive(); logPendingRiserHold(); sampleDiagnostics(); }
     }
 
     private boolean tickOwned() {
         if (!active()) return true;
-        if (ownerPlayer != client.player || ownerWorld != client.world)
-            throw new IllegalStateException("player or world changed during air recovery");
+        if (!inputContextCurrent()) {
+            input.discardOwnership(); inputContext = null; inputLease = null; nativeInputDebt = null;
+            abandon();
+            throw new IllegalStateException("player, world or native session changed during air recovery");
+        }
         if (manualInput()) throw new IllegalStateException("manual input has priority over air recovery");
-        movement.checkAirRecoveryOwnership();
         if (System.nanoTime() - startedAt >= 20_000_000_000L)
             throw new IllegalStateException("air escape exceeded 20 seconds");
+        InputHandoff handoff = observeInputHandoff();
+        if (handoff == InputHandoff.FOREIGN) {
+            input.discardOwnership();
+            throw new MovementController.NavigationFailure(MovementController.NavigationFailure.Kind.OWNERSHIP_LOST,
+                    "air input changed owner; original restoration debt cannot admit a replacement");
+        }
+        if (handoff == InputHandoff.UNAVAILABLE) return false;
+        movement.checkAirRecoveryOwnership();
         if (phase == Phase.DRAINING) { movement.stop(); phase = Phase.STOPPING; }
         if (phase == Phase.STOPPING) {
-            if (!movement.finishCancellation()) return false;
+            if (!movement.finishCancellation() || !manualInputReady()) return false;
             if (!client.player.isSubmergedInWater() && client.player.isOnGround()) phase = Phase.REFILLING;
             else startPlanning(true, false);
         }
@@ -125,10 +232,10 @@ final class AirRecoveryAction {
             }
         }
         if (phase == Phase.REFILLING) {
-            if (!movement.finishCancellation()) return false;
+            if (!movement.finishCancellation() || !manualInputReady()) return false;
             boolean floating = !client.player.isOnGround() && client.player.isTouchingWater();
             if (floating) { input.acquire(); input.drive(0, 0, true, false); }
-            else input.release();
+            else releaseAirInput();
             if (client.player.isSubmergedInWater()) {
                 if (!floating) phase = Phase.STOPPING;
                 return false;
@@ -150,7 +257,7 @@ final class AirRecoveryAction {
 
     private void startPlanning(boolean allowSwim, boolean continuation) {
         if (attempts >= 3) throw new IllegalStateException("no breathable route after three attempts");
-        input.release(); movement.discardAirPlanning();
+        releaseAirInput(); movement.discardAirPlanning();
         offeredGoals = swimRoute = List.of(); swimIndex = 0;
         planningStarted = false;
         planningSwim = allowSwim && client.player.isSubmergedInWater();
@@ -160,7 +267,7 @@ final class AirRecoveryAction {
     }
 
     private void tickPlanning() {
-        input.release();
+        releaseAirInput();
         if (!client.player.isSubmergedInWater() && client.player.isOnGround()) {
             movement.discardAirPlanning(); planningStarted = false; phase = Phase.REFILLING;
             return;
@@ -182,20 +289,24 @@ final class AirRecoveryAction {
             phase = Phase.SWIMMING; observeProgress(); log("swim");
         } else {
             offeredGoals = ready.positions();
+            inputLease = inputContext == null ? null
+                    : movement.captureAirInputLease(inputContext.owner(), inputContext.session());
+            nativeInputDebt = null;
             phase = Phase.ESCAPING; observeProgress(); log("route");
         }
     }
 
     private void tickSwimming() {
+        if (!manualInputReady()) return;
         if (!client.player.isSubmergedInWater() && client.player.isOnGround()) {
-            input.release(); phase = Phase.REFILLING; log("breathing");
+            releaseAirInput(); phase = Phase.REFILLING; log("breathing");
             return;
         }
         double dx = client.player.getX() - progressX, dy = client.player.getY() - progressY,
                 dz = client.player.getZ() - progressZ;
         if (dx * dx + dy * dy + dz * dz >= .25) observeProgress();
         if (System.nanoTime() - progressAt >= 3_000_000_000L) {
-            input.release(); phase = Phase.STOPPING; log("swim-retry");
+            releaseAirInput(); phase = Phase.STOPPING; log("swim-retry");
             return;
         }
         MovementController.LiveAirSlice live = movement.beginLiveAirSlice();
@@ -220,7 +331,7 @@ final class AirRecoveryAction {
                     pendingLive(live, "following", originalIndex, candidateIndex); return;
                 }
                 if (result == MovementController.LiveAirResult.REFUSED) {
-                    input.release(); throw new IllegalStateException(live.refusalReason());
+                    releaseAirInput(); throw new IllegalStateException(live.refusalReason());
                 }
                 if (result == MovementController.LiveAirResult.BLOCKED) { centering = true; break; }
             }
@@ -235,7 +346,7 @@ final class AirRecoveryAction {
             swimIndex = candidateIndex;
             if (swimIndex != originalIndex) observeProgress();
             if (!client.player.isSubmergedInWater()) startPlanning(false, true);
-            else { input.release(); phase = Phase.STOPPING; log("swim-retry"); }
+            else { releaseAirInput(); phase = Phase.STOPPING; log("swim-retry"); }
             return;
         }
         BlockPos next = swimRoute.get(candidateIndex);
@@ -245,22 +356,22 @@ final class AirRecoveryAction {
                 pendingLive(live, "current", originalIndex, candidateIndex); return;
             }
             if (result == MovementController.LiveAirResult.REFUSED) {
-                input.release(); throw new IllegalStateException(live.refusalReason());
+                releaseAirInput(); throw new IllegalStateException(live.refusalReason());
             }
             if (result == MovementController.LiveAirResult.BLOCKED) {
                 BlockPos prior = riserRecoveryTarget(originalIndex, candidateIndex, next);
                 if (prior == null) {
-                    input.release(); phase = Phase.STOPPING; log("swim-retry"); return;
+                    releaseAirInput(); phase = Phase.STOPPING; log("swim-retry"); return;
                 }
                 MovementController.LiveAirResult recovery = movement.observeLiveAirStep(prior, live);
                 if (recovery == MovementController.LiveAirResult.PENDING) {
                     pendingLive(live, "riser-hold", originalIndex, candidateIndex); return;
                 }
                 if (recovery == MovementController.LiveAirResult.REFUSED) {
-                    input.release(); throw new IllegalStateException(live.refusalReason());
+                    releaseAirInput(); throw new IllegalStateException(live.refusalReason());
                 }
                 if (recovery == MovementController.LiveAirResult.BLOCKED) {
-                    input.release(); phase = Phase.STOPPING; log("swim-retry"); return;
+                    releaseAirInput(); phase = Phase.STOPPING; log("swim-retry"); return;
                 }
                 // The prior column is only this tick's proved input target; the route index stays committed.
                 next = prior; centering = false; riserHold = true;
@@ -339,7 +450,7 @@ final class AirRecoveryAction {
     }
 
     private void pendingLive(MovementController.LiveAirSlice live, String stage, int originalIndex, int candidateIndex) {
-        input.release();
+        releaseAirInput();
         try {
             if (!config.debugLogging || livePendingSamples >= MAX_DIAGNOSTIC_SAMPLES) return;
             long now = System.nanoTime();
@@ -400,6 +511,15 @@ final class AirRecoveryAction {
     }
 
     void stop() {
+        if (inputContext != null && !inputContextCurrent()) {
+            input.discardOwnership(); inputContext = null; inputLease = null; nativeInputDebt = null;
+            abandon(); return;
+        }
+        if (active()) {
+            InputHandoff handoff = observeInputHandoff();
+            if (handoff == InputHandoff.UNAVAILABLE) return;
+            if (handoff == InputHandoff.FOREIGN) { input.discardOwnership(); abandon(); return; }
+        }
         movement.discardAirPlanning();
         try {
             if (active()) { movement.checkAirRecoveryOwnership(); movement.stop(); }
@@ -410,7 +530,7 @@ final class AirRecoveryAction {
 
     void abandon() {
         movement.discardAirPlanning(); planningStarted = false;
-        input.release(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
+        releaseAirInput(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
         diagnosticSamples = 0; diagnosticLastSampleAt = 0; heightHolds.clear(); pendingHeightHold = null;
         livePendingSamples = 0; livePendingLastSampleAt = 0; pendingLiveObservation = null;

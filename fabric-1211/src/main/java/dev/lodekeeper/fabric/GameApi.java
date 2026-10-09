@@ -39,6 +39,48 @@ final class GameApi {
 
     private GameApi() {}
 
+    static boolean cropMovementInputWitness(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                           dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                           Object player, Object observedInput, Object installedInput, Object predecessor) {
+        return supportsCropHarvest() && owner != null && owner.getPrimaryBaritone() != null
+                && owner.getPrimaryBaritone().getInputOverrideHandler()
+                    instanceof dev.lodekeeper.navigation.kernel.utils.InputOverrideHandler handler
+                && handler.hasMovementInputWitness(owner, session, player, observedInput, installedInput, predecessor);
+    }
+    static Object airMovementInputPredecessor(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                              dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                              Object player, Object observedInput) {
+        return supportsCropHarvest() && owner != null && owner.getPrimaryBaritone() != null
+                && owner.getPrimaryBaritone().getInputOverrideHandler()
+                    instanceof dev.lodekeeper.navigation.kernel.utils.InputOverrideHandler handler
+                ? handler.movementInputPredecessor(owner, session, player, observedInput) : null;
+    }
+    static boolean supportsCropHarvest() { return "1.21.1".equals(net.minecraft.SharedConstants.getGameVersion().getName()); }
+    static boolean cropMatches(net.minecraft.block.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return state.isOf(switch (kind) {
+            case WHEAT -> net.minecraft.block.Blocks.WHEAT;
+            case CARROT -> net.minecraft.block.Blocks.CARROTS;
+            case POTATO -> net.minecraft.block.Blocks.POTATOES;
+            case BEETROOT -> net.minecraft.block.Blocks.BEETROOTS;
+        });
+    }
+    static boolean cropMature(net.minecraft.block.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return cropMatches(state, kind) && ((net.minecraft.block.CropBlock) state.getBlock()).isMature(state);
+    }
+    static boolean cropReplanted(net.minecraft.block.BlockState state, dev.lodekeeper.core.NativeWork.CropKind kind) {
+        return cropMatches(state, kind) && ((net.minecraft.block.CropBlock) state.getBlock()).getAge(state) == 0;
+    }
+
+    static boolean cropInstantBreak(net.minecraft.client.MinecraftClient client, net.minecraft.util.math.BlockPos position, net.minecraft.block.BlockState state) {
+        return state.getHardness(client.world, position) == 0.0f;
+    }
+    static void sendCropBreak(net.minecraft.client.MinecraftClient client, net.minecraft.util.math.BlockPos position, net.minecraft.util.math.Direction face) {
+        client.interactionManager.attackBlock(position, face);
+    }
+    static void sendCropPlant(net.minecraft.client.MinecraftClient client, net.minecraft.util.hit.BlockHitResult hit) {
+        client.interactionManager.interactBlock(client.player, net.minecraft.util.Hand.MAIN_HAND, hit);
+    }
+
     static boolean supportsTravel() { return "1.21.1".equals(net.minecraft.SharedConstants.getGameVersion().getName()); }
     static java.util.UUID resolveTravelPlayer(net.minecraft.client.MinecraftClient client, String selector) {
         var player = travelPlayerCensus(client, selector, null);

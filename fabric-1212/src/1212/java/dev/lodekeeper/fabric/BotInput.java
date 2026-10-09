@@ -22,6 +22,11 @@ final class BotInput extends Input {
         if (owner.input != this) { previous = owner.input; owner.input = this; }
     }
 
+    Object ownedPredecessor(Object player, Object installedInput) {
+        return owner != null && owner == player && installedInput == this && owner.input == this
+                && previous != null && previous != this ? previous : null;
+    }
+
     void drive(float forward, float sideways, boolean jump, boolean sneak) {
         this.forward = forward;
         this.sideways = sideways;
@@ -30,6 +35,11 @@ final class BotInput extends Input {
     }
 
     void idle() { drive(0, 0, false, false); }
+
+    void discardOwnership() {
+        owner = null;
+        previous = null;
+    }
 
     void release() {
         idle();

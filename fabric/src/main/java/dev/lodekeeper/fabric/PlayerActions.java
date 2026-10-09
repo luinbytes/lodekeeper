@@ -310,6 +310,84 @@ final class PlayerActions {
         client.player.swingHand(Hand.MAIN_HAND);
         return true;
     }
+    boolean cropMovementInputWitness(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                     dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                     Object observedInput, Object installedInput, Object predecessor) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || !owner.isCurrent(session) || session.world() != client.world || client.player == null
+                || client.player.input != observedInput || owner.getPrimaryBaritone() == null) return false;
+        return GameApi.cropMovementInputWitness(owner, session, client.player, observedInput, installedInput, predecessor);
+    }
+
+    boolean cropNativeQuiescent(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || owner.getPrimaryBaritone() == null) return false;
+        var bot = owner.getPrimaryBaritone(); var pathing = bot.getPathingBehavior();
+        if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) return false;
+        dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess[] processes = {
+                bot.getCustomGoalProcess(), bot.getMineProcess(), bot.getFollowProcess(), bot.getBuilderProcess(),
+                bot.getExploreProcess(), bot.getFarmProcess(), bot.getGetToBlockProcess(), bot.getElytraProcess()
+        };
+        for (var process : processes) {
+            if (process == bot.getFollowProcess() ? bot.getFollowProcess().currentFilter() != null : process.isActive()) return false;
+        }
+        for (var key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
+            if (bot.getInputOverrideHandler().isInputForcedDown(key)) return false;
+        return true;
+    }
+
+    boolean cropRepairPermitted(BlockPos destination) {
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.world
+                && protection != null && protection.mayPlace(destination) && protection.mayInteractBlock(destination.down())
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.safeEquipment(client.player)
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.planPlace(owner.capturePolicy(), destination.down(), Direction.UP);
+    }
+
+    boolean harvestCrop(BlockPos position, BlockState expected,
+                        java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (!GameApi.supportsCropHarvest() || !admission.getAsBoolean() || client.world == null || client.player == null
+                || client.interactionManager == null || !client.player.getMainHandStack().isEmpty() || !client.world.getBlockState(position).equals(expected)
+                || !GameApi.cropInstantBreak(client, position, expected) || !cropRepairPermitted(position)
+                || !permitsBreak(position)) return false;
+        BlockHitResult hit = hit(position);
+        if (hit == null || !admission.getAsBoolean()) return false;
+        look(hit.getPos());
+        if (!admission.getAsBoolean() || !client.world.getBlockState(position).equals(expected)
+                || !cropRepairPermitted(position) || !permitsBreak(position)) return false;
+        beforeSend.run();
+        GameApi.sendCropBreak(client, position, hit.getSide());
+        return true;
+    }
+
+    boolean replantCrop(BlockPos destination, dev.lodekeeper.core.ItemId plantingItem,
+                        java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (!GameApi.supportsCropHarvest() || !admission.getAsBoolean() || client.world == null || client.player == null
+                || client.interactionManager == null || !client.world.getBlockState(destination).isAir()
+                || !client.world.getBlockState(destination.down()).isOf(Blocks.FARMLAND)
+                || !AnimalHarvestAction.ordinary(client.player.getMainHandStack()) || !GameCatalog.id(client.player.getMainHandStack().getItem()).equals(plantingItem)
+                || !cropRepairPermitted(destination)) return false;
+        BlockHitResult hit = hitFace(destination.down(), Direction.UP);
+        if (hit == null || !admission.getAsBoolean() || !permitsPlacement(hit)) return false;
+        look(hit.getPos());
+        if (!admission.getAsBoolean() || !client.world.getBlockState(destination).isAir()
+                || !cropRepairPermitted(destination) || !permitsPlacement(hit)) return false;
+        beforeSend.run();
+        GameApi.sendCropPlant(client, hit);
+        return true;
+    }
+
+    boolean swapCropHand(int source, int hotbar, java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (source < 9 || source >= 36 || hotbar < 0 || hotbar >= 9 || client.player == null || client.interactionManager == null
+                || client.currentScreen != null || client.player.currentScreenHandler != client.player.playerScreenHandler
+                || !client.player.currentScreenHandler.getCursorStack().isEmpty() || !admission.getAsBoolean()) return false;
+        if (!admission.getAsBoolean()) return false;
+        beforeSend.run();
+        OwnedClickReceipts.inventoryClick(client, client.player.playerScreenHandler.syncId, source, hotbar, SlotActionType.SWAP, client.player);
+        return true;
+    }
+
     boolean use(BlockPos position) {
         if (client.player == null || client.interactionManager == null || client.player.isSneaking()
                 || client.currentScreen instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;

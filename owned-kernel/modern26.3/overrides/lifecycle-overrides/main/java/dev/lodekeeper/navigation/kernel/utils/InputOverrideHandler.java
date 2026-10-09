@@ -118,6 +118,28 @@ public final class InputOverrideHandler extends Behavior implements IInputOverri
         }
     }
 
+    /** Read-only identity link. The caller must also prove any enclosing owned input and movement lease. */
+    public boolean hasMovementInputWitness(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                          dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                          Object player, Object observedInput, Object installedInput, Object predecessor) {
+        return owner != null && dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() == owner
+                && baritone.getRuntime() == owner && owner.getPrimaryBaritone() == baritone
+                && owner.isCurrent(session) && session.world() == ctx.world()
+                && ownedPlayer != null && ownedPlayer == player && ownedPlayer == ctx.player()
+                && observedInput != null && ownedPlayer.input == observedInput
+                && ownedInput != null && ownedInput == installedInput
+                && predecessor != null && previousInput == predecessor && installedInput != predecessor;
+    }
+
+    /** Reads the saved predecessor only while this handler still owns the actual input head. */
+    public Object movementInputPredecessor(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                           dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                           Object player, Object observedInput) {
+        return ownedInput == observedInput
+                && hasMovementInputWitness(owner, session, player, observedInput, observedInput, previousInput)
+                ? previousInput : null;
+    }
+
     public void restoreOwnedInput() {
         baritone.getRuntime().requireMainThread();
         clearAllKeys();

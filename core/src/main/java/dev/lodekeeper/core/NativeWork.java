@@ -3,7 +3,13 @@ package dev.lodekeeper.core;
 import java.util.Objects;
 
 /** Immutable native operation facts. Quantities remain demand units on the step. */
-public sealed interface NativeWork permits NativeWork.AnimalHarvest, NativeWork.Retrieve {
+public sealed interface NativeWork permits NativeWork.AnimalHarvest, NativeWork.Retrieve, NativeWork.CropHarvest {
+    enum CropKind { WHEAT, CARROT, POTATO, BEETROOT }
+
+    record CropHarvest(CropKind crop) implements NativeWork {
+        public CropHarvest { Objects.requireNonNull(crop, "crop"); }
+    }
+
     enum AnimalKind { COW, PIG, SHEEP }
     enum HarvestMethod { KILL, SHEAR }
 

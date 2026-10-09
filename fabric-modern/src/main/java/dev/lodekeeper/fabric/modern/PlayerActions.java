@@ -363,6 +363,90 @@ final class PlayerActions {
                 && position.getZ() < box.maxZ && position.getZ() + 1 > box.minZ;
     }
 
+    boolean cropMovementInputWitness(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                                     dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session,
+                                     Object observedInput, Object installedInput, Object predecessor) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || !owner.isCurrent(session) || session.world() != client.level || client.player == null
+                || client.player.input != observedInput || owner.getPrimaryBaritone() == null) return false;
+        return GameApi.cropMovementInputWitness(owner, session, client.player, observedInput, installedInput, predecessor);
+    }
+
+    boolean cropNativeQuiescent(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || owner.getPrimaryBaritone() == null) return false;
+        var bot = owner.getPrimaryBaritone(); var pathing = bot.getPathingBehavior();
+        if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) return false;
+        dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess[] processes = {
+                bot.getCustomGoalProcess(), bot.getMineProcess(), bot.getFollowProcess(), bot.getBuilderProcess(),
+                bot.getExploreProcess(), bot.getFarmProcess(), bot.getGetToBlockProcess(), bot.getElytraProcess()
+        };
+        for (var process : processes) {
+            if (process == bot.getFollowProcess() ? bot.getFollowProcess().currentFilter() != null : process.isActive()) return false;
+        }
+        for (var key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
+            if (bot.getInputOverrideHandler().isInputForcedDown(key)) return false;
+        return true;
+    }
+
+    boolean cropRepairPermitted(net.minecraft.core.BlockPos destination) {
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        return owner != null && owner.isCurrent(session) && session.world() == client.level
+                && protection != null && protection.mayPlace(destination) && protection.mayInteractBlock(destination.below())
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.safeEquipment(client.player)
+                && dev.lodekeeper.navigation.kernel.OwnedMutationGuard.planPlace(owner.capturePolicy(), destination.below(), net.minecraft.core.Direction.UP);
+    }
+
+    boolean harvestCrop(net.minecraft.core.BlockPos position, BlockState expected,
+                        java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (!GameApi.supportsCropHarvest() || !admission.getAsBoolean() || client.level == null || client.player == null
+                || client.gameMode == null || !client.player.getMainHandItem().isEmpty() || !client.level.getBlockState(position).equals(expected)
+                || !GameApi.cropInstantBreak(client, position, expected) || !cropRepairPermitted(position)
+                || !permitsBreak(position)) return false;
+        BlockHitResult hit = hit(position);
+        if (hit == null || !admission.getAsBoolean()) return false;
+        look(hit.getLocation());
+        if (!admission.getAsBoolean() || !client.level.getBlockState(position).equals(expected)
+                || !cropRepairPermitted(position) || !permitsBreak(position)) return false;
+        beforeSend.run();
+        GameApi.sendCropBreak(client, position, hit.getDirection());
+        return true;
+    }
+
+    boolean replantCrop(net.minecraft.core.BlockPos destination, dev.lodekeeper.core.ItemId plantingItem,
+                        java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (!GameApi.supportsCropHarvest() || !admission.getAsBoolean() || client.level == null || client.player == null
+                || client.gameMode == null || !client.level.getBlockState(destination).isAir()
+                || !client.level.getBlockState(destination.below()).is(Blocks.FARMLAND)
+                || !AnimalHarvestAction.ordinary(client.player.getMainHandItem()) || !GameCatalog.id(client.player.getMainHandItem().getItem()).equals(plantingItem)
+                || !cropRepairPermitted(destination)) return false;
+        BlockHitResult hit = hitFace(destination.below(), net.minecraft.core.Direction.UP);
+        if (hit == null || !admission.getAsBoolean() || !permitsPlacement(hit)) return false;
+        look(hit.getLocation());
+        if (!admission.getAsBoolean() || !client.level.getBlockState(destination).isAir()
+                || !cropRepairPermitted(destination) || !permitsPlacement(hit)) return false;
+        beforeSend.run();
+        GameApi.sendCropPlant(client, hit);
+        return true;
+    }
+
+    boolean swapCropHand(int source, int hotbar, java.util.function.BooleanSupplier admission, Runnable beforeSend) {
+        if (source < 9 || source >= 36 || hotbar < 0 || hotbar >= 9 || client.player == null || client.gameMode == null
+                || GameApi.screen(client) != null || client.player.containerMenu != client.player.inventoryMenu
+                || !client.player.containerMenu.getCarried().isEmpty() || !admission.getAsBoolean()) return false;
+        var inventory = client.player.getInventory(); var menu = client.player.inventoryMenu;
+        int menuSlot = -1;
+        for (int slot = 0; slot < menu.slots.size(); slot++) {
+            var nativeSlot = menu.getSlot(slot);
+            if (nativeSlot.container == inventory && nativeSlot.getContainerSlot() == source) { menuSlot = slot; break; }
+        }
+        if (menuSlot < 0 || !admission.getAsBoolean()) return false;
+        beforeSend.run();
+        OwnedClickReceipts.inventoryClick(client, menu.containerId, menuSlot, hotbar, ContainerInput.SWAP, client.player);
+        return true;
+    }
+
     boolean use(net.minecraft.core.BlockPos position) {
         if (client.player == null || client.gameMode == null || client.player.isShiftKeyDown()
                 || GameApi.screen(client) instanceof dev.lodekeeper.navigation.kernel.api.AutomationInputBarrier) return false;
