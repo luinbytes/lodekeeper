@@ -63,6 +63,7 @@ final class MovementController {
     private static final int AIR_RECOVERY_MAX_PROBES = 12_000;
     private static final long AIR_RECOVERY_SEARCH_BUDGET_NANOS = 4_000_000L;
     private static final int AIR_RECOVERY_MAX_GOALS = 16;
+    private static final int AIR_PLANNING_MAX_WORK = 128;
     private static final int AIR_SWIM_MAX_VISITED = 4_096;
     private static final int AIR_SWIM_MAX_PATH = 64;
     private static final int AIR_SWIM_MAX_OBSTACLE_INSPECTIONS = 128;
@@ -592,159 +593,49 @@ final class MovementController {
     }
 
     enum AirExitPreference { DRY, SURFACE }
+    enum AirPlanKind { SWIM, NATIVE }
+    sealed interface AirPlanResult permits AirPlanPending, AirPlanReady, AirPlanRefused { }
+    record AirPlanPending(String stage, int probes, int slices, int work) implements AirPlanResult { }
+    record AirPlanReady(AirPlanKind kind, List<BlockPos> positions) implements AirPlanResult {
+        AirPlanReady { positions = List.copyOf(positions); }
+    }
+    record AirPlanRefused(String reason) implements AirPlanResult { }
 
-    List<BlockPos> startAirRecovery(Set<BlockPos> rejectedGoals, AirExitPreference preference) {
-        Objects.requireNonNull(rejectedGoals);
-        Objects.requireNonNull(preference);
+    // A slice limits cooperative observation work; native calls themselves cannot be preempted.
+    private static final class AirPlanningYield extends RuntimeException {
+        AirPlanningYield() { super(null, null, false, false); }
+    }
+    private static final class AirPlanningSlice {
+        private final long deadline;
+        private int work;
+        AirPlanningSlice(long deadline) { this.deadline = deadline; }
+        void check() { if (System.nanoTime() > deadline) throw new AirPlanningYield(); }
+        void observation() {
+            check();
+            if (work >= AIR_PLANNING_MAX_WORK) throw new AirPlanningYield();
+            work++;
+        }
+    }
+    private record AirBodyKey(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        AirBodyKey(net.minecraft.world.phys.AABB box) { this(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ); }
+    }
+    private record AirCellShape(boolean empty, boolean full) { }
+    private AirPlanning airPlanning;
+
+    boolean beginAirPlanning(boolean swim, Set<BlockPos> rejectedGoals, AirExitPreference preference, long deadline) {
+        if (System.nanoTime() > deadline) return false;
+        Objects.requireNonNull(rejectedGoals); Objects.requireNonNull(preference);
         if (rejectedGoals.size() > 32) throw new IllegalArgumentException("Air recovery rejection seed exceeds 32 positions");
-        if (client.player == null || client.level == null) throw new NavigationFailure("World unavailable");
-        checkAirRecoveryOwnership();
-        List<BlockPos> goals = new AirRecoverySearch(Set.copyOf(rejectedGoals), preference).findGoals();
-        if (goals.isEmpty()) throw new NavigationFailure("No breathable air recovery stance remains within the bounded search");
-
-        checkAirRecoveryOwnership();
-        prepare();
-        airRecoveryGoal = new GoalComposite(goals.stream().map(GoalBlock::new)
-                .toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new));
-        lastAirRecoveryDestination = null;
-        routeGoal = airRecoveryGoal;
-        diagnosticGoal = null;
-        mode = Mode.AIR;
-        launch();
-        return List.copyOf(goals);
+        requireAirPlanningIdle();
+        discardAirPlanning();
+        airPlanning = new AirPlanning(swim, Set.copyOf(rejectedGoals), preference);
+        return true;
     }
 
-    private final class AirRecoverySearch {
-        private final Set<BlockPos> rejectedGoals;
-        private final AirExitPreference preference;
-        private final BlockPos center = client.player.blockPosition();
-        private final long startedNanos = System.nanoTime();
-        private final net.minecraft.world.phys.AABB playerBounds = client.player.getBoundingBox();
-        private final double playerX = client.player.getX(), playerY = client.player.getY(), playerZ = client.player.getZ();
-        private AirSwimObstacles obstacles;
-        private final Map<Long, Boolean> loadedChunks = new HashMap<>();
-        private final List<AirRecoveryCandidate> dryCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
-        private final List<AirRecoveryCandidate> floatingCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
-        private final BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos head = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos overhead = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos();
-        private int probes;
-        private boolean exhausted;
+    void discardAirPlanning() { airPlanning = null; airSwimOrigin = airSwimSeparationStep = null; }
 
-        private AirRecoverySearch(Set<BlockPos> rejectedGoals, AirExitPreference preference) {
-            this.rejectedGoals = rejectedGoals; this.preference = preference;
-        }
-
-        private List<BlockPos> findGoals() {
-            // This validates the current body and offered endpoints, not the entire native path.
-            var coverage = playerBounds.move(center.getX() - 12 + .5 - playerX,
-                    center.getY() - 1 - playerY, center.getZ() - 12 + .5 - playerZ).expandTowards(24, 17, 24);
-            obstacles = airSwimObstacles(coverage, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS);
-            if (!obstacles.clear(playerBounds)
-                    || !airSwimBlockClear(playerBounds, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles))
-                throw new AirSwimCoverageFailure("native AIR starting body is obstructed or uncovered");
-            scanOffset(0, 0);
-            List<AirRecoveryOffset> offsets = new ArrayList<>();
-            for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
-                int distanceSquared = dx * dx + dz * dz;
-                if ((dx != 0 || dz != 0) && distanceSquared <= 12 * 12)
-                    offsets.add(new AirRecoveryOffset(dx, dz, distanceSquared));
-            }
-            offsets.sort(Comparator.comparingInt(AirRecoveryOffset::distanceSquared)
-                    .thenComparingInt(AirRecoveryOffset::x).thenComparingInt(AirRecoveryOffset::z));
-            for (AirRecoveryOffset offset : offsets) {
-                if (exhausted) break;
-                scanOffset(offset.x(), offset.z());
-                List<AirRecoveryCandidate> preferred = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
-                if (preferred.size() == AIR_RECOVERY_MAX_GOALS
-                        && offset.distanceSquared() > preferred.get(preferred.size() - 1).score()) break;
-            }
-            List<AirRecoveryCandidate> selected = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
-            if (selected.isEmpty()) selected = preference == AirExitPreference.DRY ? floatingCandidates : dryCandidates;
-            return selected.stream().map(AirRecoveryCandidate::position).toList();
-        }
-
-        private void scanOffset(int dx, int dz) {
-            if (exhausted) return;
-            probe(dx, dz, 0);
-            for (int dy = 1; dy <= 16; dy++) {
-                if (exhausted) return;
-                probe(dx, dz, dy);
-                if (dy == 1 && !exhausted) probe(dx, dz, -1);
-            }
-        }
-
-        private void probe(int dx, int dz, int dy) {
-            if (exhausted) return;
-            if (probes >= AIR_RECOVERY_MAX_PROBES || System.nanoTime() - startedNanos > AIR_RECOVERY_SEARCH_BUDGET_NANOS) {
-                exhausted = true;
-                return;
-            }
-            probes++;
-
-            int x = center.getX() + dx, y = center.getY() + dy, z = center.getZ() + dz;
-            if (!inWorld(y) || !inWorld(y + 1) || !inWorld(y + 2)
-                    || rejectedGoals.contains(new BlockPos(x, y, z)) || !loaded(x, z)) return;
-            feet.set(x, y, z);
-            head.set(x, y + 1, z);
-            overhead.set(x, y + 2, z);
-            BlockState feetState = client.level.getBlockState(feet);
-            BlockState headState = client.level.getBlockState(head);
-            if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
-                    || !clearAirRecoveryCell(feetState, feet) || !clearAirRecoveryCell(headState, head)
-                    || !headState.getFluidState().isEmpty()
-                    || !(feetState.getFluidState().isEmpty() || feetState.getFluidState().is(FluidTags.WATER))) return;
-            if (client.level.getBlockState(overhead).getBlock() instanceof FallingBlock) return;
-
-            boolean waterFeet = feetState.getFluidState().is(FluidTags.WATER);
-            if (!inWorld(y - 1)) return;
-            support.set(x, y - 1, z);
-            BlockState supportState = client.level.getBlockState(support);
-            boolean supported = supportState.getFluidState().isEmpty() && !hazardousAirRecoveryState(supportState)
-                    && Block.isShapeFullBlock(supportState.getCollisionShape(client.level, support));
-            if (!waterFeet && !supported) return;
-            var body = playerBounds.move(x + .5 - playerX, y - playerY, z + .5 - playerZ);
-            if (!obstacles.clear(body)
-                    || !airSwimBlockClear(body, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) return;
-            int distanceSquared = dx * dx + dy * dy + dz * dz;
-            int score = distanceSquared + (supported ? 0 : 3) + (waterFeet ? 2 : 0);
-            AirRecoveryCandidate candidate = new AirRecoveryCandidate(feet.immutable(), score,
-                    distanceSquared, supported);
-            List<AirRecoveryCandidate> ranked = waterFeet ? floatingCandidates : dryCandidates;
-            int index = Collections.binarySearch(ranked, candidate, AIR_RECOVERY_CANDIDATE_ORDER);
-            if (index < 0) index = -index - 1;
-            ranked.add(index, candidate);
-            if (ranked.size() > AIR_RECOVERY_MAX_GOALS) ranked.remove(ranked.size() - 1);
-        }
-
-        private boolean loaded(int x, int z) {
-            int chunkX = x >> 4, chunkZ = z >> 4;
-            long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
-            Boolean present = loadedChunks.get(key);
-            if (present == null) {
-                present = client.level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
-                loadedChunks.put(key, present);
-            }
-            return present;
-        }
-
-        private boolean inWorld(int y) { return y >= client.level.getMinY() && y < client.level.getMaxY(); }
-    }
-
-    private boolean clearAirRecoveryCell(BlockState state, BlockPos position) {
-        return state.getCollisionShape(client.level, position).isEmpty();
-    }
-
-    private static boolean hazardousAirRecoveryState(BlockState state) {
-        return state.getFluidState().is(FluidTags.LAVA) || state.is(Blocks.FIRE)
-                || state.is(Blocks.SOUL_FIRE) || state.is(Blocks.CACTUS)
-                || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE)
-                || state.is(Blocks.SOUL_CAMPFIRE) || state.is(Blocks.POWDER_SNOW)
-                || state.is(Blocks.SWEET_BERRY_BUSH) || state.is(Blocks.WITHER_ROSE);
-    }
-
-    List<BlockPos> airSwimRoute() {
+    private void requireAirPlanningIdle() {
+        if (!client.isSameThread()) throw new NavigationFailure("Air planning requires the client thread");
         checkAirRecoveryOwnership();
         if (client.player == null || client.level == null) throw new NavigationFailure("World unavailable");
         IBaritone activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
@@ -753,40 +644,365 @@ final class MovementController {
                 || airRecoveryCancellationPending || lease != null || pathing.hasPath() || pathing.isPathing()
                 || pathing.getInProgress().isPresent())
             throw new NavigationFailure(NavigationFailure.Kind.PROCESS_ENDED,
-                    "Native movement cancellation must finish before air-swim routing");
+                    "Native movement cancellation must finish before air planning");
+    }
 
-        BlockPos start = client.player.blockPosition();
-        airSwimOrigin = null;
-        airSwimSeparationStep = null;
-        AirSwimSearch search = new AirSwimSearch(start);
-        List<BlockPos> route = search.findRoute();
-        airSwimOrigin = route.isEmpty() ? null : start.immutable();
-        if (!route.isEmpty() && search.startingSoftOverlap) airSwimSeparationStep = route.get(0);
-        return route;
+    AirPlanResult pollAirPlanning(long deadline) {
+        AirPlanning plan = airPlanning;
+        if (plan == null) return new AirPlanRefused("Air planning has no retained owner");
+        AirPlanningSlice slice = new AirPlanningSlice(deadline);
+        plan.slices++;
+        try {
+            slice.observation();
+            requireAirPlanningIdle();
+            slice.check();
+            if (!plan.current()) throw new AirSwimCoverageFailure("retained planning context, pose or position changed");
+            AirPlanResult result = plan.advance(slice);
+            slice.observation();
+            checkAirRecoveryOwnership();
+            if (!plan.current()) throw new AirSwimCoverageFailure("context changed before publishing AIR admission");
+            plan.diagnostic(slice, "admission");
+            slice.check();
+            if (result instanceof AirPlanReady ready && ready.kind() == AirPlanKind.NATIVE) {
+                // Prepare without taking a settings lease, then repeat fresh admission if it used this slice.
+                if (!plan.prepared) {
+                    prepare(); plan.prepared = true;
+                    slice.check();
+                    if (!plan.current()) throw new AirSwimCoverageFailure("context changed while preparing native AIR");
+                    plan.admitNative(slice);
+                }
+                slice.observation();
+                checkAirRecoveryOwnership();
+                if (!plan.current()) throw new AirSwimCoverageFailure("context changed before native AIR launch");
+                var admittedGoal = new GoalComposite(ready.positions().stream().map(GoalBlock::new)
+                        .toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new));
+                slice.check();
+                airRecoveryGoal = admittedGoal;
+                lastAirRecoveryDestination = null;
+                routeGoal = airRecoveryGoal; diagnosticGoal = null; mode = Mode.AIR;
+                // Commit follows the final check; elapsed time after effects begin is never converted to Pending.
+                launch();
+            }
+            if (result instanceof AirPlanReady ready && ready.kind() == AirPlanKind.SWIM) {
+                airSwimOrigin = plan.origin;
+                airSwimSeparationStep = plan.swim.startingSoftOverlap ? ready.positions().get(0) : null;
+            }
+            if (result instanceof AirPlanReady) airPlanning = null;
+            return result;
+        } catch (AirPlanningYield elapsed) {
+            plan.diagnostic(slice, "yield");
+            return new AirPlanPending(plan.stage(), plan.probes(), plan.slices, slice.work);
+        } catch (AirSwimCoverageFailure refused) {
+            discardAirPlanning(); plan.diagnostic(slice, "refused");
+            return new AirPlanRefused(refused.getMessage());
+        } catch (RuntimeException failed) {
+            discardAirPlanning();
+            throw failed;
+        }
+    }
+
+    private final class AirPlanning {
+        private final Object player = client.player, world = client.level, network = client.getConnection();
+        private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session = owner == null ? null : owner.captureSession();
+        private final BlockPos origin = client.player.blockPosition().immutable();
+        private final net.minecraft.world.phys.AABB bounds = client.player.getBoundingBox();
+        private final Object pose = client.player.getPose();
+        private final double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        private final Set<BlockPos> rejected;
+        private final AirExitPreference preference;
+        private AirSwimSearch swim;
+        private AirRecoverySearch nativeSearch;
+        private AirSwimObstacles obstacles;
+        // These complete observations are forecasts only and never satisfy final admission or LIVE checks.
+        private final Map<BlockPos, BlockState> states = new HashMap<>();
+        private final Map<BlockPos, AirCellShape> shapes = new HashMap<>();
+        private final Map<AirBodyKey, Boolean> blockBodies = new HashMap<>();
+        private List<BlockPos> route;
+        private BlockPos endpoint;
+        private boolean prepared;
+        private int slices, diagnosticSamples;
+        private long diagnosticAt;
+
+        AirPlanning(boolean manual, Set<BlockPos> rejected, AirExitPreference preference) {
+            this.rejected = rejected; this.preference = preference;
+            if (manual) swim = new AirSwimSearch(this, origin);
+            else nativeSearch = new AirRecoverySearch(this, rejected, preference);
+        }
+
+        boolean current() {
+            if (client.player != player || client.level != world || client.getConnection() != network
+                    || owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                    || !owner.isCurrent(session) || session.world() != world
+                    || !Objects.equals(pose, client.player.getPose())) return false;
+            var actual = client.player.getBoundingBox();
+            double dx = client.player.getX() - x, dy = client.player.getY() - y, dz = client.player.getZ() - z;
+            // Passive water bobbing may stay in this cell. Dimension comparison tolerates only subtraction rounding;
+            // final admission still uses the exact actual body, and native collision geometry has no added epsilon.
+            return client.player.blockPosition().equals(origin) && dx * dx + dy * dy + dz * dz <= .0625
+                    && Math.abs((actual.maxX - actual.minX) - (bounds.maxX - bounds.minX)) <= 1e-9
+                    && Math.abs((actual.maxY - actual.minY) - (bounds.maxY - bounds.minY)) <= 1e-9
+                    && Math.abs((actual.maxZ - actual.minZ) - (bounds.maxZ - bounds.minZ)) <= 1e-9;
+        }
+
+        AirPlanResult advance(AirPlanningSlice slice) {
+            slice.check();
+            if (obstacles == null) {
+                slice.observation();
+                var coverage = bounds.move(origin.getX() - 12 + .5 - x, origin.getY() - 1 - y,
+                        origin.getZ() - 12 + .5 - z).expandTowards(24, 17, 24);
+                obstacles = airSwimObstacles(coverage, slice.deadline, true);
+                slice.check();
+            }
+            if (swim != null && route == null) {
+                route = swim.advance(slice);
+                slice.check();
+            }
+            if (route != null && !route.isEmpty()) {
+                slice.observation();
+                if (!observeAirSwimStep(route.get(0), slice, origin,
+                        swim.startingSoftOverlap ? route.get(0) : null)) {
+                    slice.check();
+                    throw new AirSwimCoverageFailure("fresh first swim edge is obstructed or uncovered");
+                }
+                slice.check();
+                return new AirPlanReady(AirPlanKind.SWIM, route);
+            }
+            if (nativeSearch == null) {
+                slice.check();
+                nativeSearch = new AirRecoverySearch(this, rejected, preference);
+                slice.check();
+            }
+            if (endpoint == null) {
+                endpoint = nativeSearch.advance(slice);
+                slice.check();
+            }
+            admitNative(slice);
+            return new AirPlanReady(AirPlanKind.NATIVE, List.of(endpoint));
+        }
+
+        void admitNative(AirPlanningSlice slice) {
+            slice.observation();
+            var actual = client.player.getBoundingBox();
+            var destination = actual.move(endpoint.getX() + .5 - client.player.getX(),
+                    endpoint.getY() - client.player.getY(), endpoint.getZ() + .5 - client.player.getZ());
+            // A complete fresh query for each offered endpoint and current body; native full-path clearance is unproved.
+            var fresh = airSwimObstacles(actual, slice.deadline);
+            boolean currentClear = fresh.clear(actual) && airSwimBlockClear(actual, slice.deadline, fresh);
+            slice.check();
+            if (!currentClear) throw new AirSwimCoverageFailure("fresh native AIR starting body is obstructed or uncovered");
+            slice.observation();
+            fresh = airSwimObstacles(destination, slice.deadline);
+            boolean endpointClear = fresh.clear(destination) && airSwimBlockClear(destination, slice.deadline, fresh)
+                    && nativeSearch.freshEndpoint(endpoint, slice);
+            slice.check();
+            if (!endpointClear) throw new AirSwimCoverageFailure("fresh native AIR endpoint is obstructed or uncovered");
+        }
+
+        BlockState state(BlockPos position, AirPlanningSlice slice) {
+            BlockState result = states.get(position);
+            if (result == null) {
+                slice.observation();
+                result = client.level.getBlockState(position);
+                states.put(position.immutable(), result);
+                slice.check();
+            }
+            return result;
+        }
+
+        AirCellShape shape(BlockPos position, AirPlanningSlice slice) {
+            AirCellShape result = shapes.get(position);
+            if (result == null) {
+                BlockState state = state(position, slice);
+                slice.observation();
+                var shape = state.getCollisionShape(client.level, position);
+                result = new AirCellShape(shape.isEmpty(), Block.isShapeFullBlock(shape));
+                shapes.put(position.immutable(), result);
+                slice.check();
+            }
+            return result;
+        }
+
+        boolean blockClear(net.minecraft.world.phys.AABB body, AirPlanningSlice slice) {
+            AirBodyKey key = new AirBodyKey(body);
+            Boolean result = blockBodies.get(key);
+            if (result == null) {
+                slice.observation();
+                result = airSwimBlockClear(body, slice.deadline, obstacles, true);
+                blockBodies.put(key, result);
+                slice.check();
+            }
+            return result;
+        }
+
+        String stage() { return route != null && !route.isEmpty() ? "swim-admission"
+                : endpoint != null ? "native-admission" : nativeSearch != null ? nativeSearch.stage() : swim.stage(); }
+        int probes() { return (swim == null ? 0 : swim.probes) + (nativeSearch == null ? 0 : nativeSearch.probes); }
+        void diagnostic(AirPlanningSlice slice, String outcome) {
+            if (!config.debugLogging || diagnosticSamples >= 16) return;
+            long now = System.nanoTime();
+            if (diagnosticSamples != 0 && now - diagnosticAt < 1_000_000_000L
+                    && !outcome.equals("refused")) return;
+            diagnosticAt = now; diagnosticSamples++;
+            logNativeDebug("AIR_PLAN outcome=" + outcome + " stage=" + stage() + " probes=" + probes()
+                    + " slices=" + slices + " work=" + slice.work + " workCap=" + AIR_PLANNING_MAX_WORK
+                    + " sliceBudgetMs=4 expired=" + (now > slice.deadline)
+                    + " visited=" + (swim == null ? 0 : swim.parents.size()));
+        }
+    }
+    private final class AirRecoverySearch {
+        private final AirPlanning plan;
+        private final Set<BlockPos> rejectedGoals;
+        private final AirExitPreference preference;
+        private final BlockPos center;
+        private final List<AirRecoveryCandidate> dryCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
+        private final List<AirRecoveryCandidate> floatingCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
+        private final List<AirRecoveryOffset> offsets = new ArrayList<>();
+        private int offsetIndex, verticalIndex, probes;
+        private boolean probeStarted, finished;
+
+        AirRecoverySearch(AirPlanning plan, Set<BlockPos> rejectedGoals, AirExitPreference preference) {
+            this.plan = plan; this.rejectedGoals = rejectedGoals; this.preference = preference; center = plan.origin;
+            offsets.add(new AirRecoveryOffset(0, 0, 0));
+            for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
+                int distanceSquared = dx * dx + dz * dz;
+                if ((dx != 0 || dz != 0) && distanceSquared <= 12 * 12)
+                    offsets.add(new AirRecoveryOffset(dx, dz, distanceSquared));
+            }
+            offsets.sort(Comparator.comparingInt(AirRecoveryOffset::distanceSquared)
+                    .thenComparingInt(AirRecoveryOffset::x).thenComparingInt(AirRecoveryOffset::z));
+        }
+
+        String stage() { return "native-offset-" + offsetIndex + "-vertical-" + verticalIndex; }
+
+        BlockPos advance(AirPlanningSlice slice) {
+            if (!plan.obstacles.clear(plan.bounds) || !plan.blockClear(plan.bounds, slice))
+                throw new AirSwimCoverageFailure("native AIR starting body is obstructed or uncovered");
+            while (!finished && offsetIndex < offsets.size()) {
+                slice.check();
+                AirRecoveryOffset offset = offsets.get(offsetIndex);
+                if (!probeStarted) {
+                    if (plan.probes() >= AIR_RECOVERY_MAX_PROBES) { finished = true; break; }
+                    slice.observation(); probes++; probeStarted = true;
+                }
+                int dy = verticalIndex == 0 ? 0 : verticalIndex == 1 ? 1 : verticalIndex == 2 ? -1 : verticalIndex - 1;
+                AirRecoveryCandidate candidate = inspect(offset.x(), offset.z(), dy, slice, true);
+                if (candidate != null) {
+                    boolean water = plan.state(candidate.position(), slice).getFluidState().is(FluidTags.WATER);
+                    List<AirRecoveryCandidate> ranked = water ? floatingCandidates : dryCandidates;
+                    int index = Collections.binarySearch(ranked, candidate, AIR_RECOVERY_CANDIDATE_ORDER);
+                    if (index < 0) index = -index - 1;
+                    ranked.add(index, candidate);
+                    if (ranked.size() > AIR_RECOVERY_MAX_GOALS) ranked.remove(ranked.size() - 1);
+                }
+                probeStarted = false;
+                if (++verticalIndex == 18) {
+                    verticalIndex = 0; offsetIndex++;
+                    List<AirRecoveryCandidate> preferred = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
+                    if (preferred.size() == AIR_RECOVERY_MAX_GOALS
+                            && offset.distanceSquared() > preferred.get(preferred.size() - 1).score()) finished = true;
+                }
+                slice.check();
+            }
+            List<AirRecoveryCandidate> selected = preference == AirExitPreference.DRY ? dryCandidates : floatingCandidates;
+            if (selected.isEmpty()) selected = preference == AirExitPreference.DRY ? floatingCandidates : dryCandidates;
+            if (selected.isEmpty()) throw new AirSwimCoverageFailure("no breathable native AIR stance within the bounded search");
+            // Select a complete deterministic set before fresh admission, never a deadline-truncated prefix.
+            BlockPos endpoint = selected.get(0).position();
+            slice.check();
+            return endpoint;
+        }
+
+        boolean freshEndpoint(BlockPos endpoint, AirPlanningSlice slice) {
+            return inspect(endpoint.getX() - center.getX(), endpoint.getZ() - center.getZ(),
+                    endpoint.getY() - center.getY(), slice, false) != null;
+        }
+
+        private AirRecoveryCandidate inspect(int dx, int dz, int dy, AirPlanningSlice slice, boolean forecast) {
+            int x = center.getX() + dx, y = center.getY() + dy, z = center.getZ() + dz;
+            if (!inWorld(y) || !inWorld(y + 1) || !inWorld(y + 2) || !inWorld(y - 1)) return null;
+            BlockPos feet = new BlockPos(x, y, z), head = feet.above(), overhead = feet.above(2), support = feet.below();
+            if (rejectedGoals.contains(feet) || !plan.obstacles.loadedChunks().contains(((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL))) return null;
+            BlockState feetState = forecast ? plan.state(feet, slice) : freshAirState(feet, slice);
+            BlockState headState = forecast ? plan.state(head, slice) : freshAirState(head, slice);
+            if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
+                    || !cellShape(feet, feetState, slice, forecast).empty() || !cellShape(head, headState, slice, forecast).empty()
+                    || !headState.getFluidState().isEmpty()
+                    || !(feetState.getFluidState().isEmpty() || feetState.getFluidState().is(FluidTags.WATER))) return null;
+            BlockState overheadState = forecast ? plan.state(overhead, slice) : freshAirState(overhead, slice);
+            if (overheadState.getBlock() instanceof FallingBlock) return null;
+            boolean waterFeet = feetState.getFluidState().is(FluidTags.WATER);
+            BlockState supportState = forecast ? plan.state(support, slice) : freshAirState(support, slice);
+            boolean supported = supportState.getFluidState().isEmpty() && !hazardousAirRecoveryState(supportState)
+                    && cellShape(support, supportState, slice, forecast).full();
+            if (!waterFeet && !supported) return null;
+            var body = plan.bounds.move(x + .5 - plan.x, y - plan.y, z + .5 - plan.z);
+            if (forecast && (!plan.obstacles.clear(body) || !plan.blockClear(body, slice))) return null;
+            int distanceSquared = dx * dx + dy * dy + dz * dz;
+            return new AirRecoveryCandidate(feet, distanceSquared + (supported ? 0 : 3) + (waterFeet ? 2 : 0),
+                    distanceSquared, supported);
+        }
+
+        private AirCellShape cellShape(BlockPos position, BlockState state, AirPlanningSlice slice, boolean forecast) {
+            if (forecast) return plan.shape(position, slice);
+            return freshAirShape(state, position, slice);
+        }
+
+        private boolean inWorld(int y) { return y >= client.level.getMinY() && y < client.level.getMaxY(); }
+    }
+
+    private BlockState freshAirState(BlockPos position, AirPlanningSlice slice) {
+        slice.observation();
+        BlockState state = client.level.getBlockState(position);
+        slice.check();
+        return state;
+    }
+    private static boolean hazardousAirRecoveryState(BlockState state) {
+        return state.getFluidState().is(FluidTags.LAVA) || state.is(Blocks.FIRE)
+                || state.is(Blocks.SOUL_FIRE) || state.is(Blocks.CACTUS)
+                || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE)
+                || state.is(Blocks.SOUL_CAMPFIRE) || state.is(Blocks.POWDER_SNOW)
+                || state.is(Blocks.SWEET_BERRY_BUSH) || state.is(Blocks.WITHER_ROSE);
     }
 
     long airSwimObservationDeadline() { return System.nanoTime() + AIR_RECOVERY_SEARCH_BUDGET_NANOS; }
 
     /** Revalidates native terrain and the actual swept player within the caller's shared observation deadline. */
     boolean airSwimStepClear(BlockPos feetPosition, long deadline) {
-        if (System.nanoTime() > deadline) return false;
-        if (feetPosition == null || airSwimOrigin == null || client.player == null || client.level == null
-                || !withinAirSwimBounds(feetPosition, airSwimOrigin)) return false;
+        return airSwimStepClear(feetPosition, new AirPlanningSlice(deadline), airSwimOrigin, airSwimSeparationStep);
+    }
+
+    private boolean airSwimStepClear(BlockPos feetPosition, AirPlanningSlice slice, BlockPos origin, BlockPos separationStep) {
+        try { return observeAirSwimStep(feetPosition, slice, origin, separationStep); }
+        catch (AirSwimCoverageFailure | AirPlanningYield unavailable) {
+            if (config.debugLogging) logNativeDebug(unavailable instanceof AirPlanningYield
+                    ? "AIR live observation slice expired" : unavailable.getMessage());
+            return false;
+        }
+    }
+
+    private boolean observeAirSwimStep(BlockPos feetPosition, AirPlanningSlice slice, BlockPos origin, BlockPos separationStep) {
+        slice.check();
+        if (feetPosition == null || origin == null || client.player == null || client.level == null
+                || !withinAirSwimBounds(feetPosition, origin)) return false;
         int x = feetPosition.getX(), y = feetPosition.getY(), z = feetPosition.getZ();
-        if (!airSwimChunkLoaded(x, z) || !airSwimInWorld(y - 1)
-                || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)) return false;
+        if (!airSwimInWorld(y - 1) || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)) return false;
+        slice.observation();
+        boolean loaded = airSwimChunkLoaded(x, z);
+        slice.check();
+        if (!loaded) return false;
 
         BlockPos headPosition = new BlockPos(x, y + 1, z);
         BlockPos supportPosition = new BlockPos(x, y - 1, z);
         BlockPos overheadPosition = new BlockPos(x, y + 2, z);
-        BlockState feetState = client.level.getBlockState(feetPosition);
-        BlockState headState = client.level.getBlockState(headPosition);
-        BlockState supportState = client.level.getBlockState(supportPosition);
+        BlockState feetState = freshAirState(feetPosition, slice);
+        BlockState headState = freshAirState(headPosition, slice);
+        BlockState supportState = freshAirState(supportPosition, slice);
         if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
                 || hazardousAirRecoveryState(supportState)
-                || !clearAirRecoveryCell(feetState, feetPosition)
-                || !clearAirRecoveryCell(headState, headPosition)
-                || client.level.getBlockState(overheadPosition).getBlock() instanceof FallingBlock
+                || !freshAirShape(feetState, feetPosition, slice).empty()
+                || !freshAirShape(headState, headPosition, slice).empty()
+                || freshAirState(overheadPosition, slice).getBlock() instanceof FallingBlock
                 || supportState.getBlock() instanceof FallingBlock) return false;
 
         boolean feetWater = feetState.getFluidState().is(FluidTags.WATER);
@@ -795,21 +1011,29 @@ final class MovementController {
         boolean headDry = headState.getFluidState().isEmpty();
         if ((!feetWater && !feetDry) || (!headWater && !headDry)) return false;
         boolean supportedDry = supportState.getFluidState().isEmpty()
-                && Block.isShapeFullBlock(supportState.getCollisionShape(client.level, supportPosition));
+                && freshAirShape(supportState, supportPosition, slice).full();
         boolean aboveWater = supportState.getFluidState().is(FluidTags.WATER);
         if (!(feetWater || supportedDry || feetDry && headDry && aboveWater)) return false;
+        slice.observation();
         var body = client.player.getBoundingBox();
         double dx = x + .5 - client.player.getX(), dy = y - client.player.getY(), dz = z + .5 - client.player.getZ();
         var destination = body.move(dx, dy, dz);
         var swept = body.expandTowards(dx, dy, dz);
-        try {
-            var obstacles = airSwimObstacles(swept, deadline);
-            return obstacles.edgeClear(body, destination, swept, feetPosition.equals(airSwimSeparationStep))
-                    && airSwimBlockClear(swept, deadline, obstacles);
-        } catch (AirSwimCoverageFailure unavailable) {
-            if (config.debugLogging) logNativeDebug(unavailable.getMessage());
-            return false;
-        }
+        slice.check(); slice.observation();
+        var obstacles = airSwimObstacles(swept, slice.deadline);
+        if (!obstacles.edgeClear(body, destination, swept, feetPosition.equals(separationStep))) return false;
+        slice.observation();
+        boolean clear = airSwimBlockClear(swept, slice.deadline, obstacles);
+        slice.check();
+        return clear;
+    }
+
+    private AirCellShape freshAirShape(BlockState state, BlockPos position, AirPlanningSlice slice) {
+        slice.observation();
+        var shape = state.getCollisionShape(client.level, position);
+        var result = new AirCellShape(shape.isEmpty(), Block.isShapeFullBlock(shape));
+        slice.check();
+        return result;
     }
 
     private boolean finiteAirSwimBox(net.minecraft.world.phys.AABB box) {
@@ -819,19 +1043,34 @@ final class MovementController {
     }
 
     private boolean airSwimBlockClear(net.minecraft.world.phys.AABB body, long deadline, AirSwimObstacles obstacles) {
+        return airSwimBlockClear(body, deadline, obstacles, false);
+    }
+
+    private boolean airSwimBlockClear(net.minecraft.world.phys.AABB body, long deadline, AirSwimObstacles obstacles, boolean forecast) {
         if (!obstacles.covers(body)) return false;
-        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("block observation time limit");
+        if (System.nanoTime() > deadline) throw new AirPlanningYield();
         int shapes = 0;
-        for (var collision : client.level.getBlockCollisions(client.player, body)) {
-            if (++shapes > AIR_SWIM_MAX_COLLISION_SHAPES || System.nanoTime() > deadline)
-                throw new AirSwimCoverageFailure("block collision cap or observation time limit");
+        var collisions = client.level.getBlockCollisions(client.player, body).iterator();
+        while (true) {
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
+            boolean more = collisions.hasNext();
+            if (!more) break; // A complete empty result may be saved as an expired forecast only.
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
+            var collision = collisions.next();
+            if (++shapes > AIR_SWIM_MAX_COLLISION_SHAPES) throw new AirSwimCoverageFailure("block collision shape cap");
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
             if (!collision.isEmpty()) return false;
         }
-        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("block observation time limit");
+        if (!forecast && System.nanoTime() > deadline) throw new AirPlanningYield();
         return true;
     }
 
     private AirSwimObstacles airSwimObstacles(net.minecraft.world.phys.AABB bodyCoverage, long deadline) {
+        return airSwimObstacles(bodyCoverage, deadline, false);
+    }
+
+    private AirSwimObstacles airSwimObstacles(net.minecraft.world.phys.AABB bodyCoverage, long deadline, boolean forecast) {
+        if (System.nanoTime() > deadline) throw new AirPlanningYield();
         var coverage = bodyCoverage.inflate(AIR_SWIM_VEHICLE_PUSH_REACH, 0, AIR_SWIM_VEHICLE_PUSH_REACH);
         var chunkCoverage = coverage.inflate(1, 0, 1);
         if (!finiteAirSwimBox(chunkCoverage) || chunkCoverage.maxX - chunkCoverage.minX > 32
@@ -843,25 +1082,28 @@ final class MovementController {
         int minChunkZ = ((int) Math.floor(chunkCoverage.minZ)) >> 4, maxChunkZ = ((int) Math.floor(chunkCoverage.maxZ)) >> 4;
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("snapshot time limit");
+                if (System.nanoTime() > deadline) throw new AirPlanningYield();
                 if (client.level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null)
                     loadedChunks.add(((long) chunkX << 32) | (chunkZ & 0xffffffffL));
                 else complete = false;
             }
+        if (System.nanoTime() > deadline) throw new AirPlanningYield();
         int[] inspected = {0};
         // Living entities can initiate a push even when their own isPushable recipient predicate is false.
         var entities = client.level.getEntities(client.player, coverage, entity -> {
-            if (++inspected[0] > AIR_SWIM_MAX_OBSTACLE_INSPECTIONS || System.nanoTime() > deadline)
-                throw new AirSwimCoverageFailure("entity inspection cap or snapshot time limit");
+            if (++inspected[0] > AIR_SWIM_MAX_OBSTACLE_INSPECTIONS) throw new AirSwimCoverageFailure("entity inspection cap");
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
             return !entity.isRemoved() && !entity.isSpectator()
                     && (entity instanceof net.minecraft.world.entity.LivingEntity || entity.isPushable() || client.player.canCollideWith(entity));
         });
         List<AirSwimObstacle> bodies = new ArrayList<>(entities.size());
         for (var entity : entities) {
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
             var bounds = entity.getBoundingBox();
-            if (!finiteAirSwimBox(bounds) || System.nanoTime() > deadline)
-                throw new AirSwimCoverageFailure("invalid entity bounds or snapshot time limit");
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
+            if (!finiteAirSwimBox(bounds)) throw new AirSwimCoverageFailure("invalid entity bounds");
             var raw = new net.minecraft.world.phys.AABB(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ);
+            if (System.nanoTime() > deadline) throw new AirPlanningYield();
             boolean living = entity instanceof net.minecraft.world.entity.LivingEntity;
             boolean hard = client.player.canCollideWith(entity);
             // Boats and minecarts are nonliving pushable/hard entities with a native .2 horizontal push query.
@@ -869,118 +1111,110 @@ final class MovementController {
             var push = living ? raw : raw.inflate(AIR_SWIM_VEHICLE_PUSH_REACH, 0, AIR_SWIM_VEHICLE_PUSH_REACH);
             bodies.add(new AirSwimObstacle(hard ? raw : null, push));
         }
-        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("snapshot time limit");
-        return new AirSwimObstacles(bodies, coverage, loadedChunks, complete);
+        var result = new AirSwimObstacles(bodies, coverage, loadedChunks, complete);
+        if (!forecast && System.nanoTime() > deadline) throw new AirPlanningYield();
+        return result;
     }
 
     private final class AirSwimSearch {
+        private final AirPlanning plan;
         private final BlockPos origin;
-        private final long startedNanos = System.nanoTime();
-        private final Map<Long, Boolean> loadedChunks = new HashMap<>();
         private final Map<BlockPos, BlockPos> parents = new HashMap<>();
         private final ArrayDeque<AirSwimNode> frontier = new ArrayDeque<>();
-        private final BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos head = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos();
-        private final BlockPos.MutableBlockPos overhead = new BlockPos.MutableBlockPos();
-        private int probes;
-        private boolean exhausted;
-        private BlockPos surfaceFallback;
-        private AirSwimObstacles obstacles;
-        private boolean startingSoftOverlap, entityBlocked, bodyBlocked, incomplete;
-        private final net.minecraft.world.phys.AABB playerBounds = client.player.getBoundingBox();
-        private final double playerX = client.player.getX(), playerY = client.player.getY(), playerZ = client.player.getZ();
+        private int probes, neighborIndex;
+        private boolean exhausted, initialized, originDry, startingSoftOverlap, entityBlocked, bodyBlocked, incomplete;
+        private BlockPos surfaceFallback, pendingNext;
+        private AirSwimNode current;
+        private AirSwimCell pendingCell;
+        private boolean inspected;
 
-        private AirSwimSearch(BlockPos origin) { this.origin = origin.immutable(); }
+        AirSwimSearch(AirPlanning plan, BlockPos origin) { this.plan = plan; this.origin = origin.immutable(); }
+        String stage() { return !initialized ? "swim-origin" : "swim-neighbor-" + neighborIndex; }
 
-        private List<BlockPos> findRoute() {
-            // The existing search volume carries immutable loaded-chunk coverage for this bounded attempt.
-            var coverage = boundsAt(origin.getX() - 12, origin.getY() - 1, origin.getZ() - 12).expandTowards(24, 17, 24);
-            obstacles = airSwimObstacles(coverage, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS);
-            if (!obstacles.hardClear(playerBounds)
-                    || !airSwimBlockClear(playerBounds, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles))
-                throw new AirSwimCoverageFailure("starting body has incomplete coverage or a hard collision");
-            startingSoftOverlap = obstacles.softOverlap(playerBounds);
-            AirSwimCell startCell = inspect(origin);
-            if (startCell == null) return emptyResult();
-            parents.put(origin, null);
-            frontier.addLast(new AirSwimNode(origin, 0));
-            if (startCell.surface() && !startingSoftOverlap) surfaceFallback = origin;
-            if (startCell.dryExit() && !startingSoftOverlap) return emptyResult();
-
-            while (!frontier.isEmpty() && !exhausted) {
-                AirSwimNode current = frontier.removeFirst();
-                if (current.depth() >= AIR_SWIM_MAX_PATH) continue;
-                for (int[] step : AIR_SWIM_STEPS) {
-                    if (probes >= AIR_RECOVERY_MAX_PROBES
-                            || System.nanoTime() - startedNanos > AIR_RECOVERY_SEARCH_BUDGET_NANOS) {
-                        exhausted = true;
-                        break;
-                    }
-                    probes++;
-                    BlockPos next = new BlockPos(current.position().getX() + step[0],
-                            current.position().getY() + step[1], current.position().getZ() + step[2]);
-                    if (!withinAirSwimBounds(next, origin) || parents.containsKey(next) || !loaded(next)) continue;
-                    if (parents.size() >= AIR_SWIM_MAX_VISITED) {
-                        exhausted = true;
-                        break;
-                    }
-                    AirSwimCell cell = inspect(next);
-                    if (cell == null) continue;
-                    var swept = sweptBounds(current.position(), next);
-                    if (!obstacles.covers(swept)) { incomplete = true; continue; }
-                    var from = current.position().equals(origin) ? playerBounds
-                            : boundsAt(current.position().getX(), current.position().getY(), current.position().getZ());
-                    var to = boundsAt(next.getX(), next.getY(), next.getZ());
-                    if (!obstacles.edgeClear(from, to, swept, current.position().equals(origin) && startingSoftOverlap)) {
-                        entityBlocked = true;
-                        continue;
-                    }
-                    if (!airSwimBlockClear(swept, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) {
-                        bodyBlocked = true;
-                        continue;
-                    }
-                    parents.put(next, current.position());
-                    int depth = current.depth() + 1;
-                    if (cell.dryExit()) return reconstruct(next);
-                    if (surfaceFallback == null && cell.surface()) surfaceFallback = next;
-                    frontier.addLast(new AirSwimNode(next, depth));
-                }
+        List<BlockPos> advance(AirPlanningSlice slice) {
+            if (!initialized) {
+                if (!plan.obstacles.hardClear(plan.bounds) || !plan.blockClear(plan.bounds, slice))
+                    throw new AirSwimCoverageFailure("starting body has incomplete coverage or a hard collision");
+                startingSoftOverlap = plan.obstacles.softOverlap(plan.bounds);
+                AirSwimCell start = inspect(origin, slice);
+                if (start == null) return emptyResult(slice);
+                parents.put(origin, null); frontier.addLast(new AirSwimNode(origin, 0)); initialized = true;
+                if (start.surface() && !startingSoftOverlap) surfaceFallback = origin;
+                originDry = start.dryExit() && !startingSoftOverlap;
+                slice.check();
             }
-            if (surfaceFallback == null) return emptyResult();
-            List<BlockPos> result = reconstruct(surfaceFallback);
-            return result.isEmpty() ? emptyResult() : result;
+            if (originDry) return emptyResult(slice);
+            while (!exhausted) {
+                slice.check();
+                if (current == null) {
+                    if (frontier.isEmpty()) break;
+                    slice.observation();
+                    current = frontier.removeFirst(); neighborIndex = 0;
+                    if (current.depth() >= AIR_SWIM_MAX_PATH) { current = null; continue; }
+                }
+                if (neighborIndex == AIR_SWIM_STEPS.length) { current = null; continue; }
+                if (pendingNext == null) {
+                    if (plan.probes() >= AIR_RECOVERY_MAX_PROBES) { exhausted = true; break; }
+                    slice.observation(); probes++;
+                    int[] step = AIR_SWIM_STEPS[neighborIndex];
+                    pendingNext = new BlockPos(current.position().getX() + step[0],
+                            current.position().getY() + step[1], current.position().getZ() + step[2]);
+                    if (!withinAirSwimBounds(pendingNext, origin) || parents.containsKey(pendingNext)) { nextNeighbor(); continue; }
+                    if (parents.size() >= AIR_SWIM_MAX_VISITED) { exhausted = true; break; }
+                }
+                if (!inspected) { pendingCell = inspect(pendingNext, slice); inspected = true; }
+                if (pendingCell == null) { nextNeighbor(); continue; }
+                var swept = sweptBounds(current.position(), pendingNext);
+                if (!plan.obstacles.covers(swept)) { incomplete = true; nextNeighbor(); continue; }
+                var from = current.position().equals(origin) ? plan.bounds
+                        : boundsAt(current.position().getX(), current.position().getY(), current.position().getZ());
+                var to = boundsAt(pendingNext.getX(), pendingNext.getY(), pendingNext.getZ());
+                if (!plan.obstacles.edgeClear(from, to, swept, current.position().equals(origin) && startingSoftOverlap)) {
+                    entityBlocked = true; nextNeighbor(); continue;
+                }
+                if (!plan.blockClear(swept, slice)) { bodyBlocked = true; nextNeighbor(); continue; }
+                parents.put(pendingNext, current.position());
+                if (pendingCell.dryExit()) return reconstruct(pendingNext, slice);
+                if (surfaceFallback == null && pendingCell.surface()) surfaceFallback = pendingNext;
+                frontier.addLast(new AirSwimNode(pendingNext, current.depth() + 1));
+                nextNeighbor();
+            }
+            if (surfaceFallback == null) return emptyResult(slice);
+            List<BlockPos> result = reconstruct(surfaceFallback, slice);
+            return result.isEmpty() ? emptyResult(slice) : result;
         }
 
-        private List<BlockPos> emptyResult() {
-            if (startingSoftOverlap || entityBlocked || bodyBlocked || incomplete || exhausted || !obstacles.complete())
+        private void nextNeighbor() { neighborIndex++; pendingNext = null; pendingCell = null; inspected = false; }
+
+        private List<BlockPos> emptyResult(AirPlanningSlice slice) {
+            slice.check();
+            if (startingSoftOverlap || entityBlocked || bodyBlocked || incomplete || exhausted || !plan.obstacles.complete())
                 throw new AirSwimCoverageFailure("no complete unobstructed swim route; native fallback refused");
             return List.of();
         }
-
-        private AirSwimCell inspect(BlockPos position) {
+        private AirSwimCell inspect(BlockPos position, AirPlanningSlice slice) {
             int x = position.getX(), y = position.getY(), z = position.getZ();
             if (!withinAirSwimBounds(position, origin) || !airSwimInWorld(y - 1)
                     || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)
-                    || !loaded(x, z)) return null;
-            var body = position.equals(origin) ? playerBounds : boundsAt(x, y, z);
-            if (!obstacles.covers(body)) { incomplete = true; return null; }
-            if (!(position.equals(origin) && startingSoftOverlap ? obstacles.hardClear(body) : obstacles.clear(body))) {
+                    || !plan.obstacles.loadedChunks().contains(((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL))) return null;
+            var body = position.equals(origin) ? plan.bounds : boundsAt(x, y, z);
+            if (!plan.obstacles.covers(body)) { incomplete = true; return null; }
+            if (!(position.equals(origin) && startingSoftOverlap ? plan.obstacles.hardClear(body) : plan.obstacles.clear(body))) {
                 entityBlocked = true;
                 return null;
             }
-            if (!airSwimBlockClear(body, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) {
+            if (!plan.blockClear(body, slice)) {
                 bodyBlocked = true;
                 return null;
             }
-            feet.set(x, y, z); head.set(x, y + 1, z); support.set(x, y - 1, z); overhead.set(x, y + 2, z);
-            BlockState feetState = client.level.getBlockState(feet);
-            BlockState headState = client.level.getBlockState(head);
-            BlockState supportState = client.level.getBlockState(support);
+            BlockPos feet = position, head = position.above(), support = position.below(), overhead = position.above(2);
+            BlockState feetState = plan.state(feet, slice);
+            BlockState headState = plan.state(head, slice);
+            BlockState supportState = plan.state(support, slice);
             if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
-                    || hazardousAirRecoveryState(supportState) || !clearAirRecoveryCell(feetState, feet)
-                    || !clearAirRecoveryCell(headState, head)
-                    || client.level.getBlockState(overhead).getBlock() instanceof FallingBlock
+                    || hazardousAirRecoveryState(supportState) || !plan.shape(feet, slice).empty()
+                    || !plan.shape(head, slice).empty()
+                    || plan.state(overhead, slice).getBlock() instanceof FallingBlock
                     || supportState.getBlock() instanceof FallingBlock) return null;
 
             boolean feetWater = feetState.getFluidState().is(FluidTags.WATER);
@@ -990,7 +1224,7 @@ final class MovementController {
             if ((!feetWater && !feetDry) || (!headWater && !headDry)) return null;
 
             boolean supportedDry = supportState.getFluidState().isEmpty()
-                    && Block.isShapeFullBlock(supportState.getCollisionShape(client.level, support));
+                    && plan.shape(support, slice).full();
             boolean aboveWater = supportState.getFluidState().is(FluidTags.WATER);
             boolean transition = feetDry && headDry && aboveWater;
             if (!feetWater && !supportedDry && !transition) return null;
@@ -998,40 +1232,30 @@ final class MovementController {
         }
 
         private net.minecraft.world.phys.AABB boundsAt(int x, int y, int z) {
-            return playerBounds.move(x + .5 - playerX, y - playerY, z + .5 - playerZ);
+            return plan.bounds.move(x + .5 - plan.x, y - plan.y, z + .5 - plan.z);
         }
 
         private net.minecraft.world.phys.AABB sweptBounds(BlockPos from, BlockPos to) {
-            if (from.equals(origin)) return playerBounds.expandTowards(to.getX() + .5 - playerX,
-                    to.getY() - playerY, to.getZ() + .5 - playerZ);
+            if (from.equals(origin)) return plan.bounds.expandTowards(to.getX() + .5 - plan.x,
+                    to.getY() - plan.y, to.getZ() + .5 - plan.z);
             return boundsAt(from.getX(), from.getY(), from.getZ()).expandTowards(to.getX() - from.getX(),
                     to.getY() - from.getY(), to.getZ() - from.getZ());
         }
 
-        private boolean loaded(BlockPos position) { return loaded(position.getX(), position.getZ()); }
-
-        private boolean loaded(int x, int z) {
-            int chunkX = x >> 4, chunkZ = z >> 4;
-            long key = ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
-            Boolean present = loadedChunks.get(key);
-            if (present == null) {
-                present = client.level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null;
-                loadedChunks.put(key, present);
-            }
-            return present;
-        }
-
-        private List<BlockPos> reconstruct(BlockPos destination) {
+        private List<BlockPos> reconstruct(BlockPos destination, AirPlanningSlice slice) {
+            slice.check();
             List<BlockPos> route = new ArrayList<>();
             BlockPos cursor = destination;
             while (!cursor.equals(origin)) {
-                if (route.size() >= AIR_SWIM_MAX_PATH) return List.of();
+                if (route.size() >= AIR_SWIM_MAX_PATH) throw new AirSwimCoverageFailure("swim reconstruction exceeded path limit");
                 route.add(cursor.immutable());
                 cursor = parents.get(cursor);
-                if (cursor == null) return List.of();
+                if (cursor == null) throw new AirSwimCoverageFailure("swim reconstruction lost its parent");
             }
             Collections.reverse(route);
-            return List.copyOf(route);
+            List<BlockPos> result = List.copyOf(route);
+            slice.check();
+            return result;
         }
     }
 

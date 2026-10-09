@@ -12,7 +12,7 @@ final class AirRecoveryAction {
     private static final int MAX_DIAGNOSTIC_SAMPLES = 16;
     private static final int MAX_DIAGNOSTIC_ENTITIES = 32;
     private static final int MAX_DIAGNOSTIC_HOSTILES = 8;
-    private enum Phase { IDLE, DRAINING, STOPPING, SWIMMING, ESCAPING, REFILLING }
+    private enum Phase { IDLE, DRAINING, STOPPING, PLANNING, SWIMMING, ESCAPING, REFILLING }
     private final MinecraftClient client;
     private final LodekeeperConfig config;
     private final MovementController movement;
@@ -22,6 +22,8 @@ final class AirRecoveryAction {
     private long startedAt, progressAt;
     private double progressX, progressY, progressZ;
     private int attempts;
+    private boolean planningStarted, planningSwim;
+    private MovementController.AirExitPreference planningPreference;
     private final Set<BlockPos> rejected = new HashSet<>();
     private List<BlockPos> offeredGoals = List.of();
     private List<BlockPos> swimRoute = List.of();
@@ -52,6 +54,7 @@ final class AirRecoveryAction {
 
     boolean tick() {
         try { return tickOwned(); }
+        catch (RuntimeException failed) { movement.discardAirPlanning(); input.release(); throw failed; }
         finally { sampleDiagnostics(); }
     }
 
@@ -67,8 +70,10 @@ final class AirRecoveryAction {
         if (phase == Phase.STOPPING) {
             if (!movement.finishCancellation()) return false;
             if (!client.player.isSubmergedInWater() && client.player.isOnGround()) phase = Phase.REFILLING;
-            else launch();
+            else startPlanning(true, false);
         }
+        // Planning owns one slice for this tick; admitted movement starts on its later live tick.
+        if (phase == Phase.PLANNING) { tickPlanning(); return false; }
         if (phase == Phase.SWIMMING) tickSwimming();
         if (phase == Phase.ESCAPING) {
             if (!client.player.isSubmergedInWater() && client.player.isOnGround()) {
@@ -120,22 +125,42 @@ final class AirRecoveryAction {
                 || options.jumpKey.isPressed() || options.sneakKey.isPressed() || options.sprintKey.isPressed();
     }
 
-    private void launch() {
-        if (++attempts > 3) throw new IllegalStateException("no breathable route after three attempts");
-        swimRoute = client.player.isSubmergedInWater() ? movement.airSwimRoute() : List.of();
-        swimIndex = 0;
-        if (!swimRoute.isEmpty()) {
-            observeProgress(); phase = Phase.SWIMMING; log("swim");
-            return;
-        }
-        launchNative();
+    private void startPlanning(boolean allowSwim, boolean continuation) {
+        if (attempts >= 3) throw new IllegalStateException("no breathable route after three attempts");
+        input.release(); movement.discardAirPlanning();
+        offeredGoals = swimRoute = List.of(); swimIndex = 0;
+        planningStarted = false;
+        planningSwim = allowSwim && client.player.isSubmergedInWater();
+        if (!continuation) planningPreference = attempts == 0
+                ? MovementController.AirExitPreference.DRY : MovementController.AirExitPreference.SURFACE;
+        phase = Phase.PLANNING;
     }
 
-    private void launchNative() {
+    private void tickPlanning() {
         input.release();
-        offeredGoals = movement.startAirRecovery(Set.copyOf(rejected), attempts == 1
-                ? MovementController.AirExitPreference.DRY : MovementController.AirExitPreference.SURFACE);
-        observeProgress(); phase = Phase.ESCAPING; log("route");
+        if (!client.player.isSubmergedInWater() && client.player.isOnGround()) {
+            movement.discardAirPlanning(); planningStarted = false; phase = Phase.REFILLING;
+            return;
+        }
+        long deadline = movement.airSwimObservationDeadline();
+        if (!planningStarted) {
+            if (!movement.beginAirPlanning(planningSwim, Set.copyOf(rejected), planningPreference, deadline)) return;
+            planningStarted = true;
+        }
+        var result = movement.pollAirPlanning(deadline);
+        if (result instanceof MovementController.AirPlanPending) return;
+        if (result instanceof MovementController.AirPlanRefused refused)
+            throw new IllegalStateException(refused.reason());
+        var ready = (MovementController.AirPlanReady) result;
+        attempts++;
+        planningStarted = false;
+        if (ready.kind() == MovementController.AirPlanKind.SWIM) {
+            swimRoute = ready.positions(); swimIndex = 0;
+            phase = Phase.SWIMMING; observeProgress(); log("swim");
+        } else {
+            offeredGoals = ready.positions();
+            phase = Phase.ESCAPING; observeProgress(); log("route");
+        }
     }
 
     private void tickSwimming() {
@@ -171,7 +196,7 @@ final class AirRecoveryAction {
             swimIndex++; observeProgress();
         }
         if (swimIndex == swimRoute.size()) {
-            if (!client.player.isSubmergedInWater()) launchNative();
+            if (!client.player.isSubmergedInWater()) startPlanning(false, true);
             else { input.release(); phase = Phase.STOPPING; log("swim-retry"); }
             return;
         }
@@ -207,11 +232,16 @@ final class AirRecoveryAction {
     }
 
     void stop() {
-        if (active()) movement.stop();
-        abandon();
+        movement.discardAirPlanning();
+        try {
+            if (active()) { movement.checkAirRecoveryOwnership(); movement.stop(); }
+        } catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+        } finally { abandon(); }
     }
 
     void abandon() {
+        movement.discardAirPlanning(); planningStarted = false;
         input.release(); phase = Phase.IDLE; ownerPlayer = ownerWorld = null;
         rejected.clear(); offeredGoals = swimRoute = List.of(); swimIndex = 0;
         diagnosticSamples = 0; diagnosticLastSampleAt = 0;
