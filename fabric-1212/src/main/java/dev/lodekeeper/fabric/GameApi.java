@@ -75,7 +75,7 @@ final class GameApi {
 
     static boolean supportsAnimalHarvest() { return false; }
     static dev.lodekeeper.core.ItemId sheepWool(net.minecraft.entity.passive.SheepEntity sheep) {
-        return dev.lodekeeper.core.ItemId.parse("minecraft:" + sheep.getColor().getName() + "_wool");
+        throw new IllegalStateException("Animal shearing is unsupported in this API family");
     }
     static void shearAnimal(net.minecraft.client.MinecraftClient client, net.minecraft.entity.passive.SheepEntity sheep) {
         throw new IllegalStateException("Animal shearing is unsupported in this API family");

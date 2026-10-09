@@ -298,7 +298,10 @@ final class AnimalHarvestAction implements NativeRun {
                 item.getItem().getCount() > oldDrops.getOrDefault(item.getUUID(), 0))
                 .sorted(Comparator.comparingDouble(client.player::distanceToSqr)).toList();
         if (!candidates.isEmpty()) {
-            drop = candidates.get(0); dropId = drop.getUUID(); pinnedDropCount = drop.getItem().getCount();
+            // A freshly tossed item can occupy an unsupported feet cell above its eventual landing.
+            var settled = candidates.stream().filter(ItemEntity::onGround).findFirst();
+            if (settled.isEmpty()) { status = "waiting for an ordinary matching drop to land before owned pickup"; return; }
+            drop = settled.get(); dropId = drop.getUUID(); pinnedDropCount = drop.getItem().getCount();
             ambiguous = oldDrops.containsKey(dropId);
             movement.startOwnedPickup(drop, session); phase = Phase.PICKUP;
             status = "collecting pinned ordinary " + GameCatalog.id(drop.getItem().getItem());
