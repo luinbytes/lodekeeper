@@ -1024,30 +1024,64 @@ final class MovementController {
 
     long airSwimObservationDeadline() { return System.nanoTime() + AIR_RECOVERY_SEARCH_BUDGET_NANOS; }
 
-    /** Revalidates native terrain and the actual swept player within the caller's shared observation deadline. */
-    boolean airSwimStepClear(BlockPos feetPosition, long deadline) {
-        return airSwimStepClear(feetPosition, new AirPlanningSlice(deadline), airSwimOrigin, airSwimSeparationStep);
+    enum LiveAirResult { CLEAR, BLOCKED, REFUSED, PENDING }
+    static final class LiveAirSlice {
+        private final AirPlanningSlice observation;
+        private boolean yielded;
+        private String refusalReason;
+        private LiveAirSlice(long deadline) { observation = new AirPlanningSlice(deadline); }
+        boolean pending() {
+            if (deadlineExpired()) yielded = true;
+            return yielded;
+        }
+        boolean deadlineExpired() { return System.nanoTime() > observation.deadline; }
+        int work() { return observation.work; }
+        String refusalReason() { return refusalReason; }
     }
 
-    private boolean airSwimStepClear(BlockPos feetPosition, AirPlanningSlice slice, BlockPos origin, BlockPos separationStep) {
-        try { return observeAirSwimStep(feetPosition, slice, origin, separationStep); }
-        catch (AirSwimCoverageFailure | AirPlanningYield unavailable) {
-            if (config.debugLogging) logNativeDebug(unavailable instanceof AirPlanningYield
-                    ? "AIR live observation slice expired" : unavailable.getMessage());
-            return false;
+    LiveAirSlice beginLiveAirSlice() { return new LiveAirSlice(airSwimObservationDeadline()); }
+
+    /** Revalidates actual native terrain/body using the one slice shared by the whole swimming tick. */
+    LiveAirResult observeLiveAirStep(BlockPos feetPosition, LiveAirSlice live) {
+        if (live.pending()) return LiveAirResult.PENDING;
+        try {
+            boolean clear = observeAirSwimStep(feetPosition, live.observation, airSwimOrigin, airSwimSeparationStep);
+            live.observation.check();
+            return clear ? LiveAirResult.CLEAR : LiveAirResult.BLOCKED;
+        } catch (AirPlanningYield pending) {
+            live.yielded = true;
+            return LiveAirResult.PENDING;
+        } catch (AirSwimCoverageFailure refused) {
+            live.refusalReason = refused.getMessage();
+            return LiveAirResult.REFUSED;
+        }
+    }
+
+    LiveAirResult finishLiveAirAdmission(LiveAirSlice live) {
+        if (live.pending()) return LiveAirResult.PENDING;
+        try {
+            live.observation.observation();
+            checkAirRecoveryOwnership();
+            live.observation.check();
+            return LiveAirResult.CLEAR;
+        } catch (AirPlanningYield pending) {
+            live.yielded = true;
+            return LiveAirResult.PENDING;
         }
     }
 
     private boolean observeAirSwimStep(BlockPos feetPosition, AirPlanningSlice slice, BlockPos origin, BlockPos separationStep) {
         slice.check();
         if (feetPosition == null || origin == null || client.player == null || client.level == null
-                || !withinAirSwimBounds(feetPosition, origin)) return false;
+                || !withinAirSwimBounds(feetPosition, origin))
+            throw new AirSwimCoverageFailure("current swim context or domain is unavailable");
         int x = feetPosition.getX(), y = feetPosition.getY(), z = feetPosition.getZ();
-        if (!airSwimInWorld(y - 1) || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)) return false;
+        if (!airSwimInWorld(y - 1) || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2))
+            throw new AirSwimCoverageFailure("current swim height is outside the world");
         slice.observation();
         boolean loaded = airSwimChunkLoaded(x, z);
         slice.check();
-        if (!loaded) return false;
+        if (!loaded) throw new AirSwimCoverageFailure("current swim chunk is unavailable");
 
         BlockPos headPosition = new BlockPos(x, y + 1, z);
         BlockPos supportPosition = new BlockPos(x, y - 1, z);
@@ -1078,6 +1112,7 @@ final class MovementController {
         var swept = body.expandTowards(dx, dy, dz);
         slice.check(); slice.observation();
         var obstacles = airSwimObstacles(swept, slice.deadline);
+        if (!obstacles.covers(swept)) throw new AirSwimCoverageFailure("current swim sweep has incomplete coverage");
         if (!obstacles.edgeClear(body, destination, swept, feetPosition.equals(separationStep))) return false;
         slice.observation();
         boolean clear = airSwimBlockClear(swept, slice.deadline, obstacles);
