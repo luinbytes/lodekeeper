@@ -6,6 +6,10 @@ import net.minecraft.client.input.KeyEvent;
 final class NativeSettingsInput {
     private NativeSettingsInput() {}
 
+    static void refusedAnimalFixture(net.minecraft.world.entity.animal.Animal animal) {
+        throw new IllegalStateException("Native animal verification requires Minecraft 26.3");
+    }
+
     static KeyEvent key(int logicalKey) {
         int key = switch (logicalKey) {
             case 257 -> InputConstants.KEY_RETURN;

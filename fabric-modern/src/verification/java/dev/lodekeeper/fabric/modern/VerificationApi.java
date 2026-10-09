@@ -82,7 +82,7 @@ final class VerificationApi {
                 animal = (net.minecraft.world.entity.animal.sheep.Sheep) preparedMob(world, "minecraft:sheep");
             } else animal = (net.minecraft.world.entity.animal.Animal) preparedMob(world, "minecraft:cow");
             animal.setBaby(false); animal.setNoAi(true);
-            if ("air_pending_attack".equals(scenario)) animal.setPermanentlyInvulnerable(true);
+            if ("air_pending_attack".equals(scenario)) NativeSettingsInput.refusedAnimalFixture(animal);
             animal.setPos(air ? 1.5 : 3.5 + i % 4 * 3, 64, air ? 0.5 : -3.5 + i / 4 * 3);
             if (!world.addFreshEntity(animal)) throw new IllegalStateException("native animal fixture spawn failed");
             fixture.animals.add(animal); fixture.health.put(animal.getUUID(), animal.getHealth());

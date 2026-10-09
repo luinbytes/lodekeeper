@@ -6,6 +6,10 @@ import net.minecraft.client.input.KeyEvent;
 final class NativeSettingsInput {
     private NativeSettingsInput() {}
 
+    static void refusedAnimalFixture(net.minecraft.world.entity.animal.Animal animal) {
+        animal.setPermanentlyInvulnerable(true);
+    }
+
     static KeyEvent key(int logicalKey) {
         return switch (logicalKey) {
             case 257 -> new KeyEvent(InputConstants.KEY_RETURN, InputConstants.KEYCODE_RETURN, 0);
