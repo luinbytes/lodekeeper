@@ -33,7 +33,7 @@ final class PlayerActions {
         if (backfill != null) backfill.beforeOwnedBreak(position);
     }
     enum BackfillAttempt { NOT_SENT, SENT_OR_UNCERTAIN }
-    enum PlacementAttempt { SENT, WAITING_FOR_PROVENANCE, INVENTORY_TIMEOUT, REJECTED, QUARANTINED }
+    enum PlacementAttempt { YIELDED, SENT, WAITING_FOR_PROVENANCE, INVENTORY_TIMEOUT, REJECTED, QUARANTINED }
     private boolean ownsBreaking;
     enum MineFailure {
         NONE, CONTEXT_UNAVAILABLE, PROTECTED_BLOCK, PLAYER_SUPPORT, UNBREAKABLE_BLOCK,
@@ -380,10 +380,153 @@ final class PlayerActions {
         client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit);
         return BackfillAttempt.SENT_OR_UNCERTAIN;
     }
+    static final class StationPlacementHand {
+        final long jobToken;
+        final BlockPos position;
+        final Block block;
+        final Object input;
+        final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime nativeOwner;
+        final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session nativeSession;
+        final java.util.function.BooleanSupplier newEffectAdmission;
+        Object player, world, network, connection, menu, playerMenu;
+        dev.lodekeeper.core.OwnedStationLedger.Session session;
+        dev.lodekeeper.core.OwnedStationLedger.PlacementTicket ticket;
+        ItemStack originalStack, selectedBefore;
+        int originalSlot, selectedSlot;
+        boolean captured, selectionSent, restoreHotbar, rightsLost, sent, draining, settled, abandoned;
+
+        StationPlacementHand(long jobToken, BlockPos position, Block block, Object input,
+                             dev.lodekeeper.navigation.kernel.OwnedKernelRuntime nativeOwner,
+                             dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session nativeSession,
+                             java.util.function.BooleanSupplier newEffectAdmission) {
+            this.jobToken = jobToken; this.position = position.toImmutable(); this.block = block;
+            this.input = input; this.nativeOwner = nativeOwner; this.nativeSession = nativeSession;
+            this.newEffectAdmission = newEffectAdmission;
+        }
+        void requestDrain() { draining = true; }
+        void loseRights() { rightsLost = draining = true; }
+    }
+
+    private boolean admitStationHand(StationPlacementHand hand) {
+        observeStationPlacementHand(hand, false);
+        if (hand.draining || hand.sent || hand.settled || hand.rightsLost || !hand.newEffectAdmission.getAsBoolean()) {
+            hand.requestDrain(); return false;
+        }
+        return true;
+    }
+
+    private boolean selectStationHand(StationPlacementHand hand, boolean ordinaryOnly) {
+        if (!admitStationHand(hand)) return false;
+        if (hand.captured) return hand.selectionSent;
+        if (client.player == null || client.world == null || client.getNetworkHandler() == null
+                || client.getNetworkHandler().getConnection() == null || !client.getNetworkHandler().getConnection().isOpen()
+                || client.currentScreen != null || client.player.currentScreenHandler != client.player.playerScreenHandler
+                || !client.player.currentScreenHandler.getCursorStack().isEmpty() || client.player.input != hand.input) {
+            hand.requestDrain(); return false;
+        }
+        int original = ClientAccess.selectedSlot(client.player.getInventory());
+        if (original < 0 || original > 8) { hand.requestDrain(); return false; }
+        var session = placementProvenance.session().orElse(null);
+        if (session == null) { hand.requestDrain(); return false; }
+        int chosen = -1;
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getStack(index);
+            if (stack.isOf(hand.block.asItem()) && (!ordinaryOnly || !stack.hasEnchantments()
+                    && !GameApi.hasCustomName(stack) && GameApi.canCombine(stack, new ItemStack(hand.block.asItem())))) {
+                chosen = index; break;
+            }
+        }
+        if (chosen < 0) return false;
+        hand.player = client.player; hand.world = client.world;
+        hand.network = client.getNetworkHandler(); hand.connection = client.getNetworkHandler().getConnection();
+        hand.menu = client.player.currentScreenHandler; hand.playerMenu = client.player.playerScreenHandler;
+        hand.session = session; hand.originalSlot = original;
+        hand.selectedSlot = chosen < 9 ? chosen : original;
+        hand.originalStack = client.player.getInventory().getStack(original).copy();
+        hand.selectedBefore = client.player.getInventory().getStack(chosen).copy();
+        hand.restoreHotbar = chosen < 9; hand.captured = true;
+        if (!admitStationHand(hand)
+                || !sameStationHandStack(client.player.getInventory().getStack(chosen), hand.selectedBefore)) {
+            hand.requestDrain(); return false;
+        }
+        // Main-inventory selection retains its existing SWAP; this does not own a layout restoration.
+        hand.selectionSent = true;
+        return selectSlot(chosen);
+    }
+
+    void observeStationPlacementHand(StationPlacementHand hand, boolean ownedAirInput) {
+        if (!hand.captured || hand.settled) return;
+        if (client.player != hand.player || client.world != hand.world || client.getNetworkHandler() != hand.network
+                || client.getNetworkHandler() == null || client.getNetworkHandler().getConnection() != hand.connection
+                || client.getNetworkHandler().getConnection() == null || !client.getNetworkHandler().getConnection().isOpen()
+                || !placementProvenance.session().filter(hand.session::equals).isPresent()
+                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != hand.nativeOwner
+                || !hand.nativeOwner.isCurrent(hand.nativeSession) || hand.nativeSession.world() != client.world) {
+            hand.loseRights(); hand.abandoned = true; return;
+        }
+        int expectedSlot = hand.selectionSent ? hand.selectedSlot : hand.originalSlot;
+        if (!client.player.isAlive() || client.player.currentScreenHandler != hand.menu
+                || client.player.playerScreenHandler != hand.playerMenu || client.currentScreen != null
+                || !client.player.currentScreenHandler.getCursorStack().isEmpty() || client.player.isUsingItem()
+                || ClientAccess.selectedSlot(client.player.getInventory()) != expectedSlot
+                || !ownedAirInput && client.player.input != hand.input || manualStationHandInput()) hand.loseRights();
+        if (!hand.selectionSent) {
+            if (!sameStationHandStack(client.player.getInventory().getStack(hand.originalSlot), hand.originalStack)) hand.loseRights();
+            return;
+        }
+        ItemStack selected = client.player.getInventory().getStack(hand.selectedSlot);
+        ItemStack after = hand.selectedBefore.copy(); after.decrement(1);
+        if (!sameStationHandStack(selected, hand.selectedBefore) && (!hand.sent || !sameStationHandStack(selected, after))
+                || hand.restoreHotbar && hand.originalSlot != hand.selectedSlot
+                && !sameStationHandStack(client.player.getInventory().getStack(hand.originalSlot), hand.originalStack))
+            hand.loseRights();
+    }
+
+    boolean finishStationPlacementHand(StationPlacementHand hand,
+                                      dev.lodekeeper.core.OwnedStationLedger.StationRecord record) {
+        if (hand.settled) return true;
+        if (!hand.captured || !hand.selectionSent) { hand.settled = true; return true; }
+        observeStationPlacementHand(hand, false);
+        if (hand.abandoned) return false;
+        if (hand.sent && (record == null || record.ticket() != hand.ticket
+                || record.jobToken() != hand.jobToken || !record.session().equals(hand.session)
+                || !record.position().equals(hand.ticket.intent().position())
+                || !record.expectedBlockId().equals(hand.ticket.intent().expectedBlockId()))) return false;
+        if (!placementProvenance.confirmedInventoryReady()) return false;
+        ItemStack expected = hand.selectedBefore.copy();
+        if (hand.sent) expected.decrement(1);
+        if (!sameStationHandStack(client.player.getInventory().getStack(hand.selectedSlot), expected)
+                || hand.restoreHotbar && hand.originalSlot != hand.selectedSlot
+                && !sameStationHandStack(client.player.getInventory().getStack(hand.originalSlot), hand.originalStack))
+            hand.loseRights();
+        if (!hand.rightsLost && hand.restoreHotbar && hand.originalSlot != hand.selectedSlot)
+            ClientAccess.selectedSlot(client.player.getInventory(), hand.originalSlot);
+        hand.settled = true;
+        return true;
+    }
+
+    private static boolean sameStationHandStack(ItemStack left, ItemStack right) {
+        return left.getCount() == right.getCount() && left.isEmpty() == right.isEmpty()
+                && (left.isEmpty() || GameApi.canCombine(left, right));
+    }
+
+    private boolean manualStationHandInput() {
+        var options = client.options;
+        return options.attackKey.isPressed() || options.useKey.isPressed()
+                || options.forwardKey.isPressed() || options.backKey.isPressed()
+                || options.leftKey.isPressed() || options.rightKey.isPressed()
+                || options.jumpKey.isPressed() || options.sneakKey.isPressed() || options.sprintKey.isPressed();
+    }
+
     PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken) {
         return placeStation(destination, block, jobToken, false);
     }
     PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken, boolean ordinaryOnly) {
+        return placeStation(destination, block, jobToken, ordinaryOnly, null);
+    }
+    PlacementAttempt placeStation(BlockPos destination, Block block, long jobToken, boolean ordinaryOnly, StationPlacementHand hand) {
+        if (hand != null && (hand.jobToken != jobToken || !hand.position.equals(destination) || hand.block != block
+                || !admitStationHand(hand))) return PlacementAttempt.YIELDED;
         if (placementProvenance == null || client.interactionManager == null) return PlacementAttempt.REJECTED;
         BlockHitResult hit = placementHit(destination);
         if (hit == null) return PlacementAttempt.REJECTED;
@@ -392,7 +535,11 @@ final class PlayerActions {
             return PlacementAttempt.QUARANTINED;
         if (readiness.orElse(null) == PlacementProvenance.ReservationStatus.EXPIRED)
             return PlacementAttempt.INVENTORY_TIMEOUT;
-        if (readiness.isEmpty() && !(ordinaryOnly ? selectOrdinary(block.asItem()) : select(block.asItem()))) return PlacementAttempt.REJECTED;
+        if (hand != null) {
+            if (!selectStationHand(hand, ordinaryOnly))
+                return hand.draining ? PlacementAttempt.YIELDED : PlacementAttempt.REJECTED;
+        } else if (readiness.isEmpty() && !(ordinaryOnly ? selectOrdinary(block.asItem()) : select(block.asItem()))) return PlacementAttempt.REJECTED;
+        if (hand != null && !admitStationHand(hand)) return PlacementAttempt.YIELDED;
         if (!permitsPlacement(hit)) return PlacementAttempt.REJECTED;
         look(hit.getPos());
         var reservation = placementProvenance.reservePlacement(jobToken, destination, block);
@@ -402,6 +549,14 @@ final class PlayerActions {
             return PlacementAttempt.QUARANTINED;
         if (reservation.status() != PlacementProvenance.ReservationStatus.RESERVED) return PlacementAttempt.REJECTED;
         var ticket = reservation.ticket().orElseThrow();
+        if (hand != null) {
+            hand.ticket = ticket;
+            if (!admitStationHand(hand)) return PlacementAttempt.YIELDED;
+            hit = placementHit(destination);
+            if (hit == null || !permitsPlacement(hit)) { hand.requestDrain(); return PlacementAttempt.YIELDED; }
+            if (!admitStationHand(hand)) return PlacementAttempt.YIELDED;
+            hand.sent = true;
+        }
         try {
             if (!client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit).isAccepted()) {
                 placementProvenance.interactionRejected(ticket);

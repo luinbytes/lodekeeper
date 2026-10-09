@@ -252,8 +252,16 @@ final class AutomationEngine {
     private final Map<ItemId, Integer> requestedBackfillStock = new HashMap<>();
     private final OwnedStationRecoveryAction stationRecovery;
     private record StationPlacementWait(Request request, BlockPos position, Block block,
-                                        OwnedStationLedger.Session session, boolean sent) { }
+                                        OwnedStationLedger.Session session, boolean sent, PlayerActions.StationPlacementHand hand) { }
     private StationPlacementWait stationPlacementWait;
+    private PlayerActions.StationPlacementHand stationPlacementHand;
+    private record StationHandAdmission(Request request, PlanStep plannedStep, Object player, Object world,
+                                        Object network, Object connection, Object menu, Object expectedInput,
+                                        OwnedStationLedger.Session session, GameCatalog catalog, long catalogGeneration,
+                                        dev.lodekeeper.navigation.kernel.OwnedKernelRuntime nativeOwner,
+                                        dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session nativeSession,
+                                        long policyGeneration) { }
+
     private enum CleanupPurpose { FINISH_JOB, CARRY_TABLE, PREVIOUS_COMMAND_TABLE }
     private static final class CleanupRun {
         final CleanupPurpose purpose;
@@ -447,6 +455,7 @@ final class AutomationEngine {
 
     void claim(CommandParser.ClaimCommand command) { message(protection.execute(command)); }
     void dispose() {
+        abandonStationPlacementHand();
         animalAcquisition.abandonSession();
         try { stopNow(false); }
         finally { placementProvenance.dispose(); plannerWorker.shutdownNow(); movement.shutdownOwnedNavigation(); }
@@ -461,6 +470,7 @@ final class AutomationEngine {
         discoveryDeadlineNanos = 0;
         syncMovementProgress();
         if (client.world != world) {
+            abandonStationPlacementHand();
             animalAcquisition.abandonSession(); animalQuotas.clear();
             stopNow(false); requestedBackfillStock.clear(); world = client.world; knownStations.clear(); unreachableStations.clear(); unavailableSources.clear(); discoveredSources.clear(); catalog = null;
             localLogReachScan = localIngredientWoodReachScan = localGatherReachScan = null; localReachHint = null;
@@ -476,6 +486,7 @@ final class AutomationEngine {
                 message("Recipe catalog update failed; automation will wait: " + status.substring("recipe catalog update failed: ".length()));
             }
         }
+        if (tickStationPlacementHand()) return;
         if (animalAcquisition.active() && tickAnimalRun()) return;
         if (client.player == null || client.world == null) { cancelStationPlacement(); stopStationCleanup(); stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (editingSettings()) {
@@ -1300,7 +1311,8 @@ final class AutomationEngine {
     }
 
     private boolean transactionInProgress() {
-        return animalAcquisition.active() || otherTransactionInProgress();
+        return stationPlacementHand != null && !stationPlacementHand.settled
+                || animalAcquisition.active() || otherTransactionInProgress();
     }
 
     private boolean otherTransactionInProgress() {
@@ -1321,6 +1333,7 @@ final class AutomationEngine {
     }
 
     private void requestActiveTransactionDrain() {
+        if (stationPlacementHand != null) cancelStationPlacement();
         animalAcquisition.requestDrain(NativeRun.DrainReason.PREEMPT);
         if (crafting != null) crafting.requestDrain();
         if (stonecutting != null) stonecutting.requestDrain();
@@ -1514,6 +1527,7 @@ final class AutomationEngine {
     private boolean recoverAirIfNeeded() {
         if (!airRecovery.active() && !airRecovery.ready()) return false;
         boolean observingAnimal = animalAcquisition.active() && animalAcquisition.airObserver();
+        boolean observingStationHand = stationPlacementHand != null;
         useMovementProgress(null);
         try {
             if (stationPlacementWait != null || cleanupRun != null) {
@@ -1542,12 +1556,12 @@ final class AutomationEngine {
                 status = "draining the owned transaction before air escape";
                 return false;
             }
-            if (!observingAnimal && (step != null || exploring || explorationMoving)) resetAction();
+            if (!observingAnimal && !observingStationHand && (step != null || exploring || explorationMoving)) resetAction();
             input.release();
             if (airRecovery.tick()) {
                 healthRecovery = null;
                 observeInventory();
-                if (!observingAnimal && active != null) requestPlan();
+                if (!observingAnimal && !observingStationHand && active != null) requestPlan();
             } else status = airRecovery.status();
             return true;
         } catch (RuntimeException failure) {
@@ -3245,7 +3259,8 @@ final class AutomationEngine {
                 return;
             }
             var confirmed = placementProvenance.records().stream()
-                    .filter(record -> record.jobToken() == active.jobToken()
+                    .filter(record -> record.ticket() == waiting.hand().ticket
+                            && waiting.hand().settled && record.jobToken() == active.jobToken()
                             && record.session().equals(waiting.session())
                             && stationPosition(record).equals(waiting.position())
                             && record.expectedBlockId().toString().equals(step.station().toString())).findFirst();
@@ -3331,7 +3346,80 @@ final class AutomationEngine {
         sendStationPlacement(block);
     }
 
+    private StationHandAdmission captureStationHandAdmission() {
+        if (!client.isOnThread() || client.player == null || client.world == null
+                || client.interactionManager == null || client.getNetworkHandler() == null || active == null
+                || client.getNetworkHandler().getConnection() == null || !client.getNetworkHandler().getConnection().isOpen()
+                || step == null || catalog == null) return null;
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        if (owner == null) return null;
+        return new StationHandAdmission(active, step, client.player, client.world, client.getNetworkHandler(),
+                client.getNetworkHandler().getConnection(), client.player.currentScreenHandler, client.player.input,
+                placementProvenance.session().orElse(null), catalog, catalog.generation(), owner, owner.captureSession(),
+                owner.policyGeneration());
+    }
+
+    private boolean admitStationHandEffect(StationHandAdmission captured, BlockPos position, Block block, boolean allowOwnedInput) {
+        if (captured == null || !client.isOnThread() || client.player == null || !client.player.isAlive()
+                || client.world == null || client.world != world || client.interactionManager == null
+                || active != captured.request() || step != captured.plannedStep() || step.kind() != PlanKind.PLACE_STATION
+                || step.station() == null || !step.station().toString().equals(Registries.BLOCK.getId(block).toString())
+                || target == null || !target.equals(position) || paused || stopAfterStep || editingSettings()
+                || !config.allowBuilding || client.player.getHealth() <= config.pauseBelowHealth
+                || healthRecovery != null || airRecovery.active() || airRecovery.ready()
+                || threats.active() || food.active() || animalAcquisition.active() || animalAcquisitionPending
+                || equipment.active() || stationRecovery.active() || stationRecovery.pickupRetained() || stationRoom.active()
+                || otherTransactionInProgress() || openingStation || cleanupRun != null || moving || explorationMoving
+                || catalog == null || catalog != captured.catalog() || !catalog.ready() || !catalog.usesCurrentProvider()
+                || catalog.generation() != captured.catalogGeneration() || stepCatalogGeneration != catalog.generation()
+                || client.player != captured.player() || client.world != captured.world()
+                || client.getNetworkHandler() != captured.network() || client.getNetworkHandler() == null
+                || client.getNetworkHandler().getConnection() != captured.connection()
+                || client.getNetworkHandler().getConnection() == null || !client.getNetworkHandler().getConnection().isOpen()
+                || client.currentScreen != null || client.player.currentScreenHandler != captured.menu()
+                || client.player.currentScreenHandler != client.player.playerScreenHandler
+                || !client.player.currentScreenHandler.getCursorStack().isEmpty() || client.player.isUsingItem()
+                || manualStationInput() || client.player.input == null || client.player.input != captured.expectedInput()
+                || !(client.player.input.getClass() == net.minecraft.client.input.KeyboardInput.class
+                    || allowOwnedInput && client.player.input == input)
+                || ClientAccess.selectedSlot(client.player.getInventory()) < 0
+                || ClientAccess.selectedSlot(client.player.getInventory()) > 8
+                || captured.session() == null || !placementProvenance.session().filter(captured.session()::equals).isPresent()
+                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != captured.nativeOwner()
+                || !captured.nativeOwner().isCurrent(captured.nativeSession())
+                || captured.nativeSession().world() != client.world
+                || captured.nativeOwner().policyGeneration() != captured.policyGeneration()
+                || isFoodPreparation(step) && !config.autoEat
+                || Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))
+                    && (!shieldStepCurrent() || !config.autoDefend || !config.autoUseShield || !config.autoCraftShield))
+            return false;
+        movement.checkAirRecoveryOwnership();
+        if (!movement.finishCancellation() || !stationHandNativeQuiescent(captured.nativeOwner())) return false;
+        return hasLoadedChunk(position) && safeStationStructure(position) && actions.canPlaceAt(position)
+                && protection.mayPlace(position);
+    }
+
+    private boolean stationHandNativeQuiescent(dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner) {
+        if (owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
+                || owner.getPrimaryBaritone() == null) return false;
+        var bot = owner.getPrimaryBaritone();
+        var pathing = bot.getPathingBehavior();
+        if (pathing.hasPath() || pathing.isPathing() || pathing.getInProgress().isPresent()) return false;
+        dev.lodekeeper.navigation.kernel.api.process.IBaritoneProcess[] processes = {
+                bot.getCustomGoalProcess(), bot.getMineProcess(), bot.getFollowProcess(), bot.getBuilderProcess(),
+                bot.getExploreProcess(), bot.getFarmProcess(), bot.getGetToBlockProcess(), bot.getElytraProcess()
+        };
+        for (var process : processes) if (process.isActive()) return false;
+        for (var key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
+            if (bot.getInputOverrideHandler().isInputForcedDown(key)) return false;
+        return true;
+    }
+
     private void sendStationPlacement(Block block) {
+        if (!admitStationHandEffect(captureStationHandAdmission(), target, block, stationPlacementHand == null)) {
+            if (stationPlacementHand != null) cancelStationPlacement();
+            status = "station placement admission yielded without a new effect"; return;
+        }
         if (Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) {
             if (!shieldStepCurrent()) {
                 deferShieldPreparation = true;
@@ -3360,13 +3448,32 @@ final class AutomationEngine {
                 return;
             }
         }
+        if (stationPlacementHand == null) {
+            StationHandAdmission beforeRelease = captureStationHandAdmission();
+            if (!admitStationHandEffect(beforeRelease, target, block, true)) {
+                status = "waiting for safe native station hand ownership"; return;
+            }
+            input.release();
+            StationHandAdmission captured = captureStationHandAdmission();
+            if (!admitStationHandEffect(captured, target, block, false)) {
+                status = "waiting for ordinary native keyboard input before station placement"; return;
+            }
+            BlockPos position = target.toImmutable();
+            stationPlacementHand = new PlayerActions.StationPlacementHand(active.jobToken(), position, block,
+                    captured.expectedInput(), captured.nativeOwner(), captured.nativeSession(),
+                    () -> admitStationHandEffect(captured, position, block, false));
+        }
         PlayerActions.PlacementAttempt attempt = actions.placeStation(target, block, active.jobToken(),
-                Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false")));
+                Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false")), stationPlacementHand);
         switch (attempt) {
+            case YIELDED -> {
+                cancelStationPlacement();
+                status = "station hand admission yielded; draining without a placement attempt";
+            }
             case SENT, WAITING_FOR_PROVENANCE -> {
                 var session = placementProvenance.session().orElseThrow();
                 stationPlacementWait = new StationPlacementWait(active, target, block, session,
-                        attempt == PlayerActions.PlacementAttempt.SENT);
+                        attempt == PlayerActions.PlacementAttempt.SENT, stationPlacementHand);
                 status = attempt == PlayerActions.PlacementAttempt.SENT
                         ? "waiting for confirmed station ownership"
                         : "waiting for the server inventory baseline before station placement";
@@ -3629,9 +3736,72 @@ final class AutomationEngine {
         return true;
     }
     private void cancelStationPlacement() {
+        if (stationPlacementHand != null && !stationPlacementHand.settled) {
+            stationPlacementHand.requestDrain();
+            if (!stationPlacementHand.sent) placementProvenance.cancelPending();
+            stationPlacementWait = null;
+            return;
+        }
         placementProvenance.cancelPending();
-        stationPlacementWait = null;
+        stationPlacementWait = null; stationPlacementHand = null;
     }
+
+    private void abandonStationPlacementHand() {
+        if (stationPlacementHand != null) {
+            stationPlacementHand.loseRights(); stationPlacementHand.abandoned = true;
+        }
+        stationPlacementHand = null; stationPlacementWait = null;
+    }
+
+    /** Observes the captured hand before pause/settings and every other hand writer. */
+    private boolean tickStationPlacementHand() {
+        PlayerActions.StationPlacementHand hand = stationPlacementHand;
+        if (hand == null) return false;
+        actions.observeStationPlacementHand(hand, airRecovery.active() && client.player != null && client.player.input == input);
+        if (hand.abandoned) { abandonStationPlacementHand(); return false; }
+        if (airRecovery.active() || !paused && !stopAfterStep && airRecovery.ready()) {
+            cancelStationPlacement();
+            if (stopAfterStep || paused || editingSettings()) airRecovery.stop();
+            else { recoverAirIfNeeded(); return true; }
+        }
+        try { movement.checkAirRecoveryOwnership(); }
+        catch (MovementController.NavigationFailure failure) {
+            if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
+            hand.loseRights(); pauseAfterOwnershipLoss(failure); return true;
+        }
+        if (hand.rightsLost && !paused && !stopAfterStep)
+            pause("Station hand restoration yielded to changed player ownership; pending placement evidence is retained");
+        if (active == null || active.jobToken() != hand.jobToken || step == null || step.kind() != PlanKind.PLACE_STATION)
+            cancelStationPlacement();
+        if (!hand.sent && !hand.draining) return false;
+        OwnedStationLedger.StationRecord confirmed = hand.ticket == null ? null : placementProvenance.records().stream()
+                .filter(record -> record.ticket() == hand.ticket && record.session().equals(hand.session)
+                        && record.jobToken() == hand.jobToken && stationPosition(record).equals(hand.position)
+                        && record.expectedBlockId().equals(hand.ticket.intent().expectedBlockId()))
+                .findFirst().orElse(null);
+        boolean loadedRecord = confirmed != null && hasLoadedChunk(hand.position)
+                && client.world.getBlockState(hand.position).isOf(hand.block);
+        if ((!hand.sent || loadedRecord) && !moving && !explorationMoving && movement.finishCancellation()
+                && stationHandNativeQuiescent(hand.nativeOwner) && actions.finishStationPlacementHand(hand, confirmed)) {
+            boolean draining = hand.draining;
+            stationPlacementHand = null;
+            if (stopAfterStep) { stopNow(true); return true; }
+            if (draining) {
+                stationPlacementWait = null;
+                if (!paused && !editingSettings() && active != null) { resetAction(); requestPlan(); }
+                return true;
+            }
+            return false;
+        }
+        input.release();
+        if (!paused) {
+            status = "waiting for exact station placement and hand inventory evidence";
+            if (hand.sent && !placementProvenance.serializesBotActions())
+                pause("Station placement remains unproved; its hand and ticket are retained without another interaction");
+        }
+        return true;
+    }
+
 
     private boolean manualStationInput() {
         var options = client.options;
@@ -4152,6 +4322,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedHandler) {
+        if (stationPlacementHand != null && !stationPlacementHand.settled) { cancelStationPlacement(); return; }
         if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         dropStationStockHint();
         useMovementProgress(null);
@@ -4188,6 +4359,7 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        if (stationPlacementHand != null) stationPlacementHand.loseRights();
         dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
@@ -4237,6 +4409,10 @@ final class AutomationEngine {
     }
     void stop() {
         cancelStationPlacement();
+        if (stationPlacementHand != null) {
+            stopAfterStep = true; paused = false; airRecovery.stop();
+            status = "stopping after station placement evidence and hand restoration"; return;
+        }
         if (animalAcquisition.active()) {
             stopAfterStep = true; paused = false; airRecovery.stop();
             animalAcquisition.requestDrain(NativeRun.DrainReason.STOP);
@@ -4255,6 +4431,9 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        if (stationPlacementHand != null && !stationPlacementHand.settled) {
+            cancelStationPlacement(); stopAfterStep = true; paused = false; airRecovery.stop(); return;
+        }
         if (animalAcquisition.active()) {
             stopAfterStep = true; paused = false; airRecovery.stop();
             animalAcquisition.requestDrain(NativeRun.DrainReason.STOP); return;
@@ -4331,6 +4510,7 @@ final class AutomationEngine {
                 .toArray(dev.lodekeeper.nav.NavigationSceneSnapshot.Marker[]::new);
     }
     boolean placementStockReady() { return placementProvenance.confirmedInventoryReady(); }
+    String placementInventoryReadiness() { return placementProvenance.inventoryReadiness(); }
     AnimalHarvestAction.Observation nativeAnimalObservation() { return animalAcquisition.observation(); }
 
     Object diagnosticTaskIdentity() {

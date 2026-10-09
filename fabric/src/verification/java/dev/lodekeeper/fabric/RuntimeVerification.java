@@ -85,6 +85,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private final JsonObject nativeAnimalEvidence = new JsonObject();
     private int nativeAnimalStopTick = -1, nativeAnimalStopSends = -1;
     private Object nativeAnimalOriginalInput, nativeAnimalTaskIdentity;
+    private int nativeAnimalOriginalSelectedSlot = -1;
     private long nativeAnimalStopJob;
     private UUID nativeAnimalStopTarget;
     private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> nativeAnimalOriginalSettings = new LinkedHashMap<>();
@@ -1878,6 +1879,112 @@ public final class RuntimeVerification implements ClientModInitializer {
     private static JsonObject nativeAnimalJson(Map<String, String> values) {
         JsonObject json = new JsonObject(); values.forEach(json::addProperty); return json;
     }
+    private void nativeAnimalDiagnostic(JsonObject evidence, String name, java.util.function.Supplier<?> observation) {
+        try {
+            Object value = observation.get();
+            evidence.addProperty(name + "Available", value != null);
+            if (value == null) evidence.add(name, com.google.gson.JsonNull.INSTANCE);
+            else if (value instanceof Boolean flag) evidence.addProperty(name, flag);
+            else if (value instanceof Number number) evidence.addProperty(name, number);
+            else if (value instanceof com.google.gson.JsonElement element) evidence.add(name, element);
+            else evidence.addProperty(name, value.toString());
+        } catch (Throwable unavailable) {
+            evidence.addProperty(name + "Available", false);
+            evidence.add(name, com.google.gson.JsonNull.INSTANCE);
+            evidence.addProperty(name + "UnavailableReason", unavailable.getClass().getSimpleName());
+        }
+    }
+
+    private Integer nativeAnimalDiagnosticInt(Map<String, String> receipt, String name) {
+        String value = receipt.get(name);
+        return value == null ? null : Integer.valueOf(value);
+    }
+
+    private Boolean nativeAnimalDiagnosticBoolean(Map<String, String> receipt, String name) {
+        String value = receipt.get(name);
+        if (value == null) return null;
+        if (!value.equals("true") && !value.equals("false")) throw new IllegalArgumentException("invalid receipt boolean");
+        return Boolean.valueOf(value);
+    }
+
+    /** Keeps one latest observation and one failure observation before stop/fixture cleanup changes the measured state. */
+    private void recordNativeAnimalReadiness(String observationPoint) {
+        if (!ANIMAL_MODE || !List.of("cooking", "air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)) return;
+        ServerSnapshot snapshot = latestSnapshot;
+        Map<String, String> receipt = Map.copyOf(nativeAnimalPublishedReceipt);
+        var player = client == null ? null : client.player;
+        Object currentInput = player == null ? null : player.input;
+        int selectedSlot = player == null ? -1 : ClientAccess.selectedSlot(player.getInventory());
+        int furnaceOpenings = serverFurnaceOpenings;
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("observationPoint", observationPoint);
+        evidence.addProperty("clientTick", clientTicks);
+        evidence.addProperty("readyTicks", readyTicks);
+        evidence.addProperty("serverSnapshotAvailable", snapshot != null);
+        evidence.addProperty("nativeReceiptAvailable", !receipt.isEmpty());
+        evidence.addProperty("clientPlayerAvailable", player != null);
+        AutomationEngine engine = LodekeeperClient.engine;
+        evidence.addProperty("engineAvailable", engine != null);
+        String observedEngineStatus = engine == null ? null : engine.status();
+        evidence.addProperty("observationSources", "pinned immutable server snapshot and native receipt; separately scheduled, not an atomic server observation");
+        evidence.addProperty("damageCounterAuthority", "server sampled animal health losses; not proof of native sends");
+        nativeAnimalDiagnostic(evidence, "serverTick", () -> snapshot == null ? null : snapshot.serverTick);
+        nativeAnimalDiagnostic(evidence, "nativeReceiptServerTick", () -> nativeAnimalDiagnosticInt(receipt, "serverTick"));
+        nativeAnimalDiagnostic(evidence, "engineStatus", () -> engine == null ? null : observedEngineStatus);
+        nativeAnimalDiagnostic(evidence, "engineIdle", () -> engine == null ? null : observedEngineStatus.startsWith("idle"));
+        nativeAnimalDiagnostic(evidence, "navigationStopped", () -> client == null ? null : baritoneNavigationStopped());
+        nativeAnimalDiagnostic(evidence, "controlsAndUseReleased", () -> player == null ? null : nativeAnimalInputsReleased());
+        nativeAnimalDiagnostic(evidence, "originalInputIdentity", () -> nativeAnimalOriginalInput == null ? null : System.identityHashCode(nativeAnimalOriginalInput));
+        nativeAnimalDiagnostic(evidence, "currentInputIdentity", () -> currentInput == null ? null : System.identityHashCode(currentInput));
+        nativeAnimalDiagnostic(evidence, "currentInputClass", () -> currentInput == null ? null : currentInput.getClass().getName());
+        nativeAnimalDiagnostic(evidence, "exactOriginalInputRestored", () -> nativeAnimalOriginalInput == null || player == null ? null : currentInput == nativeAnimalOriginalInput);
+        nativeAnimalDiagnostic(evidence, "nativeSettingsRestored", () -> nativeAnimalOriginalSettings.isEmpty() ? null : nativeAnimalSettingsRestored());
+        evidence.addProperty("nativeSettingsChecked", nativeAnimalOriginalSettings.size());
+        nativeAnimalDiagnostic(evidence, "originalSelectedSlot", () -> nativeAnimalOriginalSelectedSlot < 0 ? null : nativeAnimalOriginalSelectedSlot);
+        nativeAnimalDiagnostic(evidence, "serverSelectedSlot", () -> nativeAnimalDiagnosticInt(receipt, "selectedSlot"));
+        nativeAnimalDiagnostic(evidence, "clientSelectedSlot", () -> player == null ? null : selectedSlot);
+        nativeAnimalDiagnostic(evidence, "serverOriginalSelectionRestored", () -> nativeAnimalOriginalSelectedSlot < 0 || nativeAnimalDiagnosticInt(receipt, "selectedSlot") == null ? null : nativeAnimalDiagnosticInt(receipt, "selectedSlot") == nativeAnimalOriginalSelectedSlot);
+        nativeAnimalDiagnostic(evidence, "clientOriginalSelectionRestored", () -> nativeAnimalOriginalSelectedSlot < 0 || player == null ? null : selectedSlot == nativeAnimalOriginalSelectedSlot);
+        nativeAnimalDiagnostic(evidence, "serverSnapshotCursorEmpty", () -> snapshot == null ? null : snapshot.serverCursorEmpty);
+        nativeAnimalDiagnostic(evidence, "nativeReceiptCursorEmpty", () -> nativeAnimalDiagnosticBoolean(receipt, "cursorEmpty"));
+        nativeAnimalDiagnostic(evidence, "clientCursorEmpty", () -> player == null ? null : player.currentScreenHandler.getCursorStack().isEmpty());
+        nativeAnimalDiagnostic(evidence, "placementStockReady", () -> engine == null ? null : engine.placementStockReady());
+        nativeAnimalDiagnostic(evidence, "placementInventoryReadiness", () -> engine == null ? null : engine.placementInventoryReadiness());
+        evidence.addProperty("requestedItem", activeItem);
+        evidence.addProperty("requestedCount", activeCount);
+        nativeAnimalDiagnostic(evidence, "observedStock", () -> snapshot == null || activeItem == null ? null : snapshot.count(activeItem));
+        nativeAnimalDiagnostic(evidence, "requestedStockReached", () -> snapshot == null || activeItem == null ? null : snapshot.count(activeItem) >= activeCount);
+        nativeAnimalDiagnostic(evidence, "serverInventoryCounts", () -> {
+            if (snapshot == null) return null;
+            JsonObject counts = new JsonObject(); snapshot.inventory.forEach(counts::addProperty); return counts;
+        });
+        nativeAnimalDiagnostic(evidence, "serverHealth", () -> snapshot == null ? null : snapshot.health);
+        nativeAnimalDiagnostic(evidence, "fullServerHealth", () -> snapshot == null ? null : snapshot.health == 20.0F);
+        nativeAnimalDiagnostic(evidence, "clientHealth", () -> player == null ? null : player.getHealth());
+        nativeAnimalDiagnostic(evidence, "animalDeaths", () -> nativeAnimalDiagnosticInt(receipt, "dead"));
+        nativeAnimalDiagnostic(evidence, "serverSampledHealthLossCounter", () -> nativeAnimalDiagnosticInt(receipt, "effects"));
+        evidence.addProperty("furnaceOpenings", furnaceOpenings);
+        evidence.addProperty("furnaceOpeningsAtStart", activeFurnaceOpeningsAtStart);
+        evidence.addProperty("furnaceOpeningDelta", furnaceOpenings - activeFurnaceOpeningsAtStart);
+        evidence.addProperty("newFurnaceOpeningObserved", furnaceOpenings > activeFurnaceOpeningsAtStart);
+        try {
+            AnimalHarvestAction.Observation action = engine == null ? null : engine.nativeAnimalObservation();
+            evidence.addProperty("nativeActorObservationAvailable", action != null);
+            if (action != null) {
+                evidence.addProperty("nativeActorJobToken", action.jobToken());
+                nativeAnimalDiagnostic(evidence, "nativeActorTarget", action::target);
+                evidence.addProperty("nativeActorSentEffects", action.sentEffects());
+                evidence.addProperty("nativeActorActive", action.active());
+                evidence.addProperty("nativeActorPendingEvidence", action.pendingEvidence());
+                evidence.addProperty("nativeActorAirObserver", action.airObserver());
+            }
+        } catch (Throwable unavailable) {
+            evidence.addProperty("nativeActorObservationAvailable", false);
+            evidence.addProperty("nativeActorObservationUnavailableReason", unavailable.getClass().getSimpleName());
+        }
+        nativeAnimalEvidence.add(observationPoint.equals("before-stop") ? "beforeStopReadiness" : "latestReadiness", evidence);
+    }
+
     private void startNativeAnimalCase() {
         AutomationEngine engine = requireEngine();
         if (!engine.status().startsWith("idle") || !baritoneNavigationStopped()) {
@@ -1885,6 +1992,7 @@ public final class RuntimeVerification implements ClientModInitializer {
         }
         nativeAnimalInitialReceipt = Map.copyOf(nativeAnimalPublishedReceipt);
         nativeAnimalOriginalInput = client.player.input;
+        nativeAnimalOriginalSelectedSlot = ClientAccess.selectedSlot(client.player.getInventory());
         for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
             nativeAnimalOriginalSettings.put(setting, setting.value);
         activeCase = "native_animal_" + ANIMAL_SCENARIO;
@@ -1924,8 +2032,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (clientTicks - caseStartedAtTick > 2_400 || System.nanoTime() - caseStartedAtNanos > 120_000_000_000L) {
             fail("native animal case exceeded 120 seconds; receipt=" + nativeAnimalPublishedReceipt); return;
         }
-        if (latestSnapshot == null || nativeAnimalPublishedReceipt.isEmpty()) return;
         AutomationEngine engine = requireEngine();
+        if (List.of("air_pending_attack", "air_pending_transfer").contains(ANIMAL_SCENARIO)
+                && nativeAnimalStopTick < 0 && engine.status().startsWith("paused")) {
+            fail("AIR engine paused before verified recovery and the real stop: " + engine.status()); return;
+        }
+        if (latestSnapshot == null || nativeAnimalPublishedReceipt.isEmpty()) return;
         boolean refusal = List.of("wrong_components", "protected").contains(ANIMAL_SCENARIO);
         boolean stopping = "stop_after_interaction".equals(ANIMAL_SCENARIO);
         AnimalHarvestAction.Observation action = engine.nativeAnimalObservation();
@@ -1968,8 +2080,10 @@ public final class RuntimeVerification implements ClientModInitializer {
                             && nativeAnimalInt("shearsDamage") == nativeAnimalInt("sheared")
                         : nativeAnimalInt("dead") > 0)
                         && (!"cooking".equals(ANIMAL_SCENARIO) || serverFurnaceOpenings > activeFurnaceOpeningsAtStart);
+        recordNativeAnimalReadiness("readiness");
         if (result && stopped && latestSnapshot.health == 20.0F && engine.placementStockReady()) {
             if (++readyTicks < 20) return;
+            recordNativeAnimalReadiness("completion");
             nativeAnimalEvidence.addProperty("restorationObserved", true);
             nativeAnimalEvidence.addProperty("originalInputRestored", client.player.input == nativeAnimalOriginalInput);
             nativeAnimalEvidence.addProperty("nativeSettingsRestored", nativeAnimalSettingsRestored());
@@ -5976,6 +6090,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void fail(String reason) {
+        if (state != State.FAILED && state != State.COMPLETE) recordNativeAnimalReadiness("before-stop");
         if (nativeAnimalClaim != null) { requireEngine().protection.removeClaim(nativeAnimalClaim); nativeAnimalClaim = null; }
         if (state == State.FAILED || state == State.COMPLETE) return;
         if (WORLD_POLICY_MODE) {
