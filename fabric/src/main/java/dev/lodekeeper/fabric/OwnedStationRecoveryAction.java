@@ -31,7 +31,7 @@ final class OwnedStationRecoveryAction {
     private enum Phase {
         IDLE, APPROACH, APPROACH_STOPPING, WAITING_FOR_HANDLER, WAITING_FOR_CONTENTS,
         CLOSING_HANDLER, MINING, PICKUP, PICKUP_REPLANNING, PICKUP_INCOMPLETE,
-        FINISHING, COMPLETE, STOPPED
+        RETURN, FINISHING, COMPLETE, STOPPED
     }
 
     private enum StationKind {
@@ -115,6 +115,7 @@ final class OwnedStationRecoveryAction {
     private long dropObservedIncreaseSequence = -1;
     private long startedAtNanos;
     private OwnedStationLedger.Session recoverySession;
+    private boolean restorationRevoked, unknownHandlerReturn;
     private int pickupAttempts;
     private PickupDiagnostics pickupDiagnostics = new PickupDiagnostics();
     private boolean miningStarted, contentsVerifiedEmpty, collectedBeforeDropObserved;
@@ -140,14 +141,16 @@ final class OwnedStationRecoveryAction {
             status = "owned station recovery is already active";
             return false;
         }
-        pickupDiagnostics = new PickupDiagnostics();
+        if (!returnPending()) pickupDiagnostics = new PickupDiagnostics();
         OwnedStationLedger.Session session = observeSession().orElse(null);
-        pickupDiagnostics.connection = diagnosticConnection();
+        if (!returnPending()) pickupDiagnostics.connection = diagnosticConnection();
         boolean resumePickup = phase == Phase.PICKUP_INCOMPLETE && session != null
                 && session.equals(recoverySession) && position != null && ownedPosition != null
                 && ownedPosition.equals(position) && expectedBlock == block
-                && ownerWorld == client.world
+                && ownerWorld == client.world && ownerPlayer == client.player && !restorationRevoked
+                && diagnosticConnection() == pickupDiagnostics.connection
                 && drop != null && drop.isAlive() && blockItem != null && drop.getStack().isOf(blockItem);
+        if (returnPending() && !resumePickup) return refuse("retained owned station RETURN debt belongs to its original actor");
         if (!resumePickup) {
             clearOwnership();
             phase = Phase.IDLE;
@@ -178,8 +181,8 @@ final class OwnedStationRecoveryAction {
             ownerWorld = client.world;
             originalHandler = client.player.currentScreenHandler;
             originalScreen = currentScreen();
-            pickupAttempts = 0;
-            startedAtNanos = System.nanoTime();
+            if (System.nanoTime() - startedAtNanos >= MAX_DURATION_NANOS || pickupAttempts >= MAX_PICKUP_ATTEMPTS)
+                return refuse("retained station pickup has no remaining original route budget");
             phase = Phase.PICKUP_REPLANNING;
             status = "retrying the exact owned " + stationKind.name + " drop from the same server session";
             return true;
@@ -238,6 +241,103 @@ final class OwnedStationRecoveryAction {
     boolean pickupIncomplete() { return phase == Phase.PICKUP_INCOMPLETE; }
     boolean pickupRetained() { return pickupIncomplete() && drop != null && drop.isAlive(); }
 
+    boolean returnPending() {
+        return ownedPosition != null && phase != Phase.COMPLETE && phase != Phase.IDLE
+                && (phase == Phase.RETURN || phase == Phase.PICKUP_INCOMPLETE
+                    || miningStarted || exactStationRemovalSequence > 0);
+    }
+    boolean observingReturn() { return phase == Phase.RETURN || phase == Phase.PICKUP_INCOMPLETE || phase == Phase.FINISHING; }
+    void revokeRestoration() {
+        restorationRevoked = true;
+        unknownHandlerReturn |= phase == Phase.WAITING_FOR_HANDLER;
+        if (returnPending() || stationHandler != null && phase != Phase.COMPLETE || unknownHandlerReturn)
+            phase = exactStationRemovalSequence > 0 ? Phase.PICKUP_INCOMPLETE : Phase.RETURN;
+    }
+    boolean tickRetainedReturn(boolean restorationAllowed, boolean pickupAllowed) {
+        if (!observingReturn() || !returnPending()) return false;
+        if (client.player != ownerPlayer || client.world != ownerWorld || recoverySession == null
+                || !observeSession().filter(recoverySession::equals).isPresent()
+                || diagnosticConnection() != pickupDiagnostics.connection) return false;
+        var network = client.getNetworkHandler();
+        if (network == null || network.getConnection() == null || !network.getConnection().isOpen()) return false;
+        if (miningStarted && exactStationRemovalSequence <= 0 && client.world != null
+                && client.world.isChunkLoaded(ownedPosition) && client.world.getBlockState(ownedPosition).isAir()) {
+            OptionalLong removal = observeRemovalSequence(ownedPosition);
+            if (removal.isPresent() && removal.getAsLong() > 0) {
+                exactStationRemovalSequence = removal.getAsLong();
+                phase = Phase.PICKUP_INCOMPLETE;
+            }
+        }
+        if (exactStationRemovalSequence > 0 && isClearedTarget(ownedPosition) && drop == null) {
+            ItemEntity candidate = nearestBlockDrop();
+            if (candidate != null) {
+                Optional<PlacementProvenance.ServerInventoryReceipt> receipt = observeInventoryReceipt();
+                if (receipt.isPresent()) {
+                    drop = candidate;
+                    dropObservedIncreaseSequence = receipt.get().increaseSequence();
+                    dropObservedCount = drop.getStack().getCount() - startingNearbyDrops.getOrDefault(drop, 0);
+                }
+            } else if (hasInventoryGainAfterStationRemoval()) collectedBeforeDropObserved = true;
+        }
+        observeRetainedHandlerReceipt();
+        boolean safe = originalContextSafe() && client.player.currentScreenHandler == originalHandler
+                && currentScreen() == originalScreen;
+        if (restorationAllowed && !restorationRevoked && !manualInput()) {
+            movement.checkAirRecoveryOwnership();
+            movement.stop();
+            if (!movement.finishCancellation()) return false;
+            if (phase == Phase.RETURN && ownsStationContext() && contentsVerifiedEmpty)
+                closeOwnedEmptyHandler();
+        }
+        if (phase == Phase.RETURN && exactStationRemovalSequence <= 0 && !miningStarted) {
+            if (safe && !unknownHandlerReturn && movement.travelReleased()) {
+                phase = Phase.STOPPED;
+                status = "owned station menu returned; station recovery remains unproved";
+            }
+            return false;
+        }
+        if (!safe || !isClearedTarget(ownedPosition)) return false;
+        if (hasVerifiedInventoryGain() && dropWasCollected() && movement.travelReleased()) {
+            ownerPlayer = ownerWorld = null;
+            phase = Phase.COMPLETE;
+            status = "recovered the owned " + stationKind.name + " after retained receipt settlement";
+            return true;
+        }
+        if (pickupAllowed && restorationAllowed && !restorationRevoked && !manualInput()
+                && System.nanoTime() - startedAtNanos < MAX_DURATION_NANOS
+                && pickupAttempts < MAX_PICKUP_ATTEMPTS && drop != null && drop.isAlive() && !drop.isRemoved()
+                && drop.getStack().isOf(blockItem) && hasRoomForStation() && withinRecoveryRange(ownedPosition)
+                && unsafeContextReason() == null && mayBreak.test(ownedPosition)) {
+            phase = Phase.PICKUP_REPLANNING;
+            status = "continuing the exact station pickup with its original budget";
+        } else status = "owned station RETURN barrier awaits exact receipt settlement or context abandonment";
+        return false;
+    }
+
+    private void observeRetainedHandlerReceipt() {
+        if (phase != Phase.RETURN || contentsVerifiedEmpty || miningStarted || stationKind == null || manualInput()) return;
+        if (stationHandler == null) {
+            ScreenHandler current = client.player.currentScreenHandler;
+            if (current == originalHandler || currentScreen() == originalScreen
+                    || currentScreen() == null || !stationKind.matches(current)
+                    || !isExpectedTarget(ownedPosition)) return;
+            stationHandler = current;
+            stationScreen = currentScreen();
+        }
+        if (!ownsStationContext() || !stationHandler.getCursorStack().isEmpty()
+                || !(stationHandler instanceof OwnedClickReceipts.Receipt receipt)
+                || receipt.lodekeeper$contentsSequence() <= 0
+                || receipt.lodekeeper$contentsSize() != stationHandler.slots.size()
+                || receipt.lodekeeper$contentsRevision() != stationHandler.getRevision()
+                || !receipt.lodekeeper$receivedCursor().isEmpty()
+                || !stationKind.contentsEmpty(stationHandler)) return;
+        for (int slot = 0; slot < stationKind.nativeSlotCount; slot++)
+            if (!receipt.lodekeeper$receivedContentsSlot(slot).isEmpty() || !stationHandler.getSlot(slot).getStack().isEmpty()) return;
+        contentsVerifiedEmpty = true;
+        unknownHandlerReturn = false;
+        status = "issued station open received its exact empty native contents; retaining menu RETURN";
+    }
+
     boolean tick() {
         if (phase == Phase.COMPLETE) return true;
         if (!active()) return false;
@@ -271,12 +371,13 @@ final class OwnedStationRecoveryAction {
             };
         } catch (RuntimeException failure) {
             if (phase == Phase.STOPPED) throw failure;
+            if (failure instanceof MovementController.NavigationFailure lost
+                    && lost.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) {
+                revokeRestoration();
+                status = diagnostic(failure);
+                throw failure;
+            }
             if (pickupInProgress() && drop != null && drop.isAlive()) {
-                if (failure instanceof MovementController.NavigationFailure navigationFailure
-                        && navigationFailure.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) {
-                    markPickupIncomplete(diagnostic(failure));
-                    throw failure;
-                }
                 markPickupIncomplete(diagnostic(failure));
                 return false;
             }
@@ -284,7 +385,31 @@ final class OwnedStationRecoveryAction {
         }
     }
 
+    void abandonSession() {
+        clearOwnership();
+        phase = Phase.STOPPED;
+        status = "owned station cleanup abandoned after context replacement; recovery unproved";
+    }
+
     void stop() {
+        unknownHandlerReturn |= phase == Phase.WAITING_FOR_HANDLER;
+        if (restorationRevoked && phase != Phase.COMPLETE) {
+            if (returnPending() || stationHandler != null || unknownHandlerReturn)
+                phase = exactStationRemovalSequence > 0 ? Phase.PICKUP_INCOMPLETE : Phase.RETURN;
+            else { clearOwnership(); phase = Phase.STOPPED; }
+            return;
+        }
+        if (unknownHandlerReturn) {
+            cancelMovement();
+            phase = Phase.RETURN;
+            status = "issued station open has UNKNOWN return evidence; original actor retained";
+            return;
+        }
+        if (returnPending()) {
+            if (!restorationRevoked && !observingReturn()) { actions.cancel(); cancelMovement(); }
+            phase = exactStationRemovalSequence > 0 ? Phase.PICKUP_INCOMPLETE : Phase.RETURN;
+            return;
+        }
         if (phase == Phase.PICKUP_INCOMPLETE) return;
         if (pickupInProgress() && drop != null && drop.isAlive()) {
             markPickupIncomplete("cleanup stopped before the exact station drop was collected");
@@ -298,6 +423,11 @@ final class OwnedStationRecoveryAction {
         if (phase != Phase.CLOSING_HANDLER && !manualInput()) closeOwnedEmptyHandler();
         boolean handlerLeftOpen = ownsStationContext();
         boolean cancelled = cancelMovement();
+        if (handlerLeftOpen) {
+            phase = Phase.RETURN;
+            status = "owned station menu RETURN debt retained for inspection";
+            return;
+        }
         clearOwnership();
         phase = Phase.STOPPED;
         status = cancelled ? "owned station recovery stopped"
@@ -497,7 +627,8 @@ final class OwnedStationRecoveryAction {
             if (!movement.tick()) return false;
         } catch (MovementController.NavigationFailure failure) {
             if (failure.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) {
-                markPickupIncomplete(diagnostic(failure));
+                revokeRestoration();
+                status = diagnostic(failure);
                 throw failure;
             }
             if (failure.kind == MovementController.NavigationFailure.Kind.PROCESS_ENDED
@@ -898,7 +1029,7 @@ final class OwnedStationRecoveryAction {
 
     private boolean refuse(String reason) {
         logPickupDiagnostic("refusal", reason, true);
-        if (phase != Phase.PICKUP_INCOMPLETE) phase = Phase.STOPPED;
+        if (!returnPending()) phase = Phase.STOPPED;
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
         return false;
     }
@@ -907,7 +1038,9 @@ final class OwnedStationRecoveryAction {
         logPickupDiagnostic("abort", reason, true);
         actions.cancel();
         boolean cancelled = cancelMovement();
-        phase = Phase.STOPPED;
+        unknownHandlerReturn |= phase == Phase.WAITING_FOR_HANDLER;
+        phase = exactStationRemovalSequence > 0 ? Phase.PICKUP_INCOMPLETE
+                : miningStarted || ownsStationContext() || unknownHandlerReturn ? Phase.RETURN : Phase.STOPPED;
         if (!cancelled) reason += "; movement cancellation remains pending";
         status = reason.length() > 180 ? reason.substring(0, 180) : reason;
         return new IllegalStateException(status, cause);
@@ -928,6 +1061,7 @@ final class OwnedStationRecoveryAction {
         exactStationRemovalSequence = 0;
         dropObservedIncreaseSequence = -1;
         recoverySession = null;
+        restorationRevoked = unknownHandlerReturn = false;
         pickupAttempts = 0;
         miningStarted = contentsVerifiedEmpty = collectedBeforeDropObserved = false;
     }

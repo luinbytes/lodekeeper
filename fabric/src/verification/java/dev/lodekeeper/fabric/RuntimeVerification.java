@@ -37,6 +37,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.integrated.IntegratedServer;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -77,6 +78,152 @@ import java.util.concurrent.CompletableFuture;
 /** Optional dev-only end-to-end verifier. It is inert unless explicitly enabled with a JVM flag. */
 public final class RuntimeVerification implements ClientModInitializer {
     private static final String ENABLE_PROPERTY = "lodekeeper.verify";
+    private volatile Object nativePlayerPeer;
+    private volatile MinecraftServer nativePlayerPeerServer;
+    private volatile Map<String, String> nativePlayerPeerReceipt = Map.of();
+    private volatile String nativePlayerPeerFailure;
+
+    private static Object nativePlayerPeerApi(String name, Object... arguments) {
+        try {
+            for (Method method : VerificationApi.class.getDeclaredMethods())
+                if (method.getName().equals(name) && method.getParameterCount() == arguments.length)
+                    return method.invoke(null, arguments);
+            throw new IllegalStateException("native player fixture unavailable for this artifact");
+        } catch (java.lang.reflect.InvocationTargetException error) {
+            throw new IllegalStateException("native player fixture failed in " + name, error.getCause());
+        } catch (ReflectiveOperationException error) {
+            throw new IllegalStateException("native player fixture unavailable for this artifact", error);
+        }
+    }
+
+    private CompletableFuture<Object> prepareNativePlayerPeer(boolean fullRecipient) {
+        MinecraftServer server = client.getServer();
+        UUID expectedHost = playerId;
+        if (server == null || expectedHost == null)
+            return CompletableFuture.failedFuture(new IllegalStateException("native fixture requires the active local server player"));
+        CompletableFuture<Object> scheduled = new CompletableFuture<>();
+        server.execute(() -> {
+            Object joined = null;
+            try {
+                if (nativePlayerPeer != null || nativePlayerPeerFailure != null)
+                    throw new IllegalStateException("native fixture peer already exists or failed");
+                var player = server.getPlayerManager().getPlayer(expectedHost);
+                if (player == null) throw new IllegalStateException("native fixture host is unavailable");
+                joined = nativePlayerPeerApi("joinNativePlayerPeer", player, server.getOverworld(), fullRecipient);
+                nativePlayerPeerServer = server; nativePlayerPeer = joined;
+                nativePlayerPeerReceipt = Map.of("hostUuid", expectedHost.toString());
+                observeNativePlayerPeerServer(server);
+                if (nativePlayerPeerFailure != null) throw new IllegalStateException(nativePlayerPeerFailure);
+                scheduled.complete(joined);
+            } catch (RuntimeException error) {
+                if (joined != null) {
+                    try { nativePlayerPeerApi("closeNativePlayerPeer", joined); }
+                    catch (RuntimeException cleanup) { error.addSuppressed(cleanup); }
+                }
+                if (nativePlayerPeer == joined) { nativePlayerPeer = null; nativePlayerPeerServer = null; }
+                scheduled.completeExceptionally(error);
+            }
+        });
+        return scheduled;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> trackNativePlayerPeer(Object handle) {
+        return (Map<String, String>) nativePlayerPeerApi("trackNativePlayerPeer", handle, client);
+    }
+
+    private CompletableFuture<Void> moveNativePlayerPeer(double x, double y, double z) {
+        Object expected = nativePlayerPeer;
+        MinecraftServer server = nativePlayerPeerServer;
+        if (expected == null || server == null)
+            return CompletableFuture.failedFuture(new IllegalStateException("native fixture peer is unavailable"));
+        CompletableFuture<Void> scheduled = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                if (nativePlayerPeer != expected || nativePlayerPeerServer != server)
+                    throw new IllegalStateException("native fixture peer identity changed before movement");
+                nativePlayerPeerApi("moveNativePlayerPeer", expected, x, y, z); scheduled.complete(null);
+            } catch (RuntimeException error) { scheduled.completeExceptionally(error); }
+        });
+        return scheduled;
+    }
+
+    private CompletableFuture<Void> retireNativePlayerPeer() {
+        Object expected = nativePlayerPeer;
+        MinecraftServer server = nativePlayerPeerServer;
+        if (expected == null || server == null) return nativePlayerPeerFailure == null
+                ? CompletableFuture.completedFuture(null)
+                : CompletableFuture.failedFuture(new IllegalStateException(nativePlayerPeerFailure));
+        CompletableFuture<Void> scheduled = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                if (nativePlayerPeer != expected || nativePlayerPeerServer != server)
+                    throw new IllegalStateException("native fixture peer identity changed before teardown");
+                closeNativePlayerPeerServer(server);
+                if (nativePlayerPeerFailure != null) throw new IllegalStateException(nativePlayerPeerFailure);
+                scheduled.complete(null);
+            } catch (RuntimeException error) { scheduled.completeExceptionally(error); }
+        });
+        return scheduled;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void observeNativePlayerPeerServer(MinecraftServer server) {
+        Object current = nativePlayerPeer;
+        if (current == null || nativePlayerPeerServer != server) return;
+        try {
+            UUID expectedHost = UUID.fromString(nativePlayerPeerReceipt.get("hostUuid"));
+            var player = server.getPlayerManager().getPlayer(expectedHost);
+            Map<String, String> observed = (Map<String, String>) nativePlayerPeerApi("observeNativePlayerPeer", current, player, server.getTicks());
+            Map<String, String> receipt = new LinkedHashMap<>(observed);
+            receipt.put("hostUuid", expectedHost.toString()); nativePlayerPeerReceipt = Map.copyOf(receipt);
+        } catch (RuntimeException error) {
+            nativePlayerPeerFailure = error.toString(); closeNativePlayerPeerServer(server);
+        }
+    }
+
+    private void closeNativePlayerPeerServer(MinecraftServer server) {
+        Object current = nativePlayerPeer;
+        if (current == null || nativePlayerPeerServer != server) return;
+        try {
+            nativePlayerPeerApi("closeNativePlayerPeer", current);
+            Map<String, String> receipt = new LinkedHashMap<>(nativePlayerPeerReceipt);
+            receipt.put("peerClosed", "true"); nativePlayerPeerReceipt = Map.copyOf(receipt);
+        } catch (RuntimeException error) { nativePlayerPeerFailure = error.toString(); }
+        finally {
+            if (nativePlayerPeer == current) { nativePlayerPeer = null; nativePlayerPeerServer = null; }
+        }
+    }
+
+    private static final String COOPERATIVE_SCENARIO = System.getProperty("lodekeeper.verify.cooperativeScenario");
+    private static final boolean COOPERATIVE_MODE = COOPERATIVE_SCENARIO != null && !"false".equals(COOPERATIVE_SCENARIO);
+    private final JsonObject cooperativeEvidence = new JsonObject();
+    private final Map<dev.lodekeeper.navigation.kernel.api.Settings.Setting<?>, Object> cooperativeOriginalSettings = new java.util.IdentityHashMap<>();
+    private Object cooperativeOriginalInput, cooperativePeerHandle, cooperativeTaskIdentity;
+    private CompletableFuture<Object> cooperativePeerJoin;
+    private CompletableFuture<Void> cooperativePeerMove, cooperativePeerRetire;
+    private int cooperativeCommandTick = -1, cooperativeMoves, cooperativeCompletionFenceTick = -1;
+    private long cooperativeCompletionFenceRequest = -1;
+    private long cooperativeCompletionFenceServerTick = -1;
+    private int cooperativeOriginalSelected;
+    private boolean cooperativeMoveAwaitingReceipt;
+    private double cooperativeMoveExpectedX;
+    private long cooperativeMoveServerFence, cooperativeMoveAckServerTick, cooperativeMoveAckRequest = -1;
+    private int cooperativeMoveAckClientTick;
+    private boolean cooperativeNativeRouteObserved, cooperativeMovementProfileObserved;
+
+    private static boolean invalidCooperativeScenario() {
+        if (!COOPERATIVE_MODE) return false;
+        if (!List.of("goto", "follow").contains(COOPERATIVE_SCENARIO) || !BARITONE_MODE
+                || !List.of("1.21.1", "26.3").contains(VerificationApi.minecraftVersion())) return true;
+        for (String property : System.getProperties().stringPropertyNames()) {
+            if (!property.startsWith("lodekeeper.verify.") || List.of("lodekeeper.verify.baritone",
+                    "lodekeeper.verify.cooperativeScenario", "lodekeeper.verify.candidateSha256").contains(property)) continue;
+            if (!"false".equals(System.getProperty(property))) return true;
+        }
+        return false;
+    }
+
     private static final String ANIMAL_SCENARIO = System.getProperty("lodekeeper.verify.animalScenario");
     private static final boolean ANIMAL_MODE = ANIMAL_SCENARIO != null && !"false".equals(ANIMAL_SCENARIO);
     private static final String ANIMAL_NO_SCAFFOLD_PROPERTY = System.getProperty("lodekeeper.verify.animalNoScaffold");
@@ -511,7 +658,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private enum State { DISABLED, OPENING_WORLD, WAITING_FOR_WORLD, SETTINGS_UI, SETTING_UP, WAITING_FOR_EMPTY_SNAPSHOT, WORLD_POLICY,
         GATHERING_WOOD, CRAFTING_TABLE, CRAFTING_STICKS, CRAFTING_WOOD_PICK, CRAFTING_STONE_PICK, CRAFTING_FURNACE,
         SMELTING_IRON, COOKING, CUSTOM_CONTENT, SETTING_UP_FOOD, WAITING_FOR_FOOD_FIXTURE, GATHERING_FOOD,
-        GATHERING_COAL_RECOVERY, NATIVE_ANIMAL, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
+        GATHERING_COAL_RECOVERY, NATIVE_ANIMAL, NATIVE_COOPERATIVE, PREPARED_SAFETY, CAPTURING, COMPLETE, FAILED }
 
     private enum PreparedSafetyPhase { NONE, EQUIPMENT, OFFHAND_FOOD, OFFHAND_INGREDIENTS, THREAT, PURSUIT, STATION_ROOM, AIR, WORKBENCH_SEEDING, WORKBENCH_RECOVERY, HELD_FUEL_SMELTING, HELD_FUEL_STICKS }
     private enum WorldPolicyPhase { NONE, ADD_CLAIM, CLAIM_BREAK, STOP_CLAIM_BREAK, PREPARE_TABLE,
@@ -711,7 +858,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 && (THREAT_STAIRCASE_PROPERTY == null || "false".equals(THREAT_STAIRCASE_PROPERTY))
                 && (THREAT_CONTACT_PROPERTY == null || "false".equals(THREAT_CONTACT_PROPERTY)) && STATION_ROOM_TUNNEL_PROPERTY == null
                 && !"pursuit".equals(PREPARED_SAFETY_MODE) && !"pursuit-tool".equals(PREPARED_SAFETY_MODE)
-                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE && !ANIMAL_MODE) {
+                && !"air".equals(PREPARED_SAFETY_MODE) && !SHIELD_MODE && !ANIMAL_MODE && !COOPERATIVE_MODE) {
             NaturalWorldVerification.start(MinecraftClient.getInstance());
             return;
         }
@@ -738,6 +885,10 @@ public final class RuntimeVerification implements ClientModInitializer {
             runId = Instant.now().toString().replace(':', '-').replace('.', '-') + "-" + UUID.randomUUID().toString().substring(0, 8);
             startedAtNanos = System.nanoTime();
             state = State.OPENING_WORLD;
+            if (invalidCooperativeScenario()) {
+                failure = "cooperativeScenario requires exactly goto or follow, baritone=true, an exact 1.21.1 or 26.3 artifact and no other verifier mode";
+                state = State.FAILED; writeEvidence("failed"); client.scheduleStop(); return;
+            }
             if (invalidAnimalNoScaffold() || invalidAnimalScenario()) {
                 failure = "animalScenario needs an admitted focused case, baritone=true, an exact 1.21.1 or 26.3 artifact, and no other verifier mode; animalNoScaffold must be false or true and true requires white_wool_inventory";
                 state = State.FAILED; writeEvidence("failed"); client.scheduleStop(); return;
@@ -984,7 +1135,9 @@ public final class RuntimeVerification implements ClientModInitializer {
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeCoalNavigationMovementAfterEngineTick());
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeNearbyWoodWalkArrivalAfterEngineTick());
             ClientTickEvents.END_CLIENT_TICK.register(mc -> observeNearbyWoodLocalTargetsAfterEngineTick());
+            net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPING.register(this::closeNativePlayerPeerServer);
             ServerTickEvents.END_SERVER_TICK.register(server -> {
+                observeNativePlayerPeerServer(server);
                 if (playerId == null) return;
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player == null) return;
@@ -1045,6 +1198,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private void tick(MinecraftClient currentClient) {
+        if (nativePlayerPeerFailure != null) { fail("native fixture peer: " + nativePlayerPeerFailure); return; }
         if (state == State.COMPLETE || state == State.FAILED || state == State.DISABLED) return;
         registerNearbyWoodMeadowLaunchObserver();
         if (state == State.FAILED) return;
@@ -1171,6 +1325,17 @@ public final class RuntimeVerification implements ClientModInitializer {
                 return;
             }
             if (state == State.WAITING_FOR_EMPTY_SNAPSHOT) {
+                if (COOPERATIVE_MODE) {
+                    if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+                    if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
+                            && latestSnapshot.inventoryEmpty() && latestSnapshot.equippedItems.isEmpty()
+                            && latestSnapshot.serverCursorEmpty && latestSnapshot.health == 20.0F
+                            && Math.abs(latestSnapshot.x - 0.5) < 0.001 && Math.abs(latestSnapshot.y - 64) < 0.001
+                            && Math.abs(latestSnapshot.z - 0.5) < 0.001 && requireEngine().placementStockReady()) {
+                        if (++readyTicks >= 20) startCooperativeCase();
+                    } else readyTicks = 0;
+                    return;
+                }
                 if (ANIMAL_MODE) {
                     if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
                     if (latestSnapshot != null && latestSnapshot.serverTick >= fixtureReadyServerTick
@@ -1325,6 +1490,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                 }
                 return;
             }
+            if (state == State.NATIVE_COOPERATIVE) { tickCooperativeCase(); return; }
             if (state == State.NATIVE_ANIMAL) { tickNativeAnimalCase(); return; }
             if (state == State.WORLD_POLICY) {
                 if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
@@ -1423,6 +1589,12 @@ public final class RuntimeVerification implements ClientModInitializer {
         if (ANIMAL_MODE) {
             engine.config.autoEat = false; engine.config.autoDefend = false; engine.config.autoEquipArmor = false;
             engine.config.allowBreaking = false; engine.config.allowExploration = false;
+            engine.config.backfill = false; engine.config.debugLogging = true;
+        }
+
+        if (COOPERATIVE_MODE) {
+            engine.config.autoEat = false; engine.config.autoDefend = false; engine.config.autoEquipArmor = false;
+            engine.config.allowBreaking = false; engine.config.allowBuilding = false; engine.config.allowExploration = false;
             engine.config.backfill = false; engine.config.debugLogging = true;
         }
 
@@ -2322,6 +2494,268 @@ public final class RuntimeVerification implements ClientModInitializer {
         } else readyTicks = 0;
     }
 
+    private static final class CooperativeIdentityValue {
+        private final Object value;
+        CooperativeIdentityValue(Object value) { this.value = value; }
+        @Override public boolean equals(Object other) {
+            return other instanceof CooperativeIdentityValue identity && identity.value == value;
+        }
+        @Override public int hashCode() { return System.identityHashCode(value); }
+    }
+    private record CooperativeArrayValue(Class<?> componentType, List<Object> values) { }
+
+    private static Object cooperativeSettingSnapshot(Object value) {
+        return cooperativeSettingSnapshot(value, 0, new int[] {8192});
+    }
+
+    private static Object cooperativeSettingSnapshot(Object value, int depth, int[] remaining) {
+        if (depth > 12 || --remaining[0] < 0)
+            throw new IllegalStateException("native setting snapshot exceeded its finite content budget");
+        if (value == null || value instanceof String || value instanceof Boolean || value instanceof Character
+                || value instanceof Byte || value instanceof Short || value instanceof Integer
+                || value instanceof Long || value instanceof Float || value instanceof Double
+                || value instanceof Enum<?>) return value;
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new HashMap<>();
+            for (var entry : map.entrySet()) copy.put(cooperativeSettingSnapshot(entry.getKey(), depth + 1, remaining),
+                    cooperativeSettingSnapshot(entry.getValue(), depth + 1, remaining));
+            return java.util.Collections.unmodifiableMap(copy);
+        }
+        if (value instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>();
+            for (Object member : list) copy.add(cooperativeSettingSnapshot(member, depth + 1, remaining));
+            return java.util.Collections.unmodifiableList(copy);
+        }
+        if (value instanceof java.util.Set<?> set) {
+            java.util.Set<Object> copy = new java.util.HashSet<>();
+            for (Object member : set) copy.add(cooperativeSettingSnapshot(member, depth + 1, remaining));
+            return java.util.Collections.unmodifiableSet(copy);
+        }
+        if (value.getClass().isArray()) {
+            List<Object> copy = new ArrayList<>();
+            int length = java.lang.reflect.Array.getLength(value);
+            if (length > remaining[0]) throw new IllegalStateException("native setting array exceeds snapshot budget");
+            for (int index = 0; index < length; index++)
+                copy.add(cooperativeSettingSnapshot(java.lang.reflect.Array.get(value, index), depth + 1, remaining));
+            return new CooperativeArrayValue(value.getClass().getComponentType(), java.util.Collections.unmodifiableList(copy));
+        }
+        return new CooperativeIdentityValue(value);
+    }
+
+    private void startCooperativeCase() {
+        AutomationEngine engine = requireEngine();
+        if (!engine.status().startsWith("idle") || !baritoneNavigationStopped()) {
+            fail("cooperative case requires idle production navigation"); return;
+        }
+        activeCase = "native_cooperative_" + COOPERATIVE_SCENARIO;
+        activeItem = null; activeCount = 0; activeRequiresEmpty = false;
+        activeStartedEmpty = latestSnapshot.inventoryEmpty();
+        activeInitialResources = Map.copyOf(latestSnapshot.inventory);
+        activeInitialEquipment = Map.copyOf(latestSnapshot.equippedItems);
+        activeInitialCursorEmpty = latestSnapshot.serverCursorEmpty;
+        cooperativeEvidence.addProperty("scenario", COOPERATIVE_SCENARIO);
+        cooperativeEvidence.addProperty("fixtureAuthority", "isolated native flat pad; follow peer joins as an offline ServerPlayer through normal native connection/player-list/world tracking; no certified chat or product receipt state supplied");
+        cooperativeEvidence.addProperty("commandTransport", "normal native client chat intercepted by Lodekeeper");
+        cooperativeEvidence.addProperty("afterCommandHostFixtureMutations", "none");
+        cooperativeEvidence.addProperty("caseClientTickLimit", 1200);
+        cooperativeEvidence.addProperty("caseWallLimitSeconds", 90);
+        beginCaseClock(); readyTicks = 0; state = State.NATIVE_COOPERATIVE;
+        if ("follow".equals(COOPERATIVE_SCENARIO)) cooperativePeerJoin = prepareNativePlayerPeer(false);
+        else issueCooperativeCommand("!lk goto 12 64 0");
+    }
+
+    private void issueCooperativeCommand(String command) {
+        cooperativeOriginalInput = client.player.input;
+        cooperativeOriginalSelected = ClientAccess.selectedSlot(client.player.getInventory());
+        for (var setting : dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings().byLowerName.values())
+            cooperativeOriginalSettings.put(setting, cooperativeSettingSnapshot(setting.value));
+        cooperativeCommandTick = clientTicks;
+        cooperativeEvidence.addProperty("command", command);
+        cooperativeEvidence.addProperty("commandClientTick", clientTicks);
+        cooperativeEvidence.addProperty("initialSelectedSlot", cooperativeOriginalSelected);
+        cooperativeEvidence.addProperty("initialServerX", latestSnapshot.x);
+        cooperativeEvidence.addProperty("initialServerY", latestSnapshot.y);
+        cooperativeEvidence.addProperty("initialServerZ", latestSnapshot.z);
+        readyTicks = 0; sendCommand(command);
+    }
+
+    private void observeCooperativeNativeRoute() {
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (owner == null || !owner.isCurrent(session) || session.world() != client.world) return;
+        var bot = owner.getPrimaryBaritone();
+        if (bot == null || bot.getPlayerContext().player() != client.player || bot.getPlayerContext().world() != client.world) return;
+        var settings = dev.lodekeeper.navigation.kernel.api.OwnedKernelAPI.getSettings();
+        boolean movementOnly = !settings.allowBreak.value && !settings.allowPlace.value && !settings.allowParkourPlace.value
+                && !settings.allowInventory.value && !settings.autoTool.value;
+        boolean witnessed = false;
+        if ("goto".equals(COOPERATIVE_SCENARIO)) {
+            witnessed = bot.getCustomGoalProcess().isActive()
+                    && (bot.getPathingBehavior().isPathing() || bot.getPathingBehavior().getInProgress().isPresent());
+        } else if (cooperativePeerHandle != null && bot.getFollowProcess().isActive()) {
+            var filter = bot.getFollowProcess().currentFilter();
+            if (filter != null && settings.followRadius.value == 2) {
+                String expected = nativePlayerPeerReceipt.get("peerUuid");
+                for (var entity : bot.getFollowProcess().following()) {
+                    if (entity != null && entity.getUuid().toString().equals(expected) && filter.test(entity)) witnessed = true;
+                }
+            }
+        }
+        if (witnessed) {
+            cooperativeNativeRouteObserved = true;
+            cooperativeMovementProfileObserved |= movementOnly;
+        }
+    }
+
+    private boolean cooperativeRestored() {
+        return client.player != null && client.player.input == cooperativeOriginalInput
+                && ClientAccess.selectedSlot(client.player.getInventory()) == cooperativeOriginalSelected
+                && !cooperativeOriginalSettings.isEmpty() && cooperativeOriginalSettings.entrySet().stream()
+                    .allMatch(entry -> java.util.Objects.equals(entry.getValue(), cooperativeSettingSnapshot(entry.getKey().value)))
+                && nativeAnimalInputsReleased() && baritoneNavigationStopped();
+    }
+
+    private void tickCooperativeCase() {
+        if (clientTicks % OBSERVE_EVERY_TICKS == 0) requestObservation();
+        if (clientTicks - caseStartedAtTick > 1200 || System.nanoTime() - caseStartedAtNanos > 90_000_000_000L) {
+            fail("cooperative case exceeded its finite native budget; peer=" + nativePlayerPeerReceipt); return;
+        }
+        if (latestSnapshot == null || client.player == null) return;
+        AutomationEngine engine = requireEngine();
+        if (cooperativeCommandTick < 0) {
+            if (cooperativePeerJoin == null || !cooperativePeerJoin.isDone()) return;
+            cooperativePeerHandle = cooperativePeerJoin.join();
+            Map<String, String> tracking = trackNativePlayerPeer(cooperativePeerHandle);
+            boolean tracked = "true".equals(tracking.get("peerListed")) && "true".equals(tracking.get("peerTracked"))
+                    && "true".equals(tracking.get("contextMatches")) && "true".equals(nativePlayerPeerReceipt.get("peerRegistered"));
+            if (!tracked) { readyTicks = 0; return; }
+            if (++readyTicks < 20) return;
+            cooperativeEvidence.add("initialPeerTracking", nativeAnimalJson(tracking));
+            cooperativeEvidence.add("initialPeerServerReceipt", nativeAnimalJson(nativePlayerPeerReceipt));
+            issueCooperativeCommand("!lk follow " + tracking.get("peerUuid") + " 20");
+            return;
+        }
+        if (engine.status().startsWith("paused")) { fail("cooperative command paused: " + engine.status()); return; }
+        Object identity = engine.diagnosticTaskIdentity();
+        if (identity != null && cooperativeTaskIdentity == null) cooperativeTaskIdentity = identity;
+        if (identity != null && identity != cooperativeTaskIdentity) { fail("cooperative foreground task identity changed"); return; }
+        observeCooperativeNativeRoute();
+        if ("follow".equals(COOPERATIVE_SCENARIO) && cooperativePeerRetire == null) {
+            if ("true".equals(nativePlayerPeerReceipt.get("ordinaryBreadConservationViolated"))
+                    || !"true".equals(nativePlayerPeerReceipt.get("hostOtherStockUnchanged"))
+                    || !"true".equals(nativePlayerPeerReceipt.get("peerOtherStockUnchanged"))) {
+                fail("follow fixture observed a stock/conservation change"); return;
+            }
+            if (cooperativePeerMove != null) {
+                if (!cooperativePeerMove.isDone()) return;
+                cooperativePeerMove.join(); cooperativePeerMove = null;
+            }
+            if (cooperativeMoveAwaitingReceipt) {
+                Map<String, String> receipt = nativePlayerPeerReceipt;
+                long tick = Long.parseLong(receipt.get("serverTick"));
+                if (tick <= cooperativeMoveServerFence
+                        || Double.parseDouble(receipt.get("peerX")) != cooperativeMoveExpectedX
+                        || Double.parseDouble(receipt.get("peerY")) != 64.0
+                        || Double.parseDouble(receipt.get("peerZ")) != 0.5) return;
+                cooperativeMoveAwaitingReceipt = false;
+                cooperativeMoveAckServerTick = tick;
+                cooperativeMoveAckRequest = observationRequestSequence;
+                cooperativeMoveAckClientTick = clientTicks;
+                cooperativeEvidence.add("acknowledgedPeerMove" + cooperativeMoves, nativeAnimalJson(receipt));
+                cooperativeEvidence.addProperty("peerMoveAckRequestFence" + cooperativeMoves, cooperativeMoveAckRequest);
+                cooperativeEvidence.addProperty("peerMoveAckClientTick" + cooperativeMoves, cooperativeMoveAckClientTick);
+                requestObservation(); return;
+            }
+            if (cooperativeMoveAckRequest >= 0) {
+                if (latestObservationRequestSequence <= cooperativeMoveAckRequest
+                        || latestSnapshot.serverTick < cooperativeMoveAckServerTick
+                        || clientTicks <= cooperativeMoveAckClientTick) return;
+                cooperativeEvidence.addProperty("hostObservationAfterPeerMove" + cooperativeMoves, latestObservationRequestSequence);
+                cooperativeEvidence.addProperty("hostServerTickAfterPeerMove" + cooperativeMoves, latestSnapshot.serverTick);
+                cooperativeMoveAckRequest = -1;
+            }
+            double peerX = Double.parseDouble(nativePlayerPeerReceipt.get("peerX"));
+            double peerZ = Double.parseDouble(nativePlayerPeerReceipt.get("peerZ"));
+            double distance = Math.hypot(latestSnapshot.x - peerX, latestSnapshot.z - peerZ);
+            if (cooperativeNativeRouteObserved && cooperativeMoves < 2 && distance <= 2.5
+                    && latestSnapshot.serverTick >= fixtureReadyServerTick) {
+                cooperativeMoves++;
+                cooperativeEvidence.add("beforePeerMove" + cooperativeMoves, nativeAnimalJson(nativePlayerPeerReceipt));
+                cooperativeEvidence.addProperty("hostServerXBeforeMove" + cooperativeMoves, latestSnapshot.x);
+                cooperativeMoveExpectedX = 8.5 + cooperativeMoves * 4;
+                cooperativeMoveServerFence = Long.parseLong(nativePlayerPeerReceipt.get("serverTick"));
+                cooperativeMoveAwaitingReceipt = true;
+                cooperativePeerMove = moveNativePlayerPeer(cooperativeMoveExpectedX, 64, 0.5);
+                return;
+            }
+        }
+        boolean position = "goto".equals(COOPERATIVE_SCENARIO)
+                ? Math.floor(latestSnapshot.x) == 12 && Math.floor(latestSnapshot.z) == 0
+                    && Math.abs(latestSnapshot.y - 64) < 0.01
+                : cooperativeMoves == 2 && latestSnapshot.x >= 13.5 && Math.abs(latestSnapshot.y - 64) < 0.01
+                    && Math.hypot(latestSnapshot.x - 16.5, latestSnapshot.z - 0.5) <= 2.5;
+        var terminal = engine.diagnosticTravelCompletion();
+        boolean acceptedReceipt = terminal != null && terminal.requestIdentity() == cooperativeTaskIdentity
+                && ("goto".equals(COOPERATIVE_SCENARIO)
+                    ? terminal.receipt().result() == NativeRun.TravelResult.ARRIVED
+                    : terminal.receipt().result() == NativeRun.TravelResult.FOLLOW_EXPIRED
+                        && terminal.deadlineNanos() - terminal.acceptedNanos() == 20_000_000_000L
+                        && terminal.completedNanos() - terminal.deadlineNanos() >= 0);
+        boolean completed = acceptedReceipt && cooperativeTaskIdentity != null && cooperativeNativeRouteObserved && cooperativeMovementProfileObserved
+                && engine.status().startsWith("idle") && engine.diagnosticTaskIdentity() == null
+                && position && cooperativeRestored() && latestSnapshot.inventory.equals(activeInitialResources)
+                && latestSnapshot.equippedItems.equals(activeInitialEquipment) && latestSnapshot.serverCursorEmpty
+                && latestSnapshot.health == 20.0F && engine.placementStockReady();
+        if (!completed) { readyTicks = 0; return; }
+        if ("follow".equals(COOPERATIVE_SCENARIO)) {
+            if (cooperativePeerRetire == null) {
+                cooperativeEvidence.add("peerServerBeforeTeardown", nativeAnimalJson(nativePlayerPeerReceipt));
+                cooperativePeerRetire = retireNativePlayerPeer(); readyTicks = 0; return;
+            }
+            if (!cooperativePeerRetire.isDone()) return;
+            cooperativePeerRetire.join();
+            Map<String, String> tracking = trackNativePlayerPeer(cooperativePeerHandle);
+            if (!"false".equals(tracking.get("peerListed")) || !"false".equals(tracking.get("peerTracked"))
+                    || !"true".equals(tracking.get("contextMatches")) || !"true".equals(nativePlayerPeerReceipt.get("peerClosed"))) {
+                readyTicks = 0; return;
+            }
+            cooperativeEvidence.add("finalPeerTracking", nativeAnimalJson(tracking));
+            cooperativeEvidence.addProperty("nativePeerTeardownAcknowledged", true);
+        }
+        if (cooperativeCompletionFenceRequest < 0) {
+            cooperativeCompletionFenceRequest = observationRequestSequence;
+            cooperativeCompletionFenceServerTick = latestSnapshot.serverTick;
+            cooperativeCompletionFenceTick = clientTicks;
+            readyTicks = 0; requestObservation(); return;
+        }
+        if (latestObservationRequestSequence <= cooperativeCompletionFenceRequest
+                || latestSnapshot.serverTick <= cooperativeCompletionFenceServerTick
+                || clientTicks <= cooperativeCompletionFenceTick) { readyTicks = 0; return; }
+        if (++readyTicks < 20) return;
+        cooperativeEvidence.addProperty("nativeRouteObserved", true);
+        cooperativeEvidence.addProperty("movementOnlyProfileObserved", true);
+        cooperativeEvidence.addProperty("originalInputRestored", client.player.input == cooperativeOriginalInput);
+        cooperativeEvidence.addProperty("nativeSettingsRestored", true);
+        cooperativeEvidence.addProperty("nativeSettingsRestorationRule", "independent recursive collection/array snapshots; opaque native leaves checked by exact identity only");
+        cooperativeEvidence.addProperty("terminalJobToken", terminal.receipt().jobToken());
+        cooperativeEvidence.addProperty("terminalResult", terminal.receipt().result().name());
+        cooperativeEvidence.addProperty("terminalReason", terminal.receipt().reason());
+        cooperativeEvidence.addProperty("terminalArrivedSegments", terminal.receipt().arrivedSegments());
+        cooperativeEvidence.addProperty("terminalAcceptedNanos", terminal.acceptedNanos());
+        cooperativeEvidence.addProperty("terminalDeadlineNanos", terminal.deadlineNanos());
+        cooperativeEvidence.addProperty("terminalCompletedNanos", terminal.completedNanos());
+        cooperativeEvidence.addProperty("nativeSettingsChecked", cooperativeOriginalSettings.size());
+        cooperativeEvidence.addProperty("originalSelectionRestored", true);
+        cooperativeEvidence.addProperty("serverStockAndEquipmentUnchanged", true);
+        cooperativeEvidence.addProperty("completionRequestFence", cooperativeCompletionFenceRequest);
+        cooperativeEvidence.addProperty("completionServerTickFence", cooperativeCompletionFenceServerTick);
+        cooperativeEvidence.addProperty("acceptedObservationRequest", latestObservationRequestSequence);
+        cooperativeEvidence.addProperty("acceptedServerTick", latestSnapshot.serverTick);
+        cooperativeEvidence.addProperty("finalEngineStatus", engine.status());
+        addResult(true, 0, "native cooperative command, server movement, control restoration and fresh post-idle observation confirmed", capture(activeCase));
+        state = State.CAPTURING; captureStartedAtTick = clientTicks;
+    }
+
     private void beginFixtureSetup() {
         state = State.SETTING_UP;
         preparedSafetyPhase = PREPARED_SAFETY_MODE == null ? PreparedSafetyPhase.NONE
@@ -2389,7 +2823,7 @@ public final class RuntimeVerification implements ClientModInitializer {
                     world.setBlockState(coalRecoveryAccessibleOrePosition(), Blocks.COAL_ORE.getDefaultState(), 3);
                     coalNavigationExpectedStates = MIXED_NAVIGATION_COURSE
                         ? mixedCoalNavigationExpectedStates(mixedCourseStates) : Map.of();
-                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE && !ANIMAL_MODE) {
+                } else if (!PROCESSING_MODE && PREPARED_SAFETY_MODE == null && !WORLD_POLICY_MODE && !ANIMAL_MODE && !COOPERATIVE_MODE) {
                     int oakLogStartX = NEARBY_WOOD_LOCAL_DECOY_MODE ? NEARBY_WOOD_LOCAL_VISIBLE_LOG.getX()
                         : IRON_PICKAXE_EMPTY_DISTANT_WOOD_MODE ? IRON_PICKAXE_EMPTY_DISTANT_WOOD_LOG_START_X
                         : BULK_WOOD_MODE ? 6 : EXPLORATION_MODE ? 80 : NEARBY_WOOD_MODE ? 20 : 6;
@@ -6263,6 +6697,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     private record MovementClock(long startedAtNanos, double x, double z) { }
 
     private void finishRun() {
+        if (nativePlayerPeer != null) { fail("native fixture peer requires acknowledged teardown before completion"); return; }
         if (SETTINGS_UI_MODE && !settingsUiScreenshotsValid()) {
             fail("settings UI screenshots were missing or unreadable");
             return;
@@ -6304,7 +6739,7 @@ public final class RuntimeVerification implements ClientModInitializer {
             }
         }
         state = State.COMPLETE;
-        int expectedCases = ANIMAL_MODE || SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
+        int expectedCases = COOPERATIVE_MODE || ANIMAL_MODE || SHIELD_MODE || WORLD_POLICY_MODE || SETTINGS_UI_MODE ? 1 : PREPARED_SAFETY_MODE != null
             ? PREPARED_SAFETY_MODE.equals("offhand") || HELD_FUEL_MODE ? 2 : 1
             : NEARBY_WOOD_MODE || EXPLORATION_MODE || DIAMOND_BOOTSTRAP_MODE || IRON_PICKAXE_MODE || COAL_RECOVERY_MODE || BULK_WOOD_MODE || PROCESSING_MODE ? 1 : 9;
         boolean allPassed = results.size() == expectedCases && results.stream().allMatch(CaseResult::passed);
@@ -6868,6 +7303,8 @@ public final class RuntimeVerification implements ClientModInitializer {
             nativeAnimalEvidence.add("finalServerReceipt", nativeAnimalJson(nativeAnimalPublishedReceipt));
             json.append(",\n  \"nativeAnimal\":").append(nativeAnimalEvidence);
         }
+        if (COOPERATIVE_MODE) json.append(",\n  \"nativeCooperative\": ").append(cooperativeEvidence);
+        if (!nativePlayerPeerReceipt.isEmpty()) json.append(",\n  \"nativePlayerPeerFixture\": ").append(nativeAnimalJson(nativePlayerPeerReceipt));
         return json.append("\n}\n").toString();
     }
 
@@ -7090,6 +7527,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static String verificationMode() {
+        if (COOPERATIVE_MODE) return "native_cooperative_" + COOPERATIVE_SCENARIO;
         if (ANIMAL_MODE) return "native_animal_" + ANIMAL_SCENARIO;
         if (invalidShieldScenario()) return "invalid_shield_scenario";
         if (SHIELD_MODE) return "native_shield_" + SHIELD_SCENARIO;
@@ -7161,7 +7599,7 @@ public final class RuntimeVerification implements ClientModInitializer {
     }
 
     private static int selectedFixtureModes() {
-        return (ANIMAL_MODE ? 1 : 0) + (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
+        return (COOPERATIVE_MODE ? 1 : 0) + (ANIMAL_MODE ? 1 : 0) + (WORLD_POLICY_MODE ? 1 : 0) + (EXPLORATION_MODE ? 1 : 0) + (DIAMOND_BOOTSTRAP_MODE ? 1 : 0)
             + (NEARBY_WOOD_MODE ? 1 : 0) + (IRON_PICKAXE_MODE ? 1 : 0) + (COAL_RECOVERY_MODE ? 1 : 0) + (BULK_WOOD_MODE ? 1 : 0)
             + (COOKING_MODE ? 1 : 0) + (STONECUTTING_MODE ? 1 : 0) + (PREPARED_SAFETY_MODE != null ? 1 : 0);
     }

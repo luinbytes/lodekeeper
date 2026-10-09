@@ -86,21 +86,24 @@ final class CraftingAction {
         if (client.player.containerMenu != menu) throw new IllegalStateException("Crafting container closed or changed");
         if (transfer == null && !menu.getCarried().isEmpty()) throw new IllegalStateException("Cursor is occupied; finish your inventory action first");
         if (transfer != null) {
+            if (drainRequested && isOptionalPreparation()) transfer.requestDrain();
             if (!transferStarted) { verifyShieldBudget(); transferStarted = true; }
             if (transfer.tick()) {
-                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                int confirmed = isOptionalPreparation() ? transfer.placedCount() : transferPlacementCount;
+                if (transfer.drained()) drainRequested = true;
+                for (int index = placementIndex; index < placementIndex + confirmed; index++) {
                     Placement placed = placements.get(index);
                     ItemStack gridStack = menu.getSlot(placed.menuSlot()).getItem();
                     if (gridStack.getCount() != 1 || !same(gridStack, placed.inputStack()) || !placed.predicate().test(gridStack))
                         throw new IllegalStateException("Crafting grid input changed or no longer matches the planned recipe; leaving the container open");
                 }
-                for (int index = placementIndex; index < placementIndex + transferPlacementCount; index++) {
+                for (int index = placementIndex; index < placementIndex + confirmed; index++) {
                     Placement placed = placements.get(index);
                     remainingMaterials.compute(placed.budgetKey(), (ignored, count) -> count - 1);
                     rememberOwnedGridContents(placed);
                 }
                 transfer = null;
-                placementIndex += transferPlacementCount;
+                placementIndex += confirmed;
                 transferPlacementCount = 0;
             }
             if (transfer != null) return false;
@@ -178,6 +181,7 @@ final class CraftingAction {
             if (next.sourceSlot() != placement.sourceSlot() || !same(next.inputStack(), placement.inputStack())) break;
             groupSize++;
         }
+        if (isOptionalPreparation() && !optionalTransferCurrent()) return false;
         verifyPlacementInputs(groupSize, currentInput);
         verifyShieldBudget();
         transferStarted = true;
@@ -188,10 +192,12 @@ final class CraftingAction {
             for (int index = 0; index < count; index++) destinations[index] = placements.get(placementIndex + index).menuSlot();
             transfer = new SlotTransfer(client, menu, placement.sourceSlot(), destinations, () -> {
                 verifyPlacementInputs(count, menu.getSlot(placement.sourceSlot()).getItem());
-                verifyShieldBudget();
-            }, () -> verifyPlacementInputs(count, menu.getCarried()));
+            }, () -> verifyPlacementInputs(count, menu.getCarried()),
+                    isOptionalPreparation() ? this::optionalTransferCurrent : null);
         } else {
-            transfer = new SlotTransfer(client, menu, placement.sourceSlot(), placement.menuSlot(), 1);
+            transfer = isOptionalPreparation()
+                    ? new SlotTransfer(client, menu, placement.sourceSlot(), placement.menuSlot(), 1, null, this::optionalTransferCurrent)
+                    : new SlotTransfer(client, menu, placement.sourceSlot(), placement.menuSlot(), 1);
         }
         transfer.tick();
         return false;
@@ -278,6 +284,7 @@ final class CraftingAction {
                 guardedSource.getItem(), "crafting output", null, () -> {
             if (drainRequested || !optionalWorkCurrent.getAsBoolean())
                 throw new StaleOptionalWorkBeforeOutputClick();
+            if (isOptionalPreparation() && !optionalTransferCurrent()) throw new StaleOptionalWorkBeforeOutputClick();
             ItemStack current = craftingMenu.getResultSlot().getItem();
             if (current.isEmpty() || current.getCount() != guardedSource.getCount() || !same(current, guardedSource))
                 throw new IllegalStateException("Crafting output changed before transfer; leaving the container open");
@@ -348,6 +355,54 @@ final class CraftingAction {
                 && ItemStack.isSameItemSameComponents(stack, new ItemStack(stack.getItem()));
     }
 
+    private boolean isTravelFoodPreparation() {
+        return Boolean.parseBoolean(step.attributes().getOrDefault("travelFoodPreparation", "false"));
+    }
+
+    private boolean isOptionalPreparation() {
+        return isTravelFoodPreparation()
+                || Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"));
+    }
+
+    private boolean optionalTransferCurrent() {
+        if (drainRequested || !optionalWorkCurrent.getAsBoolean()) { drainRequested = true; return false; }
+        try {
+            verifyTravelFoodBudget();
+            verifyShieldBudget();
+            return true;
+        } catch (IllegalStateException changed) { drainRequested = true; return false; }
+    }
+
+    private void verifyTravelFoodBudget() {
+        if (drainRequested || !Boolean.parseBoolean(step.attributes().getOrDefault("travelFoodPreparation", "false"))) return;
+        Map<dev.lodekeeper.core.ItemId, Integer> reservations = new HashMap<>(liveReservations.get());
+        Map<dev.lodekeeper.core.ItemId, Integer> needed = new HashMap<>();
+        step.attributes().forEach((key, value) -> {
+            if (key.startsWith("travelFoodReserved:")) reservations.merge(dev.lodekeeper.core.ItemId.parse(key.substring(19)), Integer.parseInt(value), Math::max);
+            if (key.startsWith("travelFoodFuture:")) needed.merge(dev.lodekeeper.core.ItemId.parse(key.substring(17)), Integer.parseInt(value), Math::addExact);
+        });
+        remainingMaterials.forEach((key, count) -> {
+            if (count > 0) needed.merge(dev.lodekeeper.core.ItemId.parse(key.substring(key.indexOf(':') + 1)), count, Math::addExact);
+        });
+        Map<dev.lodekeeper.core.ItemId, Integer> counts = new HashMap<>();
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getItem(index);
+            if (ordinary(stack)) counts.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        if (transfer != null) {
+            ItemStack held = menu.getCarried();
+            if (ordinary(held)) counts.merge(GameCatalog.id(held.getItem()), held.getCount(), Math::addExact);
+            for (int index = placementIndex; index < placementIndex + transfer.placedCount(); index++) {
+                dev.lodekeeper.core.ItemId placed = GameCatalog.id(placements.get(index).item());
+                needed.computeIfPresent(placed, (item, count) -> count - 1);
+            }
+        }
+        for (var need : needed.entrySet())
+            if (counts.getOrDefault(need.getKey(), 0) - (long) reservations.getOrDefault(need.getKey(), 0) < need.getValue()) {
+                throw new IllegalStateException("on-hand food reservations changed; no further ingredient was transferred");
+            }
+    }
+
     private void verifyShieldBudget() {
         if (drainRequested) return;
         if (!Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))) return;
@@ -365,6 +420,14 @@ final class CraftingAction {
         for (int index = 0; index < 36; index++) {
             ItemStack stack = client.player.getInventory().getItem(index);
             if (ordinary(stack)) counts.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        if (transfer != null) {
+            ItemStack held = menu.getCarried();
+            if (ordinary(held)) counts.merge(GameCatalog.id(held.getItem()), held.getCount(), Math::addExact);
+            for (int index = placementIndex; index < placementIndex + transfer.placedCount(); index++) {
+                dev.lodekeeper.core.ItemId placed = GameCatalog.id(placements.get(index).item());
+                needed.computeIfPresent(placed, (item, count) -> count - 1);
+            }
         }
         dev.lodekeeper.core.ItemId iron = dev.lodekeeper.core.ItemId.parse("minecraft:iron_ingot");
         long spareIron = counts.getOrDefault(iron, 0) - (long) reservations.getOrDefault(iron, 0) - needed.getOrDefault(iron, 0);

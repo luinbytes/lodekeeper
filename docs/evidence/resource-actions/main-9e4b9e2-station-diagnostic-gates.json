@@ -2566,5 +2566,2199 @@
     "The earlier modern failure and earlier primary verifier assertion failure remain separate evidence for their named artifacts.",
     "Exact primary, modern and legacy local builds pass. CI is recorded at its exact source head and may still be running; incomplete jobs do not establish compile support.",
     "Two original gameplay captures pass anonymous byte/hash read-back and signed-out 640x360 decode. Four exact local original/staging PNG copies are removed. Worlds, logs, receipts and frozen artifacts remain."
-  ]
+  ],
+  "ciFinal": {
+    "conclusion": "success",
+    "headSha": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+    "jobs": [
+      {
+        "completedAt": "2026-10-09T08:44:53Z",
+        "conclusion": "success",
+        "databaseId": 113740109577,
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:41:34Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:41:37Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:41:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:39Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:41:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:44Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:41:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:49Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:41:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:49Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:44:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:49Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:44:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:50Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:44:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:51Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:44:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:51Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:44:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:51Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:44:51Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109577"
+      },
+      {
+        "completedAt": "2026-10-09T08:43:09Z",
+        "conclusion": "success",
+        "databaseId": 113740109757,
+        "name": "adapters (1.20.1, 17, fabric)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:36Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109757"
+      },
+      {
+        "completedAt": "2026-10-09T08:48:22Z",
+        "conclusion": "success",
+        "databaseId": 113740109817,
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:44:55Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:44:58Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:44:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:00Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:44:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:08Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:45:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:19Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:45:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:19Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:48:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:19Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:48:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:20Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:48:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:20Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:48:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:20Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:48:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:20Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:48:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109817"
+      },
+      {
+        "completedAt": "2026-10-09T08:46:35Z",
+        "conclusion": "success",
+        "databaseId": 113740109820,
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:43:12Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:43:14Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:43:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:16Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:43:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:21Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:43:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:32Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:43:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:32Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:46:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:32Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:46:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:34Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:46:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:34Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:46:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:34Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:46:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:34Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:46:34Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109820"
+      },
+      {
+        "completedAt": "2026-10-09T08:49:14Z",
+        "conclusion": "success",
+        "databaseId": 113740109850,
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:46:04Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:46:06Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:46:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:08Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:46:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:13Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:46:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:10Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:46:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:10Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:49:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:10Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:49:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:11Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:49:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:12Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:49:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:12Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:49:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:12Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:49:12Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109850"
+      },
+      {
+        "completedAt": "2026-10-09T08:48:41Z",
+        "conclusion": "success",
+        "databaseId": 113740109894,
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:46:38Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:46:39Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:46:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:41Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:46:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:45Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:46:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:38Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:46:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:38Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:48:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:38Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:48:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:39Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:48:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:39Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:48:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:40Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:48:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:40Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:48:40Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109894"
+      },
+      {
+        "completedAt": "2026-10-09T08:47:42Z",
+        "conclusion": "success",
+        "databaseId": 113740109910,
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:44:00Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:44:02Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:44:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:04Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:44:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:10Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:44:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:38Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:44:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:38Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:47:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:38Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:47:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:40Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:47:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:40Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:47:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:40Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:47:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:40Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:47:40Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109910"
+      },
+      {
+        "completedAt": "2026-10-09T08:41:32Z",
+        "conclusion": "success",
+        "databaseId": 113740109913,
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:39:20Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:39:22Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:39:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:25Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:39:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:30Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:39:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:39:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109913"
+      },
+      {
+        "completedAt": "2026-10-09T08:43:58Z",
+        "conclusion": "success",
+        "databaseId": 113740109921,
+        "name": "adapters (1.20, 17, fabric)",
+        "startedAt": "2026-10-09T08:40:06Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:40:09Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:40:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:12Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:40:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:18Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:40:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:40:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109921"
+      },
+      {
+        "completedAt": "2026-10-09T08:39:18Z",
+        "conclusion": "success",
+        "databaseId": 113740109923,
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:34Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109923"
+      },
+      {
+        "completedAt": "2026-10-09T08:49:21Z",
+        "conclusion": "success",
+        "databaseId": 113740109957,
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:47:44Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:47:46Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:47:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:48Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:47:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:47:53Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:47:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:18Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:47:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:18Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:49:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:18Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:49:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:19Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:49:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:19Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:49:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:20Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:49:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:20Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:49:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109957"
+      },
+      {
+        "completedAt": "2026-10-09T08:42:13Z",
+        "conclusion": "success",
+        "databaseId": 113740109966,
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:28Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:10Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:10Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:42:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:11Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:42:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:42:11Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109966"
+      },
+      {
+        "completedAt": "2026-10-09T08:40:04Z",
+        "conclusion": "success",
+        "databaseId": 113740110021,
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:23Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:02Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740110021"
+      },
+      {
+        "completedAt": "2026-10-09T08:46:02Z",
+        "conclusion": "success",
+        "databaseId": 113740110056,
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:42:15Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:42:18Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:42:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:20Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:42:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:26Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:42:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:58Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:42:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:58Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:45:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:58Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:45:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:59Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:45:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:45:59Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:45:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:00Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:45:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:46:00Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:46:00Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740110056"
+      },
+      {
+        "completedAt": "2026-10-09T08:50:37Z",
+        "conclusion": "success",
+        "databaseId": 113740111291,
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:48:25Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:48:27Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:48:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:30Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:48:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:48:36Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:48:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:33Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:48:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:33Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:50:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:33Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:50:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:35Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:50:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:35Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:50:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:35Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:50:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:35Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:50:35Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111291"
+      },
+      {
+        "completedAt": "2026-10-09T08:50:56Z",
+        "conclusion": "success",
+        "databaseId": 113740111423,
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:49:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:49:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:49:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:49:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:49:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:52Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:49:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:52Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:50:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:52Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:50:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:53Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:50:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:54Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:50:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:54Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:50:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:54Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:50:54Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111423"
+      },
+      {
+        "completedAt": "2026-10-09T08:52:41Z",
+        "conclusion": "success",
+        "databaseId": 113740111458,
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:51:29Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:51:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:51:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:36Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:51:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:42Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:51:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:36Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:51:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:36Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:52:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:37Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:52:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:38Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:52:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:39Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:52:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:39Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:52:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:39Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:52:39Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111458"
+      },
+      {
+        "completedAt": "2026-10-09T08:52:23Z",
+        "conclusion": "success",
+        "databaseId": 113740111466,
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:50:40Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:50:42Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:50:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:44Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:50:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:50:49Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:50:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:19Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:50:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:19Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:52:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:19Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:52:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:20Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:52:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:21Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:52:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:21Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:52:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:21Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:52:21Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111466"
+      },
+      {
+        "completedAt": "2026-10-09T08:51:30Z",
+        "conclusion": "success",
+        "databaseId": 113740111500,
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:49:17Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:49:19Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:49:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:22Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:49:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:29Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:49:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:26Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:49:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:26Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:51:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:26Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:51:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:27Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:51:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:27Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:51:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:28Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:51:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:28Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:51:28Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111500"
+      },
+      {
+        "completedAt": "2026-10-09T08:52:33Z",
+        "conclusion": "success",
+        "databaseId": 113740111534,
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:51:33Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:51:34Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:51:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:36Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:51:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:40Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:51:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:31Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:51:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:31Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:52:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:31Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:52:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:32Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:52:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:32Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:52:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:32Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:52:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:32Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:52:32Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111534"
+      },
+      {
+        "completedAt": "2026-10-09T08:51:26Z",
+        "conclusion": "success",
+        "databaseId": 113740111539,
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:49:20Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:49:21Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:49:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:23Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:49:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:49:27Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:49:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:23Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:49:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:23Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:51:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:23Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:51:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:24Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:51:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:51:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:51:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:24Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:51:24Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111539"
+      },
+      {
+        "completedAt": "2026-10-09T08:53:00Z",
+        "conclusion": "success",
+        "databaseId": 113740111629,
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:50:59Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:51:01Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:50:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:04Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:51:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:51:15Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:51:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:56Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:51:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:56Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:52:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:56Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:52:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:58Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:52:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:58Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:52:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:58Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:52:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:58Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:52:58Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111629"
+      },
+      {
+        "completedAt": "2026-10-09T08:53:31Z",
+        "conclusion": "success",
+        "databaseId": 113740111924,
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:52:36Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:52:38Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:52:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:40Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:52:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:46Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:52:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:28Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:52:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:28Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:53:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:28Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:53:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:29Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:53:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:53:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:53:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:29Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:53:29Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111924"
+      },
+      {
+        "completedAt": "2026-10-09T08:53:50Z",
+        "conclusion": "success",
+        "databaseId": 113740112408,
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:52:26Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:52:28Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:52:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:30Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:52:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:52:37Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:52:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:46Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:52:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:46Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:53:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:46Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:53:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:47Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:53:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:48Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:53:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:48Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:53:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:53:48Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:53:48Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740112408"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477"
+  },
+  "ciFinalSha256": "b32481fce2467acf1b6f9e4ef5d009e3980409cb995d4ef22d2bea7b7939b98f",
+  "ciFinalRecordedAtUtc": "2026-10-09T09:40:37.555103+00:00"
 }

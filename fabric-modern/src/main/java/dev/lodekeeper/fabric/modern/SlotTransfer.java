@@ -20,6 +20,9 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
     private final DoubleSupplier consumptionProgress;
     private final int[] dragDestinations;
     private final Runnable beforePickup, beforeDrag;
+    private final java.util.function.BooleanSupplier ingredientEffectAllowed;
+    private boolean drainRequested;
+    private int confirmedPlaced;
     private final int[] craftingGridSlots;
     private final ItemStack[] expectedCraftingGrid;
     private int remaining, pendingAmount, beforeCursor, beforeDestination, sourceCount;
@@ -49,19 +52,32 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
 
     SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int destination, int amount,
                  DoubleSupplier consumptionProgress) {
-        this(client, menu, source, destination, amount, consumptionProgress, null, null, null);
+        this(client, menu, source, destination, amount, consumptionProgress, null, null, null, null);
     }
 
     SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int[] destinations,
                  Runnable beforePickup, Runnable beforeDrag) {
         this(client, menu, source, destinations[0], destinations.length, null,
-                destinations, beforePickup, beforeDrag);
+                destinations, beforePickup, beforeDrag, null);
+        if (destinations.length < 2) throw new IllegalArgumentException("A crafting drag needs multiple destinations");
+    }
+
+    SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int destination, int amount,
+                 DoubleSupplier consumptionProgress, java.util.function.BooleanSupplier ingredientEffectAllowed) {
+        this(client, menu, source, destination, amount, consumptionProgress, null, null, null, ingredientEffectAllowed);
+    }
+
+    SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int[] destinations,
+                 Runnable beforePickup, Runnable beforeDrag, java.util.function.BooleanSupplier ingredientEffectAllowed) {
+        this(client, menu, source, destinations[0], destinations.length, null,
+                destinations, beforePickup, beforeDrag, ingredientEffectAllowed);
         if (destinations.length < 2) throw new IllegalArgumentException("A crafting drag needs multiple destinations");
     }
 
     private SlotTransfer(Minecraft client, AbstractContainerMenu menu, int source, int destination, int amount,
                          DoubleSupplier consumptionProgress, int[] dragDestinations,
-                         Runnable beforePickup, Runnable beforeDrag) {
+                         Runnable beforePickup, Runnable beforeDrag,
+                         java.util.function.BooleanSupplier ingredientEffectAllowed) {
         this.client = client;
         this.menu = menu;
         this.menuSize = menu.slots.size();
@@ -76,6 +92,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         this.dragDestinations = dragDestinations == null ? null : dragDestinations.clone();
         this.beforePickup = beforePickup;
         this.beforeDrag = beforeDrag;
+        this.ingredientEffectAllowed = ingredientEffectAllowed;
         if (dragDestinations != null) {
             if (!(menu instanceof net.minecraft.world.inventory.AbstractCraftingMenu crafting))
                 throw new IllegalArgumentException("A crafting drag requires a native crafting grid");
@@ -123,9 +140,10 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         if (failed) throw new IllegalStateException(failure);
         requireHandler();
         if (pending != null && !observeClick()) return false;
+        if (drainRequested && phase != Phase.COMPLETE) phase = Phase.RETURN;
         if (phase == Phase.COMPLETE) {
             requireAcknowledgedState(true);
-            receipt().lodekeeper$unwatchClick(this);
+            if (fullReceipt != null) receipt().lodekeeper$unwatchClick(this);
             return true;
         }
         if (phase == Phase.PICKUP) {
@@ -160,7 +178,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         } else {
             returnCursor();
         }
-        if (phase == Phase.COMPLETE) receipt().lodekeeper$unwatchClick(this);
+        if (phase == Phase.COMPLETE && fullReceipt != null) receipt().lodekeeper$unwatchClick(this);
         return phase == Phase.COMPLETE;
     }
 
@@ -291,9 +309,11 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         }
         if (!confirmedBefore && fullReceipt.consumptionConfirmed()) logAcknowledgement("full_ack_consumption_confirmed");
         if (pending == Phase.DRAG) {
+            confirmedPlaced += remaining;
             remaining = 0;
             phase = Phase.RETURN;
         } else if (pending == Phase.PLACE) {
+            confirmedPlaced += pendingAmount;
             remaining -= pendingAmount;
             pendingAmount = 0;
             phase = remaining == 0 ? Phase.RETURN : Phase.PLACE;
@@ -301,7 +321,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             phase = dragDestinations == null ? Phase.PLACE : Phase.DRAG;
             closePickupObservation();
         } else {
-            phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
+            phase = remaining == 0 || drainRequested ? Phase.COMPLETE : Phase.PICKUP;
         }
         pending = null;
         observations = 0;
@@ -322,6 +342,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
             if (!target.getItem().isEmpty() || !target.mayPlace(cursor) || target.getMaxStackSize(cursor) < 1)
                 throw new IllegalStateException("Crafting drag destination changed; leaving the container open");
         }
+        if (!admitIngredientEffect()) { returnCursor(); return; }
         for (int index = 0; index < craftingGridSlots.length; index++) {
             for (int slot : dragDestinations) {
                 if (craftingGridSlots[index] == slot) expectedCraftingGrid[index] = expected.copyWithCount(1);
@@ -364,7 +385,7 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         ItemStack cursor = menu.getCarried();
         if (cursor.isEmpty()) {
             requireAcknowledgedState(remaining == 0);
-            phase = remaining == 0 ? Phase.COMPLETE : Phase.PICKUP;
+            phase = remaining == 0 || drainRequested ? Phase.COMPLETE : Phase.PICKUP;
             return;
         }
         requireSourceCount();
@@ -449,7 +470,22 @@ final class SlotTransfer implements OwnedClickReceipts.FullReceiptObserver {
         } finally { sending = false; }
     }
 
+    void requestDrain() { drainRequested = true; }
+    boolean drained() { return drainRequested && phase == Phase.COMPLETE; }
+    int placedCount() { return confirmedPlaced; }
+
+    private boolean admitIngredientEffect() {
+        if (!drainRequested && (ingredientEffectAllowed == null || ingredientEffectAllowed.getAsBoolean())) return true;
+        drainRequested = true;
+        phase = fullReceipt == null ? Phase.COMPLETE : Phase.RETURN;
+        return false;
+    }
+
     private void click(int slot, int button, int expectedSlotCount, int expectedCursorCount) {
+        if (phase != Phase.RETURN && !admitIngredientEffect()) {
+            if (phase == Phase.RETURN) returnCursor();
+            return;
+        }
         prepareReceipt(expectedSlotCount, expectedCursorCount);
         sendClick(() -> {
             startPickupObservation(button);

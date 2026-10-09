@@ -131,6 +131,16 @@ final class GameTerrain implements Terrain {
     }
 
     void changed() { revision++; }
+    void clearTravelForecasts() {
+        revision++;
+        invalidateReadCache();
+    }
+    String travelCacheStatus() {
+        syncReadCacheEpoch();
+        return "source terrain query hints " + voxelCacheEntries + "/" + VOXEL_READ_CACHE_LIMIT
+                + ", chunk hints " + chunkCacheEntries + "/" + CHUNK_READ_CACHE_LIMIT
+                + "; native region storage is retained";
+    }
     void beginSearch() {
         WorldRevision.beginSearch();
         observeContext();

@@ -23,6 +23,15 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean supportsTravel() { return false; }
+    static java.util.UUID resolveTravelPlayer(net.minecraft.client.Minecraft client, String selector) {
+        throw new IllegalStateException("Player travel is unsupported in this game family");
+    }
+    static net.minecraft.world.entity.Entity loadedTravelPlayer(net.minecraft.client.Minecraft client, java.util.UUID id) { return null; }
+    static boolean travelPose(net.minecraft.client.Minecraft client) { return false; }
+    static boolean travelBounds(net.minecraft.client.Minecraft client, net.minecraft.core.BlockPos feet) { return false; }
+
+
     static boolean animalAttackWindow(net.minecraft.world.entity.LivingEntity animal) {
         return animal.hurtTime <= 0;
     }

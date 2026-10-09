@@ -44,6 +44,35 @@ import java.util.Map;
 final class VerificationApi {
     private VerificationApi() {}
 
+    static Object joinNativePlayerPeer(ServerPlayer player, ServerLevel world, boolean fullRecipient) {
+        return nativePlayerPeerCall("join", new Class<?>[]{ServerPlayer.class, ServerLevel.class, boolean.class}, player, world, fullRecipient);
+    }
+    @SuppressWarnings("unchecked")
+    static Map<String, String> observeNativePlayerPeer(Object handle, ServerPlayer player, int tick) {
+        return (Map<String, String>) nativePlayerPeerCall("observe", new Class<?>[]{Object.class, ServerPlayer.class, int.class}, handle, player, tick);
+    }
+    @SuppressWarnings("unchecked")
+    static Map<String, String> trackNativePlayerPeer(Object handle, Minecraft client) {
+        return (Map<String, String>) nativePlayerPeerCall("tracking", new Class<?>[]{Object.class, Minecraft.class}, handle, client);
+    }
+    static void moveNativePlayerPeer(Object handle, double x, double y, double z) {
+        nativePlayerPeerCall("move", new Class<?>[]{Object.class, double.class, double.class, double.class}, handle, x, y, z);
+    }
+    static void closeNativePlayerPeer(Object handle) {
+        nativePlayerPeerCall("close", new Class<?>[]{Object.class}, handle);
+    }
+    private static Object nativePlayerPeerCall(String method, Class<?>[] parameters, Object... arguments) {
+        if (!"26.3".equals(minecraftVersion())) throw new IllegalStateException("native player fixture unavailable for this artifact");
+        try {
+            Class<?> helper = Class.forName(VerificationApi.class.getPackageName() + ".NativePlayerFixture", true, VerificationApi.class.getClassLoader());
+            return helper.getDeclaredMethod(method, parameters).invoke(null, arguments);
+        } catch (java.lang.reflect.InvocationTargetException error) {
+            throw new IllegalStateException("native player fixture failed in " + method, error.getCause());
+        } catch (ReflectiveOperationException error) {
+            throw new IllegalStateException("native player fixture unavailable for this artifact", error);
+        }
+    }
+
     private static final class NativeAnimalFixture {
         final String scenario;
         final java.util.List<net.minecraft.world.entity.animal.Animal> animals = new java.util.ArrayList<>();

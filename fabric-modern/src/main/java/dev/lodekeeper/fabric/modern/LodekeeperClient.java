@@ -365,6 +365,12 @@ public final class LodekeeperClient implements ClientModInitializer {
         try {
             if (command instanceof CommandParser.HelpCommand) showHelp();
             else if (command instanceof CommandParser.GetCommand get) engine.enqueue(get.item(), get.count());
+            else if (command instanceof CommandParser.GotoCommand go) engine.enqueueTravel(go.goal());
+            else if (command instanceof CommandParser.ExploreCommand explore) engine.enqueueTravel(explore.goal());
+            else if (command instanceof CommandParser.FollowCommand follow) engine.followPlayer(follow.selector(), follow.seconds());
+            else if (command instanceof CommandParser.WaypointCommand waypoint) engine.waypoint(waypoint);
+            else if (command instanceof CommandParser.CacheCommand cache) engine.cache(cache);
+            else if (command instanceof CommandParser.CancelCommand cancel) engine.cancelRequest(cancel.jobToken());
             else if (command instanceof CommandParser.StopCommand) { stopRequested = true; engine.stop(); }
             else if (command instanceof CommandParser.PauseCommand) engine.pause("requested");
             else if (command instanceof CommandParser.ResumeCommand) engine.resume();

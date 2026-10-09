@@ -69,6 +69,15 @@ final class GameApi {
 
     private GameApi() {}
 
+    static boolean supportsTravel() { return false; }
+    static java.util.UUID resolveTravelPlayer(net.minecraft.client.MinecraftClient client, String selector) {
+        throw new IllegalStateException("Player travel is unsupported in this game family");
+    }
+    static net.minecraft.entity.Entity loadedTravelPlayer(net.minecraft.client.MinecraftClient client, java.util.UUID id) { return null; }
+    static boolean travelPose(net.minecraft.client.MinecraftClient client) { return false; }
+    static boolean travelBounds(net.minecraft.client.MinecraftClient client, net.minecraft.util.math.BlockPos feet) { return false; }
+
+
     static boolean animalAttackWindow(net.minecraft.entity.LivingEntity animal) {
         return animal.timeUntilRegen <= 10 && animal.hurtTime <= 0;
     }

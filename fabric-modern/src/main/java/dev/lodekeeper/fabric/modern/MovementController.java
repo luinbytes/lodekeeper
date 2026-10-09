@@ -350,6 +350,12 @@ final class MovementController {
     private Set<Block> protectedBlocks = Set.of();
     private SettingsLease lease;
     private UUID followTargetId;
+    private int followRadius = 1;
+    private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal preparedTravelGoal;
+    private Object preparedTravelWorld, preparedTravelPlayer;
+    private dev.lodekeeper.navigation.kernel.OwnedKernelRuntime preparedTravelOwner;
+    private dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session preparedTravelSession;
+    private java.util.function.BooleanSupplier travelEffectAuthority;
     private Object followOwnerWorld, followOwnerPlayer;
     private Predicate<Entity> followFilter;
     private OwnedPickupTarget pickupTarget;
@@ -408,6 +414,77 @@ final class MovementController {
         this.reserved = Set.copyOf(reserved);
         this.protectedBlocks = Set.copyOf(protectedBlocks);
         if (lease != null) applyProtection();
+    }
+
+    void startCoordinate(BlockPos target, RouteEffects effects, java.util.function.BooleanSupplier authority) {
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(effects);
+        Objects.requireNonNull(authority);
+        if (!authority.getAsBoolean()) throw new NavigationFailure("Travel authority expired before preparation");
+        if (!GameApi.supportsTravel() || effects != RouteEffects.MOVEMENT_ONLY)
+            throw new NavigationFailure("Coordinate travel requires the movement-only profile");
+        checkAirRecoveryOwnership();
+        prepare();
+        routeEffects = effects;
+        travelEffectAuthority = authority;
+        routeGoal = new GoalBlock(target);
+        preparedTravelGoal = routeGoal;
+        preparedTravelWorld = client.level;
+        preparedTravelPlayer = client.player;
+        preparedTravelOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        preparedTravelSession = preparedTravelOwner.captureSession();
+        diagnosticGoal = dev.lodekeeper.nav.Goal.exact16(target.getX(), target.getY() * 16, target.getZ());
+        mode = Mode.MOVE;
+        launch();
+    }
+
+    void startExploration(ExplorationFrontier.Waypoint waypoint, RouteEffects effects, java.util.function.BooleanSupplier authority) {
+        Objects.requireNonNull(waypoint);
+        startCoordinate(new BlockPos(waypoint.x(), waypoint.y(), waypoint.z()), effects, authority);
+        diagnosticGoal = dev.lodekeeper.nav.Goal.exact16(waypoint.x(), Math.toIntExact(waypoint.feetY16()), waypoint.z());
+    }
+
+    void startFollowingPlayer(UUID id, net.minecraft.world.entity.Entity target, RouteEffects effects, java.util.function.BooleanSupplier authority) {
+        Objects.requireNonNull(id);
+        Objects.requireNonNull(effects);
+        Objects.requireNonNull(authority);
+        if (!authority.getAsBoolean()) throw new NavigationFailure("Travel authority expired before preparation");
+        if (!GameApi.supportsTravel() || target == null || !id.equals(target.getUUID()) || target.level() != client.level
+                || !target.isAlive() || target.isRemoved() || effects != RouteEffects.MOVEMENT_ONLY)
+            throw new NavigationFailure("Player follow requires one live pinned player and the movement-only profile");
+        checkAirRecoveryOwnership();
+        prepare();
+        routeEffects = effects;
+        travelEffectAuthority = authority;
+        followTargetId = id;
+        followOwnerWorld = client.level;
+        followOwnerPlayer = client.player;
+        followRadius = 2;
+        var sessionOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = sessionOwner.captureSession();
+        preparedTravelGoal = null;
+        preparedTravelWorld = client.level; preparedTravelPlayer = client.player;
+        preparedTravelOwner = sessionOwner; preparedTravelSession = session;
+        var network = client.getConnection();
+        var connection = network == null ? null : network.getConnection();
+        followFilter = entity -> mode == Mode.FOLLOW && entity == target && id.equals(entity.getUUID())
+                && entity.level() == followOwnerWorld && entity.isAlive() && !entity.isRemoved()
+                && client.level == followOwnerWorld && client.player == followOwnerPlayer
+                && dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() == sessionOwner
+                && sessionOwner.isCurrent(session) && session.world() == followOwnerWorld
+                && network != null && client.getConnection() == network && network.getConnection() == connection
+                && connection != null && connection.isConnected()
+                && Double.isFinite(entity.distanceToSqr(client.player))
+                && entity.distanceToSqr(client.player) <= 4096;
+        mode = Mode.FOLLOW;
+        launch();
+    }
+
+    void abandonRequestContext() { releaseLostAirRecoveryOwnership(); bot = null; }
+
+    boolean travelReleased() {
+        return mode == Mode.IDLE && resumeMode == Mode.IDLE && !cancelling && lease == null
+                && !followCancellationPending && cancellationProcess == null && !airRecoveryCancellationPending;
     }
 
     void startExploration(ExplorationFrontier.Waypoint waypoint) {
@@ -1563,6 +1640,7 @@ final class MovementController {
         if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         prepare();
         routeEffects = effects;
+        followRadius = 1;
         followTargetId = animal.getUUID();
         followOwnerWorld = client.level;
         followOwnerPlayer = client.player;
@@ -1734,8 +1812,14 @@ final class MovementController {
             org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] KERNEL {}", message);
     }
 
+    private void checkTravelEffectAuthority() {
+        if (travelEffectAuthority != null && !travelEffectAuthority.getAsBoolean())
+            throw new NavigationFailure("Travel authority expired; no new native effect is admitted");
+    }
+
     private void launch() {
-        if (routeEffects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
+        checkTravelEffectAuthority();
+        if (routeEffects == RouteEffects.MOVEMENT_ONLY || preparedTravelOwner != null) checkAirRecoveryOwnership();
         if (mode == Mode.MINE || mode == Mode.DESCEND) {
             refreshMiningDepth();
             if (miningDepthPolicy.bulkDiamonds() && (int) Math.floor(client.player.getY())
@@ -1818,7 +1902,14 @@ final class MovementController {
         applyProtection();
         if (!movementOnly && !airRecovery && !retreatRequest) actions.prepareScaffoldHotbar(scaffoldItems);
         switch (mode) {
-            case MOVE, AIR -> bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
+            case MOVE, AIR -> {
+                checkTravelEffectAuthority();
+                if (preparedTravelOwner != null) checkAirRecoveryOwnership();
+                bot.getCustomGoalProcess().setGoalAndPath(routeGoal);
+                preparedTravelGoal = null;
+                preparedTravelWorld = preparedTravelPlayer = null;
+                preparedTravelOwner = null; preparedTravelSession = null;
+            }
             case PICKUP -> {
                 if (pickupTarget == null) bot.getFollowProcess().pickup(stack -> stack.is(output));
                 else {
@@ -1829,10 +1920,16 @@ final class MovementController {
                 }
             }
             case FOLLOW -> {
-                lease.set(settings.followRadius, 1);
+                checkTravelEffectAuthority();
+                if (preparedTravelOwner != null) checkAirRecoveryOwnership();
+                lease.set(settings.followRadius, followRadius);
                 lease.set(settings.followOffsetDistance, 0.0);
                 lease.set(settings.followTargetMaxDistance, 64);
+                checkTravelEffectAuthority();
+                if (preparedTravelOwner != null) checkAirRecoveryOwnership();
                 bot.getFollowProcess().follow(followFilter);
+                preparedTravelGoal = null; preparedTravelWorld = preparedTravelPlayer = null;
+                preparedTravelOwner = null; preparedTravelSession = null;
             }
             case DESCEND -> bot.getCustomGoalProcess().setGoalAndPath(new GoalYLevel(miningY));
             case MINE -> {
@@ -2530,6 +2627,17 @@ final class MovementController {
         checkFollowOwnership();
         IBaritone activeBot = bot == null ? OwnedKernelAPI.getProvider().getPrimaryBaritone() : bot;
         var custom = activeBot.getCustomGoalProcess();
+        if (preparedTravelOwner != null && (mode == Mode.MOVE && routeGoal == preparedTravelGoal
+                || mode == Mode.FOLLOW && preparedTravelGoal == null)) {
+            var pathing = activeBot.getPathingBehavior();
+            if (preparedTravelWorld != client.level || preparedTravelPlayer != client.player
+                    || preparedTravelOwner != dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current()
+                    || preparedTravelOwner == null || !preparedTravelOwner.isCurrent(preparedTravelSession)
+                    || preparedTravelSession.world() != client.level || custom.isActive()
+                    || hasForeignActiveProcess(activeBot, null) || pathing.hasPath() || pathing.isPathing()
+                    || pathing.getInProgress().isPresent()) throw releaseLostAirRecoveryOwnership();
+            return;
+        }
         IBaritoneProcess expected = cancellationProcess != null
                 ? cancellationProcess : expectedProcessForMode(activeBot, mode);
         if (airRecoveryCancellationPending) expected = custom;
@@ -2593,6 +2701,9 @@ final class MovementController {
         diagnosticGoal = null;
         pendingBreakFailure = pendingOwnershipFailure = null;
         if (lease != null) { lease.restore(); lease = null; }
+        preparedTravelGoal = null; preparedTravelWorld = preparedTravelPlayer = null;
+        preparedTravelOwner = null; preparedTravelSession = null;
+        travelEffectAuthority = null;
         return new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST,
                 "Native pathing control changed owner during air recovery");
     }
@@ -2628,6 +2739,9 @@ final class MovementController {
         routeGoal = null;
         diagnosticGoal = null;
         if (lease != null) { lease.restore(); lease = null; }
+        preparedTravelGoal = null; preparedTravelWorld = preparedTravelPlayer = null;
+        preparedTravelOwner = null; preparedTravelSession = null;
+        travelEffectAuthority = null;
         return new NavigationFailure(NavigationFailure.Kind.OWNERSHIP_LOST,
                 "Native follow process changed owner");
     }
@@ -2659,8 +2773,10 @@ final class MovementController {
                 if (!physicalCancellationReady()) logDefenseCancellation("physical-settling");
             }
             if (mode == Mode.IDLE && resumeMode == Mode.IDLE && lease == null
-                    && cancellationProcess == null && !followCancellationPending && !airRecoveryCancellationPending)
+                    && cancellationProcess == null && !followCancellationPending && !airRecoveryCancellationPending) {
                 routeEffects = RouteEffects.CONFIGURED;
+                travelEffectAuthority = null;
+            }
             return true;
         }
         var pathing = bot.getPathingBehavior();
@@ -2679,6 +2795,9 @@ final class MovementController {
         }
         if (lease != null) { lease.restore(); lease = null; }
         cancelling = followCancellationPending = false; observation = NavigationSnapshot.EMPTY;
+        preparedTravelGoal = null; preparedTravelWorld = preparedTravelPlayer = null;
+        preparedTravelOwner = null; preparedTravelSession = null;
+        if (mode == Mode.IDLE && resumeMode == Mode.IDLE) travelEffectAuthority = null;
         cancellationProcess = null;
         airRecoveryCancellationPending = false;
         airRecoveryGoal = null;

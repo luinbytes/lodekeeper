@@ -23,6 +23,9 @@ final class SmeltingAction {
     private final Item output, inputItem, fuelItem;
     private final ItemStack expectedOutput;
     private final boolean ordinaryInputOnly;
+    private final PlanStep plannedStep;
+    private final java.util.function.BooleanSupplier optionalWorkCurrent;
+    private final java.util.function.Supplier<java.util.Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations;
     private final int target, plannedOutput, plannedInput, plannedFuel;
     private final int inputPerOperation, outputPerOperation;
     private int remainingInput, remainingFuel, collectedOutput;
@@ -38,6 +41,13 @@ final class SmeltingAction {
     private boolean dynamicColdStartPending;
 
     SmeltingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step) {
+        this(client, actions, recipe, step, () -> true, java.util.Map::of);
+    }
+    SmeltingAction(Minecraft client, PlayerActions actions, GameCatalog.RecipeWork recipe, PlanStep step, java.util.function.BooleanSupplier optionalWorkCurrent,
+                   java.util.function.Supplier<java.util.Map<dev.lodekeeper.core.ItemId, Integer>> liveReservations) {
+        this.plannedStep = step;
+        this.optionalWorkCurrent = optionalWorkCurrent;
+        this.liveReservations = liveReservations;
         this.client = client;
         ordinaryInputOnly = Boolean.parseBoolean(step.attributes().getOrDefault("ordinaryInputOnly", "false"));
         this.actions = actions;
@@ -75,6 +85,7 @@ final class SmeltingAction {
 
     boolean tick() {
         if (client.player == null || client.gameMode == null) throw new IllegalStateException("No player");
+        if (!optionalWorkCurrent.getAsBoolean()) drainRequested = true;
         if (cooldown-- > 0) return false;
         if (!initialized) initialize();
         if (client.player.containerMenu != menu || !matchesStation(menu, station))
@@ -94,6 +105,7 @@ final class SmeltingAction {
         }
 
         if (transfer != null) {
+            if (drainRequested && isTravelFoodPreparation()) transfer.requestDrain();
             try {
                 if (!transfer.tick()) return false;
             } catch (RuntimeException exception) {
@@ -103,14 +115,16 @@ final class SmeltingAction {
                 }
                 throw exception;
             }
+            int confirmed = isTravelFoodPreparation() ? transfer.placedCount() : transferAmount;
+            if (transfer.drained()) drainRequested = true;
             if (transferDestination == AbstractFurnaceMenu.INGREDIENT_SLOT) {
-                remainingInput -= transferAmount;
-                submittedInput += transferAmount;
-                lastInputBalance += transferAmount;
+                remainingInput -= confirmed;
+                submittedInput += confirmed;
+                lastInputBalance += confirmed;
             } else {
-                remainingFuel -= transferAmount;
-                submittedFuel += transferAmount;
-                lastFuelBalance += transferAmount;
+                remainingFuel -= confirmed;
+                submittedFuel += confirmed;
+                lastFuelBalance += confirmed;
             }
             transfer = null;
             validateKnownContents();
@@ -283,7 +297,51 @@ final class SmeltingAction {
         return -Math.min(plannedInput, completedOperations * inputPerOperation);
     }
 
+    private boolean isTravelFoodPreparation() {
+        return Boolean.parseBoolean(plannedStep.attributes().getOrDefault("travelFoodPreparation", "false"));
+    }
+
+    private boolean transferEffectAllowed() {
+        if (drainRequested || !optionalWorkCurrent.getAsBoolean() || !travelFoodBudgetSafe()) {
+            drainRequested = true;
+            return false;
+        }
+        return true;
+    }
+
+    private boolean travelFoodBudgetSafe() {
+        if (!isTravelFoodPreparation()) return true;
+        if (!optionalWorkCurrent.getAsBoolean()) return false;
+        java.util.Map<dev.lodekeeper.core.ItemId, Integer> reserved = new java.util.HashMap<>(liveReservations.get());
+        java.util.Map<dev.lodekeeper.core.ItemId, Integer> needed = new java.util.HashMap<>();
+        plannedStep.attributes().forEach((key, value) -> {
+            if (key.startsWith("travelFoodReserved:")) reserved.merge(dev.lodekeeper.core.ItemId.parse(key.substring(19)), Integer.parseInt(value), Math::max);
+            if (key.startsWith("travelFoodFuture:")) needed.merge(dev.lodekeeper.core.ItemId.parse(key.substring(17)), Integer.parseInt(value), Math::addExact);
+        });
+        needed.merge(GameCatalog.id(inputItem), remainingInput, Math::addExact);
+        needed.merge(GameCatalog.id(fuelItem), remainingFuel, Math::addExact);
+        java.util.Map<dev.lodekeeper.core.ItemId, Integer> counts = new java.util.HashMap<>();
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getItem(index);
+            if (!stack.isEmpty() && !stack.isEnchanted() && !GameApi.hasCustomName(stack)
+                    && ItemStack.isSameItemSameComponents(stack, new ItemStack(stack.getItem())))
+                counts.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        if (transfer != null) {
+            ItemStack held = menu.getCarried();
+            if (!held.isEmpty() && !held.isEnchanted() && !GameApi.hasCustomName(held)
+                    && ItemStack.isSameItemSameComponents(held, new ItemStack(held.getItem())))
+                counts.merge(GameCatalog.id(held.getItem()), held.getCount(), Math::addExact);
+            dev.lodekeeper.core.ItemId inserted = GameCatalog.id(transferDestination == AbstractFurnaceMenu.INGREDIENT_SLOT ? inputItem : fuelItem);
+            needed.computeIfPresent(inserted, (item, count) -> count - transfer.placedCount());
+        }
+        for (var need : needed.entrySet())
+            if (counts.getOrDefault(need.getKey(), 0) - (long) reserved.getOrDefault(need.getKey(), 0) < need.getValue()) return false;
+        return true;
+    }
+
     private void feed(Item item, int destination, int remaining) {
+        if (!travelFoodBudgetSafe()) { drainRequested = true; return; }
         int source = source(item, destination == AbstractFurnaceMenu.INGREDIENT_SLOT ? expectedInput : expectedFuel,
                 destination == AbstractFurnaceMenu.FUEL_SLOT);
         ItemStack supply = menu.getSlot(source).getItem();
@@ -304,10 +362,13 @@ final class SmeltingAction {
         }
         if (transferAmount < 1) throw new IllegalStateException("Cooking station has no room for the planned supply");
         transferDestination = destination;
-        transfer = new SlotTransfer(client, menu, source, destination, transferAmount,
+        java.util.function.DoubleSupplier progress =
                 destination == AbstractFurnaceMenu.FUEL_SLOT
                         ? () -> menu.isLit() ? Math.round(menu.getLitProgress() * 1_000_000f) + 1 : 0
-                        : this::completedOutputOperations);
+                        : this::completedOutputOperations;
+        transfer = isTravelFoodPreparation()
+                ? new SlotTransfer(client, menu, source, destination, transferAmount, progress, this::transferEffectAllowed)
+                : new SlotTransfer(client, menu, source, destination, transferAmount, progress);
     }
 
     private double completedOutputOperations() {
@@ -323,6 +384,8 @@ final class SmeltingAction {
             if (slot.container != inventory || slot.getContainerSlot() >= 36 || !stack.is(item)) continue;
             if (cookingFuel && (!GameApi.supportedCookingFuelStack(stack)
                     || stack.getMaxStackSize() != item.getDefaultInstance().getMaxStackSize())) continue;
+            if (Boolean.parseBoolean(plannedStep.attributes().getOrDefault("ordinaryFuelOnly", "false"))
+                    && !ItemStack.isSameItemSameComponents(stack, item.getDefaultInstance())) continue;
             if (!cookingFuel && ordinaryInputOnly
                     && !ItemStack.isSameItemSameComponents(stack, item.getDefaultInstance())) continue;
             if (expected != null && !same(stack, expected)) continue;

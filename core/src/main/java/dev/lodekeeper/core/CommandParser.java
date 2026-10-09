@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Parses command bodies after the Fabric adapter has removed the configured client-only prefix. */
 public final class CommandParser {
@@ -14,8 +15,39 @@ public final class CommandParser {
 
     public sealed interface Command permits HelpCommand, GetCommand, StopCommand, PauseCommand, ResumeCommand,
             StatusCommand, QueueCommand, ClearCommand, PlanCommand, ConfigCommand,
-            ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand, ClaimCommand { }
+            ProjectCommand, ProjectsCommand, MaintainCommand, UnmaintainCommand, MaintainedCommand, ClaimCommand,
+            GotoCommand, ExploreCommand, FollowCommand, WaypointCommand, CacheCommand, CancelCommand { }
 
+    public record GotoCommand(TravelGoal.PointGoal goal) implements Command {
+        public GotoCommand { Objects.requireNonNull(goal, "goal"); }
+    }
+    public record ExploreCommand(TravelGoal.ExploreGoal goal) implements Command {
+        public ExploreCommand { Objects.requireNonNull(goal, "goal"); }
+    }
+    public record FollowCommand(String selector, int seconds) implements Command {
+        public FollowCommand {
+            selector = validatePlayerSelector(selector);
+            if (seconds < 1 || seconds > 600) throw new IllegalArgumentException("Follow requires 1..600 seconds.");
+        }
+    }
+    public enum WaypointAction { SET, GOTO, REMOVE, LIST }
+    public record WaypointCommand(WaypointAction action, String label) implements Command {
+        public WaypointCommand {
+            Objects.requireNonNull(action, "action");
+            if (action == WaypointAction.LIST) {
+                if (label != null) throw new IllegalArgumentException("waypoint list takes no arguments.");
+            } else label = validateWaypointLabel(label);
+        }
+    }
+    public enum CacheAction { STATUS, CLEAR }
+    public record CacheCommand(CacheAction action) implements Command {
+        public CacheCommand { Objects.requireNonNull(action, "action"); }
+    }
+    public record CancelCommand(long jobToken) implements Command {
+        public CancelCommand {
+            if (jobToken < 1) throw new IllegalArgumentException("Job token must be positive.");
+        }
+    }
     public record GetCommand(String item, int count) implements Command {
         public GetCommand {
             item = validateItem(item);
@@ -99,7 +131,7 @@ public final class CommandParser {
         public static ParseResult error(String message) { return new ParseResult(null, new ParseError(message, USAGE)); }
     }
 
-    public static final String USAGE = "Commands: help, get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]], claim pos1|pos2|list|clear, claim add <name> [preferred], claim remove <name>, claim prefer <name> <true|false>";
+    public static final String USAGE = "Commands: help, get <item> [count], project <name>, projects, maintain <item> <count>, unmaintain <item|all>, maintained, stop, pause, resume, status, queue, clear, plan [item [count]], config [key [value]], claim pos1|pos2|list|clear, claim add <name> [preferred], claim remove <name>, claim prefer <name> <true|false>, goto <x> <feetY> <z>, explore [radius [segments]], follow <exactName|UUID> [seconds], waypoint set|goto|remove <name>, waypoint list, cache status|clear, cancel <jobToken>";
 
     /** Returns the local command body, or null when chat does not match the exact prefix. */
     public static String clientCommandBody(String message, String prefix) {
@@ -124,11 +156,24 @@ public final class CommandParser {
         if (tokens.isEmpty()) return ParseResult.command(new HelpCommand());
         if (tokens.size() > 16) return ParseResult.error("Too many command arguments.");
         String name = tokens.get(0).toLowerCase(Locale.ROOT);
+        boolean restrictedInput = switch (name) {
+            case "goto", "explore", "follow", "waypoint", "cache" -> true;
+            case "cancel" -> tokens.size() > 1;
+            default -> false;
+        };
+        if (restrictedInput && body.codePoints().anyMatch(Character::isISOControl))
+            return ParseResult.error("Command contains control characters.");
         try {
             return switch (name) {
                 case "help", "?" -> noArguments(tokens, new HelpCommand(), "help takes no arguments.");
                 case "get" -> parseGet(tokens);
-                case "stop", "cancel" -> noArguments(tokens, new StopCommand(), "stop takes no arguments.");
+                case "goto" -> parseGoto(tokens);
+                case "explore" -> parseExplore(tokens);
+                case "follow" -> parseFollow(tokens);
+                case "waypoint" -> parseWaypoint(tokens);
+                case "cache" -> parseCache(tokens);
+                case "cancel" -> parseCancel(tokens);
+                case "stop" -> noArguments(tokens, new StopCommand(), "stop takes no arguments.");
                 case "pause" -> noArguments(tokens, new PauseCommand(), "pause takes no arguments.");
                 case "resume" -> noArguments(tokens, new ResumeCommand(), "resume takes no arguments.");
                 case "status" -> noArguments(tokens, new StatusCommand(), "status takes no arguments.");
@@ -153,6 +198,81 @@ public final class CommandParser {
         if (tokens.size() < 2 || tokens.size() > 3) return ParseResult.error("Usage: get <item> [count]");
         int count = tokens.size() == 3 ? parseCount(tokens.get(2)) : 1;
         return ParseResult.command(new GetCommand(tokens.get(1), count));
+    }
+
+    private static ParseResult parseGoto(List<String> tokens) {
+        if (tokens.size() != 4) return ParseResult.error("Usage: goto <x> <feetY> <z>");
+        return ParseResult.command(new GotoCommand(new TravelGoal.PointGoal(
+                parseInteger(tokens.get(1)), parseInteger(tokens.get(2)), parseInteger(tokens.get(3)))));
+    }
+
+    private static ParseResult parseExplore(List<String> tokens) {
+        if (tokens.size() > 3) return ParseResult.error("Usage: explore [radius [segments]]");
+        int radius = tokens.size() > 1 ? parseInteger(tokens.get(1)) : 64;
+        int segments = tokens.size() > 2 ? parseInteger(tokens.get(2)) : 4;
+        return ParseResult.command(new ExploreCommand(new TravelGoal.ExploreGoal(radius, segments)));
+    }
+
+    private static ParseResult parseFollow(List<String> tokens) {
+        if (tokens.size() < 2 || tokens.size() > 3) return ParseResult.error("Usage: follow <exactName|UUID> [seconds]");
+        int seconds = tokens.size() == 3 ? parseInteger(tokens.get(2)) : 120;
+        return ParseResult.command(new FollowCommand(tokens.get(1), seconds));
+    }
+
+    private static ParseResult parseWaypoint(List<String> tokens) {
+        if (tokens.size() < 2) return ParseResult.error("Usage: waypoint set|goto|remove <name>, waypoint list");
+        WaypointAction action = WaypointAction.valueOf(tokens.get(1).toUpperCase(Locale.ROOT));
+        if (action == WaypointAction.LIST)
+            return tokens.size() == 2 ? ParseResult.command(new WaypointCommand(action, null))
+                    : ParseResult.error("waypoint list takes no arguments.");
+        return tokens.size() == 3 ? ParseResult.command(new WaypointCommand(action, tokens.get(2)))
+                : ParseResult.error("Usage: waypoint set|goto|remove <name>");
+    }
+
+    private static ParseResult parseCache(List<String> tokens) {
+        if (tokens.size() != 2) return ParseResult.error("Usage: cache status|clear");
+        return ParseResult.command(new CacheCommand(CacheAction.valueOf(tokens.get(1).toUpperCase(Locale.ROOT))));
+    }
+
+    private static ParseResult parseCancel(List<String> tokens) {
+        if (tokens.size() == 1) return ParseResult.command(new StopCommand());
+        if (tokens.size() != 2 || !tokens.get(1).matches("[1-9][0-9]{0,18}"))
+            return ParseResult.error("Usage: cancel <positive job token>");
+        try {
+            return ParseResult.command(new CancelCommand(Long.parseLong(tokens.get(1))));
+        } catch (NumberFormatException invalid) {
+            return ParseResult.error("Job token exceeds the supported range.");
+        }
+    }
+
+    private static int parseInteger(String value) {
+        if (!value.matches("-?(0|[1-9][0-9]{0,9})"))
+            throw new IllegalArgumentException("Expected a whole number without relative syntax.");
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException("Number exceeds the supported range.");
+        }
+    }
+
+    private static UUID parseUuid(String value) {
+        if (!value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+            throw new IllegalArgumentException("Expected a canonical lowercase UUID.");
+        return UUID.fromString(value);
+    }
+
+    private static String validatePlayerSelector(String selector) {
+        Objects.requireNonNull(selector, "selector");
+        if (!selector.matches("[A-Za-z0-9_]{1,16}")) parseUuid(selector);
+        return selector;
+    }
+
+    private static String validateWaypointLabel(String label) {
+        Objects.requireNonNull(label, "label");
+        String value = label.toLowerCase(Locale.ROOT);
+        if (!value.matches("[a-z0-9][a-z0-9_-]{0,31}"))
+            throw new IllegalArgumentException("Waypoint names require 1..32 letters, digits, underscores or hyphens.");
+        return value;
     }
 
     private static ParseResult parsePlan(List<String> tokens) {
@@ -211,7 +331,7 @@ public final class CommandParser {
             case "prefer" -> {
                 if (tokens.size() != 4 || !tokens.get(3).equalsIgnoreCase("true")
                         && !tokens.get(3).equalsIgnoreCase("false"))
-                    yield ParseResult.error("Usage: claim prefer <name> <true|false>");
+                    yield ParseResult.error("Usage: claim prefer <name> <true|false>, goto <x> <feetY> <z>, explore [radius [segments]], follow <exactName|UUID> [seconds], waypoint set|goto|remove <name>, waypoint list, cache status|clear, cancel <jobToken>");
                 yield ParseResult.command(new ClaimCommand(ClaimAction.PREFER, tokens.get(2),
                         Boolean.parseBoolean(tokens.get(3))));
             }

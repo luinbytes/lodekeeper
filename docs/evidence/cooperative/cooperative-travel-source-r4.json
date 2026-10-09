@@ -1,0 +1,535 @@
+{
+  "recordedAtUtc": "2026-10-09T09:40:37.555103+00:00",
+  "status": "COMPILED_NATIVE_PENDING",
+  "sourceBaseline": "05784edd429fcf2826b1a322720609b41f711063",
+  "scope": "Local coordinate travel, bounded exploration, UUID-pinned follow, scoped waypoints and source forecast controls, guarded optional food/shield children and native offline-peer verification",
+  "sourcePaths": {
+    "core/src/main/java/dev/lodekeeper/core/CommandParser.java": {
+      "source": "755d85e8c90dcfb827609298d6d7af025ec245ecafc977cbdbad88e74051d4bf",
+      "baseline": "6900c695cb4b0a74d59264e9879344d9519184f6c7577434a83254d5918b82e8",
+      "origin": "frozen TravelR3"
+    },
+    "core/src/main/java/dev/lodekeeper/core/TravelGoal.java": {
+      "source": "b11cc034094f4ed6df97f04f432ac0d35703f8e0db4dc063b91e154146aa8cc6",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "core/src/test/java/dev/lodekeeper/core/TravelCommandParserTest.java": {
+      "source": "1858232c69a2c1ad8cb1fb38f6b2dc7c291af48d0cad55810abb07f319415081",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "source": "08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79",
+      "baseline": "0d1f14553119a77bb9b7d9f78f2cf1cf44462de68cc2013d8c2b78031516e472",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-1211/build.gradle": {
+      "source": "96dbfa00dc8dda773fe02186ac1f0af41c9175782fb8c8775332de1ad8a76974",
+      "baseline": "f6a3c355e4f476573f7dc4b885d9c43080508e04c98f6e98ef3c51344603cbe9",
+      "origin": "reviewed peer fixture R2"
+    },
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": {
+      "source": "407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c",
+      "baseline": "4f7cf1744e59c60c926899273bef0e033b9403c8fc056cb346d8acadc841b52d",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "source": "e264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad",
+      "baseline": "0f160909d17e189d0033d6df3b1e1b3be7de53896f0366627280572b39a9a711",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java": {
+      "source": "fddfffaef39fb2bf04f1dc27dd65727070e1261addeab56e9293ad87e731a53b",
+      "baseline": null,
+      "origin": "reviewed peer fixture R2"
+    },
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": {
+      "source": "fd37cb6ecadc014648451f6110f9bad8ee31982588cca1ff898cef553d46feb0",
+      "baseline": "a361aa660029614b47a979854924d7fe673c9d1a3e2b29c614f5acbcbef403e5",
+      "origin": "reviewed peer fixture R2"
+    },
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "source": "37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765",
+      "baseline": "9c347dc6ad1de5a547beb475cf07bc8800138cc98f681b7e4ebb5b3420ef8745",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "source": "4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe",
+      "baseline": "6f199e0f2438fec16e4185710fe1f31bd7dbf1afe23444f63715756ba94dfaed",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "source": "c4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194",
+      "baseline": "a64c73f8d5c5974c0241f8778e412fa133c25b17930cbabeb26d463531871899",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "source": "99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349",
+      "baseline": "e889ab5c3123bb1d12ca76d7bfa2978d11c64be354ab28a6fd2272a1e3317e76",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": {
+      "source": "81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572",
+      "baseline": "4e84069e929d44a276f4c6b2d4d7e3baa3ff7a9e1653e9546aa5f3c7b924e305",
+      "origin": "frozen TravelR4 shield correction over frozen TravelR3 plus current station diagnostic and exact R4 completion observation plus four compiler binding corrections against existing modern API"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CraftingAction.java": {
+      "source": "8aa041815f5c334a94b4bcf5f8cea7addddb296af09c70322f2224e2c992d84b",
+      "baseline": "5e8ae38aa16e6cf310679e708cb8fff2c5a909c06d201daec3303c52dc515b1d",
+      "origin": "frozen TravelR4 shield correction over frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java": {
+      "source": "eaa9fc87aad465cbb5d75283475b27902cc2dc079b7f7af3aac391646927e831",
+      "baseline": "5239cb484943d7786503f48b1fcf8575816f508b247eec95547f39fa89f9f79b",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java": {
+      "source": "0fb89468550a13ffd0090de9a1b523756441e6e88b086801a113f0788db7e943",
+      "baseline": "040789e3944bf3be0f7e2ff005b07810569fdbc1b4845e3785e0a2f100ba1220",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": {
+      "source": "7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6",
+      "baseline": "4dbcce899baadefc326b5af734a6f9ca3daa319d6e034c15cb2126ddedde350b",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": {
+      "source": "9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4",
+      "baseline": "ba06a04440eb73a60f4b661d8b9e8d033a3a04e1bbabad09e40eeab60cb8723b",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedStationRecoveryAction.java": {
+      "source": "72f06cb2e57f88937172df47ab38a0f5578685492568331938b72964b1302d05",
+      "baseline": "8fd20b5f1f52ebb704d524c80bdc773e66a61b5587a69b76943f0e6c7931aac3",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java": {
+      "source": "350d97a6b73e19ba1613dc80731150b607fd3b9466edfbd802cff1447af6c31a",
+      "baseline": "7defdd19541f4b7dc997b1523cdadb8f8a50887efb8bca017458290e1db12090",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SmeltingAction.java": {
+      "source": "55eb0c87557b9eebe76dfda14315cd656bf14cde50c5d98cadf3e98710c4fefb",
+      "baseline": "12e767c35284aabe9469092ed977dae17a8e09985df8321c528aedf3e8f3ec8b",
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java": {
+      "source": "a9184c6150274d540dec815a30c28c8b361a5ecd373c97af6f8336a0f3453bec",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WaypointStore.java": {
+      "source": "51263bd6c65e131034e2340c7bed1c2772eda6c302677e9828cb4cc85f4b3c15",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java": {
+      "source": "df5316cba5cb8b2754c1ade5a978a16ef781dbdc33c605a3792a486e5356588b",
+      "baseline": null,
+      "origin": "reviewed peer fixture R2"
+    },
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": {
+      "source": "88a69786ca6d9364f5a84049c6b950fd51beb61a1423a88c80996387a122f1d3",
+      "baseline": "737f955a28b24d87dc6b8ee4e130765626552cba83dfeb35fecf69903755a1ef",
+      "origin": "reviewed cooperative fixture R4 over reviewed peer fixture R2 plus two verifier calls to existing native selected-slot getter"
+    },
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": {
+      "source": "f0f3bd30217a1083478486f6e06ab72a2a6d5a1d7ecb7e69d8114f884276d0e6",
+      "baseline": "2793c58cf589df446e7b3759309e8eca20fbaf501b1e5715554d523352276fc5",
+      "origin": "reviewed peer fixture R2"
+    },
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": {
+      "source": "614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a",
+      "baseline": "a84799ea426492289f4ac98f1a990120084427e4ace68a225155562a4063c2d3",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": {
+      "source": "b442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6",
+      "baseline": "5efc41ee36fbb38aeb9811c29966b84214a7fd36532b79bb23a909475c57c8cd",
+      "origin": "frozen TravelR4 shield correction over frozen TravelR3 plus current station diagnostic and exact R4 completion observation"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/CraftingAction.java": {
+      "source": "259a4a8515731c38ce37eeddd1797e4f9857c67109d88c521c26ef735471d447",
+      "baseline": "13ee69756b74a9200b6a36dd9ae9d0c2de312f3922a4a119bbe0d9758bd12c94",
+      "origin": "frozen TravelR4 shield correction over frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameTerrain.java": {
+      "source": "2c1628c5e4c9299a76de061d46cf5e3186b609e2ee77e8aa5648c64cca1e94b8",
+      "baseline": "88d676edf4be619d00d4b5b10cc1852a888255f3fb12ba27cc4c1fd3260adf87",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperClient.java": {
+      "source": "8e6ddc6cb7e87c81857f0aa920913276db69d65e6117d6b573a4c7003f4e990e",
+      "baseline": "026a804b2a2aaadefd9b98677ea30f898c93d2f72447a2247400a105d9d47c9d",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": {
+      "source": "d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da",
+      "baseline": "d5b30d2e57c15916d6ffc7ca69040096ea72010dc0c958b542608aea53832257",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": {
+      "source": "c0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c",
+      "baseline": "85d37137245b405ea7597cd9ab62ad5a5b34159a21de2f743d2a34c7b568e7ac",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/OwnedStationRecoveryAction.java": {
+      "source": "c4c9a7c101076d2ea8288fa683baf237fb6d61d6de12477cb865ea8452b75cff",
+      "baseline": "cc7a1b1406c03f4c11d825341c2083221aca6760dc50d9a5102b0ef7d1141afb",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java": {
+      "source": "09218a95d8dbb8d0450b4652d4a4eed3f3ae4bf3327016d42c56a662add61673",
+      "baseline": "5264382a92d3b20b6ccc03e1e85629491271f8d5b58e9b530bac99cc2aea05d2",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/SmeltingAction.java": {
+      "source": "5dc4b081d2f0b52643b8504a416bc2be8a9ac83bd27759e0a997005ffe22f975",
+      "baseline": "b5e13d8cf023f96c75ac67b5430701fcc28905ce7204dbdb976e25485446d6c2",
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java": {
+      "source": "e931122f3ff98388bca4ad2643ea765aa382d2ff6e83d3787881fdb294121d85",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/WaypointStore.java": {
+      "source": "0ebd3a5cb92ead9ad98d9df218c5a4bab7173d27bf9b4f305c9b67c388c7693b",
+      "baseline": null,
+      "origin": "frozen TravelR3"
+    },
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": {
+      "source": "aa0cdd0aa47967a6217ded9a1dcc32fbe387a67c6e084cf73ebc15d9aed647cf",
+      "baseline": "778eb73de73d80f68a4129efcadb34c7b82abef6d86d235c8cf677c02c470329",
+      "origin": "reviewed cooperative fixture R4 over reviewed peer fixture R2"
+    }
+  },
+  "sourcePatchSha256": "82c0deffed76bc04a0e78e662d847dee4d2a7c8b567f72af97d31da0ea7ab13a",
+  "sourceManifestSha256": "f707f2bda2dc10e9231686d70bd3c66f83776bfbc23efa9ac882cf4447f2a24d",
+  "integrationStateSha256": "7f6cd4fb270e40ee79e7d7f25d6120ef9b4f3ffd4976c35c25b678a1436888f1",
+  "unchangedDiagnosticDependencies": {
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "c7df60c3b899f71147e40e8d6a65b0de6f60729d6fe14f18b57630fae11698b4",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "24061e063112402d1c3ba20abc92ad1a9a2df778cbed14dae6814da7b48a3ad0"
+  },
+  "reviews": [
+    {
+      "role": "independent complete TravelR4 and forty-path integration",
+      "path": "/tmp/lodekeeper-local-travel-peer-integration-source-review-r4.md",
+      "sha256": "48774046402beb24e2bf3ba17f4ee0dc984b60f7d285aa75ab165bbe56d70b6c",
+      "text": "CLEAN \u2014 frozen TravelR4 source and root's exact forty-path integration. No actionable new P1, P2 or P3 finding remains in this source review. The R3 shield finding is closed in both mirrors, and the inherited repairs remain present. HOLD for root's compilation, actual native cases and Lu's acceptance. Source CLEAN does not establish FULL11 completion.\n\nReviewed artifact: `/tmp/lodekeeper-local-travel-peer-root-r4/`, source patch SHA256 `8106ee179111d742443a5b7e8025b57de8136c76a8102b13ee819ec00ea6fd30`. The verdict applies to these immutable bytes, including the retained diagnostic dependencies. It does not depend on canonical Git remaining untouched during root's integration.\n\nOnly this report was written. Canonical `/Users/luinbytes/src/lodekeeper`, the worktree and all prepared packages were read-only. No Git command or mutation, source change, test, build, compiler, javap invocation, game client, restart, memory write, publication or delegation occurred. Python was used for file hashing and in-memory text reconstruction; no product Java was executed. No partial crop, remote or handoff preparations were read. The root staging generator was read without execution or import.\n\nThe complete two original implementation/integration briefs, Travel source reviews R1/R2/R3, native reviews R1/R2, R3b integration review, and R4 worker report/design/port instructions/lineage/case proofs were read. The official anti-ai writing, host pstack runtime, poteto-mode, poteto-agent brief and investigation guidance were read. The explicit read-only/no-delegation scope overrides implementation and delegated-review defaults. Worker assertions and prior CLEAN labels were treated as claims to check, not evidence of correctness.\n\nSource anchors below refer to the final root stage's `source/`. EP = `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java`; EM = `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java`. CP/CM, SP/SM, MP/MM, TP/TM and OP/OM are the corresponding CraftingAction, SlotTransfer, MovementController, TravelAction and OwnedStationRecoveryAction files. FP/FM are the corresponding RuntimeVerification files under `src/verification/java`. GP = `fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java`; GM = `fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java`. PlayerActions anchors refer to the stage's `dependencies/`.\n\n**R4 shield correction: real send and restoration paths**\n\nThe prior trigger was a marked shield child issuing a genuine ingredient PICKUP, followed by parent cancellation, STOP, deadline expiry or changed shield floors before the next PLACE/DRAG. R3 fenced output but left the retained ingredient helper able to send. R4 closes that gap; this disposition asserts no observed completed shield, permanent consumption or stock loss.\n\nEP:1484-1505 and EM:1603-1624 construct a supplier capturing the original AcquisitionScope, PlanIdentity, PlanStep, Request, JobContext and ShieldPlanningIdentity. It requires reference equality with the still-active parent/context/scope/step/plan, the original plan's scope/context, `newEffectCurrent`, current plan identity, and no pause or global stop. Shield work additionally requires the exact captured shield identity, current shield identity and all three enabled shield settings. Food work uses the retained original demand identity. `newEffectCurrent` at EP:1126 and EM:1246 still checks targeted cancellation, STOP, native/context binding and the original deadline. This does not replace the original authority with whichever request happens to be current later.\n\nThe actual constructors receive that supplier: crafting EP:4517 and EM:5326; smelting EP:4546 and EM:5346. Both single-slot and drag crafting transfers receive `optionalTransferCurrent` when marked shield or travel-food preparation (CP:235-251; CM:184-200). The marked branches are selected from the real PlanStep attributes. Unmarked constructor behavior remains the prior behavior; the shield preflight does not introduce a smelting step.\n\nCP:98 and CM:89 forward a latched drain to the retained SlotTransfer before ticking it. The unchanged SlotTransfer observes its outstanding real receipt before proceeding. After a PICKUP acknowledgment it may select PLACE/DRAG, but the drain branch routes to original-source RETURN. With no explicit drain yet, the supplier is checked again immediately before native ingredient clicks and drag: SP:327,458-473; SM:345,477-492. Refused unsent work completes without inventing a pickup or grid receipt. Already-issued work retains the original helper and full-receipt state. RETURN is deliberately exempt from new ingredient admission and keeps its original layout, cursor, source, actor, connection and full-receipt checks (SP:365-400; SM:383-419). Layout/cursor/receipt mismatches still fail for inspection.\n\nCP:461-539 and CM:367-445 recheck ordinary main-inventory stock, the actual ordinary cursor while a transfer is retained, live reservations, captured reservation floors, future-step costs and remaining ingredient costs. Captured/live reservations combine with max; future costs add; current and captured iron/plank floors combine with max. Only acknowledged `placedCount` is subtracted from outstanding ingredient need. A live budget refusal becomes sticky drain; unexpected recipe, grid and native layout failures remain outside that budget-refusal catch. PICKUP, later PLACE/DRAG and output admission therefore share the optional authority and budget check. Output checks run through the real VerifiedQuickMove callback (CP:344-355; CM:279-290).\n\nCP:101-120 and CM:92-108 credit, validate and debit only the helper's acknowledged placement count. Zero placement does not credit a planned group. A partially acknowledged single-slot sequence records only its actual owned grid contents before draining; a full drag group is credited only after its genuine acknowledgment. Known ingredient/remainder return still uses the existing native quick-move path and unexpected grid contents still throw. This preserves restoration rather than using cancellation as evidence that the cursor or grid is clear.\n\nThere is no R4 change to either SlotTransfer or SmeltingAction. Their R3 food send, partial-count and receipt behavior is retained byte for byte. R4's crafting changes use those existing helper contracts rather than weakening them.\n\n**Disposition of every consolidated Travel finding**\n\n| Prior objection | Final disposition and source evidence |\n| --- | --- |\n| Native R1 P1: modern preview used sealed Request.item / null travel acquisition view | Closed. EM:1267 and 1948 use the typed `previewAcquisitionItem` path; EP:1147 and 1822 mirror it. Actual Request permits only AcquireRequest and TravelRequest and exposes name/context/token, not an item field. |\n| Native R1 P2: manual/settings/screen pause behind generic screen exit | Closed. EP:548-557 and EM:649-658 process normal travel pause before the generic branch, including manual input and settings. The owned child-menu exception remains. Closing a screen does not itself grant resume. |\n| Native R1 P2: suspended supplier discarded by finishCancellation | Closed. MP:2648-2698 and MM:2761-2811 retain `travelEffectAuthority` through SUSPENDED/resumeMode. Full IDLE/IDLE release clears it; ownership/context abandonment have explicit clearing paths. Launch still checks it at MP:1802 and MM's corresponding launch boundary. |\n| Native R1 P2: unbounded resolver and repeated census inside follow filter | Closed in the adapter. GP/GM:51-92 require a complete combined profile/loaded-player census with 128-entry and 2ms limits, reject duplicate or incomplete observations even after a match, and recheck captured native identity. MP:461-469 / MM:470-478 use one O(1) pinned entity/UUID/session predicate. The unchanged native kernel still performs its own entity scan. |\n| Source R1 P2: foreign menu/cursor omitted before modern FIFO dispatch/maintenance credit | Closed. EP:2054-2100 and EM:1989-2035 check actual player menu/cursor before dequeue and maintenance credit. Typed continuation and gather retain admission checks. Queued work remains queued on refusal under either pauseOnScreen setting. |\n| Source R1 P2: travel food escaped into generic gathering/native/tool planning | Closed. EP:1281-1475 and EM:1401-1594 use the dedicated actual-source on-hand offer and child scope. Accepted plans have at most three steps, exactly one SMELT and only optional station CRAFT/PLACE; no GATHER/NATIVE/tool expansion. Ordinary stock and queued/project/maintained/future costs remain protected. The subsequent R2 effect/demand repairs below are retained. |\n| Source R1 P2: PICKUP_INCOMPLETE could lose its owner and admit sibling work | Closed. OP:244-334 / OM:245-335 retain original actor, world, connection, session, phase, drop/removal/inventory evidence and the original 20-second/three-attempt pickup budget. EP:4928-5028 / EM:4151-4251 retain the observer barrier and gate dispatch/retirement. Context abandonment remains effect-free and unproved. The R2 stop fixes below remain. |\n| Source R1 P3: modern upper-height convention incorrectly treated as exclusive | Closed in source. GM:99 calls actual `isInsideBuildHeight(BlockPos)`; the locked 26.3 descriptor/disassembly includes the inclusive maximum. GP:99-101 retains Yarn's exclusive top. Loaded/support/body/stance checks remain independent. No safe top-cell stance or runtime support claim follows. |\n| R2 P2: stop/reset creates RETURN after the entry check, then discards parent/scope/budget | Closed. EP:5423-5450 / EM:5557-5584 recheck after `stopStationCleanup` and after reset before retiring the owner/budget. EP:5296 / EM:5425 likewise retain debt created while stopping. OP:394-433 / OM:395-434 retain late issued-menu UNKNOWN and owned-handler RETURN with the original actor. |\n| R2 P2: global STOP later dispatches queued siblings after debt settlement | Closed. EP:560,1667,1689,2066,5423-5469 and corresponding EM paths preserve the global stop latch, block dequeue/new effects, then route settlement to `stopNow` and clear foreground/maintenance/projects/maintained work. Targeted cancellation at EP:1659-1700 / EM:1778-1820 keeps unrelated siblings. Global stop and targeted cancel remain separate. |\n| R2 P2: allocated food helper later sends PICKUP/PLACE after authority/floors change | Closed. SmeltingAction P:121-142,298-363 and M:108-129,304-371 forward drain before retained helper tick, pass original optional admission at actual send and use acknowledged placedCount. SP/SM's ingredient supplier checks cover every fresh ingredient click/drag. Real issued receipts and RETURN remain. |\n| R2 P2: disposal of joined food offer loses queued ingredient demand/floors | Closed. EP:1267-1279 / EM:1387-1399 retain immutable queued request identities, project specs, maintained counts and PendingGoals independently of the disposed offer. Demand changes sticky-invalidate the optional child before further sends; preflight/replan still computes derived material floors. R4 captures the original scope for this check. |\n| R3 sole P2: marked shield retained transfer omitted drain/authority/live floors | Closed by the actual R4 paths detailed above in both mirrors. Output remains separately fenced; zero/partial acknowledged placement is accounted for without full-group credit. No smallest further correction is identified. |\n\nThe seven R1 material objections and the separate P3 observation are individually retained above; overlaps between source/native reviews are consolidated without dropping their impact. All four R2 findings and the sole R3 finding are closed in source. This is an independent R4 source verdict, not an extension of R3b's integration-only CLEAN label.\n\n**Exact root ports and full union**\n\nAll four R3-to-R4 files were independently reconstructed. I applied the frozen delta's exact old contexts onto the predecessor R3b source in memory, requiring each context to resolve uniquely and checking hunk old/new counts and resulting bytes. Each complete output equals the root R4 stage. Both CraftingAction outputs also equal TravelR4 directly. This did not execute root's generator or use its merge success as proof.\n\nExactly four root files changed from R3b: both Engines and both CraftingAction files. The other 36 root source files and every root baseline are byte-identical to R3b. Exactly four Travel files changed from R3: those same four; the other 29 Travel paths are identical. For each Engine, the complete sequence of differences between root R4 and TravelR4 equals the complete sequence between root R3b and TravelR3: 12 spans per mirror, with identical removed/inserted bytes. Those are ten diagnostic spans and the two narrow completion-observer insertions. No extra Engine port or lost prior repair appears.\n\nThirty-one final union files equal TravelR4 directly. The two Engines contain only the retained ports just described. Both RuntimeVerification files equal the cooperative fixture R4 origin exactly. The two peer helpers, two VerificationApi files and primary build binding equal the seven-path integrated peer R2 origin's remaining five paths exactly. This accounts for all 40 source paths. Both PlayerActions dependencies equal the diagnostic R4 origin exactly and are unchanged from R3b.\n\nActual final declarations retain the intended boundaries: JobContext at EP:69 / EM:132 binds the native/context identities and finite original deadline; private sealed Request at EP:83 / EM:146 permits only AcquireRequest and TravelRequest; private AcquireRequest and AcquisitionScope/PlanIdentity remain private; TravelRequest is the narrow package-visible adapter contract. No StorageRequest or prepared remote authority is imported. There is one foreground FIFO capped at 32 and one active Request; append only records metadata and requests maintenance yield. Planning and child scopes remain attached to that original active parent.\n\nThe diagnostic overlaps retain both travel and station responsibilities. `pauseAfterOwnershipLoss` still revokes cleanup restoration, pauses only owned travel, and loses/captures/logs station-hand rights. `pause(String)` still logs and pauses owned travel. The diagnostic log latch is set before optional logging. PlayerActions retain first failed guard/callsite and evaluated masks before optional detail; the scalar stack detail has no component enumeration, new native stack copies, authority reevaluation or effect. Direct native getters are observations; they do not establish the cause of a component-only mismatch. Best-effort diagnostic allocation/logger failures remain explicit limits.\n\nThe completion assignments at EP:1619-1620 and EM:1738-1739 remain behind the real `safeToRelease`, ordinary TravelFinished and exact `active == travelActionParent` gates. EP:5528-5532 / EM:5674-5678 expose one immutable observation record, private last value and read-only getter. The assignments capture the ordinary receipt and actual original accepted/deadline/completed times. There is no setter, receipt injection, authority/grant, movement effect or altered completion branch.\n\n**Fixture dispositions and preserved native interfaces**\n\nAll four prior cooperative fixture R3 objections remain closed: FP:40 retains the primary MinecraftServer import; FP:2649-2689 / FM:2091-2131 wait for successful move future, exact new peer coordinate receipt with a greater server tick, then a new host observation request/client tick; FP:2697-2708 / FM:2139-2150 require actual ARRIVED for goto or actual FOLLOW_EXPIRED with the original 20-second deadline and completion at/after it; FP:2497-2543 / FM:1939-1985 take independent recursive settings snapshots. Nested collections/arrays are copied with finite per-setting depth/node limits; opaque leaves compare by exact identity and that limitation remains explicit. Stop, refusal, early follow completion and stale request identity cannot satisfy success.\n\nBoth helper files are unchanged. Primary NativePlayerFixture:143 calls normal `onPlayerConnect(ClientConnection,ServerPlayerEntity,ConnectedClientData)`; modern:145 calls normal `placeNewPlayer(Connection,ServerPlayer,CommonListenerCookie)`. Cached locked traces show normal PLAY listener/protocol, player-list/UUID and native world enrollment. Client tracking checks use the actual native client entity and profile; there is no fake client player or fabricated product receipt. Move uses normal primary `requestTeleport` at :299 and modern `teleport` at :304. Close uses the exact owned native connection's disconnect/handleDisconnection at primary:325-354 and modern:330-359, then checks normal removal. The offline fixture proves no signed-peer authority.\n\nBoth VerificationApi files:47-73 retain exact family checks before reflective lookup, with the real native player/world/client types and Object handle contracts. Primary build.gradle:18 binds the helper only for exact 1.21.1; the current modern build family selection binds verification-263 for 26.3. Existing cached API evidence and actual pinned dependencies agree with these signatures. No compiler/linkage result is inferred.\n\nThe strict cooperative flags, native mode and exact family selectors remain. Prepared pad/empty host readiness finishes before actual intercepted client chat. All 41 player slots/equipment plus cursor, physical stack components/layout, native quiescence, captured input, selected slot and settings restoration are checked. Follow uses the actual UUID filter/radius two and observed movement-only settings. Both peer moves require their acknowledged exact position and fresh host observation. Post-completion and post-teardown checks require fresh server/client fences and 20 stable ticks. Limits remain 1,200 client ticks and 90 seconds. Neither peer future completion nor a cached same-tick receipt alone is treated as a new observation.\n\nThe animal/cooking/no-scaffold/station/AIR verifier paths remain exactly the frozen predecessor paths outside the cooperative additions. The primary cooking slot layout, animal admissions, native setup and ordinary failure handlers are retained. Preservation does not certify their runtime passes.\n\nThe diagnostic review's earlier component-enumeration P2, erased-predicate P2, shared legacy component-API break and diagnostic-copy P2 remain closed by the pinned dependency/port bytes. The supplied 9e station controls and 24 exact-head CI passes are separate root evidence; no rights-loss rejection was emitted in those controls. They do not resolve the earlier 7c modern UNKNOWN cause, prove R4 gameplay reliability or close parity.\n\n**Integrity and reconstruction evidence**\n\nAll manifest/freeze/source/baseline rows were independently rehashed. TravelR4 has 503 manifest rows, 23 freeze anchors, 33 source rows and 27 present original baselines/six absent original paths. Retained R3 has 348 manifest rows, 16 freeze anchors, 33 sources/27 baselines. Retained R2 has 189 manifest rows/seven freeze anchors; R1 has 51 manifest rows. All 33 source-lineage rows match the actual R1/R2/R3/R4 sources and their present/absent original baselines. All 27 required-input records match preserved and original files where named. All root R4/R3b source40, baseline32/absent8, dependency2 and integration-input hash records match actual bytes.\n\nThe full and delta patches below were reconstructed in memory with strict old contexts/deletions, old/new hunk counts and positions, tail preservation and complete final-byte equality. Plain unified diffs were also regenerated in recorded path order and compared to their exact patch bytes. No whitespace-fuzzy application was accepted.\n\n| Patch | Paths | Hunks | Result |\n| --- | ---: | ---: | --- |\n| Root R4 source.patch | 40 | 437 | Exact final bytes |\n| Root R3b source.patch | 40 | 435 | Exact predecessor bytes |\n| TravelR4 tracked.patch | 33 | 398 | Exact final bytes |\n| TravelR3 tracked.patch | 33 | 396 | Exact preserved bytes |\n| TravelR2 tracked.patch | 31 | 364 | Exact preserved bytes |\n| TravelR1 tracked.patch | 27 | 304 | Exact preserved bytes |\n| Travel R3-to-R4 | 4 | 16 | Exact delta and all four root outputs |\n| Travel R2-to-R3 | 10 | 127 | Exact preserved delta |\n| Travel R1-to-R2 | 14 | 145 | Exact preserved delta |\n| Cooperative fixture R4 source.patch | 4 | 21 | Exact origin bytes |\n| Peer integrated R2 integration.patch | 7 | 16 | Exact origin bytes |\n| Peer original R2 source.patch | 7 | 16 | Exact origin bytes |\n| Station diagnostic R4 source.patch | 4 | 20 | Exact origin bytes |\n| Station diagnostic R3-to-R4 | 2 | 2 | Exact origin bytes |\n\nThe diagnostic 18-row manifest/four source rows and original peer seven candidate rows also match. All 20 peer dependency locks match actual local artifact sizes and SHA256. Travel's six external API/index rows and 12 source-API rows match. All 20 additional-source rows match their frozen captured files; 16 external current files also match. The current canonical two Engines and two SlotTransfers have changed during root's integration, so their current bytes differ from those older additional-source captures. This expected canonical evolution does not change the frozen contract evidence: I inspected the final staged Engines/SlotTransfers rather than substituting the old captures. No claim of current clean Git or unchanged HEAD is made.\n\nCached official/native source and descriptors were inspected for IFollowProcess, IPathingBehavior, settings, OwnedKernelRuntime, GameProfile, native profile/player lists and entities, height, native join/teleport/disconnect and the helper reflection/executor contracts. Primary Authlib 6 uses getId/getName; modern Authlib 10 uses id/name. The actual processed Minecraft jars match their pinned hashes. No new disassembly was run.\n\n| Witness | SHA256 |\n| --- | --- |\n| Root R4 state.json | `c827709d0b617b2381e8d618f8b03b98009c941ab79b20e0ef2389e99878e29d` |\n| Root R4 source.patch | `8106ee179111d742443a5b7e8025b57de8136c76a8102b13ee819ec00ea6fd30` |\n| Root R4 source-sha256.txt | `6374efbe03ae02988240ac8baea5114af5af4b2eff4f88c54713986ed4f677e0` |\n| Root R3b source.patch | `ea68dd2e649e912f7ed3669a7e55c285d914bf4306789a8666e83229c80e44d6` |\n| TravelR4 manifest.txt | `33270338b6c50d191b7cb3d2c4d9b193160e522a3514ef7f6341b3f5ded08a5d` |\n| TravelR4 freeze.sha256 | `1b50fc73965e3333f00f66a39787862f1df1ee273f920b4b25c74c37eff1289f` |\n| TravelR4 tracked.patch | `635e7a2abf425cc4a7f995af53ce3917be236b84163b44d13a981dca7bd8460f` |\n| TravelR4 r3-to-r4.patch | `88d9ff6ff373c57c605387857074557163a1517668403d725416a910f0701da0` |\n| TravelR4 source-lineage.json | `964a50ffb76c33948ed84da1c6c8927082dc0e3d89501e5c81d42b6a9c02ebcc` |\n| Primary processed Minecraft jar | `775ab63cf3a2ecbbe65a4ec54e2030882556c8945907f7c450200e6b3ef466fc` |\n| Modern processed Minecraft jar | `9efea1f5fc02fd49f34607cbac755671d905acdaa933dc20ff0596c100a1d2c4` |\n\nThe union preserves core/navigation Java 17 with no Minecraft dependencies. The changed core parser/TravelGoal use only core/JDK types; game APIs remain in Fabric adapters. Six other GameApi families retain fail-closed travel stubs. Exact supported-family names here describe source admission, not compiled support. Licensed kernel source, upstream notices, dependency pins and corresponding source access are untouched by the forty-path patch; the build retains its existing notice/dependency packaging. Normal client-side command interception remains in both LodekeeperClient adapters.\n\n**Known limits and remaining acceptance work**\n\n- Inventory/drop correlation and placement provenance remain bounded attribution evidence, not authenticated ownership of every nearby item or proof of exclusive stock origin.\n- The adapter census can conservatively refuse on its entry/time limit. The O(1) follow predicate does not make the unchanged native kernel's world entity scans bounded. Source-owned travel forecast clearing does not promise native persistent-cache purging.\n- Food/shield preparation remains conservative on-hand work. No remote supply, item handoff, general storage or crop workflow is imported. Provider identity/custom mechanics retain their existing family limits and fail-closed behavior.\n- Independent collection snapshots cover their contents; opaque setting leaves cover identity only. They do not certify mutation of opaque internal state.\n- UNKNOWN menu/click/pickup/RETURN can hold the original actor until real evidence settles or native context is abandoned. Timeouts, stop intent and source labels do not establish returned items or recovered stations. Abandonment is unproved, not success.\n- R4 compilation, tests, artifacts, actual player goto/follow, cancellation/expiry/floors after PICKUP, partial placement/RETURN, late-created station debt, global-stop sibling exclusion, target-cancel retention, foreign ownership, AIR and ordinary cooking/animal regressions were not executed by this reviewer. Root owns those checks against the exact frozen bytes. Any root results produced during this review remain separate evidence.\n- No authenticated remote receiver, signed-peer success, item handoff, storage, crops, measured parity, all-version support or FULL11 completion is certified. Lu's acceptance remains open.\n\nActionable findings: none. Smallest source correction requested: none. Source review is ready for root to use; compiler/native/user acceptance remain on HOLD.\n\nThe following forty-path inventory records complete inspected candidate coverage. Every row was rehashed and reconstructed; the corresponding Travel paths, native interfaces and changed/retained behavior were inspected as described above. File hashes pin the reviewed bytes, not execution results.\n\n| Final path under source/ | SHA256 |\n| --- | --- |\n| `core/src/main/java/dev/lodekeeper/core/CommandParser.java` | `755d85e8c90dcfb827609298d6d7af025ec245ecafc977cbdbad88e74051d4bf` |\n| `core/src/main/java/dev/lodekeeper/core/TravelGoal.java` | `b11cc034094f4ed6df97f04f432ac0d35703f8e0db4dc063b91e154146aa8cc6` |\n| `core/src/test/java/dev/lodekeeper/core/TravelCommandParserTest.java` | `1858232c69a2c1ad8cb1fb38f6b2dc7c291af48d0cad55810abb07f319415081` |\n| `fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java` | `614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java` | `b442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/CraftingAction.java` | `259a4a8515731c38ce37eeddd1797e4f9857c67109d88c521c26ef735471d447` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/GameTerrain.java` | `2c1628c5e4c9299a76de061d46cf5e3186b609e2ee77e8aa5648c64cca1e94b8` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperClient.java` | `8e6ddc6cb7e87c81857f0aa920913276db69d65e6117d6b573a4c7003f4e990e` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java` | `d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java` | `c0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/OwnedStationRecoveryAction.java` | `c4c9a7c101076d2ea8288fa683baf237fb6d61d6de12477cb865ea8452b75cff` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java` | `09218a95d8dbb8d0450b4652d4a4eed3f3ae4bf3327016d42c56a662add61673` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/SmeltingAction.java` | `5dc4b081d2f0b52643b8504a416bc2be8a9ac83bd27759e0a997005ffe22f975` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java` | `e931122f3ff98388bca4ad2643ea765aa382d2ff6e83d3787881fdb294121d85` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/WaypointStore.java` | `0ebd3a5cb92ead9ad98d9df218c5a4bab7173d27bf9b4f305c9b67c388c7693b` |\n| `fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java` | `aa0cdd0aa47967a6217ded9a1dcc32fbe387a67c6e084cf73ebc15d9aed647cf` |\n| `fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79` |\n| `fabric-1211/build.gradle` | `96dbfa00dc8dda773fe02186ac1f0af41c9175782fb8c8775332de1ad8a76974` |\n| `fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java` | `407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c` |\n| `fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `e264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad` |\n| `fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java` | `fd37cb6ecadc014648451f6110f9bad8ee31982588cca1ff898cef553d46feb0` |\n| `fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java` | `fddfffaef39fb2bf04f1dc27dd65727070e1261addeab56e9293ad87e731a53b` |\n| `fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java` | `37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765` |\n| `fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java` | `4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe` |\n| `fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java` | `c4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194` |\n| `fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java` | `99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java` | `79e872f5457f104e67683b1a3735d05b22e3e93950852310756d48c941630f55` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CraftingAction.java` | `8aa041815f5c334a94b4bcf5f8cea7addddb296af09c70322f2224e2c992d84b` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java` | `eaa9fc87aad465cbb5d75283475b27902cc2dc079b7f7af3aac391646927e831` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java` | `0fb89468550a13ffd0090de9a1b523756441e6e88b086801a113f0788db7e943` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java` | `7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java` | `9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedStationRecoveryAction.java` | `72f06cb2e57f88937172df47ab38a0f5578685492568331938b72964b1302d05` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java` | `350d97a6b73e19ba1613dc80731150b607fd3b9466edfbd802cff1447af6c31a` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SmeltingAction.java` | `55eb0c87557b9eebe76dfda14315cd656bf14cde50c5d98cadf3e98710c4fefb` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java` | `a9184c6150274d540dec815a30c28c8b361a5ecd373c97af6f8336a0f3453bec` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WaypointStore.java` | `51263bd6c65e131034e2340c7bed1c2772eda6c302677e9828cb4cc85f4b3c15` |\n| `fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java` | `0f681c679af964b9d0ff195771a6d5397b7ee1f9d3b4395421f124beda140831` |\n| `fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java` | `f0f3bd30217a1083478486f6e06ab72a2a6d5a1d7ecb7e69d8114f884276d0e6` |\n| `fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java` | `df5316cba5cb8b2754c1ade5a978a16ef781dbdc33c605a3792a486e5356588b` |\n\nFinal frozen-byte recheck: all TravelR4/R3 manifest, freeze, source and baseline rows, retained R2/R1 manifests, and both forty-path root source/baseline sets passed at the end of review on 2026-10-09 UTC.\n"
+    },
+    {
+      "role": "independent modern production compiler correction",
+      "path": "/tmp/lodekeeper-local-travel-peer-compiler-binding-review-r4c.md",
+      "sha256": "8abe7f17c9ba2010645e219115c470c27892f9335a54e2440ac4e7221a7e4c17",
+      "text": "CLEAN for the frozen R4c compiler binding correction. HOLD.\n\nNo actionable defect was found in the three-hunk modern AutomationEngine correction. This verdict covers that correction and its exact preservation of the frozen 40-path integration. It does not certify the complete R4 shield repair, all 33 travel candidates, native gameplay, supported-family delivery, or FULL11 completion. Cooperative player workflows remain the active priority.\n\nReviewed frozen `/tmp/lodekeeper-local-travel-peer-root-r4c/` against `/tmp/lodekeeper-local-travel-peer-root-r4/`. The sole changed source path is `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java`. Anchors below refer to R4c/source unless labelled canonical or baseline. E means that modern Engine. C and S mean modern CraftingAction.java and SmeltingAction.java. T means modern SlotTransfer.java. G means `fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java`. V means modern RuntimeVerification.java under src/verification/java.\n\nOnly this report was written. Canonical and frozen sources were read only. No source edit, Git command or mutation, Java process, javac, compiler, Gradle, test execution, native client, restart, memory access or write, nested agent, publication, or root-script execution/import occurred. Standard-library Python read bytes, reconstructed patches in memory, and inspected cached classfile descriptors. Root remains the actual source writer and build owner.\n\nThe complete root script `/tmp/lodekeeper-fix-cooperative-modern-bindings.py` was read without running or importing it. The original travel and engine integration briefs, all five supplied prior source/native reviews, the complete prepared-R4 response report, and prior r3b integration review were read. Their previous verdicts were treated as scope/history, not proof that the current whole R4 implementation is clean. The separate full R4 review was not read or assumed complete.\n\nIndependent reconstruction and hash evidence\n\nAll 40 source files match their state hashes and source-sha256.txt records. Both stage source directories have exactly the same 40-path set. All 32 baseline files match their state hashes and predecessor bytes. The eight new paths remain absent from both captured baseline directories. Every other 39 candidate source file is byte-identical to R4. The two PlayerActions dependencies match their named hashes, predecessor bytes, and canonical bytes. No extra source, baseline or dependency file was accepted.\n\nThe complete source.patch was parsed and applied in memory against the captured baselines. Every old context/deletion byte, old/new hunk count, hunk position, unchanged tail, and complete result was checked. The patch reconstructs exactly 40 files through 437 hunks, with 6,346 inserted lines and 617 deleted lines. The predecessor full patch also reconstructs exactly 40 files through 437 hunks. A separate sorted unified-diff generation reproduces the R4c full patch byte-for-byte.\n\nThe R4-to-R4c compiler patch reconstructs exactly the sole changed Engine through three hunks, with eight inserted lines and two deleted lines. A separate diff reproduces that patch byte-for-byte. Removing the exact six-line helper and reversing the two symbol replacements restores the entire predecessor Engine byte-for-byte. There is no hidden edit elsewhere in that Engine.\n\nAll nine state input hashes match their named actual files. The predecessor state hash, failed-build log hash, compiler before/after hashes, full-patch hash and delta hash match the correction metadata. Prepared-R4's 503 manifest rows, 23 freeze rows, 33 source rows and 27 baseline rows also rehash correctly. Historical enginePorts and shieldDeltaPorts entries retain their earlier-stage meaning. The current candidate is identified by state.source and compilerBindingCorrection, not those historical intermediate hashes.\n\nAt initial read-back, all 40 canonical source files matched frozen R4c. Later read-back found root's concurrent two-callsite correction in canonical V only. The other 39 files, including E, still matched R4c. That later verifier delta is outside this frozen verdict. The supplied HEAD `05784edd429fcf2826b1a322720609b41f711063` and dirty-task status are root-supplied evidence. Git was not queried.\n\nOriginal four compiler errors\n\n| Original error in E | R4c disposition | Source/API basis and preserved restriction |\n| --- | --- | --- |\n| Line 655 calls missing hasOwnedStationHandlerOpen() | Resolved in source by hasOwnedStationMenuOpen(), still at E:655. | The existing method at E:5424 requires a nonnull player, nonnull retained ownedStationMenu, and exact current containerMenu identity. stationReady at E:5278 retains its actual menu-type check and records only the changed menu from an issued station open at E:5286. This keeps the owned child-menu exception in the early travel pause branch. It grants no foreign-menu ownership. |\n| Line 1373 accesses missing Minecraft.currentScreen | Resolved in source by GameApi.screen(client), still at E:1373. | G:304 calls client.gui.screen(). Exact cached 26.3 descriptors show public final Minecraft.gui of type Gui and public Gui.screen() returning Screen. The accessor bytecode reads the existing private Gui.screen field and returns it. The guard still requires a null screen. |\n| Line 1490 calls missing isSupportedCookingStation(StationId) from SMELT validation | Resolved in source by the private helper at E:1470. The unchanged call is now E:1496. | Null is refused. Only minecraft:furnace, minecraft:smoker and minecraft:blast_furnace pass. S:183 maps those exact IDs to exact FurnaceMenu, SmokerMenu and BlastFurnaceMenu classes. The target-food, single-SMELT and raw-input restrictions remain. |\n| Line 1497 calls that same missing helper from PLACE_STATION validation | Resolved by the same helper. The unchanged call is now E:1503. | The existing canPlace requirement remains. Unknown stations, null, modded namespaces, crafting tables and stonecutters remain refused by this predicate. The actual placement admission and native quiescence checks remain separate. |\n\nThe new station helper is pure. It adds no native call, send, mutation, grant, clock change or cleanup operation. Its accepted set matches primary E's three constants at primary lines 47-49 and predicate at primary line 4552. StationId is a final record whose constructor validates through ItemId. Namespace/path grammar excludes colon, and its toString returns namespace + colon + path. The exact string switch therefore matches the primary StationId equality predicate for valid instances, including null refusal.\n\nThe exact processed 26.3 jar was rehashed to `9efea1f5fc02fd49f34607cbac755671d905acdaa933dc20ff0596c100a1d2c4` before direct read-only classfile inspection. Besides the screen binding, Player exposes public containerMenu and public final inventoryMenu. AbstractContainerMenu exposes public getCarried() returning ItemStack. FurnaceMenu, SmokerMenu and BlastFurnaceMenu each directly extend AbstractFurnaceMenu. No JVM loaded these classes during this review. These are descriptor/source observations, not an independently executed compilation or native result.\n\nModern 26.1 G:233 still uses client.screen. Modern 26.2 G:235 and 26.3 G:304 use client.gui.screen(). Calling the existing adapter accessor preserves those version-specific bindings. The 26.1/26.2 supportsTravel methods remain false. The older primary-family refusal adapters and exact admitted 1.21.1/26.3 travel paths are byte-identical to R4. This review does not claim compilation or support for additional families.\n\nAdmission, bounded food and authority preservation\n\nThe early branch at E:651-658 retains manual input/settings pause, unsafe screen/menu/cursor/use checks, acquisition-child narrowing, cleanup exclusion and the same pause call. The replacement uses the existing owned-menu identity helper. Ordinary foreign menu/cursor admission at E:1995 remains ahead of FIFO removal, maintenance credit and typed continuation at E:2006. E:1348 still requires original new-effect authority, held actor/hand/cleanup/AIR/transaction drain, RETURN release and inventory admission before dispatch.\n\ntravelEffectCurrent at E:1370 retains exact active request, context/deadline/cancellation, explicit pause/global STOP, supported pose, health, manual/settings, empty inventory-menu cursor, no item use, and competing actor/debt checks. Only its screen binding changes. Native process ownership and route quiescence continue through the unchanged controller. The menu helper does not replace those checks.\n\nThe entire onHandTravelFoodOutcome method at E:1476 is byte-identical to R4. Its two callsites were not rewritten. The same restricted catalog, ordinary stock/protected floors, pending-project protection, three-step limit, exactly one SMELT, optional supported station CRAFT/PLACE, no selected tools and rejection of every other PlanKind remain. captureTravelFoodOffer at E:1416 restricts station items to the same three IDs and bounds catalog inspection to 128 entries/1 ms. The helper fills the missing predicate; it does not add a supported cooking mechanic or a resource-gather fallback.\n\nJoined demand and floors remain at E:1393-1400 and in the retained marked-step attributes. Actual station send admission at E:5023 still checks exact scope/plan/request/step, live native/player/network/menu/input/provenance/catalog/policy identities, settings/manual/health/actor gates, stock floors, loaded support/reach/protection and full native quiescence. E:5067 still checks path, calculation, every named process and forced input. The correction removes none of these checks.\n\nCaptured shield authority, RETURN and stop preservation\n\noptionalPreparationAuthority at E:1609 is byte-identical to R4. It still captures the original Scope, Plan, Step, Request, Context and Shield identities. E:1625 retains original-parent newEffectCurrent and current plan checks before the food-demand or shield-identity/settings branch. Actual CraftingAction and SmeltingAction constructors at E:5332 and E:5352 still receive this supplier.\n\nThe entire C, S and T files are byte-identical to R4. C:89 still forwards optional drain before ticking the retained transfer. C:92 uses acknowledged placedCount for optional bookkeeping. C:184-201 attaches the optional supplier to both grouped DRAG and single PLACE. C:287 keeps the output admission check. C:406-444 keeps actual ordinary cursor stock, acknowledged-placement deductions, future/reserved costs and live iron/plank floors. T:142 observes genuine pending receipts before drain. T:345 checks DRAG admission before expected-grid mutation. T:485 checks PICKUP/PLACE admission before receipt preparation, with RETURN exempt so original-source restoration remains available. These observations establish preservation of R4's repair, not independent certification of that complete repair's behavior.\n\nForty-one named Engine methods, including both resetAction overloads, were extracted with string/comment-aware brace handling and compared against R4. All 42 complete method bodies match. They cover context, new-effect/plan authority, bounded food and demand, optional authority, FIFO/continuation, hand admission/native quiescence, menu readiness, actual crafting/smelting dispatch, acquisition retirement, targeted cancellation/drain, RETURN restoration, cleanup stop/observation, reset/pause/resume/global STOP, diagnostics and travel completion observation.\n\nE:5432 and E:5442 retain the debt checks around stopping cleanup during reset. E:5564, E:5582 and E:5587 retain original actor/scope/budget when stop creates RETURN debt. Genuine RETURN settlement still routes through global STOP at E:4239. New effects/dispatch retain the global-stop fence. cancelRequest at E:1763 and tickCancelledRequest at E:1784 retain their separate request-local disposition and unrelated sibling preservation. The correction changes neither cleanup rights nor captured acceptance/deadline clocks.\n\nDiagnostics and real completion observation\n\nBoth PlayerActions dependencies and every diagnostic Engine method remain unchanged. E:3849, E:3874 and E:5472 retain hand abandonment, early actual observation, ownership-loss capture and pause hooks. E:3860 still latches diagnosticLogged before the best-effort logger. No new predicate reevaluation or restoration authority was inserted.\n\nE:1744 still captures completion only after the actual TravelAction tick, safeToRelease and exact parent identity. Its record/getter at E:5680 remains read-only. Both RuntimeVerification mirrors, native peer helpers, VerificationApi adapters and build bindings are byte-identical to R4. In the frozen V:2139-2149 predicate, goto still requires ARRIVED. Follow requires FOLLOW_EXPIRED, matching request identity, the original exact 20-second acceptance interval, and completion at/after the deadline. Peer move acknowledgment and fresh observation fences, ordinary teardown, post-idle server/request fences, 20 stable client ticks, inventory/equipment/cursor checks, original input/selection/settings checks and native quiescence were not weakened by this correction. The same 41-slot peer inventory checks are retained by full helper-file byte equality.\n\nCore/nav changes remain byte-identical to R4. Root build.gradle retains source/target/release 17. The changed core candidate Java files contain no Minecraft imports. The compiler correction is confined to the native modern adapter. No owned-kernel source, dependency pin, LGPL notice, licence, settings/input/navigation path or new source path occurs in its delta.\n\nRoot compilation evidence and separate verifier blocker\n\nThe original `/tmp/lodekeeper-cooperative-travel-r4-modern-build.log` contains precisely the four Engine errors listed above and BUILD FAILED. Its hash matches R4c metadata. The later `/tmp/lodekeeper-cooperative-travel-r4c-modern-build.log` shows production compileJava, jar, host-jar inspection and modern tests/check completing. It then fails compileVerificationJava on the two inherited V:2011 and V:2054 ClientAccess.selectedSlot calls. Thus root's log supports successful Engine compilation after this correction. It does not support a complete modern artifact/verifier build PASS.\n\nThe inherited verifier blocker lies outside the three-hunk correction. The trigger is modern verifier compilation. The impact is that native cooperative verification cannot be built from frozen R4c. The minimal correction is to use client.player.getInventory().getSelectedSlot() at those two callsites, retaining the original capture/equality assertion. The same modern getter is already used by the verifier's existing animal/selection checks. Later canonical read-back showed root had made exactly those two replacements. That later delta and any subsequent build remain outside this frozen review.\n\nRoot's primary build log records complete 1.21.1 production/verifier compilation and BUILD SUCCESSFUL. Its supplied checks snapshot records 319 tests, comprising core 173, nav 98 and primary adapter 48, with no failures/errors/skips. This review ran none of them. Later core/nav XML hashes differ from that older snapshot in the shared build directories; four primary-adapter XML records still match. The 319 result is attributed to root's saved snapshot and matching primary build log, not an independent rerun or fresh recertification of all XML records.\n\nThe full R4 source review remains an independent gate. Native travel/follow, late receipt/RETURN, cancellation/STOP/expiry, shared-floor/settings, AIR/manual/foreign ownership, input/settings release, animal/cooking regressions, user acceptance and FULL11 acceptance are UNRUN by this review. Prior 9e station controls do not prove an ownership-loss branch. The old 7c modern station cause remains unknown. No observed native or user result is inferred from compilation, patch reconstruction, fixture source, or cached descriptors.\n\nHash witnesses\n\n| Actual bytes | SHA-256 |\n| --- | --- |\n| R4c state.json | aad9a352bd159ec8fcfa55a71de5d6238490b56c0adc277f936c68d5268bc2fc |\n| R4c source.patch | 2b6002a2d28fede6fb09a42895dc629eab0eac2a67cfdd78e3007f20018ff2fa |\n| R4c compiler correction patch | 707c980e71d7fbb9c02c743f80f34207e61892f9716d1cc91a811943ced3fc2b |\n| R4c source-sha256.txt | f9afa1f6f51bf42fefc81410ddae7325d1e1bb51b719ab008c2aa6a65b09bfdc |\n| R4 state.json | c827709d0b617b2381e8d618f8b03b98009c941ab79b20e0ef2389e99878e29d |\n| R4 source.patch | 8106ee179111d742443a5b7e8025b57de8136c76a8102b13ee819ec00ea6fd30 |\n| E before correction | 79e872f5457f104e67683b1a3735d05b22e3e93950852310756d48c941630f55 |\n| E after correction | 81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572 |\n| Root correction script, read only | b102c6751b025e521858acec698060506cbcda9496da65d478450d869d630940 |\n| Original failed modern build log | 3b1562e71e90c81a4bfc9264f9af011a756adde01b3b79977c2ff06644c8f8cd |\n| R4c modern build log with verifier failure | 08af8cfbb0bc4a44e23a059e555d775451b4c502dd5321a503d9d834cd4bf3ca |\n| Root primary build log | e401a8ee0bbccfb7458fe4326c25fa65ae4fae16564b7e83620a888f2772f610 |\n| Root primary checks snapshot | 9868dcf19ef5af19d00d2c324983c59e69a274ccac2c6ab5742d6aa8b92c44d9 |\n| Frozen V | 0f681c679af964b9d0ff195771a6d5397b7ee1f9d3b4395421f124beda140831 |\n| Later canonical V, outside verdict | 88a69786ca6d9364f5a84049c6b950fd51beb61a1423a88c80996387a122f1d3 |\n\nThe required anti-ai writing skill, host pstack runtime, poteto-mode and official poteto-agent brief were read. Investigation, how, no-comments and unslop guidance were read. The explicit bounded read-only scope overrides their delegation, editing and execution steps. Prove It Works selected direct complete-byte reconstruction and cached descriptors over generator claims. Boundary Discipline kept native bindings and admission checks separate from pure core policy. throughput checkpoint: n/a, read-only investigation.\n\nCLEAN for the frozen compiler binding correction. HOLD for the independent whole-R4 review, root's complete corrected modern verifier build, native evidence and Lu's acceptance.\n"
+    },
+    {
+      "role": "root two-callsite modern verifier correction",
+      "path": "/tmp/lodekeeper-cooperative-modern-verifier-review-r4d.md",
+      "sha256": "ef01716d37dd599595ff224fff00bff73d270452ee1ececd0c1f21d20f9316e3",
+      "text": "CLEAN for the two verifier getter corrections. Root review.\n\nThe final R4d delta changes exactly two expressions in the modern RuntimeVerification.java. Both calls to the absent ClientAccess.selectedSlot adapter become the existing native player inventory getSelectedSlot method. The same RuntimeVerification source already uses that getter for animal diagnostics. The modern artifact and verification sources compile after this correction, and all 274 current checks pass.\n\nissueCooperativeCommand still captures the selection before the intercepted command. cooperativeRestored still requires the same selection, exact original input, all independently captured settings, released keys and stopped native navigation. Its existing nonnull player guard remains before the inventory read. Neither call writes inventory or admits product effects. No success predicate, clock, peer transport, teardown, observation fence, receipt, settings snapshot or native input comparison changes.\n\nThirty-nine of the forty R4d source files remain byte-identical to frozen R4c. The selected Runtime source differs only by these two replacements. All forty current canonical source hashes match frozen R4d, and both diagnostic dependencies retain their original hashes. Frozen R4 and R4c are preserved for their independent review rounds.\n\nR4d source.patch SHA-256 is 82c0deffed76bc04a0e78e662d847dee4d2a7c8b567f72af97d31da0ea7ab13a. Its r4d-verifier-fix.patch SHA-256 is 3a221c878162748364b517e14b2202dd64ec89078cdd6d4cdead70e1b5d8ab90. The final modern build log is /tmp/lodekeeper-cooperative-travel-r4d-modern-build.log. The exact test report hashes and counts are captured in /tmp/lodekeeper-cooperative-travel-r4d-modern-checks.json.\n\nThis root review covers only the two compiler corrections. It is not an independent review of the complete travel actor or the native fixture. Those preceding independent reviews remain separate gates. Native travel and player follow have not run for this candidate. FULL11 work and user acceptance remain open.\n"
+    }
+  ],
+  "builds": [
+    {
+      "family": "primary",
+      "minecraftVersion": "1.21.1",
+      "buildLog": "/tmp/lodekeeper-cooperative-travel-r4-primary-build.log",
+      "buildLogSha256": "e401a8ee0bbccfb7458fe4326c25fa65ae4fae16564b7e83620a888f2772f610",
+      "checksPath": "/tmp/lodekeeper-cooperative-travel-r4-primary-checks.json",
+      "checksSha256": "9868dcf19ef5af19d00d2c324983c59e69a274ccac2c6ab5742d6aa8b92c44d9",
+      "checks": {
+        "readAtUtc": "2026-10-09T09:20:12.597505+00:00",
+        "modules": {
+          "core": {
+            "totals": {
+              "tests": 173,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.AcquisitionPlannerTest.xml",
+                "sha256": "9c0b1ca1611a14de3301d965a8ea3547b81de75827b3896948576087b89adad8"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.AutomationSettingsTest.xml",
+                "sha256": "05dca023d4f3577f2b9b3f4c40bc953797c7d62127157cf036e405484cf4abfc"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ClaimSnapshotTest.xml",
+                "sha256": "3a920277ce520b8a4b94c1dba80ec69faaf1992631c642a5680bd6ccda9edb7a"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.GatherCandidatesTest.xml",
+                "sha256": "0821260d887514edf9a38147f563d01060fa971d24795e99d047f3ac4b47d3e5"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.MiningDepthPolicyTest.xml",
+                "sha256": "e894b894ca0379a2f41000964448b526cc00662e05bb5cfa4c336bcb4294fc83"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.OwnedStationLedgerTest.xml",
+                "sha256": "f9a5649d8881e58fe667c9ae0541590fdd509956f6eab6d4d5222cf3983ba918"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ProjectGatherBatchTest.xml",
+                "sha256": "459062f8c75f15aa61a6da73a295271671dd20ef034d8c049ade33d872adfb32"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ProjectMaterialReservationsTest.xml",
+                "sha256": "5d156cd268d93ac5717020b8ffbf48942c0416ac7ab416079884e2dcf4c3b2f3"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.RestorationQueueTest.xml",
+                "sha256": "d72a8d934b7ad27d10db28faef2843e6e81696717228f2c63ea2f492da914919"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.TravelCommandParserTest.xml",
+                "sha256": "4600cfa4e3df7c12044b1478c0be54b218840c4feeb5f1ecfbf5f4eca98c8983"
+              }
+            ]
+          },
+          "nav": {
+            "totals": {
+              "tests": 98,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.ActionMovementProgressTest.xml",
+                "sha256": "d23ae1fb6f69342976903fb54290117f1f0989e53532c7de62b8664894502aaf"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.ExplorationFrontierTest.xml",
+                "sha256": "fc3780fd501f6ce68710f82aeb90e0bd0a0a09fd823ed2817578969d797b649e"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.FootprintCoverageTest.xml",
+                "sha256": "666876f630d25fce564a11254a99761c7e608b02ed5ed52c03b6b88c10ad3b94"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.LaunchApproachTest.xml",
+                "sha256": "4f51d3d48d06dfbdc3a591bb310c7ebe80add8607d121cccfd73f66ed5a3f0a1"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.MotionEventBufferTest.xml",
+                "sha256": "b95590bdda55919408f909c74f3258d113a79f033a77dd60ac4312542dc51acf"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.NavigationOverlayTest.xml",
+                "sha256": "b30f19071b63ff2fc500eba11b87300ced79dbe932663aec6de8fc560aaa92d5"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.PathEdgeValidatorTest.xml",
+                "sha256": "45b9f035b1b89502c12268ecc2465f17c896ff3b9b1681f82d8667e7e8d73c84"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.PlannerTest.xml",
+                "sha256": "8b75af9db199b37a1dd27227707d84e73a839a20e44ab0c7b7dc61d52c7c6c81"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.RegionRevisionTrackerTest.xml",
+                "sha256": "9f0f37ffe118c893e6513d9793c2f52c6a37a3de8c358df02faa73495ad38e0f"
+              }
+            ]
+          },
+          "fabric-1211": {
+            "totals": {
+              "tests": 48,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/test-results/test/TEST-dev.lodekeeper.fabric.ClaimStoreTest.xml",
+                "sha256": "d1c9d7ef5586507bbeada12c9b80ccfb8f49fa787e5b2c32b1c75d1adab36d76"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/test-results/test/TEST-dev.lodekeeper.fabric.FullClickReceiptTest.xml",
+                "sha256": "301820a2761ee88fc063f39e9958a5309ec9041ea04546f86a3308a222e61be8"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/test-results/test/TEST-dev.lodekeeper.fabric.MovementTrajectoryTest.xml",
+                "sha256": "6d59b61749e640bf00b4d8b80ec04b8a5454be3b9af712584c675efd4b0e993b"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/test-results/test/TEST-dev.lodekeeper.fabric.RecipeGridLayoutTest.xml",
+                "sha256": "960e9054edc587a6696bc2f7eceecf167fea429e53555fef7f66839853e04bd8"
+              }
+            ]
+          }
+        },
+        "buildLog": "/tmp/lodekeeper-cooperative-travel-r4-primary-build.log",
+        "buildLogSha256": "e401a8ee0bbccfb7458fe4326c25fa65ae4fae16564b7e83620a888f2772f610"
+      },
+      "artifact": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "artifactBytes": 1895030,
+      "artifactSha256": "5d7f816d51f4a3c631a8a9626ef29d2e553fbeeffa9b151596c1526dca327773",
+      "productionAndVerifierCompilation": "passed",
+      "native": "unrun"
+    },
+    {
+      "family": "modern",
+      "minecraftVersion": "26.3",
+      "buildLog": "/tmp/lodekeeper-cooperative-travel-r4d-modern-build.log",
+      "buildLogSha256": "595680c9454fc676674f430c4457c60b727ef57625f1a238a2763f3127c005c5",
+      "checksPath": "/tmp/lodekeeper-cooperative-travel-r4d-modern-checks.json",
+      "checksSha256": "e75f397fda1d96449e88d2bf13d62465b62e9ec5f90d2196fcc30d507a3784f2",
+      "checks": {
+        "readAtUtc": "2026-10-09T09:32:02.808454+00:00",
+        "modules": {
+          "core": {
+            "totals": {
+              "tests": 173,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.AcquisitionPlannerTest.xml",
+                "sha256": "2c55505651cb945295f5158be1e6c140f9e8aa42cee3c91e5d718ee9609760aa"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.AutomationSettingsTest.xml",
+                "sha256": "1fbdbbcff8c4931f1ec25437a3eea90a2828566208c0933e1c7688b8b17c03ff"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ClaimSnapshotTest.xml",
+                "sha256": "a621d487726f46411b20dc8fdd781d7f92d67016666bdb27f133bfce4dacf2f3"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.GatherCandidatesTest.xml",
+                "sha256": "3fc4215fc42202363c0e977c4e1f7187bc127250e216785335364b35be231ac7"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.MiningDepthPolicyTest.xml",
+                "sha256": "66ac6f0d35e50c1407069bc131195bc3b41ae9b04f4be6dbe76c896d969a33ef"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.OwnedStationLedgerTest.xml",
+                "sha256": "0027c32f64b5fcc84c05c83939f6ee9b364b3630b4f75eb673c561a050ed96a3"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ProjectGatherBatchTest.xml",
+                "sha256": "38e1f8dc8718a379ce001b85ba0f388b1e7a84bef5d0ba2f94a938fe69af573f"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.ProjectMaterialReservationsTest.xml",
+                "sha256": "5664119f46b2dd0bbfe4296f1e25353f2a2759d80ff8296a545b4c12a59f107f"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.RestorationQueueTest.xml",
+                "sha256": "b9b20bfdc5c22d835d0d154539a4186e0a901c229ae26f3f49ec36ee87f52b57"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/core/build/test-results/test/TEST-dev.lodekeeper.core.TravelCommandParserTest.xml",
+                "sha256": "5c83fdec81ab34ebc13debc8f4777235a6787ed1c1473705266cf5ff4e90ff6c"
+              }
+            ]
+          },
+          "nav": {
+            "totals": {
+              "tests": 98,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.ActionMovementProgressTest.xml",
+                "sha256": "59e075a7fefdada59f736b4d9b1fa261969063c0557347904e287a8cef1124f7"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.ExplorationFrontierTest.xml",
+                "sha256": "7e1af75a3dddf3f91d40a9c6600a39a475793219bcd96267a608a86c92959eb7"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.FootprintCoverageTest.xml",
+                "sha256": "188f721c03f887dad1f3f46d26cc0ae9caad1654840b0b0436c06ca360037a67"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.LaunchApproachTest.xml",
+                "sha256": "73af13b2a2ec7208757d3df0cc4e4dd0aabd5b1b8268f053e0a9b18e905a6f00"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.MotionEventBufferTest.xml",
+                "sha256": "a02c8c1e2fc63b95272961637d1e3342bcd85edb391750627d827d68e2e613d2"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.NavigationOverlayTest.xml",
+                "sha256": "bd9780962e7d967a2744a5e0bd96e6ea9985a9aa1c9acd8f92a258675a123af7"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.PathEdgeValidatorTest.xml",
+                "sha256": "5bd3aed687eab6f126dffe7f4bbc6ad4df9d8931788dbd04341e0ab011db1679"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.PlannerTest.xml",
+                "sha256": "8e78fec9d67bd21f2936761d3f3023bda752e20bb42ebea17ac68cf31b7ce623"
+              },
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/nav/build/test-results/test/TEST-dev.lodekeeper.nav.RegionRevisionTrackerTest.xml",
+                "sha256": "1233e4a08752f25ae33e2e199438a659fb0459cc792326e9da37406b7c948962"
+              }
+            ]
+          },
+          "fabric-modern": {
+            "totals": {
+              "tests": 3,
+              "failures": 0,
+              "errors": 0,
+              "skipped": 0
+            },
+            "reports": [
+              {
+                "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/test-results/test/TEST-dev.lodekeeper.fabric.modern.ClaimStoreTest.xml",
+                "sha256": "fe9eef979a1098d98b7bee6445a23abab52ac3f713263728ad01a9da37606b69"
+              }
+            ]
+          }
+        },
+        "buildLog": "/tmp/lodekeeper-cooperative-travel-r4d-modern-build.log",
+        "buildLogSha256": "595680c9454fc676674f430c4457c60b727ef57625f1a238a2763f3127c005c5"
+      },
+      "artifact": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "artifactBytes": 1967516,
+      "artifactSha256": "4ada90da26bf0bd71d7dc49267546db08c8999760eac932989bf07eda78b10c9",
+      "productionAndVerifierCompilation": "passed",
+      "native": "unrun"
+    }
+  ],
+  "compilerAttempts": [
+    {
+      "path": "/tmp/lodekeeper-cooperative-travel-r4-modern-build.log",
+      "sha256": "3b1562e71e90c81a4bfc9264f9af011a756adde01b3b79977c2ff06644c8f8cd",
+      "result": "failed",
+      "reason": "four modern Engine API bindings"
+    },
+    {
+      "path": "/tmp/lodekeeper-cooperative-travel-r4c-modern-build.log",
+      "sha256": "08af8cfbb0bc4a44e23a059e555d775451b4c502dd5321a503d9d834cd4bf3ca",
+      "result": "failed",
+      "reason": "two modern verifier selected-slot bindings"
+    }
+  ],
+  "nativeCases": [],
+  "native": "unrun",
+  "allProfileCi": "unrun for this source",
+  "userAcceptance": "open",
+  "limits": [
+    "Source review, compilation and saved checks do not establish native success.",
+    "Offline peer join is not certified signed-chat authority.",
+    "Late receipt, RETURN, cancellation, STOP, expiry, AIR, manual ownership and shared-floor native checks remain open.",
+    "Item handoff, authenticated remote ingress, storage, crops and remaining FULL11 units remain separate unfinished work.",
+    "Opaque setting leaves have identity-only verification.",
+    "Earlier modern station ownership failure remains unexplained."
+  ]
+}

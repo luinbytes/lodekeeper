@@ -6,6 +6,9 @@ import dev.lodekeeper.navigation.kernel.pathing.movement.Movement;
 
 import dev.lodekeeper.core.AcquisitionPlanner;
 import dev.lodekeeper.core.CommandParser;
+import dev.lodekeeper.core.TravelGoal;
+import dev.lodekeeper.core.WorldScope;
+import java.util.UUID;
 import dev.lodekeeper.core.AcquisitionSource;
 import dev.lodekeeper.core.AnimalHarvestSource;
 import dev.lodekeeper.core.NativeWork;
@@ -126,16 +129,69 @@ final class AutomationEngine {
             "minecraft:coal_ore", "minecraft:deepslate_coal_ore",
             "minecraft:diamond_ore", "minecraft:deepslate_diamond_ore");
 
-    private record Request(String name, ItemId item, int count, boolean anyLogs,
-                           String maintenanceTaskId, ProjectRun project, long jobToken) {
-        Request { if (jobToken <= 0) throw new IllegalArgumentException("Job token must be positive"); }
+    record JobContext(long jobToken, UUID issuer, long grantEpoch, WorldScope scope,
+                      Object world, Object player, Object network, Object connection,
+                      dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner,
+                      dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session nativeSession,
+                      OwnedStationLedger.Session provenanceSession, long acceptedNanos, long deadlineNanos) {
+        JobContext {
+            if (jobToken <= 0 || grantEpoch < 0 || deadlineNanos - acceptedNanos <= 0
+                    || deadlineNanos - acceptedNanos > 600_000_000_000L)
+                throw new IllegalArgumentException("Invalid job token or bounded deadline");
+            Objects.requireNonNull(issuer); Objects.requireNonNull(scope); Objects.requireNonNull(world);
+            Objects.requireNonNull(player); Objects.requireNonNull(network); Objects.requireNonNull(connection);
+            Objects.requireNonNull(owner); Objects.requireNonNull(nativeSession); Objects.requireNonNull(provenanceSession);
+        }
+    }
+    private sealed interface Request permits AcquireRequest, TravelRequest {
+        String name(); JobContext context();
+        default long jobToken() { return context().jobToken(); }
+    }
+    private record AcquireRequest(String name, ItemId item, int count, boolean anyLogs,
+                                  String maintenanceTaskId, ProjectRun project, JobContext context) implements Request {
+        AcquireRequest {
+            Objects.requireNonNull(name); Objects.requireNonNull(item); Objects.requireNonNull(context);
+            if (count <= 0) throw new IllegalArgumentException("Acquisition count must be positive");
+        }
         boolean maintained() { return maintenanceTaskId != null; }
     }
+    record TravelRequest(String name, TravelGoal goal, JobContext context) implements Request {
+        TravelRequest { Objects.requireNonNull(name); Objects.requireNonNull(goal); Objects.requireNonNull(context); }
+    }
+    private record AcquisitionDemand(ItemId item, int totalStockTarget, boolean anyLogs) { }
+    private record AcquisitionScope(Request parent, AcquireRequest view, long phaseGeneration, AcquisitionDemand demand) { }
+    private record PlanIdentity(AcquisitionScope scope, long serial, JobContext context, GameCatalog catalog,
+                                long catalogGeneration, long preferencesVersion, long policyGeneration) { }
+    private AcquisitionScope acquisitionScope;
+    private long phaseGeneration, planSerial;
+    private PlanIdentity pendingPlanIdentity, stepPlanIdentity;
+    private Request cancelledRequest;
+    private NativeRun nativeRun;
+    private Request nativeRunParent;
+    private AcquisitionScope nativeRunScope;
+    private TravelAction travelAction;
+    private TravelRequest travelActionParent;
+    private TravelRequest travelFoodPreflightParent;
+    private AcquisitionScope travelFoodScope;
+    private FoodController.Preparation travelFoodPreparation;
+    private TravelFoodOffer travelFoodOffer;
+    private TravelFoodDemand travelFoodDemand;
+    private boolean travelFoodInvalidated;
+    private TravelRequest travelShieldPreflightParent;
+    private AcquisitionScope travelShieldScope;
+    private final WaypointStore waypoints = new WaypointStore(net.fabricmc.loader.api.FabricLoader.getInstance()
+            .getConfigDir().resolve("lodekeeper-waypoints.json"));
+    private AcquireRequest acquisitionView() { return acquisitionScope == null ? null : acquisitionScope.view(); }
+    private ProjectRun activeProject() { return acquisitionView() == null ? null : acquisitionView().project(); }
+    private boolean activeMaintained() { return acquisitionView() != null && acquisitionView().maintained(); }
+    private String activeMaintenanceId() { return acquisitionView() == null ? null : acquisitionView().maintenanceTaskId(); }
+    private AcquisitionScope acquisition() { return acquisitionScope; }
 
     private record MovementDemand(PlanKind kind, ItemId output, StationId station, String customType) { }
 
     private static final class MovementProgressScope {
         final Request request;
+        final AcquisitionScope acquisition;
         final Object world, player;
         final OwnedStationLedger.Session session;
         final ActionMovementProgress progress = new ActionMovementProgress();
@@ -143,17 +199,18 @@ final class AutomationEngine {
         int sampledTableCount = -1, tableGainFrom = -1;
         boolean stationStockReconsidered;
 
-        MovementProgressScope(Request request, Object world, Object player, OwnedStationLedger.Session session,
+        MovementProgressScope(AcquisitionScope acquisition, Object world, Object player, OwnedStationLedger.Session session,
                               MovementDemand demand) {
-            this.request = request;
+            this.acquisition = acquisition;
+            this.request = acquisition.parent();
             this.world = world;
             this.player = player;
             this.session = session;
             this.demand = demand;
         }
 
-        boolean matches(Request request, Object world, Object player, OwnedStationLedger.Session session) {
-            return this.request == request && request != null && this.world == world && this.player == player
+        boolean matches(AcquisitionScope acquisition, Object world, Object player, OwnedStationLedger.Session session) {
+            return this.acquisition == acquisition && acquisition != null && this.request == acquisition.parent() && this.world == world && this.player == player
                     && this.session.equals(session);
         }
     }
@@ -171,7 +228,7 @@ final class AutomationEngine {
     }
     private record ShieldOptions(boolean autoDefend, boolean autoUseShield, boolean autoCraftShield,
                                  boolean allowBreaking, boolean allowBuilding, int ironFloor, int plankFloor) { }
-    private record ShieldPlanningIdentity(long jobToken, PendingGoals goals, Object world, Object dimension,
+    private record ShieldPlanningIdentity(AcquisitionScope acquisition, long jobToken, PendingGoals goals, Object world, Object dimension,
                                           java.util.Optional<OwnedStationLedger.Session> session,
                                           long catalogGeneration, long preferencesVersion, ShieldOptions options,
                                           Set<String> unavailableSources) {
@@ -194,7 +251,7 @@ final class AutomationEngine {
     private static final class LocalReachScan {
         private final Object world;
         private final Object dimension;
-        private final Request request;
+        private final AcquisitionScope acquisition;
         private final long generation;
         private final Set<Block> blocks;
         private final Set<String> sources;
@@ -206,12 +263,12 @@ final class AutomationEngine {
         private boolean complete;
         private long completedAtNanos;
 
-        LocalReachScan(Object world, Object dimension, Request request, long generation,
+        LocalReachScan(Object world, Object dimension, AcquisitionScope acquisition, long generation,
                        Set<Block> blocks, Set<String> sources, Set<BlockPos> rejected,
                        BlockPos origin, double eyeX, double eyeY, double eyeZ) {
             this.world = world;
             this.dimension = dimension;
-            this.request = request;
+            this.acquisition = acquisition;
             this.generation = generation;
             this.blocks = Set.copyOf(blocks);
             this.sources = Set.copyOf(sources);
@@ -236,9 +293,9 @@ final class AutomationEngine {
             positions = List.copyOf(candidates);
         }
 
-        boolean matches(Object world, Object dimension, Request request, long generation,
+        boolean matches(Object world, Object dimension, AcquisitionScope acquisition, long generation,
                         Set<Block> blocks, Set<String> sources, Set<BlockPos> rejected, BlockPos origin) {
-            return this.world == world && java.util.Objects.equals(this.dimension, dimension) && this.request == request
+            return this.world == world && java.util.Objects.equals(this.dimension, dimension) && this.acquisition == acquisition
                     && this.generation == generation && this.blocks.equals(blocks) && this.sources.equals(sources)
                     && this.rejected.equals(rejected) && this.origin.equals(origin);
         }
@@ -281,7 +338,7 @@ final class AutomationEngine {
         void skipResult() { result = null; }
     }
 
-    private record LocalReachHint(Object world, Object dimension, Request request, long generation,
+    private record LocalReachHint(Object world, Object dimension, AcquisitionScope acquisition, long generation,
                                   Set<BlockPos> rejected, BlockPos origin, String sourceId,
                                   BlockPos position, Block block) { }
 
@@ -309,11 +366,11 @@ final class AutomationEngine {
     private final BackfillController backfill;
     private final Map<ItemId, Integer> requestedBackfillStock = new HashMap<>();
     private final OwnedStationRecoveryAction stationRecovery;
-    private record StationPlacementWait(Request request, BlockPos position, Block block,
+    private record StationPlacementWait(AcquisitionScope acquisition, Request request, BlockPos position, Block block,
                                         OwnedStationLedger.Session session, boolean sent, PlayerActions.StationPlacementHand hand) { }
     private StationPlacementWait stationPlacementWait;
     private PlayerActions.StationPlacementHand stationPlacementHand;
-    private record StationHandAdmission(Request request, PlanStep plannedStep, Object player, Object world,
+    private record StationHandAdmission(AcquisitionScope acquisition, PlanIdentity planning, Request request, PlanStep plannedStep, Object player, Object world,
                                         Object network, Object connection, Object menu, Object expectedInput,
                                         OwnedStationLedger.Session session, GameCatalog catalog, long catalogGeneration,
                                         dev.lodekeeper.navigation.kernel.OwnedKernelRuntime nativeOwner,
@@ -323,18 +380,20 @@ final class AutomationEngine {
     private enum CleanupPurpose { FINISH_JOB, CARRY_TABLE, PREVIOUS_COMMAND_TABLE }
     private static final class CleanupRun {
         final CleanupPurpose purpose;
-        final Request request;
+        final AcquireRequest request;
+        final AcquisitionScope acquisition;
         final OwnedStationLedger.Session session;
         final Deque<OwnedStationLedger.StationRecord> remaining;
         final long startedNanos;
         OwnedStationLedger.StationRecord current;
-        boolean incomplete;
+        boolean incomplete, restorationRevoked;
         String incompleteReason;
-        CleanupRun(CleanupPurpose purpose, Request request, OwnedStationLedger.Session session,
+        CleanupRun(CleanupPurpose purpose, AcquisitionScope acquisition, AcquireRequest request, OwnedStationLedger.Session session,
                    List<OwnedStationLedger.StationRecord> records, long startedNanos) {
             this.purpose = purpose;
             this.startedNanos = startedNanos;
             this.request = request;
+            this.acquisition = acquisition;
             this.session = session;
             remaining = new ArrayDeque<>(records);
         }
@@ -345,9 +404,10 @@ final class AutomationEngine {
     private OwnedStationLedger.StationRecord pendingStationPickup;
     private final Deque<OwnedStationLedger.StationRecord> deferredStationCleanup = new ArrayDeque<>();
     private final Set<OwnedStationLedger.StationRecord> completedStandaloneTables = new LinkedHashSet<>();
-    private record PreviousCommandTableCheck(long jobToken, OwnedStationLedger.StationRecord selected) { }
+    private record PreviousCommandTableCheck(AcquisitionScope acquisition, long jobToken, OwnedStationLedger.StationRecord selected) { }
     private PreviousCommandTableCheck previousCommandTableCheck;
     private long cleanedJobToken;
+    private AcquisitionScope cleanedAcquisitionScope;
     private long stationCleanupIncompleteJobToken = -1;
     private String stationCleanupIncompleteReason;
     final GameTerrain terrain;
@@ -358,13 +418,13 @@ final class AutomationEngine {
         return thread;
     });
     private final Deque<Request> queue = new ArrayDeque<>();
-    private final Deque<Request> maintenanceQueue = new ArrayDeque<>();
+    private final Deque<AcquireRequest> maintenanceQueue = new ArrayDeque<>();
     private final Set<ProjectRun> projects = new LinkedHashSet<>();
     private final ProjectCatalog projectCatalog = ProjectCatalog.standard();
     private final MaintainedDemandModel maintained = new MaintainedDemandModel();
     private final Map<StationId, BlockPos> knownStations = new HashMap<>();
     private final Set<BlockPos> rejectedStationSites = new HashSet<>();
-    private Request stationPlacementOwner;
+    private AcquisitionScope stationPlacementOwner;
     private StationId stationPlacementStation;
     private final Set<BlockPos> unreachableStations = new HashSet<>();
     private final Set<String> unavailableSources = new HashSet<>();
@@ -377,12 +437,12 @@ final class AutomationEngine {
     private ClientLevel world;
     private GameCatalog catalog;
     private Request active;
-    private record MiningContinuation(Object world, Object dimension, Request request, String sourceId,
+    private record MiningContinuation(Object world, Object dimension, AcquisitionScope acquisition, String sourceId,
                                       Set<BlockPos> rejectedPositions) {
         MiningContinuation { rejectedPositions = Set.copyOf(rejectedPositions); }
-        boolean matches(Object currentWorld, Object currentDimension, Request currentRequest, String currentSource) {
+        boolean matches(Object currentWorld, Object currentDimension, AcquisitionScope currentAcquisition, String currentSource) {
             return world == currentWorld && java.util.Objects.equals(dimension, currentDimension)
-                    && request == currentRequest && sourceId.equals(currentSource);
+                    && acquisition == currentAcquisition && sourceId.equals(currentSource);
         }
     }
     private MiningContinuation miningContinuation;
@@ -415,7 +475,7 @@ final class AutomationEngine {
     private LocalReachScan localLogReachScan, localIngredientWoodReachScan, localGatherReachScan;
     private LocalReachHint localReachHint;
     private BlockSearch ingredientWoodScan;
-    private Request ingredientWoodRequest;
+    private AcquisitionScope ingredientWoodRequest;
     private long ingredientWoodGeneration = -1;
     private BlockPos ingredientWoodOrigin;
     private int ingredientWoodRejectedCount;
@@ -430,7 +490,7 @@ final class AutomationEngine {
     private final Map<Block,GatherSource> localLogSources = new HashMap<>();
     private final Deque<ItemId> logCandidates = new ArrayDeque<>();
     private final Set<ItemId> attemptedLogCandidates = new HashSet<>();
-    private Request logScanRequest;
+    private AcquisitionScope logScanRequest;
     private ItemId localLogCandidateOutput;
     private String localLogCandidateSourceId;
     private boolean logScanComplete;
@@ -542,13 +602,13 @@ final class AutomationEngine {
         return ++lastJobToken;
     }
 
-    private Request request(String name, ItemId item, int count, boolean anyLogs,
+    private AcquireRequest request(String name, ItemId item, int count, boolean anyLogs,
                             String maintenanceTaskId, ProjectRun project) {
         requestedBackfillStock.merge(item, count, Math::max);
         if (project != null) project.spec.goals().forEach((goal, targetCount) ->
                 requestedBackfillStock.merge(goal, targetCount, Math::max));
-        return new Request(name, item, count, anyLogs, maintenanceTaskId, project,
-                project == null ? allocateJobToken() : project.jobToken);
+        return new AcquireRequest(name, item, count, anyLogs, maintenanceTaskId, project,
+                captureContext(project == null ? allocateJobToken() : project.jobToken, 600));
     }
 
     void claim(CommandParser.ClaimCommand command) { message(protection.execute(command)); }
@@ -567,7 +627,9 @@ final class AutomationEngine {
         discoveryBudgetStarted = false;
         discoveryDeadlineNanos = 0;
         syncMovementProgress();
+        if (active != null && contextReplaced(active.context())) abandonReplacedContext(active);
         if (client.level != world) {
+            abandonTravelSession();
             abandonStationPlacementHand();
             animalAcquisition.abandonSession(); animalQuotas.clear();
             stopNow(false);
@@ -584,7 +646,29 @@ final class AutomationEngine {
             inventoryFingerprintInitialized = false;
             observedInventory = Map.of();
         }
+        if (active != null && contextReplaced(active.context())) abandonReplacedContext(active);
         if (tickStationPlacementHand()) return;
+        if (!paused && active instanceof TravelRequest && client.player != null
+                && (manualStationInput() || editingSettings()
+                    || acquisitionScope == null && (GameApi.screen(client) != null || client.player.containerMenu != client.player.inventoryMenu
+                        || !client.player.containerMenu.getCarried().isEmpty() || client.player.isUsingItem())
+                    || acquisitionScope != null && !hasOwnedStationMenuOpen() && cleanupRun == null
+                        && (client.player.containerMenu != client.player.inventoryMenu || !client.player.containerMenu.getCarried().isEmpty()))) {
+            pause("Travel yielded to player input or an unsafe screen/menu"); return;
+        }
+        if (tickCleanupReturnObserver()) return;
+        if (tickTravelObserver()) return;
+        if (stopAfterStep && active == null) { stopNow(true); return; }
+        if (active != null && !newEffectCurrent(active)) {
+            if (!contextBound(active.context())) {
+                paused = true;
+                if (travelAction != null && nativeRun == travelAction) travelAction.pause();
+                status = "connection unavailable; held work awaits its original context";
+                input.release();
+                return;
+            }
+            cancelledRequest = active;
+        }
         if (animalAcquisition.active() && tickAnimalRun()) return;
         if (client.player == null || client.level == null) { cancelStationPlacement(); stopStationCleanup(); stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop(); movement.suspend(); input.release(); return; }
         if (editingSettings()) {
@@ -627,7 +711,10 @@ final class AutomationEngine {
             completeStationCleanup(cleanupRun);
             return;
         }
-        if (!paused && (active != null || airRecovery.active()) && recoverAirIfNeeded()) return;
+        if (!paused && (active != null || airRecovery.active())) {
+            if (cleanupRun != null && (airRecovery.active() || airRecovery.ready())) revokeCleanupRestoration();
+            if (recoverAirIfNeeded()) return;
+        }
         if (healthRecovery != null && !paused
                 && System.nanoTime() - healthRecovery.startedNanos() >= 40_000_000_000L) {
             pause("Health did not recover within 40 seconds");
@@ -650,7 +737,12 @@ final class AutomationEngine {
         }
             if (catalog != null && !catalog.usesCurrentStonecuttingProvider()) catalog.load();
             if (catalog != null && ++catalogRefreshTicks % 40 == 0) catalog.refreshLearnedRecipes();
-            if (foregroundYieldPending && canYieldMaintenanceNow()) yieldActiveMaintenance();
+            if (cancelledRequest == active && active != null && tickCancelledRequest()) return;
+            if (foregroundYieldPending) {
+                if (!activeMaintained()) foregroundYieldPending = false;
+                else if (canYieldMaintenanceNow()) yieldActiveMaintenance();
+                else requestActiveTransactionDrain();
+            }
             if (active == null && !paused) startNextRequest();
             if (active == null || paused) {
                 stationRoom.stop(); threats.stop(); equipment.stop(); animalAcquisition.stop(); food.stop();
@@ -673,18 +765,26 @@ final class AutomationEngine {
                 input.release();
                 return;
             }
+            if (travelAction != null && nativeRun == travelAction && !travelAction.suspended()
+                    && (airRecovery.ready() || client.player.getHealth() <= config.pauseBelowHealth
+                        || config.autoDefend && threats.ready() || config.autoEat && food.ready()
+                        || config.autoEquipArmor && equipment.active())) {
+                travelAction.requestDrain(NativeRun.DrainReason.PREEMPT);
+                if (tickTravelObserver()) return;
+            }
             threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
             if (!airRecovery.active() && config.autoDefend && !stopAfterStep && !transactionInProgress() && !openingStation
-                    && !hasOwnedStationMenuOpen() && !food.active() && !equipment.active() && threats.ready()) {
+                    && !hasOwnedStationMenuOpen() && !food.active() && !equipment.active() && !cleanupReturnBarrier() && threats.ready()) {
                 if (pendingPlan != null) pendingPlan.cancel(false);
                 pendingPlan = null;
                 resetAction();
+                if (cleanupReturnBarrier()) return;
                 refreshNavigationProtection();
                 threats.useShield(config.autoUseShield);
-            threats.updateProtection(foodReservations());
+                threats.updateProtection(foodReservations());
                 if (threats.begin()) status = threats.status();
-                else requestPlan();
+                else continueActiveRequest();
                 return;
             }
             food.updateProtection(foodReservations());
@@ -709,9 +809,9 @@ final class AutomationEngine {
                 status = "eating before continuing " + active.name();
                 if (!config.autoEat || GameApi.screen(client) != null) {
                     food.stop();
-                    requestPlan();
+                    continueActiveRequest();
                 } else if (food.tick()) {
-                    requestPlan();
+                    continueActiveRequest();
                 }
                 return;
             }
@@ -719,11 +819,11 @@ final class AutomationEngine {
                 if (config.autoEat && beginCarryTable()) return;
                 animalAcquisitionPending = false;
                 animalAcquisition.updateProtection(foodReservations());
-                if (config.autoEat && animalAcquisition.begin(healthRecovery != null, active.jobToken(), catalog.generation(), this::reserveAnimalAttempt)) status = animalAcquisition.status();
-                else { animalAcquisitionCooldown = 200; requestPlan(); }
+                if (config.autoEat && animalAcquisition.begin(healthRecovery != null, active.jobToken(), catalog.generation(), this::reserveAnimalAttempt)) { holdAnimalRun(); status = animalAcquisition.status(); }
+                else { animalAcquisitionCooldown = 200; continueActiveRequest(); }
                 return;
             }
-            if (foodReplanPending) { requestPlan(); return; }
+            if (foodReplanPending) { continueActiveRequest(); return; }
             if (config.autoEat && foodCooldown == 0 && !stopAfterStep && !transactionInProgress()
                     && !openingStation && !hasOwnedStationMenuOpen() && food.ready()) {
                 if (pendingPlan != null) pendingPlan.cancel(false);
@@ -735,7 +835,7 @@ final class AutomationEngine {
                     foodReplanPending = true;
                     status = "eating before continuing " + active.name();
                 } else {
-                    requestPlan();
+                    continueActiveRequest();
                 }
                 return;
             }
@@ -753,7 +853,8 @@ final class AutomationEngine {
                 status = "finishing movement before acquiring food";
                 return;
             }
-            if (config.autoEquipArmor && !stopAfterStep && !transactionInProgress() && !openingStation
+            if (config.autoEquipArmor && (nativeRun != travelAction || travelAction == null || travelAction.suspended())
+                    && !stopAfterStep && !transactionInProgress() && !openingStation
                     && !hasOwnedStationMenuOpen() && !food.active() && !animalAcquisition.active()
                     && !stationRecovery.active() && !stationRoom.active() && GameApi.screen(client) == null) {
                 try {
@@ -768,8 +869,13 @@ final class AutomationEngine {
                     return;
                 }
             }
+            if (active instanceof TravelRequest && acquisitionScope == null) {
+                continueActiveRequest();
+                tickTravelRun();
+                return;
+            }
             if (exploring) { explore(); return; }
-            if (pendingPlan == null && step == null && catalog != null && catalog.ready()) requestPlan();
+            if (pendingPlan == null && step == null && catalog != null && catalog.ready()) continueActiveRequest();
             invalidateStationStockHint();
             if (stationStockHint != null && stationStockHint.future().isDone()) {
                 StationStockHint hint = stationStockHint;
@@ -797,17 +903,35 @@ final class AutomationEngine {
                     return;
                 }
             }
+            if (acquisitionScope != null && acquisitionScope == travelFoodScope && !travelFoodDemandCurrent(acquisitionScope)) {
+                if (pendingPlan != null) pendingPlan.cancel(false);
+                pendingPlan = null;
+                requestActiveTransactionDrain();
+                if (!transactionInProgress() && !openingStation && stationPlacementHand == null) {
+                    finishAcquisitionPhase(acquisitionScope); return;
+                }
+            }
             if (pendingPlan != null && (pendingPlan.isDone() || !pendingPreferencePlan || step == null)) {
                 if (!pendingPlan.isDone()) return;
                 if (!nativePlanningCurrent()) {
-                    pendingPlan.cancel(false); pendingPlan = null; requestPlan(); return;
+                    pendingPlan.cancel(false); pendingPlan = null; continueActiveRequest(); return;
+                }
+                if (acquisitionScope == travelFoodScope && travelFoodOffer != null && !travelFoodOfferCurrent(travelFoodOffer)) {
+                    pendingPlan.cancel(false); pendingPlan = null; travelFoodOffer = null; continueActiveRequest(); return;
                 }
                 PlanningOutcome outcome = pendingPlan.join();
+                if (acquisitionScope == travelFoodScope && travelFoodOffer != null) {
+                    travelFoodDemand = travelFoodOffer.demand();
+                    travelFoodOffer = null;
+                }
+                if (outcome == null && (acquisitionScope == travelShieldScope || acquisitionScope == travelFoodScope)) {
+                    pendingPlan = null; finishAcquisitionPhase(acquisitionScope); return;
+                }
                 if (outcome.shieldIdentity() != null && !shieldIdentityCurrent(outcome.shieldIdentity())) {
                     deferShieldPreparation = true;
                     pendingPlan = null;
                     pendingPreferencePlan = false;
-                    requestPlan();
+                    continueActiveRequest();
                     return;
                 }
                 if (pendingPreferencePlan && step != null) {
@@ -819,18 +943,18 @@ final class AutomationEngine {
                             && (outcome.auxiliaryInvestment() && !stepAuxiliaryInvestment
                                 || !preferred.steps().get(0).sourceId().equals(step.sourceId()))) {
                         resetAction();
-                        requestPlan();
+                        continueActiveRequest();
                         return;
                     }
                 } else {
                     PlanResult result = outcome.result();
                     pendingPlan = null;
-                    if (!catalog.ready() || pendingPlanGeneration != catalog.generation()) { requestPlan(); return; }
-                    if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) { requestPlan(); return; }
-                    if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { requestPlan(); return; }
-                    if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
+                    if (!catalog.ready() || pendingPlanGeneration != catalog.generation()) { continueActiveRequest(); return; }
+                    if (!result.success() && pendingPlanPreferencesVersion != nearbyResources.version()) { continueActiveRequest(); return; }
+                    if (outcome.auxiliaryInvestment() && result.steps().isEmpty()) { continueActiveRequest(); return; }
+                    if (!animalAcquisition.active() && goalCount() >= acquisitionView().count) { finishGoal(); return; }
                     if (!result.success() && planningRetries++ < 4 && result.blockedReasons().stream().anyMatch(reason -> reason.code() == BlockedReason.Code.TIME_LIMIT)) {
-                        requestPlan();
+                        continueActiveRequest();
                         return;
                     }
                     if (!result.success()) {
@@ -842,8 +966,8 @@ final class AutomationEngine {
                     if (result.steps().isEmpty()) { finishGoal(); return; }
                     PlanStep first = result.steps().get(0);
                     if (Boolean.parseBoolean(first.attributes().getOrDefault("shieldPreparation", "false"))
-                            && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) { requestPlan(); return; }
-                    if (isFoodPreparation(first) && !config.autoEat) { requestPlan(); return; }
+                            && (!config.autoDefend || !config.autoUseShield || !config.autoCraftShield)) { continueActiveRequest(); return; }
+                    if (isFoodPreparation(first) && !config.autoEat) { continueActiveRequest(); return; }
                     if (first.kind() == PlanKind.GATHER) {
                         if (beginPreviousCommandTable(first)) return;
                         if (result.steps().stream().flatMap(planned -> planned.requirements().stream())
@@ -862,13 +986,17 @@ final class AutomationEngine {
                     if (first.kind() == PlanKind.SMELT
                             && Boolean.parseBoolean(first.attributes().getOrDefault("ordinaryInputOnly", "false"))
                             && first.outputCount() > gatherCapacity(first.output())) {
-                        requestPlan();
+                        continueActiveRequest();
                         return;
                     }
                     begin(first, outcome.auxiliaryInvestment(), pendingPlanPreferencesVersion, outcome.shieldIdentity());
                 }
             }
             if (step == null) return;
+            if (!planIdentityCurrent(stepPlanIdentity)) {
+                if (transactionInProgress() || openingStation) requestActiveTransactionDrain();
+                else { resetAction(); continueActiveRequest(); return; }
+            }
             if (openingStation && ++stationOpenTicks >= 80 && !stationReady()) {
                 if (stationAccessFailures++ >= 3)
                     throw new IllegalStateException("Required station did not acknowledge opening after repeated attempts");
@@ -876,7 +1004,7 @@ final class AutomationEngine {
                 if (unavailable != null) unreachableStations.add(unavailable);
                 message("Station did not open; trying another station or placement");
                 resetAction();
-                requestPlan();
+                continueActiveRequest();
                 return;
             }
             if (!shieldStepCurrent()) {
@@ -885,7 +1013,7 @@ final class AutomationEngine {
                 else if (stationPlacementWait == null || !stationPlacementWait.sent()) {
                     if (openingStation && !stationReady()) return;
                     resetAction();
-                    requestPlan();
+                    continueActiveRequest();
                     return;
                 }
             }
@@ -894,7 +1022,7 @@ final class AutomationEngine {
                 else {
                     if (openingStation && !stationReady()) return;
                     resetAction();
-                    requestPlan();
+                    continueActiveRequest();
                     return;
                 }
             }
@@ -902,14 +1030,14 @@ final class AutomationEngine {
                 if (transactionInProgress()) requestActiveTransactionDrain();
                 else {
                     if (openingStation && !stationReady()) return;
-                    resetAction(); requestPlan(); return;
+                    resetAction(); continueActiveRequest(); return;
                 }
             }
             if (step.kind() == PlanKind.GATHER && target == null && scan != null
                     && stepPreferencesVersion != nearbyResources.version() && preferenceRefreshCooldown == 0) {
                 preferenceRefreshCooldown = 20;
                 resetAction();
-                requestPlan();
+                continueActiveRequest();
                 return;
             }
             if (moving && pendingPlan == null && step.kind() == PlanKind.GATHER && preferenceRefreshCooldown == 0
@@ -920,18 +1048,18 @@ final class AutomationEngine {
                 if (nearby != null && !nearby.source().sourceId().equals(step.sourceId())
                         && !unavailableSources.contains(nearby.source().sourceId())) {
                     preferenceRefreshCooldown = 40;
-                    if (active.anyLogs) resetLogDiscovery();
-                    requestPlan();
+                    if (acquisitionView().anyLogs) resetLogDiscovery();
+                    continueActiveRequest();
                     pendingPreferencePlan = pendingPlan != null;
                     if (step == null) return;
                 }
             }
-            if (moving && pendingPlan == null && active.anyLogs && config.optimizeWoodTools && !stepAuxiliaryInvestment
+            if (moving && pendingPlan == null && acquisitionView().anyLogs && config.optimizeWoodTools && !stepAuxiliaryInvestment
                     && step.kind() == PlanKind.GATHER && preferenceRefreshCooldown == 0) {
                 preferenceRefreshCooldown = 40;
                 rememberNativeLogTargets();
-                if (captureHarvestOffer(active.count - goalCount()) != null) {
-                    requestPlan();
+                if (captureHarvestOffer(acquisitionView().count - goalCount()) != null) {
+                    continueActiveRequest();
                     pendingPreferencePlan = pendingPlan != null;
                     if (step == null) return;
                 }
@@ -943,7 +1071,7 @@ final class AutomationEngine {
                 Request owner = active;
                 PlanStep gathering = step;
                 movement.checkAirRecoveryOwnership();
-                requestPlan();
+                continueActiveRequest();
                 if (pendingPlan != null && active == owner && step == gathering
                         && parentMovementScope == stockScope && canReconsiderStationStock()) {
                     stockScope.stationStockReconsidered = true;
@@ -996,7 +1124,7 @@ final class AutomationEngine {
                             int currentCount = actions.count(GameCatalog.item(step.output()));
                             int collected = Math.max(0, currentCount - baseline);
                             MiningContinuation continuation = new MiningContinuation(client.level, client.level.dimension(),
-                                    active, step.sourceId(), limit.rejectedPositions());
+                                    acquisitionScope, step.sourceId(), limit.rejectedPositions());
                             if (config.debugLogging) org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                                     "[Lodekeeper] MINING_REQUEST_YIELD source={} output={} initialCount={} currentCount={} collected={} cause={} requestTicks={} maximumTicks={} elapsedMillis={} distance={} maximumDistance={} retainedRejects={}",
                                     step.sourceId(), step.output(), baseline, currentCount, collected, limit.cause(),
@@ -1013,13 +1141,13 @@ final class AutomationEngine {
                                     + " before its " + limit.cause() + " limit; replanning");
                             resetAction();
                             miningContinuation = continuation;
-                            requestPlan();
+                            continueActiveRequest();
                             return;
                         }
                         message("Mining is replanning: " + blocked.getMessage());
                         if (blocked.kind != MovementController.NavigationFailure.Kind.TOOL)
                             unavailableSources.add(step.sourceId());
-                        resetAction(); requestPlan();
+                        resetAction(); continueActiveRequest();
                     } else if (step.kind() == PlanKind.PLACE_STATION && target != null
                             && stationPlacementFailures < MAX_STATION_PLACEMENT_ATTEMPTS) {
                         movement.stop();
@@ -1030,7 +1158,7 @@ final class AutomationEngine {
                         BlockPos unreachable = knownStations.remove(step.station());
                         if (unreachable != null) unreachableStations.add(unreachable);
                         message("Station access is replanning: " + blocked.getMessage());
-                        resetAction(); requestPlan();
+                        resetAction(); continueActiveRequest();
                     } else throw blocked;
                 }
                 return;
@@ -1051,14 +1179,663 @@ final class AutomationEngine {
         }
     }
 
+    private JobContext captureContext(long token, int seconds) {
+        protection.sync();
+        if (client.player == null || client.level == null || client.getConnection() == null
+                || client.getConnection().getConnection() == null
+                || !client.getConnection().getConnection().isConnected())
+            throw new IllegalStateException("Live job context is unavailable");
+        var runtime = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var nativeSession = runtime == null ? null : runtime.captureSession();
+        var provenance = placementProvenance.session().orElse(null);
+        var scope = protection.capture().scope();
+        if (runtime == null || !runtime.isCurrent(nativeSession) || nativeSession.world() != client.level
+                || provenance == null || scope == null) throw new IllegalStateException("Owned job session is unavailable");
+        long now = System.nanoTime();
+        return new JobContext(token, client.player.getUUID(), 0, scope, client.level, client.player,
+                client.getConnection(), client.getConnection().getConnection(), runtime, nativeSession,
+                provenance, now, Math.addExact(now, Math.multiplyExact((long) seconds, 1_000_000_000L)));
+    }
+    private boolean contextBound(JobContext context) {
+        return context != null && context.world() == client.level && context.player() == client.player
+                && context.network() == client.getConnection() && client.getConnection() != null
+                && context.connection() == client.getConnection().getConnection()
+                && client.getConnection().getConnection().isConnected()
+                && Objects.equals(context.scope(), protection.capture().scope())
+                && dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() == context.owner()
+                && context.owner().isCurrent(context.nativeSession())
+                && context.nativeSession().world() == client.level
+                && placementProvenance.session().filter(context.provenanceSession()::equals).isPresent();
+    }
+    private boolean contextReplaced(JobContext context) {
+        return context.world() != client.level || context.player() != client.player
+                || context.network() != client.getConnection() || client.getConnection() == null
+                || context.connection() != client.getConnection().getConnection()
+                || !Objects.equals(context.scope(), protection.capture().scope())
+                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != context.owner()
+                || !context.owner().isCurrent(context.nativeSession())
+                || !placementProvenance.session().filter(context.provenanceSession()::equals).isPresent();
+    }
+    private void abandonReplacedContext(Request expired) {
+        if (!contextReplaced(expired.context())) return;
+        abandonStationPlacementHand();
+        animalAcquisition.abandonSession();
+        stationRecovery.abandonSession();
+        abandonTravelSession();
+        movement.abandonRequestContext();
+        if (pendingPlan != null) pendingPlan.cancel(false);
+        pendingPlan = null; pendingPlanIdentity = stepPlanIdentity = null;
+        crafting = null; stonecutting = null; smelting = null;
+        cleanupRun = null; cleanupBudget = null; cleanedAcquisitionScope = null; pendingStationPickup = null;
+        deferredStationCleanup.clear(); completedStandaloneTables.clear(); previousCommandTableCheck = null;
+        stationPlacementOwner = null; stationPlacementStation = null;
+        step = null; moving = movingPickup = exploring = explorationMoving = openingStation = false;
+        ownedStationMenu = null; stationOpeningFrom = null;
+        animalAcquisitionPending = foodReplanPending = false;
+        nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+        active = null; acquisitionScope = null; cancelledRequest = null;
+        queue.removeIf(request -> contextReplaced(request.context()));
+        maintenanceQueue.removeIf(request -> contextReplaced(request.context()));
+        for (ProjectRun run : new ArrayList<>(projects))
+            if (run == (expired instanceof AcquireRequest acquire ? acquire.project() : null)) abortProject(run);
+        input.release();
+        paused = true;
+        status = "job context replaced; old cleanup abandoned and unproved";
+        message(status + "; resume to use newly admitted requests");
+    }
+    private boolean newEffectCurrent(Request request) {
+        return request != null && request != cancelledRequest && !stopAfterStep && contextBound(request.context())
+                && System.nanoTime() - request.context().deadlineNanos() < 0;
+    }
+    private boolean scopeCurrent(AcquisitionScope scope) {
+        return scope != null && scope == acquisitionScope && scope.parent() == active && newEffectCurrent(active);
+    }
+    private boolean planIdentityCurrent(PlanIdentity identity) {
+        return identity != null && active != null
+                && (identity.scope() == null ? acquisitionScope == null && active instanceof TravelRequest && newEffectCurrent(active)
+                        : scopeCurrent(identity.scope())) && identity.context() == active.context()
+                && identity.serial() == planSerial && identity.catalog() == catalog && catalog != null
+                && catalog.ready() && identity.catalogGeneration() == catalog.generation()
+                && identity.preferencesVersion() == nearbyResources.version()
+                && identity.policyGeneration() == identity.context().owner().policyGeneration();
+    }
+    private AcquisitionScope createAcquisitionScope(Request parent, AcquireRequest view) {
+        if (phaseGeneration == Long.MAX_VALUE) throw new IllegalStateException("Acquisition phase capacity reached");
+        return new AcquisitionScope(parent, view, ++phaseGeneration,
+                new AcquisitionDemand(view.item(), view.count(), view.anyLogs()));
+    }
+    private ItemId previewAcquisitionItem() {
+        if (acquisitionView() != null) return acquisitionView().item();
+        for (Request request : queue) if (request instanceof AcquireRequest acquire) return acquire.item();
+        return maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item();
+    }
+    private void appendRequest(Request request) {
+        if (!newEffectCurrent(request)) throw new IllegalStateException("Request context expired before admission");
+        if (queue.size() >= MAX_FOREGROUND_QUEUE) throw new IllegalStateException("Foreground queue limit is 32 goals");
+        queue.addLast(request);
+        yieldMaintenanceForForeground();
+    }
+    void enqueueTravel(TravelGoal goal) {
+        ensureNotStopping();
+        ensureCatalog();
+        if (!GameApi.supportsTravel()) throw new IllegalStateException("Player travel is unsupported in this game family");
+        if (!GameApi.travelPose(client)) throw new IllegalStateException("Travel needs a live supported player pose");
+        if (goal instanceof TravelGoal.ExploreGoal && !config.allowExploration)
+            throw new IllegalStateException("allowExploration is disabled");
+        if (goal instanceof TravelGoal.PointGoal point) {
+            BlockPos feet = new BlockPos(point.x(), point.feetY(), point.z());
+            long dx = (long) feet.getX() - client.player.blockPosition().getX(), dz = (long) feet.getZ() - client.player.blockPosition().getZ();
+            if (!GameApi.travelBounds(client, feet) || Math.abs(dx) > 256 || Math.abs(dz) > 256 || dx * dx + dz * dz > 65536)
+                throw new IllegalArgumentException("Coordinates exceed current height, border or 256 block admission radius");
+        } else if (goal instanceof TravelGoal.FollowGoal follow && GameApi.loadedTravelPlayer(client, follow.target()) == null)
+            throw new IllegalArgumentException("Pinned follow target is unavailable");
+        int seconds = goal instanceof TravelGoal.FollowGoal follow ? follow.seconds() : 120;
+        JobContext context = captureContext(allocateJobToken(), seconds);
+        TravelRequest request = new TravelRequest(travelName(goal), goal, context);
+        appendRequest(request);
+        message("Queued job " + request.jobToken() + " " + request.name());
+    }
+    private static String travelName(TravelGoal goal) {
+        if (goal instanceof TravelGoal.PointGoal point) return "goto " + point.x() + " " + point.feetY() + " " + point.z();
+        if (goal instanceof TravelGoal.ExploreGoal explore) return "explore " + explore.radius() + " " + explore.segments();
+        TravelGoal.FollowGoal follow = (TravelGoal.FollowGoal) goal;
+        return "follow " + follow.target() + " for " + follow.seconds() + " seconds";
+    }
+    void followPlayer(String selector, int seconds) {
+        UUID target = GameApi.resolveTravelPlayer(client, selector);
+        enqueueTravel(new TravelGoal.FollowGoal(target, seconds));
+    }
+    void waypoint(CommandParser.WaypointCommand command) throws java.io.IOException {
+        if (!GameApi.supportsTravel()) throw new IllegalStateException("Waypoints are unsupported in this game family");
+        protection.sync();
+        WorldScope scope = protection.capture().scope();
+        if (scope == null) throw new IllegalStateException("World/dimension scope is unavailable");
+        switch (command.action()) {
+            case LIST -> message("Waypoints in this world/dimension " + waypoints.list(scope));
+            case REMOVE -> { waypoints.remove(scope, command.label()); message("Removed waypoint " + command.label()); }
+            case GOTO -> enqueueTravel(waypoints.require(scope, command.label()));
+            case SET -> {
+                if (!GameApi.travelPose(client) || !client.player.onGround()
+                        || Math.abs(client.player.getY() - Math.rint(client.player.getY())) > 1.0e-6)
+                    throw new IllegalStateException("Waypoint set requires a supported integer feet stance");
+                BlockPos feet = client.player.blockPosition();
+                var probe = new dev.lodekeeper.nav.StanceProbe();
+                terrain.probeCurrentStance(client.player.getX(), feet.getY() * 16, client.player.getZ(), probe);
+                if (!GameApi.travelBounds(client, feet) || !probe.loaded || !probe.bodyClear || !probe.hasGroundSupport()
+                        || probe.hazard || probe.water || probe.climbable || probe.breakCount != 0)
+                    throw new IllegalStateException("Waypoint stance is not loaded and safe");
+                waypoints.set(scope, command.label(), new TravelGoal.PointGoal(feet.getX(), feet.getY(), feet.getZ()));
+                message("Saved scoped waypoint " + command.label());
+            }
+        }
+    }
+    void cache(CommandParser.CacheCommand command) {
+        if (!GameApi.supportsTravel()) throw new IllegalStateException("Travel forecasts are unsupported in this game family");
+        if (command.action() == CommandParser.CacheAction.STATUS) { message(terrain.travelCacheStatus()); return; }
+        if (active != null || nativeRun != null || transactionInProgress() || cleanupRun != null
+                || stationRecovery.active() || stationRecovery.pickupRetained() || openingStation
+                || pendingPlan != null || airRecovery.active() || threats.active() || equipment.active() || food.active()
+                || client.player == null || GameApi.screen(client) != null
+                || client.player.containerMenu != client.player.inventoryMenu
+                || !client.player.containerMenu.getCarried().isEmpty())
+            throw new IllegalStateException("Travel cache clear is busy; retry after owned work is released");
+        movement.checkAirRecoveryOwnership();
+        if (!movement.travelReleased()) throw new IllegalStateException("Travel cache clear needs released movement and settings");
+        frontier = null;
+        terrain.clearTravelForecasts();
+        message("Cleared source travel forecasts and terrain query hints; waypoints and native region storage retained");
+    }
+    private void continueActiveRequest() {
+        if (paused || active == null || cancelledRequest == active || stopAfterStep) return;
+        if (!newEffectCurrent(active)) { cancelledRequest = active; return; }
+        if (animalAcquisition.active() || stationPlacementHand != null || cleanupRun != null
+                || airRecovery.active() || otherTransactionInProgress() || openingStation) return;
+        if (cleanupReturnBarrier() || !inventoryAdmissionSafe()) return;
+        if (acquisitionScope != null) { requestPlan(acquisitionScope); return; }
+        if (active instanceof AcquireRequest acquire) {
+            acquisitionScope = createAcquisitionScope(active, acquire);
+            requestPlan(acquisitionScope);
+            return;
+        }
+        TravelRequest travel = (TravelRequest) active;
+        if (travelActionParent != travel) {
+            travelAction = new TravelAction(client, config, movement, terrain, travel, () -> !contextReplaced(travel.context()),
+                    () -> travelEffectCurrent(travel));
+            travelActionParent = travel;
+        }
+        if (prepareTravelFood(travel)) return;
+        if (prepareTravelShield(travel)) return;
+        if (nativeRun == null) { nativeRun = travelAction; nativeRunParent = active; nativeRunScope = null; }
+    }
+    private boolean travelEffectCurrent(TravelRequest travel) {
+        return active == travel && newEffectCurrent(travel) && !paused && !stopAfterStep
+                && GameApi.travelPose(client) && client.player.getHealth() > config.pauseBelowHealth
+                && !editingSettings() && !manualStationInput() && GameApi.screen(client) == null
+                && client.player.containerMenu == client.player.inventoryMenu
+                && client.player.containerMenu.getCarried().isEmpty()
+                && !client.player.isUsingItem() && !airRecovery.active() && !airRecovery.ready()
+                && !threats.active() && !food.active() && !equipment.active() && !animalAcquisition.active()
+                && !stationRecovery.active() && !cleanupReturnBarrier() && cleanupRun == null
+                && stationPlacementHand == null && !otherTransactionInProgress() && !openingStation;
+    }
+    private PlanIdentity capturePlanIdentity(AcquisitionScope scope) {
+        if (planSerial == Long.MAX_VALUE) throw new IllegalStateException("Planning serial capacity reached");
+        return new PlanIdentity(scope, ++planSerial, active.context(), catalog,
+                catalog.generation(), nearbyResources.version(), active.context().owner().policyGeneration());
+    }
+    private static final PlannerLimits TRAVEL_FOOD_LIMITS = new PlannerLimits(8, 512, 5, 8, 3, 64);
+    private record TravelFoodDemand(PendingGoals goals, List<AcquireRequest> queued,
+                                    List<ProjectSpec> projects, Map<ItemId, Integer> maintained) { }
+    private TravelFoodDemand captureTravelFoodDemand() {
+        return new TravelFoodDemand(pendingGoals(false), queue.stream().filter(AcquireRequest.class::isInstance)
+                .map(AcquireRequest.class::cast).toList(), projects.stream().filter(run -> !run.aborted)
+                .map(run -> run.spec).toList(), Map.copyOf(maintained.reservedCounts()));
+    }
+    private boolean travelFoodDemandCurrent(AcquisitionScope scope) {
+        if (scope == null || scope != travelFoodScope || scope != acquisitionScope || scope.parent() != active) return false;
+        if (!config.autoEat || travelFoodDemand == null || !travelFoodDemand.equals(captureTravelFoodDemand()))
+            travelFoodInvalidated = true;
+        return !travelFoodInvalidated;
+    }
+
+    private record TravelFoodOffer(CatalogSnapshot catalog, InventorySnapshot stock,
+                                   FoodController.Preparation preparation, boolean canPlace,
+                                   CatalogSnapshot workCatalog, InventorySnapshot workInventory,
+                                   ProjectSpec pendingProject, PendingGoals goals, Set<String> unavailable, TravelFoodDemand demand) { }
+
+    private Map<ItemId, Integer> ordinaryTravelFoodCounts() {
+        Map<ItemId, Integer> ordinary = new HashMap<>();
+        for (int index = 0; index < 36; index++) {
+            ItemStack stack = client.player.getInventory().getItem(index);
+            if (!stack.isEmpty() && !stack.isEnchanted() && !GameApi.hasCustomName(stack)
+                    && ItemStack.isSameItemSameComponents(stack, new ItemStack(stack.getItem())))
+                ordinary.merge(GameCatalog.id(stack.getItem()), stack.getCount(), Math::addExact);
+        }
+        return Map.copyOf(ordinary);
+    }
+    private TravelFoodOffer captureTravelFoodOffer(FoodController.Preparation preparation) {
+        if (!config.autoEat || preparation == null || preparation.targetCount() > 64
+                || preparation.targetCount() <= actions.count(GameCatalog.item(preparation.item()))
+                || preparation.targetCount() - actions.count(GameCatalog.item(preparation.item())) > gatherCapacity(preparation.item())) return null;
+        CatalogSnapshot full = planningCatalog(false);
+        List<AcquisitionSource> cooking = preparationSources(full, preparation, true);
+        if (cooking.isEmpty()) return null;
+        CatalogSnapshot.Builder builder = CatalogSnapshot.builder();
+        full.itemDefinitions().values().forEach(builder::item);
+        catalog.tags.forEach(builder::tag);
+        cooking.stream().filter(source -> !unavailableSources.contains(source.sourceId())).forEach(builder::source);
+        Set<ItemId> stationItems = Set.of(ItemId.parse("minecraft:furnace"), ItemId.parse("minecraft:smoker"),
+                ItemId.parse("minecraft:blast_furnace"));
+        int inspected = 0;
+        long deadline = System.nanoTime() + 1_000_000L;
+        for (ItemId stationItem : stationItems.stream().sorted().toList()) {
+            for (AcquisitionSource source : full.sourcesFor(stationItem)) {
+                if (++inspected > 128 || System.nanoTime() - deadline >= 0) return null;
+                if (!(source instanceof CraftingSource crafting) || !stationItems.contains(crafting.output())
+                        || unavailableSources.contains(source.sourceId()) || crafting.outputCount() != 1) continue;
+                var recipe = catalog.recipes.get(source.sourceId());
+                if (recipe == null || recipe.cookTicks() != 0) continue;
+                ItemStack output = recipe.resultStack();
+                if (output.getCount() != 1 || !ItemStack.isSameItemSameComponents(output, new ItemStack(GameCatalog.item(source.output())))) continue;
+                builder.source(source);
+            }
+        }
+        if (System.nanoTime() - deadline >= 0) return null;
+        InventorySnapshot work = inventorySnapshot(null);
+        InventorySnapshot protectedStock = protectedFoodInventory(work);
+        InventorySnapshot known = withKnownStations(work);
+        Map<ItemId, Integer> ordinary = ordinaryTravelFoodCounts();
+        Map<ItemId, Integer> floors = new HashMap<>(protectedStock.protectedCounts());
+        floors.replaceAll((item, count) -> Math.min(count, ordinary.getOrDefault(item, 0)));
+        floors.values().removeIf(count -> count == 0);
+        InventorySnapshot stock = new InventorySnapshot(ordinary, known.availableStations(), Map.of(), floors);
+        PendingGoals goals = pendingGoals(false);
+        if (goals.unresolvedLogs() || goals.targets().size() > ProjectSpec.MAX_GOALS) return null;
+        ProjectSpec pending = goals.targets().isEmpty() ? null : remainingProject(new ProjectSpec("pending_goals",
+                "Pending inventory targets", goals.targets(), ProjectSpec.Purpose.INVENTORY_GOALS), work);
+        return new TravelFoodOffer(builder.build(), stock, preparation, config.allowBuilding, full, known, pending, goals, Set.copyOf(unavailableSources), captureTravelFoodDemand());
+    }
+    private boolean travelFoodOfferCurrent(TravelFoodOffer offer) {
+        if (offer == null || !config.autoEat || config.allowBuilding != offer.canPlace()
+                || !offer.unavailable().equals(unavailableSources)
+                || !offer.demand().equals(captureTravelFoodDemand())
+                || !ordinaryTravelFoodCounts().equals(offer.stock().counts())) return false;
+        InventorySnapshot now = protectedFoodInventory(inventorySnapshot(null));
+        Map<ItemId, Integer> floors = new HashMap<>(now.protectedCounts());
+        floors.replaceAll((item, count) -> Math.min(count, offer.stock().count(item)));
+        floors.values().removeIf(count -> count == 0);
+        return floors.equals(offer.stock().protectedCounts())
+                && withKnownStations(now).availableStations().equals(offer.stock().availableStations());
+    }
+    private static boolean isSupportedCookingStation(StationId station) {
+        return station != null && switch (station.toString()) {
+            case "minecraft:furnace", "minecraft:smoker", "minecraft:blast_furnace" -> true;
+            default -> false;
+        };
+    }
+    private PlanningOutcome onHandTravelFoodOutcome(TravelFoodOffer offer, PlanningPreferences preferences) {
+        if (offer == null) return null;
+        try {
+            InventorySnapshot stock = offer.stock();
+            if (offer.pendingProject() != null) {
+                ProjectPlanResult pending = planner.planProjectFast(offer.workCatalog(), offer.workInventory(),
+                        offer.pendingProject(), PlannerLimits.DEFAULT, preferences);
+                if (!pending.success()) return null;
+                stock = ProjectMaterialReservations.protectOptionalWork(stock, pending);
+            }
+            PlanResult plan = planner.planFast(offer.catalog(), stock, offer.preparation().item(),
+                    offer.preparation().targetCount(), TRAVEL_FOOD_LIMITS, preferences);
+            if (!plan.success() || plan.steps().isEmpty() || plan.steps().size() > 3) return null;
+            int smelts = 0;
+            Set<ItemId> stationItems = Set.of(ItemId.parse("minecraft:furnace"), ItemId.parse("minecraft:smoker"),
+                    ItemId.parse("minecraft:blast_furnace"));
+            for (PlanStep candidate : plan.steps()) {
+                if (candidate.requirements().stream().anyMatch(SelectedToolRequirement.class::isInstance)) return null;
+                if (candidate.kind() == PlanKind.SMELT) {
+                    if (++smelts != 1 || !offer.preparation().item().equals(candidate.output())
+                            || !isSupportedCookingStation(candidate.station())) return null;
+                    for (SelectedRequirement requirement : candidate.requirements()) {
+                        if (requirement instanceof SelectedToolRequirement) return null;
+                        if (requirement instanceof SelectedItemRequirement input && "smelting input".equals(input.purpose())
+                                && !offer.preparation().raw().equals(input.item())) return null;
+                    }
+                } else if (candidate.kind() == PlanKind.PLACE_STATION) {
+                    if (!offer.canPlace() || !isSupportedCookingStation(candidate.station())) return null;
+                } else if (candidate.kind() == PlanKind.CRAFT) {
+                    if (!stationItems.contains(candidate.output()) || candidate.operationCount() != 1
+                            || candidate.outputCount() != 1) return null;
+                } else return null;
+            }
+            if (smelts != 1) return null;
+            List<PlanStep> marked = new ArrayList<>();
+            for (int index = 0; index < plan.steps().size(); index++) {
+                PlanStep candidate = plan.steps().get(index);
+                Map<String, String> attributes = new HashMap<>(candidate.attributes());
+                attributes.put("foodPreparation", "true");
+                attributes.put("travelFoodPreparation", "true");
+                attributes.put("ordinaryInputOnly", "true");
+                attributes.put("ordinaryFuelOnly", "true");
+                stock.protectedCounts().forEach((item, count) -> attributes.put("travelFoodReserved:" + item, Integer.toString(count)));
+                Map<ItemId, Integer> future = new HashMap<>(), produced = new HashMap<>();
+                if (candidate.kind() == PlanKind.CRAFT || candidate.kind() == PlanKind.SMELT)
+                    produced.put(candidate.output(), candidate.outputCount());
+                for (PlanStep later : plan.steps().subList(index + 1, plan.steps().size())) {
+                    for (SelectedRequirement requirement : later.requirements()) {
+                        if (requirement instanceof SelectedItemRequirement input && input.consumed()) {
+                            int supplied = Math.min(input.count(), produced.getOrDefault(input.item(), 0));
+                            produced.computeIfPresent(input.item(), (item, count) -> count - supplied);
+                            if (input.count() > supplied) future.merge(input.item(), input.count() - supplied, Math::addExact);
+                        }
+                    }
+                    if (later.kind() == PlanKind.CRAFT || later.kind() == PlanKind.SMELT)
+                        produced.merge(later.output(), later.outputCount(), Math::addExact);
+                }
+                future.forEach((item, count) -> attributes.put("travelFoodFuture:" + item, Integer.toString(count)));
+                marked.add(new PlanStep(candidate.kind(), candidate.sourceId(), candidate.output(), candidate.outputCount(),
+                        candidate.operationCount(), candidate.requirements(), candidate.candidateBlocks(), candidate.recipeType(),
+                        candidate.recipeWidth(), candidate.recipeHeight(), candidate.station(), candidate.customType(), attributes, candidate.nativeWork()));
+            }
+            return new PlanningOutcome(new PlanResult(plan.target(), plan.requestedCount(), marked, plan.blockedReasons(),
+                    plan.optimal(), plan.expandedNodes(), plan.elapsedNanos()), false, true);
+        } catch (RuntimeException unavailable) { return null; }
+    }
+    private boolean prepareTravelFood(TravelRequest travel) {
+        if (travelFoodPreflightParent == travel) return false;
+        if (nativeRun == travelAction) { travelAction.requestDrain(NativeRun.DrainReason.PREEMPT); return true; }
+        if (catalog == null || !catalog.ready()) { status = "waiting for optional food recipe catalog"; return true; }
+        if (pendingPlan != null) {
+            if (travelFoodOffer == null) return false;
+            if (!pendingPlan.isDone()) { status = "checking optional on-hand travel food"; return true; }
+            if (!planIdentityCurrent(pendingPlanIdentity) || !travelFoodOfferCurrent(travelFoodOffer)) {
+                pendingPlan.cancel(false); pendingPlan = null; travelFoodOffer = null; return true;
+            }
+            PlanningOutcome selected;
+            try { selected = pendingPlan.join(); }
+            catch (java.util.concurrent.CompletionException | java.util.concurrent.CancellationException failure) { selected = null; }
+            pendingPlan = null;
+            travelFoodPreflightParent = travel;
+            if (selected == null) { travelFoodOffer = null; return false; }
+            travelFoodPreparation = travelFoodOffer.preparation();
+            travelFoodDemand = travelFoodOffer.demand();
+            travelFoodInvalidated = false;
+            AcquireRequest child = new AcquireRequest("travel food preparation", travelFoodPreparation.item(),
+                    travelFoodPreparation.targetCount(), false, null, null, travel.context());
+            acquisitionScope = createAcquisitionScope(travel, child);
+            travelFoodScope = acquisitionScope;
+            pendingPlanIdentity = capturePlanIdentity(acquisitionScope);
+            pendingPlanPreferencesVersion = nearbyResources.version(); pendingPlanGeneration = catalog.generation();
+            pendingNativeIdentity = new NativePlanningIdentity(active, client.level, client.player,
+                    placementProvenance.session().orElse(null), catalog.generation());
+            travelFoodOffer = null;
+            pendingPlan = CompletableFuture.completedFuture(selected);
+            pendingPreferencePlan = false;
+            return true;
+        }
+        food.updateProtection(foodReservations());
+        travelFoodOffer = captureTravelFoodOffer(foodPreparationOffer());
+        if (travelFoodOffer == null) { travelFoodPreflightParent = travel; return false; }
+        TravelFoodOffer captured = travelFoodOffer;
+        PlanningPreferences preferences = nearbyResources.snapshot();
+        pendingPlanIdentity = capturePlanIdentity(null);
+        pendingPlan = CompletableFuture.supplyAsync(() -> onHandTravelFoodOutcome(captured, preferences), plannerWorker);
+        status = "checking optional on-hand travel food";
+        return true;
+    }
+    private void requestTravelFoodPlan(AcquisitionScope scope) {
+        if (!travelFoodDemandCurrent(scope)) { finishAcquisitionPhase(scope); return; }
+        if (!scopeCurrent(scope) || paused || cleanupRun != null || stationPlacementHand != null
+                || animalAcquisition.active() || airRecovery.active() || otherTransactionInProgress() || openingStation
+                || !inventoryAdmissionSafe()) return;
+        if (goalCount() >= scope.view().count()) { finishAcquisitionPhase(scope); return; }
+        if (pendingPlan != null) return;
+        if (catalog == null || !catalog.ready()) { status = "waiting for food recipe catalog"; return; }
+        travelFoodOffer = captureTravelFoodOffer(travelFoodPreparation);
+        if (travelFoodOffer == null) { finishAcquisitionPhase(scope); return; }
+        TravelFoodOffer captured = travelFoodOffer;
+        PlanningPreferences preferences = nearbyResources.snapshot();
+        pendingPlanIdentity = capturePlanIdentity(scope);
+        pendingPlanPreferencesVersion = nearbyResources.version(); pendingPlanGeneration = catalog.generation();
+        pendingNativeIdentity = new NativePlanningIdentity(active, client.level, client.player,
+                placementProvenance.session().orElse(null), catalog.generation());
+        pendingPlan = CompletableFuture.supplyAsync(() -> onHandTravelFoodOutcome(captured, preferences), plannerWorker);
+        status = "planning the retained on-hand food child";
+    }
+    private boolean optionalPreparationCurrent() {
+        return acquisitionScope == travelFoodScope && travelFoodScope != null
+                ? travelFoodDemandCurrent(travelFoodScope) && scopeCurrent(travelFoodScope)
+                    && planIdentityCurrent(stepPlanIdentity) && !paused && !stopAfterStep
+                : shieldStepCurrent();
+    }
+    private java.util.function.BooleanSupplier optionalPreparationAuthority() {
+        boolean travelFood = isTravelFoodPreparation(step);
+        boolean shieldPreparation = step != null
+                && Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"));
+        if (!travelFood && !shieldPreparation) return this::optionalPreparationCurrent;
+        AcquisitionScope originalScope = acquisitionScope;
+        PlanIdentity originalPlan = stepPlanIdentity;
+        PlanStep originalStep = step;
+        Request originalParent = active;
+        JobContext originalContext = originalParent == null ? null : originalParent.context();
+        ShieldPlanningIdentity originalShield = stepShieldIdentity;
+        return () -> originalScope != null && originalParent != null && originalPlan != null
+                && active == originalParent && active.context() == originalContext
+                && originalScope.parent() == originalParent && acquisitionScope == originalScope
+                && originalPlan.scope() == originalScope && originalPlan.context() == originalContext
+                && step == originalStep && stepPlanIdentity == originalPlan
+                && newEffectCurrent(originalParent) && planIdentityCurrent(originalPlan) && !paused && !stopAfterStep
+                && (travelFood ? travelFoodDemandCurrent(originalScope)
+                        : originalShield != null && stepShieldIdentity == originalShield
+                            && shieldIdentityCurrent(originalShield)
+                            && config.autoDefend && config.autoUseShield && config.autoCraftShield);
+    }
+    private static boolean isTravelFoodPreparation(PlanStep planned) {
+        return planned != null && Boolean.parseBoolean(planned.attributes().getOrDefault("travelFoodPreparation", "false"));
+    }
+
+    private boolean prepareTravelShield(TravelRequest travel) {
+        if (travelShieldPreflightParent == travel) return false;
+        if (nativeRun == travelAction) { travelAction.requestDrain(NativeRun.DrainReason.PREEMPT); return true; }
+        if (catalog == null || !catalog.ready()) { status = "waiting for optional shield recipe catalog"; return true; }
+        if (pendingPlan != null) {
+            if (!pendingPlan.isDone()) { status = "checking optional on-hand travel shield"; return true; }
+            if (!planIdentityCurrent(pendingPlanIdentity)) {
+                pendingPlan.cancel(false); pendingPlan = null; return true;
+            }
+            PlanningOutcome selected;
+            try { selected = pendingPlan.join(); }
+            catch (java.util.concurrent.CompletionException | java.util.concurrent.CancellationException failure) { selected = null; }
+            pendingPlan = null;
+            travelShieldPreflightParent = travel;
+            if (selected == null) return false;
+            ItemId shield = ItemId.parse("minecraft:shield");
+            AcquireRequest child = new AcquireRequest("travel shield preparation", shield,
+                    Math.addExact(actions.heldCount(GameCatalog.item(shield)), 1), false, null, null, travel.context());
+            acquisitionScope = createAcquisitionScope(travel, child);
+            travelShieldScope = acquisitionScope;
+            installTravelShieldOutcome(selected, acquisitionScope);
+            return true;
+        }
+        InventorySnapshot inventory = inventorySnapshot(null);
+        ShieldPreparationOffer offer = captureShieldOffer(planningCatalog(config.allowBreaking), inventory,
+                withKnownStations(inventory), true);
+        if (offer == null) { travelShieldPreflightParent = travel; return false; }
+        PlanningPreferences preferences = nearbyResources.snapshot();
+        pendingPlanIdentity = capturePlanIdentity(null);
+        pendingPlan = CompletableFuture.supplyAsync(() -> onHandShieldOutcome(offer, preferences), plannerWorker);
+        status = "checking optional on-hand travel shield";
+        return true;
+    }
+    private void installTravelShieldOutcome(PlanningOutcome selected, AcquisitionScope scope) {
+        if (!scopeCurrent(scope)) return;
+        pendingPlanPreferencesVersion = nearbyResources.version();
+        pendingPlanGeneration = catalog.generation();
+        pendingPlanIdentity = capturePlanIdentity(scope);
+        pendingNativeIdentity = new NativePlanningIdentity(active, client.level, client.player,
+                placementProvenance.session().orElse(null), catalog.generation());
+        PlanningOutcome bound = new PlanningOutcome(selected.result(), false, true, null, shieldPlanningIdentity());
+        pendingPlan = CompletableFuture.completedFuture(bound);
+        pendingPreferencePlan = false;
+    }
+    private void requestTravelShieldPlan(AcquisitionScope scope) {
+        if (!scopeCurrent(scope) || paused || animalAcquisition.active() || stationPlacementHand != null
+                || cleanupRun != null || airRecovery.active() || otherTransactionInProgress() || openingStation) return;
+        if (goalCount() >= scope.view().count()) { finishAcquisitionPhase(scope); return; }
+        if (pendingPlan != null) return;
+        if (catalog == null || !catalog.ready()) { status = "waiting for shield recipe catalog"; return; }
+        InventorySnapshot inventory = inventorySnapshot(null);
+        ShieldPreparationOffer offer = captureShieldOffer(planningCatalog(config.allowBreaking), inventory,
+                withKnownStations(inventory), true);
+        if (offer == null) { finishAcquisitionPhase(scope); return; }
+        PlanningPreferences preferences = nearbyResources.snapshot();
+        pendingPlanIdentity = capturePlanIdentity(scope);
+        pendingPlanPreferencesVersion = nearbyResources.version(); pendingPlanGeneration = catalog.generation();
+        pendingNativeIdentity = new NativePlanningIdentity(active, client.level, client.player,
+                placementProvenance.session().orElse(null), catalog.generation());
+        pendingPlan = CompletableFuture.supplyAsync(() -> {
+            PlanningOutcome selected = onHandShieldOutcome(offer, preferences);
+            return selected;
+        }, plannerWorker);
+        status = "planning the retained on-hand shield child";
+    }
+
+    private void finishAcquisitionPhase(AcquisitionScope scope) {
+        if (!scopeCurrent(scope)) return;
+        if (cleanupRun != null || cleanupReturnBarrier()) return;
+        if (animalAcquisition.active() || stationPlacementHand != null || transactionInProgress() || openingStation) {
+            requestActiveTransactionDrain(); return;
+        }
+        if (beginStationCleanup(scope.view())) return;
+        resetAction();
+        if (cleanupReturnBarrier()) return;
+        if (!movement.finishCancellation()) return;
+        if (pendingPlan != null) pendingPlan.cancel(false);
+        pendingPlan = null; pendingPlanIdentity = stepPlanIdentity = null;
+        acquisitionScope = null; travelShieldScope = null; travelFoodScope = null; travelFoodOffer = null; travelFoodPreparation = null; travelFoodDemand = null; travelFoodInvalidated = false;
+        if (travelAction != null) travelAction.resume();
+        continueActiveRequest();
+    }
+    private boolean tickTravelObserver() {
+        if (travelAction != null && nativeRun == null && acquisitionScope == null && active == travelActionParent
+                && System.nanoTime() - travelActionParent.context().deadlineNanos() >= 0) {
+            nativeRun = travelAction; nativeRunParent = active;
+        }
+        if (nativeRun != travelAction || travelAction == null) return false;
+        if (paused || editingSettings()) travelAction.pause();
+        if (cancelledRequest == active) travelAction.requestDrain(NativeRun.DrainReason.STOP);
+        if (contextReplaced(travelActionParent.context())) {
+            travelAction.abandonSession(); movement.abandonRequestContext();
+        }
+        if (System.nanoTime() - travelActionParent.context().deadlineNanos() >= 0 || travelAction.observingDrain())
+            return tickTravelRun();
+        return paused;
+    }
+    private boolean tickTravelRun() {
+        if (nativeRun != travelAction || travelAction == null) return false;
+        NativeRun.Outcome outcome = travelAction.tick();
+        status = travelAction.status();
+        if (outcome instanceof NativeRun.Outcome.Blocked blocked) {
+            nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+            pause(blocked.reason()); return true;
+        }
+        if (!travelAction.safeToRelease()) return true;
+        nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+        if (outcome instanceof NativeRun.Outcome.TravelFinished finished) {
+            if (active != travelActionParent) { pause("Travel receipt belonged to a retired parent"); return true; }
+            lastTravelCompletion = new TravelCompletionObservation(travelActionParent, finished.receipt(),
+                    travelActionParent.context().acceptedNanos(), travelActionParent.context().deadlineNanos(), System.nanoTime());
+            message("Job " + finished.receipt().jobToken() + " " + finished.receipt().result()
+                    + "; " + finished.receipt().reason() + "; observed legs " + finished.receipt().arrivedSegments());
+            active = null; acquisitionScope = null; cancelledRequest = null; travelAction = null; travelActionParent = null; travelShieldPreflightParent = null; travelFoodPreflightParent = null; travelShieldScope = null; travelFoodScope = null; travelFoodOffer = null; travelFoodPreparation = null; travelFoodDemand = null; travelFoodInvalidated = false;
+            if (stopAfterStep) stopNow(true);
+            else status = "idle";
+            return true;
+        }
+        return false;
+    }
+    private void abandonTravelSession() {
+        if (travelAction != null) {
+            travelAction.abandonSession();
+            if (nativeRun == travelAction) movement.abandonRequestContext();
+        }
+        if (nativeRun instanceof TravelAction) { nativeRun = null; nativeRunParent = null; nativeRunScope = null; }
+        travelAction = null; travelActionParent = null; travelShieldPreflightParent = null; travelFoodPreflightParent = null; travelShieldScope = null; travelFoodScope = null; travelFoodOffer = null; travelFoodPreparation = null; travelFoodDemand = null; travelFoodInvalidated = false;
+    }
+    void cancelRequest(long token) {
+        Set<ProjectRun> matching = new HashSet<>();
+        for (Request request : queue) if (request.jobToken() == token && request instanceof AcquireRequest acquire
+                && acquire.project() != null) matching.add(acquire.project());
+        if (active != null && active.jobToken() == token && activeProject() != null) matching.add(activeProject());
+        List<AcquireRequest> cancelledMaintenance = maintenanceQueue.stream()
+                .filter(request -> request.jobToken() == token).toList();
+        queue.removeIf(request -> request.jobToken() == token);
+        maintenanceQueue.removeIf(request -> request.jobToken() == token);
+        for (AcquireRequest request : cancelledMaintenance)
+            scheduleMaintenanceRequests(maintained.fail(request.maintenanceTaskId(), observedInventory));
+        matching.forEach(this::abortProject);
+        if (active != null && active.jobToken() == token) cancelledRequest = active;
+        message("Cancellation requested for job " + token);
+    }
+    private void revokeRequests(UUID issuer, long epoch) {
+        queue.removeIf(request -> request.context().grantEpoch() != 0 && request.context().issuer().equals(issuer)
+                && request.context().grantEpoch() == epoch);
+        if (active != null && epoch != 0 && active.context().issuer().equals(issuer)
+                && active.context().grantEpoch() == epoch) cancelledRequest = active;
+    }
+    private boolean tickCancelledRequest() {
+        if (active == null || active != cancelledRequest) return false;
+        if (pendingPlan != null) pendingPlan.cancel(false);
+        pendingPlan = null;
+        requestActiveTransactionDrain();
+        if (nativeRun instanceof TravelAction) return tickTravelRun();
+        if (stationPlacementHand != null || animalAcquisition.active()) return true;
+        if (cleanupRun != null) { tickStationCleanup(); return true; }
+        if (stopAfterStep && !cleanupReturnBarrier() && !transactionInProgress() && !openingStation) { stopNow(true); return true; }
+        if (cleanupReturnBarrier()) { status = "cancelled job retains its original station RETURN debt"; return true; }
+        if (crafting != null || stonecutting != null || smelting != null) {
+            if (crafting != null && crafting.tick()) completeStep();
+            else if (stonecutting != null && stonecutting.tick()) completeStep();
+            else if (smelting != null && smelting.tick()) completeStep();
+            return true;
+        }
+        if (openingStation) {
+            if (!stationReady()) { status = "cancelled job waiting for its issued station menu"; return true; }
+            openingStation = false;
+        }
+        movement.checkAirRecoveryOwnership(); movement.stop();
+        if (!movement.finishCancellation()) { status = "draining cancelled job movement"; return true; }
+        Request finished = active;
+        resetAction();
+        if (cleanupReturnBarrier()) return true;
+        if (stationPlacementHand != null || animalAcquisition.active()) return true;
+        if (client.player.containerMenu != client.player.inventoryMenu
+                || !client.player.containerMenu.getCarried().isEmpty()) {
+            status = "cancelled job retains its menu/cursor restoration debt"; return true;
+        }
+        if (stopAfterStep) { stopNow(true); return true; }
+        if (finished instanceof TravelRequest && travelActionParent == finished && travelAction != null) {
+            acquisitionScope = null; travelShieldScope = null; travelFoodScope = null; travelFoodOffer = null; travelFoodPreparation = null; travelFoodDemand = null; travelFoodInvalidated = false;
+            pendingPlanIdentity = stepPlanIdentity = null;
+            if (System.nanoTime() - finished.context().deadlineNanos() < 0)
+                travelAction.requestDrain(NativeRun.DrainReason.STOP);
+            nativeRun = travelAction; nativeRunParent = finished; nativeRunScope = null;
+            return tickTravelRun();
+        }
+        active = null; acquisitionScope = null; cancelledRequest = null;
+        nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+        if (finished instanceof AcquireRequest acquire && acquire.maintained())
+            scheduleMaintenanceRequests(maintained.fail(acquire.maintenanceTaskId(), observedInventory));
+        message("Cancelled job " + finished.jobToken() + "; unrelated queued work retained");
+        status = "idle";
+        return true;
+    }
+
     void enqueue(String name, int count) {
         ensureNotStopping();
         ensureCatalog();
         boolean logs = name.equalsIgnoreCase("wood") || name.equalsIgnoreCase("logs");
         ItemId item = logs ? ItemId.parse("minecraft:oak_log") : resolve(name);
         if (queue.size() >= MAX_FOREGROUND_QUEUE) throw new IllegalStateException("Foreground queue limit is " + MAX_FOREGROUND_QUEUE + " goals");
-        yieldMaintenanceForForeground();
-        queue.addLast(request(name, item, count, logs, null, null));
+        appendRequest(request(name, item, count, logs, null, null));
         message("Queued " + count + " × " + name);
     }
 
@@ -1073,7 +1850,6 @@ final class AutomationEngine {
         for (ItemId item : spec.goals().keySet()) {
             if (!snapshot.knownItems().contains(item)) throw new IllegalStateException("Project item is unavailable in this game version: " + item);
         }
-        yieldMaintenanceForForeground();
         ProjectRun run = new ProjectRun(spec, allocateJobToken());
         projects.add(run);
         Set<ItemId> gatheringTools = new HashSet<>();
@@ -1086,7 +1862,7 @@ final class AutomationEngine {
                 .forEach(entry -> {
             ItemId item = entry.getKey(); int count = entry.getValue();
             run.pending.add(item);
-            queue.addLast(request("project " + spec.name() + " · " + item, item, count, false, null, run));
+            appendRequest(request("project " + spec.name() + " · " + item, item, count, false, null, run));
         });
         message("Queued project " + spec.name() + " (" + spec.goals().size() + " inventory targets; " + spec.description() + ")");
     }
@@ -1138,7 +1914,7 @@ final class AutomationEngine {
                 cancelled.addAll(maintained.unmaintain(item));
             }
         }
-        if (active != null && active.maintained() && unmaintainAfterStep.contains(active.item())) {
+        if (active != null && activeMaintained() && unmaintainAfterStep.contains(acquisitionView().item())) {
             requestActiveTransactionDrain();
         }
         cancelMaintenanceTasks(cancelled);
@@ -1175,9 +1951,7 @@ final class AutomationEngine {
         if (!catalog.ready()) { message("Loading the integrated world's recipe catalog; try plan again shortly"); return; }
         if (!nearbyResources.ready()) { message("Indexing local resource options; try plan again shortly"); return; }
         observeInventory();
-        ItemId item = name == null ? active != null ? active.item
-                : queue.isEmpty() ? maintenanceQueue.isEmpty() ? null : maintenanceQueue.peekFirst().item
-                : queue.peekFirst().item : resolve(name);
+        ItemId item = name == null ? previewAcquisitionItem() : resolve(name);
         if (item == null) { message("No active or queued goal"); return; }
         CatalogSnapshot snapshot = planningCatalog(config.allowBreaking);
         InventorySnapshot inventory = inventorySnapshot(item);
@@ -1218,35 +1992,48 @@ final class AutomationEngine {
         if (stopAfterStep) throw new IllegalStateException("Finishing the current safe transaction before stopping; retry after it completes");
     }
 
+    private boolean inventoryAdmissionSafe() {
+        if (client.player == null || client.level == null) return false;
+        if (client.player.containerMenu != client.player.inventoryMenu) {
+            status = "waiting for the open container to close"; return false;
+        }
+        if (!client.player.containerMenu.getCarried().isEmpty()) {
+            status = "waiting for the cursor stack to be returned"; return false;
+        }
+        return true;
+    }
+
     private void startNextRequest() {
-        if (queue.isEmpty() && maintenanceQueue.isEmpty()) { status = "idle"; return; }
-        if (client.player != null && client.player.containerMenu != client.player.inventoryMenu) {
-            status = "waiting for the open container to close";
-            return;
-        }
-        if (client.player != null && !client.player.containerMenu.getCarried().isEmpty()) {
-            status = "waiting for the cursor stack to be returned";
-            return;
-        }
+        if (stopAfterStep || cleanupRun != null || cleanupReturnBarrier() || !inventoryAdmissionSafe()) return;
         while (active == null) {
-            if (!queue.isEmpty()) {
-                active = queue.removeFirst();
-            } else if (!maintenanceQueue.isEmpty()) {
-                Request request = maintenanceQueue.removeFirst();
-                if (!hasActiveMaintenance(request.maintenanceTaskId())) continue;
-                if (observedInventory.getOrDefault(request.item(), 0) >= request.count()) {
-                    scheduleMaintenanceRequests(maintained.complete(request.maintenanceTaskId(), observedInventory));
+            boolean foreground = !queue.isEmpty();
+            Request candidate = foreground ? queue.peekFirst() : maintenanceQueue.peekFirst();
+            if (candidate == null) return;
+            if (!newEffectCurrent(candidate)) {
+                if (foreground) queue.removeFirst(); else maintenanceQueue.removeFirst();
+                if (candidate instanceof AcquireRequest acquire && acquire.project() != null) abortProject(acquire.project());
+                if (candidate instanceof AcquireRequest acquire && acquire.maintained())
+                    scheduleMaintenanceRequests(maintained.fail(acquire.maintenanceTaskId(), observedInventory));
+                message("Skipped expired/context-mismatched job " + candidate.jobToken());
+                continue;
+            }
+            if (!foreground) {
+                AcquireRequest maintainedRequest = (AcquireRequest) candidate;
+                if (!hasActiveMaintenance(maintainedRequest.maintenanceTaskId())) { maintenanceQueue.removeFirst(); continue; }
+                if (observedInventory.getOrDefault(maintainedRequest.item(), 0) >= maintainedRequest.count()) {
+                    maintenanceQueue.removeFirst();
+                    scheduleMaintenanceRequests(maintained.complete(maintainedRequest.maintenanceTaskId(), observedInventory));
                     continue;
                 }
-                active = request;
-            } else {
-                return;
             }
+            if (foreground) queue.removeFirst(); else maintenanceQueue.removeFirst();
+            active = candidate;
+            acquisitionScope = active instanceof AcquireRequest acquire ? createAcquisitionScope(active, acquire) : null;
             miningContinuation = null;
             unavailableSources.clear();
             frontier = null; rejectedResources.clear(); lastResourceFailure = null; resetLogDiscovery();
             planningRetries = 0; stationAccessFailures = 0; unreachableStations.clear();
-            requestPlan();
+            continueActiveRequest();
         }
     }
 
@@ -1255,14 +2042,7 @@ final class AutomationEngine {
     }
 
     private void yieldMaintenanceForForeground() {
-        if (active == null || !active.maintained()) return;
-        foregroundYieldPending = true;
-        if (!canYieldMaintenanceNow()) {
-            status = "foreground queued; finishing or safely closing maintenance work";
-            requestActiveTransactionDrain();
-            return;
-        }
-        yieldActiveMaintenance();
+        if (activeMaintained()) foregroundYieldPending = true;
     }
 
     private boolean transactionInProgress() {
@@ -1276,15 +2056,15 @@ final class AutomationEngine {
     }
 
     private boolean isActiveMaintenanceTransaction(ItemId item) {
-        return active != null && active.maintained() && active.item().equals(item)
+        return active != null && activeMaintained() && acquisitionView().item().equals(item)
                 && (transactionInProgress() || openingStation && step != null
                 && (step.kind() == PlanKind.CRAFT || step.kind() == PlanKind.SMELT));
     }
 
     private boolean shouldDrainActiveTransaction() {
-        return stopAfterStep || airRecovery.active() || healthRecovery != null || active != null && active.maintained()
-                && (foregroundYieldPending || unmaintainAfterStep.contains(active.item())
-                || maintainAfterStep.containsKey(active.item()));
+        return cancelledRequest == active && active != null || stopAfterStep || airRecovery.active() || healthRecovery != null || active != null && activeMaintained()
+                && (foregroundYieldPending || unmaintainAfterStep.contains(acquisitionView().item())
+                || maintainAfterStep.containsKey(acquisitionView().item()));
     }
 
     private void requestActiveTransactionDrain() {
@@ -1296,7 +2076,8 @@ final class AutomationEngine {
     }
 
     private boolean canYieldMaintenanceNow() {
-        if (active == null || !active.maintained() || client.player == null
+        if (cleanupReturnBarrier()) return false;
+        if (active == null || !activeMaintained() || client.player == null
                 || stationPlacementWait != null || cleanupRun != null || transactionInProgress()
                 || crafting != null || stonecutting != null || smelting != null || openingStation
                 || client.player.containerMenu != client.player.inventoryMenu) return false;
@@ -1305,11 +2086,12 @@ final class AutomationEngine {
 
     private void yieldActiveMaintenance() {
         if (!foregroundYieldPending || !canYieldMaintenanceNow()) return;
-        Request yielded = active;
+        AcquireRequest yielded = acquisitionView();
         if (pendingPlan != null) pendingPlan.cancel(false);
         pendingPlan = null;
-        active = null;
         resetAction();
+        if (cleanupReturnBarrier()) return;
+        active = null; acquisitionScope = null;
         maintenanceQueue.addFirst(yielded);
         foregroundYieldPending = false;
         status = "maintenance waiting for foreground goals";
@@ -1319,19 +2101,21 @@ final class AutomationEngine {
         if (taskIds.isEmpty()) return;
         Set<String> cancelled = Set.copyOf(taskIds);
         maintenanceQueue.removeIf(request -> cancelled.contains(request.maintenanceTaskId()));
-        if (active != null && cancelled.contains(active.maintenanceTaskId())) {
+        if (active != null && cancelled.contains(activeMaintenanceId())) {
+            if (cleanupRun != null || cleanupReturnBarrier()) { cancelledRequest = active; return; }
             if (animalAcquisition.active()) {
-                unmaintainAfterStep.add(active.item()); requestActiveTransactionDrain(); return;
+                unmaintainAfterStep.add(acquisitionView().item()); requestActiveTransactionDrain(); return;
             }
             if (transactionInProgress() || openingStation) {
-                unmaintainAfterStep.add(active.item());
+                unmaintainAfterStep.add(acquisitionView().item());
                 requestActiveTransactionDrain();
                 return;
             }
             if (pendingPlan != null) pendingPlan.cancel(false);
             pendingPlan = null;
-            active = null;
             resetAction();
+            if (cleanupReturnBarrier()) { cancelledRequest = active; return; }
+            active = null; acquisitionScope = null;
             foregroundYieldPending = false;
             status = "idle";
         }
@@ -1340,8 +2124,8 @@ final class AutomationEngine {
     private void scheduleMaintenanceRequests(List<MaintainedDemandModel.MaintenanceRequest> requests) {
         for (MaintainedDemandModel.MaintenanceRequest request : requests) {
             if (maintenanceQueue.stream().anyMatch(queued -> request.taskId().equals(queued.maintenanceTaskId()))
-                    || active != null && request.taskId().equals(active.maintenanceTaskId())) continue;
-            if (maintenanceQueue.size() + (active != null && active.maintained() ? 1 : 0) >= MAX_MAINTENANCE_QUEUE) {
+                    || active != null && request.taskId().equals(activeMaintenanceId())) continue;
+            if (maintenanceQueue.size() + (active != null && activeMaintained() ? 1 : 0) >= MAX_MAINTENANCE_QUEUE) {
                 scheduleMaintenanceRequests(maintained.fail(request.taskId(), observedInventory));
                 continue;
             }
@@ -1351,11 +2135,11 @@ final class AutomationEngine {
     }
 
     private MovementProgressScope projectLogGatherScope() {
-        if (active == null || active.project() == null || active.project().aborted || active.maintained()
+        if (active == null || activeProject() == null || activeProject().aborted || activeMaintained()
                 || step == null || step.kind() != PlanKind.GATHER || stepAuxiliaryInvestment
                 || isFoodPreparation(step) || stepShieldIdentity != null || catalog == null
                 || !catalog.tags.getOrDefault(LOGS_TAG, List.of()).contains(step.output())
-                || parentMovementScope == null || !parentMovementScope.matches(active, client.level, client.player,
+                || parentMovementScope == null || !parentMovementScope.matches(acquisitionScope, client.level, client.player,
                         placementProvenance.session().orElse(null))) return null;
         return parentMovementScope;
     }
@@ -1387,7 +2171,7 @@ final class AutomationEngine {
     private void invalidateStationStockHint() {
         StationStockHint hint = stationStockHint;
         if (hint != null && (pendingPlan != hint.future() || step != hint.step() || parentMovementScope != hint.scope()
-                || !canReconsiderStationStock() || hint.generation() != catalog.generation()
+                || !nativePlanningCurrent() || !canReconsiderStationStock() || hint.generation() != catalog.generation()
                 || actions.count(GameCatalog.item(CRAFTING_TABLE_ITEM)) <= hint.scope().tableGainFrom))
             dropStationStockHint();
     }
@@ -1449,7 +2233,7 @@ final class AutomationEngine {
 
     private boolean nativePlanningCurrent() {
         NativePlanningIdentity identity = pendingNativeIdentity;
-        return identity != null && active == identity.request() && identity.world() == client.level
+        return identity != null && planIdentityCurrent(pendingPlanIdentity) && active == identity.request() && identity.world() == client.level
                 && identity.player() == client.player && catalog != null && catalog.ready()
                 && identity.offerGeneration() == catalog.generation()
                 && Objects.equals(identity.session(), placementProvenance.session().orElse(null));
@@ -1462,7 +2246,7 @@ final class AutomationEngine {
         if (!GameApi.supportsAnimalHarvest() || target == null) return false;
         CatalogSnapshot snapshot = catalog.snapshot();
         Deque<ItemId> pending = new ArrayDeque<>(); pending.add(target);
-        if (active != null && active.project() != null) pending.addAll(active.project().spec.goals().keySet());
+        if (active != null && activeProject() != null) pending.addAll(activeProject().spec.goals().keySet());
         Set<ItemId> visited = new HashSet<>(); int sources = 0;
         while (!pending.isEmpty() && visited.size() < 256 && sources < 1_024) {
             ItemId item = pending.removeFirst();
@@ -1494,15 +2278,23 @@ final class AutomationEngine {
         quota.attempts++; animalQuotaTickNanos = System.nanoTime(); return true;
     }
     private void beginAnimalStep() {
-        if (!nativePlanningCurrent() || stepCatalogGeneration != catalog.generation()) { resetAction(); requestPlan(); return; }
+        if (!nativePlanningCurrent() || stepCatalogGeneration != catalog.generation()) { resetAction(); continueActiveRequest(); return; }
         if (!(step.nativeWork() instanceof NativeWork.AnimalHarvest))
             throw new IllegalStateException("No native actor for " + step.nativeWork());
         animalAcquisition.updateProtection(foodReservations());
         if (!animalAcquisition.begin(step, false, false, active.jobToken(), stepCatalogGeneration, this::reserveAnimalAttempt)) {
             pause(animalAcquisition.status());
-        }
+        } else holdAnimalRun();
+    }
+    private void holdAnimalRun() {
+        if (nativeRun != null && nativeRun != animalAcquisition)
+            throw new IllegalStateException("Another retained native actor still owns the request");
+        nativeRun = animalAcquisition; nativeRunParent = active; nativeRunScope = acquisitionScope;
     }
     private boolean tickAnimalRun() {
+        boolean currentRun = nativeRun == animalAcquisition && nativeRunParent == active && nativeRunScope == acquisitionScope;
+        if (!currentRun) animalAcquisition.requestDrain(NativeRun.DrainReason.PREEMPT);
+        if (cancelledRequest == active && active != null) animalAcquisition.requestDrain(NativeRun.DrainReason.STOP);
         if (client.player == null || client.level == null) { animalAcquisition.abandonSession(); return false; }
         long now = System.nanoTime();
         AnimalQuota quota = animalQuotas.get(animalAcquisition.jobToken());
@@ -1547,6 +2339,8 @@ final class AutomationEngine {
             if (outcome instanceof NativeRun.Outcome.Blocked blocked) pause(blocked.reason());
             return true;
         }
+        nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+        if (!currentRun) { status = "retired native acquisition drained without installing its result"; return true; }
         if (outcome instanceof NativeRun.Outcome.Blocked blocked) {
             if (stopAfterStep) { stopNow(true); return true; }
             pause(blocked.reason()); return true;
@@ -1559,6 +2353,7 @@ final class AutomationEngine {
         }
         observeInventory();
         if (stopAfterStep) { stopNow(true); return true; }
+        if (cancelledRequest == active && active != null) { tickCancelledRequest(); return true; }
         if (quota != null && quota.activeNanos >= 600_000_000_000L) {
             resetAction(); pause("Animal job reached ten minutes of active work; acquired stock is preserved"); return true;
         }
@@ -1667,6 +2462,10 @@ final class AutomationEngine {
 
     private boolean recoverAirIfNeeded() {
         if (!airRecovery.active() && !airRecovery.ready()) return false;
+        if (nativeRun == travelAction && travelAction != null) {
+            travelAction.requestDrain(NativeRun.DrainReason.PREEMPT);
+            if (tickTravelObserver()) return true;
+        }
         boolean observingAnimal = animalAcquisition.active() && animalAcquisition.airObserver();
         boolean observingStationHand = stationPlacementHand != null;
         useMovementProgress(null);
@@ -1702,7 +2501,7 @@ final class AutomationEngine {
             if (airRecovery.tick()) {
                 healthRecovery = null;
                 observeInventory();
-                if (!observingAnimal && !observingStationHand && active != null) requestPlan();
+                if (!observingAnimal && !observingStationHand && active != null) continueActiveRequest();
             } else status = airRecovery.status();
             return true;
         } catch (RuntimeException failure) {
@@ -1718,6 +2517,7 @@ final class AutomationEngine {
         if (stopAfterStep) { healthRecovery = null; return false; }
         float health = client.player.getHealth();
         if (healthRecovery == null && health > config.pauseBelowHealth) return false;
+        if (cleanupReturnBarrier()) { pause("health safeguard while owned station RETURN debt is retained"); return true; }
         if (!config.autoEat) { pause("health safeguard"); return true; }
         if (config.pauseBelowHealth >= client.player.getMaxHealth()) {
             pause("Health safeguard threshold must be below the player's maximum health");
@@ -1729,6 +2529,7 @@ final class AutomationEngine {
             if (pendingPlan != null) pendingPlan.cancel(false);
             pendingPlan = null;
             if (!transactionInProgress() && !openingStation) resetAction();
+            if (cleanupReturnBarrier()) { status = "health recovery awaits owned station RETURN settlement"; return true; }
         }
         float recovered = Math.min(client.player.getMaxHealth(), Math.max(10, config.pauseBelowHealth + 2));
         if (health >= recovered) { healthRecovery = null; return false; }
@@ -1789,8 +2590,8 @@ final class AutomationEngine {
         Map<ItemId, Integer> result = new HashMap<>(maintained.reservedCounts());
         for (ProjectRun run : projects) if (!run.aborted)
             run.spec.goals().forEach((item, count) -> result.merge(item, count, Math::max));
-        if (active != null) result.merge(active.item(), active.count(), Math::max);
-        for (Request request : queue) result.merge(request.item(), request.count(), Math::max);
+        if (acquisitionView() != null) result.merge(acquisitionView().item(), acquisitionView().count(), Math::max);
+        for (Request request : queue) if (request instanceof AcquireRequest acquire) result.merge(acquire.item(), acquire.count(), Math::max);
         result.replaceAll((item, count) -> Math.max(0, count
                 - Math.max(0, actions.heldCount(GameCatalog.item(item)) - actions.count(GameCatalog.item(item)))));
         result.values().removeIf(count -> count == 0);
@@ -1835,12 +2636,12 @@ final class AutomationEngine {
             }
             if (!config.autoDefend || stopAfterStep) {
                 threats.stop();
-                requestPlan();
+                continueActiveRequest();
                 return true;
             }
             threats.useShield(config.autoUseShield);
             threats.updateProtection(foodReservations());
-            if (threats.tick(config.pauseBelowHealth)) { observeInventory(); requestPlan(); }
+            if (threats.tick(config.pauseBelowHealth)) { observeInventory(); continueActiveRequest(); }
             else status = threats.status();
         } catch (RuntimeException failure) {
             threats.stop();
@@ -1860,7 +2661,11 @@ final class AutomationEngine {
         return builder.build();
     }
 
-    private void requestPlan() {
+    private void requestPlan(AcquisitionScope scope) {
+        if (!scopeCurrent(scope)) return;
+        if (scope == travelFoodScope) { requestTravelFoodPlan(scope); return; }
+        if (scope == travelShieldScope) { requestTravelShieldPlan(scope); return; }
+        AcquisitionDemand demand = scope.demand();
         if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         dropStationStockHint();
         if (airRecovery.active()) return;
@@ -1873,13 +2678,13 @@ final class AutomationEngine {
         if (!nearbyResources.ready()) { status = "indexing local resource options"; return; }
         if (!nearbyStations.ready()) { status = "checking nearby crafting stations"; return; }
         observeInventory();
-        if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
-        if (active.anyLogs && !config.allowBreaking) {
+        if (!animalAcquisition.active() && goalCount() >= demand.totalStockTarget()) { finishGoal(); return; }
+        if (demand.anyLogs() && !config.allowBreaking) {
             pause("Wood gathering requires allowBreaking=true");
             return;
         }
-        ItemId item = active.item;
-        if (active.anyLogs) {
+        ItemId item = demand.item();
+        if (demand.anyLogs()) {
             item = chooseLogs();
             if (item == null) {
                 LocalReachScan logReachScan = localReachScan(LocalReachPurpose.LOG_CHOICE);
@@ -1904,22 +2709,22 @@ final class AutomationEngine {
                 .filter(source -> unavailableSources.contains(source.sourceId()))
                 .map(GatherSource::sourceId).collect(java.util.stream.Collectors.toUnmodifiableSet());
         boolean explorationEnabled = gatheringEnabled && config.allowExploration;
-        InventorySnapshot inventory = inventorySnapshot(active.item);
+        InventorySnapshot inventory = inventorySnapshot(demand.item());
         InventorySnapshot knownInventory = withKnownStations(inventory);
-        int requested = active.anyLogs ? active.count - goalCount() + inventory.count(item)
-                : Math.max(1, active.count - Math.max(0, goalCount() - inventory.count(item)));
+        int requested = demand.anyLogs() ? demand.totalStockTarget() - goalCount() + inventory.count(item)
+                : Math.max(1, demand.totalStockTarget() - Math.max(0, goalCount() - inventory.count(item)));
         ItemId targetItem = item;
         int targetCount = requested;
-        HarvestOffer harvestOffer = gatheringEnabled && active.anyLogs && config.optimizeWoodTools
-                ? captureHarvestOffer(active.count - goalCount()) : null;
+        HarvestOffer harvestOffer = gatheringEnabled && demand.anyLogs() && config.optimizeWoodTools
+                ? captureHarvestOffer(demand.totalStockTarget() - goalCount()) : null;
         CatalogSnapshot filteredSnapshot = snapshot;
         CombatPreparationOffer combatOffer = captureCombatPreparationOffer(filteredSnapshot, inventory, knownInventory);
         ShieldPreparationOffer shieldOffer = captureShieldPreparationOffer(filteredSnapshot, inventory, knownInventory);
         PlanningPreferences preferences = nearbyResources.snapshot();
         pendingPlanPreferencesVersion = nearbyResources.version();
         pendingPlanGeneration = catalog.generation();
-        ProjectSpec project = active.project() != null && !active.project().aborted
-                ? remainingProject(active.project().spec, inventory) : null;
+        ProjectSpec project = activeProject() != null && !activeProject().aborted
+                ? remainingProject(activeProject().spec, inventory) : null;
         Map<ItemId, Integer> gatherCapacity = project == null ? Map.of() : gatherCapacity(filteredSnapshot);
         food.updateProtection(foodReservations());
         FoodController.Preparation offeredPreparation = foodPreparationOffer();
@@ -1934,6 +2739,9 @@ final class AutomationEngine {
                 : protectedFoodInventory(knownInventory);
         boolean debugPlanning = config.debugLogging;
         Set<ItemId> logMaterials = Set.copyOf(catalog.tags.getOrDefault(LOGS_TAG, List.of()));
+        if (planSerial == Long.MAX_VALUE) throw new IllegalStateException("Planning serial capacity reached");
+        pendingPlanIdentity = new PlanIdentity(scope, ++planSerial, active.context(), catalog,
+                catalog.generation(), nearbyResources.version(), active.context().owner().policyGeneration());
         pendingNativeIdentity = new NativePlanningIdentity(active, client.level, client.player,
                 placementProvenance.session().orElse(null), catalog.generation());
         pendingPlan = CompletableFuture.supplyAsync(() -> {
@@ -2044,6 +2852,11 @@ final class AutomationEngine {
     private ShieldPreparationOffer captureShieldPreparationOffer(CatalogSnapshot snapshot,
                                                                 InventorySnapshot inventory,
                                                                 InventorySnapshot knownInventory) {
+        return captureShieldOffer(snapshot, inventory, knownInventory, false);
+    }
+
+    private ShieldPreparationOffer captureShieldOffer(CatalogSnapshot snapshot, InventorySnapshot inventory,
+                                                       InventorySnapshot knownInventory, boolean travel) {
         if (deferShieldPreparation) {
             deferShieldPreparation = false;
             return null;
@@ -2081,10 +2894,14 @@ final class AutomationEngine {
         reserved.values().removeIf(count -> count == 0);
         InventorySnapshot known = new InventorySnapshot(ordinary, knownInventory.availableStations(), Map.of(), reserved);
         ShieldPlanningIdentity identity = shieldPlanningIdentity();
-        if (identity.goals().unresolvedLogs() || identity.goals().targets().size() > ProjectSpec.MAX_GOALS) return null;
-        ProjectSpec pendingProject = remainingProject(new ProjectSpec("pending_goals", "Pending inventory targets",
-                identity.goals().targets(), ProjectSpec.Purpose.INVENTORY_GOALS), inventory);
-        if (pendingProject == null) return null;
+        PendingGoals goals = travel ? pendingGoals(false) : identity.goals();
+        if (goals.unresolvedLogs() || goals.targets().size() > ProjectSpec.MAX_GOALS) return null;
+        ProjectSpec pendingProject = null;
+        if (!goals.targets().isEmpty()) {
+            pendingProject = remainingProject(new ProjectSpec("pending_goals", "Pending inventory targets",
+                    goals.targets(), ProjectSpec.Purpose.INVENTORY_GOALS), inventory);
+            if (!travel && pendingProject == null) return null;
+        } else if (!travel) return null;
         return new ShieldPreparationOffer(builder.build(), known, planks,
                 config.shieldIronReserve, config.shieldPlankReserve, config.allowBuilding,
                 snapshot, knownInventory, pendingProject, identity);
@@ -2093,11 +2910,19 @@ final class AutomationEngine {
     private PlanningOutcome shieldPreparationOutcome(PlanResult basePlan, ShieldPreparationOffer offer,
                                                      PlanningPreferences preferences) {
         if (offer == null || !basePlan.success() || basePlan.steps().isEmpty()) return null;
+        return onHandShieldOutcome(offer, preferences);
+    }
+
+    private PlanningOutcome onHandShieldOutcome(ShieldPreparationOffer offer, PlanningPreferences preferences) {
+        if (offer == null) return null;
         try {
-            ProjectPlanResult pending = planner.planProjectFast(offer.workCatalog(), offer.workInventory(),
-                    offer.pendingProject(), PlannerLimits.DEFAULT, preferences);
-            if (!pending.success()) return null;
-            InventorySnapshot reserved = ProjectMaterialReservations.protectOptionalWork(offer.knownInventory(), pending);
+            InventorySnapshot reserved = offer.knownInventory();
+            if (offer.pendingProject() != null) {
+                ProjectPlanResult pending = planner.planProjectFast(offer.workCatalog(), offer.workInventory(),
+                        offer.pendingProject(), PlannerLimits.DEFAULT, preferences);
+                if (!pending.success()) return null;
+                reserved = ProjectMaterialReservations.protectOptionalWork(reserved, pending);
+            }
             InventorySnapshot stock = shieldFloorInventory(reserved, offer);
             if (stock == null) return null;
             ItemId shieldItem = ItemId.parse("minecraft:shield"), iron = ItemId.parse("minecraft:iron_ingot");
@@ -2128,6 +2953,7 @@ final class AutomationEngine {
                 plankCost += planksForStep;
             }
             if (shields != 1 || tables > 1 || ironCost != 1 || plankCost != 6 + tables * 4) return null;
+            InventorySnapshot reservedStock = reserved;
             List<PlanStep> marked = new ArrayList<>();
             for (int index = 0; index < plan.steps().size(); index++) {
                 PlanStep candidate = plan.steps().get(index);
@@ -2136,7 +2962,7 @@ final class AutomationEngine {
                 attributes.put("ordinaryInputOnly", "true");
                 attributes.put("shieldIronFloor", Integer.toString(offer.ironFloor()));
                 attributes.put("shieldPlankFloor", Integer.toString(offer.plankFloor()));
-                reserved.protectedCounts().forEach((item, count) -> attributes.put("shieldReserved:" + item, Integer.toString(count)));
+                reservedStock.protectedCounts().forEach((item, count) -> attributes.put("shieldReserved:" + item, Integer.toString(count)));
                 Map<ItemId, Integer> future = new HashMap<>();
                 for (PlanStep later : plan.steps().subList(index + 1, plan.steps().size()))
                     for (SelectedRequirement requirement : later.requirements())
@@ -2169,16 +2995,17 @@ final class AutomationEngine {
         return new InventorySnapshot(stock.counts(), stock.availableStations(), Map.of(), floors);
     }
 
-    private PendingGoals pendingGoals() {
+    private PendingGoals pendingGoals() { return pendingGoals(true); }
+    private PendingGoals pendingGoals(boolean includeActive) {
         Map<ItemId, Integer> targets = new TreeMap<>();
         boolean unresolvedLogs = false;
-        if (active != null) {
-            targets.merge(active.item(), active.count(), Math::max);
-            unresolvedLogs = active.anyLogs();
+        if (includeActive && acquisitionView() != null) {
+            targets.merge(acquisitionView().item(), acquisitionView().count(), Math::max);
+            unresolvedLogs = acquisitionView().anyLogs();
         }
-        for (Request request : queue) {
-            targets.merge(request.item(), request.count(), Math::max);
-            unresolvedLogs |= request.anyLogs();
+        for (Request request : queue) if (request instanceof AcquireRequest acquire) {
+            targets.merge(acquire.item(), acquire.count(), Math::max);
+            unresolvedLogs |= acquire.anyLogs();
         }
         for (ProjectRun run : projects) if (!run.aborted)
             run.spec.goals().forEach((item, count) -> targets.merge(item, count, Math::max));
@@ -2188,7 +3015,7 @@ final class AutomationEngine {
     }
 
     private ShieldPlanningIdentity shieldPlanningIdentity() {
-        return new ShieldPlanningIdentity(active.jobToken(), pendingGoals(), client.level, client.level.dimension(),
+        return new ShieldPlanningIdentity(acquisitionScope, active.jobToken(), pendingGoals(), client.level, client.level.dimension(),
                 placementProvenance.session(), catalog.generation(), nearbyResources.version(),
                 new ShieldOptions(config.autoDefend, config.autoUseShield, config.autoCraftShield,
                         config.allowBreaking, config.allowBuilding, config.shieldIronReserve, config.shieldPlankReserve),
@@ -2330,11 +3157,16 @@ final class AutomationEngine {
     }
 
     private List<AcquisitionSource> preparationSources(CatalogSnapshot snapshot, FoodController.Preparation preparation) {
+        return preparationSources(snapshot, preparation, false);
+    }
+    private List<AcquisitionSource> preparationSources(CatalogSnapshot snapshot, FoodController.Preparation preparation,
+                                                      boolean requireComplete) {
         List<AcquisitionSource> selected = new ArrayList<>();
         long deadline = System.nanoTime() + 1_000_000L;
         int inspected = 0;
         for (AcquisitionSource candidate : snapshot.sourcesFor(preparation.item())) {
-            if (++inspected > 128 || System.nanoTime() >= deadline) break;
+            if (++inspected > 128 || System.nanoTime() >= deadline)
+                return requireComplete ? List.of() : List.copyOf(selected);
             if (!(candidate instanceof SmeltingSource source) || source.outputCount() != 1) continue;
             GameCatalog.RecipeWork nativeRecipe = catalog.recipes.get(source.sourceId());
             if (nativeRecipe == null || nativeRecipe.cookTicks() < 1 || nativeRecipe.ingredients().size() != 1) continue;
@@ -2345,7 +3177,7 @@ final class AutomationEngine {
                     Ingredient.of(preparation.raw()), source.fuels(), source.cookTicks(),
                     source.requirements(), source.fuelProgressTicks()));
         }
-        return List.copyOf(selected);
+        return requireComplete && System.nanoTime() >= deadline ? List.of() : List.copyOf(selected);
     }
 
     private static boolean isFoodPreparation(PlanStep candidate) {
@@ -2663,8 +3495,8 @@ final class AutomationEngine {
     }
 
     private boolean prepareIngredientWood() {
-        if (active == null || active.anyLogs || step == null || step.output() == null
-                || active.item.equals(step.output())
+        if (active == null || acquisitionView().anyLogs || step == null || step.output() == null
+                || acquisitionView().item.equals(step.output())
                 || !catalog.tags.getOrDefault(TagId.parse("minecraft:logs"), List.of()).contains(step.output())) return false;
         List<BlockPos> known = discoveredSources.get(step.sourceId());
         boolean validSelectedHint = known != null && selectedGatherToolAvailable()
@@ -2678,10 +3510,10 @@ final class AutomationEngine {
             ingredientWoodExamined.clear();
         }
         BlockPos feet = client.player.blockPosition();
-        if (ingredientWoodRequest != active || ingredientWoodGeneration != catalog.generation()
+        if (ingredientWoodRequest != acquisitionScope || ingredientWoodGeneration != catalog.generation()
                 || ingredientWoodOrigin == null || feet.distSqr(ingredientWoodOrigin) > 256
                 || ingredientWoodRejectedCount != rejectedResources.size()) {
-            ingredientWoodRequest = active;
+            ingredientWoodRequest = acquisitionScope;
             ingredientWoodGeneration = catalog.generation();
             ingredientWoodOrigin = feet.immutable();
             ingredientWoodRejectedCount = rejectedResources.size();
@@ -2736,14 +3568,14 @@ final class AutomationEngine {
                 rememberDiscoveredSource(source.sourceId(), local, block);
                 ingredientWoodPublished.put(source.sourceId(), local.immutable());
                 if (source.sourceId().equals(step.sourceId())) {
-                    localReachHint = new LocalReachHint(client.level, client.level.dimension(), active,
+                    localReachHint = new LocalReachHint(client.level, client.level.dimension(), acquisitionScope,
                             catalog.generation(), Set.copyOf(rejectedResources), client.player.blockPosition(),
                             source.sourceId(), local.immutable(), block);
                 }
                 foundNewSource = true;
             }
             if (foundNewSource) {
-                resetAction(); requestPlan(); return true;
+                resetAction(); continueActiveRequest(); return true;
             }
             recipeWoodScan.skipResult();
         }
@@ -2831,7 +3663,7 @@ final class AutomationEngine {
             }
         }
         if (foundNewSource || unavailableSources.contains(step.sourceId())) {
-            resetAction(); requestPlan(); return true;
+            resetAction(); continueActiveRequest(); return true;
         }
         return !complete;
     }
@@ -2850,9 +3682,9 @@ final class AutomationEngine {
     }
 
     private ItemId chooseLogs() {
-        if (logScanRequest != active || logScanGeneration != catalog.generation()) {
+        if (logScanRequest != acquisitionScope || logScanGeneration != catalog.generation()) {
             resetLogDiscovery();
-            logScanRequest = active;
+            logScanRequest = acquisitionScope;
             logScanGeneration = catalog.generation();
         }
         if (!logCandidates.isEmpty()) return logCandidates.peekFirst();
@@ -2895,7 +3727,7 @@ final class AutomationEngine {
                 continue;
             }
             rememberDiscoveredSource(source.sourceId(), local, block);
-            localReachHint = new LocalReachHint(client.level, client.level.dimension(), active,
+            localReachHint = new LocalReachHint(client.level, client.level.dimension(), acquisitionScope,
                     catalog.generation(), Set.copyOf(rejectedResources), client.player.blockPosition(),
                     source.sourceId(), local.immutable(), block);
             if (!attemptedLogCandidates.contains(source.output())) {
@@ -2968,7 +3800,7 @@ final class AutomationEngine {
     }
 
     private boolean tryNextLogPlan(PlanResult result) {
-        if (!active.anyLogs || logCandidates.isEmpty() || result.blockedReasons().isEmpty()
+        if (!acquisitionView().anyLogs || logCandidates.isEmpty() || result.blockedReasons().isEmpty()
                 || !result.blockedReasons().stream().allMatch(reason -> switch (reason.code()) {
                     case NO_SOURCE, CYCLE, EMPTY_TAG, UNREACHABLE_REQUIREMENT, UNSUPPORTED_SOURCE -> true;
                     default -> false;
@@ -2984,13 +3816,13 @@ final class AutomationEngine {
             localLogCandidateSourceId = null;
         }
         planningRetries = 0;
-        requestPlan();
+        continueActiveRequest();
         return true;
     }
 
     private int goalCount() {
-        if (!active.anyLogs) return AnimalHarvestAction.ordinaryCommodity(active.item)
-                ? ordinaryCount(active.item) : actions.heldCount(GameCatalog.item(active.item));
+        if (!acquisitionView().anyLogs) return AnimalHarvestAction.ordinaryCommodity(acquisitionView().item)
+                ? ordinaryCount(acquisitionView().item) : actions.heldCount(GameCatalog.item(acquisitionView().item));
         int count = 0;
         for (int slot = 0; slot < 36; slot++) {
             ItemStack stack = client.player.getInventory().getItem(slot);
@@ -3077,7 +3909,7 @@ final class AutomationEngine {
             if (stopAfterStep) { stopNow(true); return true; }
             if (draining) {
                 stationPlacementWait = null;
-                if (!paused && !editingSettings() && active != null) { resetAction(); requestPlan(); }
+                if (!paused && !editingSettings() && active != null) { resetAction(); continueActiveRequest(); }
                 return true;
             }
             return false;
@@ -3116,7 +3948,7 @@ final class AutomationEngine {
         return new BlockPos(position.x(), position.y(), position.z());
     }
 
-    private boolean wholeJobSatisfied(Request request) {
+    private boolean wholeJobSatisfied(AcquireRequest request) {
         if (request.maintained()) return false;
         ProjectRun project = request.project();
         if (project == null) return true;
@@ -3145,15 +3977,15 @@ final class AutomationEngine {
                 || projects.stream().anyMatch(project -> project.jobToken == jobToken);
     }
 
-    private boolean selectedPreviousCommandTable(Request request, OwnedStationLedger.StationRecord record) {
-        return previousCommandTableCheck != null && previousCommandTableCheck.jobToken() == request.jobToken()
+    private boolean selectedPreviousCommandTable(AcquireRequest request, OwnedStationLedger.StationRecord record) {
+        return previousCommandTableCheck != null && previousCommandTableCheck.acquisition() == acquisitionScope && previousCommandTableCheck.jobToken() == request.jobToken()
                 && previousCommandTableCheck.selected() == record;
     }
 
     private boolean beginPreviousCommandTable(PlanStep gatherStep) {
-        if (active == null || active.maintained() || active.project() != null
-                || previousCommandTableCheck != null && previousCommandTableCheck.jobToken() == active.jobToken()) return false;
-        previousCommandTableCheck = new PreviousCommandTableCheck(active.jobToken(), null);
+        if (active == null || activeMaintained() || activeProject() != null
+                || previousCommandTableCheck != null && previousCommandTableCheck.acquisition() == acquisitionScope && previousCommandTableCheck.jobToken() == active.jobToken()) return false;
+        previousCommandTableCheck = new PreviousCommandTableCheck(acquisitionScope, active.jobToken(), null);
         if (paused || stopAfterStep || healthRecovery != null || airRecovery.active()
                 || threats.active() || threats.ready() || food.active() || animalAcquisition.active() || equipment.active()
                 || client.player.getHealth() <= config.pauseBelowHealth || client.player.getFoodData().getFoodLevel() <= 14
@@ -3191,11 +4023,12 @@ final class AutomationEngine {
             }
         }
         if (nearest == null) return false;
-        previousCommandTableCheck = new PreviousCommandTableCheck(active.jobToken(), nearest);
+        previousCommandTableCheck = new PreviousCommandTableCheck(acquisitionScope, active.jobToken(), nearest);
         if (pendingPlan != null) pendingPlan.cancel(false);
         resetAction();
+        if (cleanupReturnBarrier()) return true;
         pendingPlan = null;
-        cleanupRun = new CleanupRun(CleanupPurpose.PREVIOUS_COMMAND_TABLE, active, session.get(), List.of(nearest), System.nanoTime());
+        cleanupRun = new CleanupRun(CleanupPurpose.PREVIOUS_COMMAND_TABLE, acquisitionScope, acquisitionView(), session.get(), List.of(nearest), System.nanoTime());
         status = "recovering the owned crafting table before leaving";
         org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
                 "[Lodekeeper] PREVIOUS_COMMAND_TABLE producerJob={} consumerJob={} position={}",
@@ -3204,8 +4037,8 @@ final class AutomationEngine {
     }
 
     private boolean beginCarryTable() {
-        if (active == null || active.project() == null || active.project().aborted
-                || !projects.contains(active.project()) || healthRecovery != null
+        if (active == null || activeProject() == null || activeProject().aborted
+                || !projects.contains(activeProject()) || healthRecovery != null
                 || !config.recoverPlacedStations || !config.allowBreaking || !config.allowBuilding
                 || config.stationRecoveryRange < 1
                 || actions.heldCount(GameCatalog.item(CRAFTING_TABLE_ITEM)) >= 1
@@ -3235,15 +4068,17 @@ final class AutomationEngine {
         if (nearest == null) return false;
         if (pendingPlan != null) pendingPlan.cancel(false);
         resetAction();
+        if (cleanupReturnBarrier()) return true;
         pendingPlan = null;
-        cleanupRun = new CleanupRun(CleanupPurpose.CARRY_TABLE, active, session.get(), List.of(nearest), System.nanoTime());
+        cleanupRun = new CleanupRun(CleanupPurpose.CARRY_TABLE, acquisitionScope, acquisitionView(), session.get(), List.of(nearest), System.nanoTime());
         status = "recovering the owned crafting table before leaving";
         return true;
     }
 
-    private boolean beginStationCleanup(Request request) {
-        if (cleanedJobToken == request.jobToken()) return false;
-        if (!config.recoverPlacedStations) { cleanedJobToken = request.jobToken(); return false; }
+    private boolean beginStationCleanup(AcquireRequest request) {
+        if (cleanedJobToken == request.jobToken()
+                && (!(active instanceof TravelRequest) || cleanedAcquisitionScope == acquisitionScope)) return false;
+        if (!config.recoverPlacedStations) { cleanedJobToken = request.jobToken(); cleanedAcquisitionScope = acquisitionScope; return false; }
         var session = placementProvenance.session();
         if (session.isEmpty()) return false;
         List<OwnedStationLedger.StationRecord> records = new ArrayList<>(placementProvenance.records().stream()
@@ -3263,23 +4098,24 @@ final class AutomationEngine {
             for (var record : records)
                 if (placementProvenance.records().contains(record) && !deferredStationCleanup.contains(record))
                     deferredStationCleanup.addLast(record);
-            cleanedJobToken = request.jobToken();
+            cleanedJobToken = request.jobToken(); cleanedAcquisitionScope = acquisitionScope;
             stationCleanupIncompleteJobToken = request.jobToken();
             stationCleanupIncompleteReason = "an earlier command's exact table drop is retained; remaining stations were deferred";
             return false;
         }
         deferredStationCleanup.removeIf(record -> !selectedPreviousCommandTable(request, record));
-        if (records.isEmpty()) { cleanedJobToken = request.jobToken(); return false; }
+        if (records.isEmpty()) { cleanedJobToken = request.jobToken(); cleanedAcquisitionScope = acquisitionScope; return false; }
         if (stationCleanupIncompleteJobToken != request.jobToken()) {
             stationCleanupIncompleteJobToken = -1;
             stationCleanupIncompleteReason = null;
         }
         resetAction();
+        if (cleanupReturnBarrier()) return true;
         pendingPlan = null;
         if (cleanupBudget == null || cleanupBudget.jobToken() != request.jobToken()
                 || !cleanupBudget.session().equals(session.get()))
             cleanupBudget = new CleanupBudget(request.jobToken(), session.get(), System.nanoTime());
-        cleanupRun = new CleanupRun(CleanupPurpose.FINISH_JOB, request, session.get(), records, cleanupBudget.startedNanos());
+        cleanupRun = new CleanupRun(CleanupPurpose.FINISH_JOB, acquisitionScope, request, session.get(), records, cleanupBudget.startedNanos());
         status = "returning confirmed owned stations after the whole job";
         message("Inventory goals reached; checking " + records.size() + " confirmed owned stations for recovery");
         return true;
@@ -3296,7 +4132,7 @@ final class AutomationEngine {
 
     private boolean mayRecoverOwnedStation(BlockPos position) {
         CleanupRun cleanup = cleanupRun;
-        if (cleanup == null || cleanup.current == null || active != cleanup.request
+        if (cleanup == null || cleanup.current == null || acquisitionScope != cleanup.acquisition || active != cleanup.acquisition.parent()
                 || !position.equals(stationPosition(cleanup.current))
                 || !placementProvenance.session().filter(cleanup.session::equals).isPresent()
                 || !(placementProvenance.records().contains(cleanup.current)
@@ -3318,8 +4154,51 @@ final class AutomationEngine {
         return protection.mayBreak(position);
     }
 
+    private boolean cleanupReturnBarrier() {
+        return stationRecovery.returnPending();
+    }
+    private boolean cleanupRestorationCurrent(CleanupRun cleanup) {
+        return cleanup != null && !cleanup.restorationRevoked && active == cleanup.acquisition.parent()
+                && acquisitionScope == cleanup.acquisition && contextBound(active.context())
+                && !airRecovery.active() && !airRecovery.ready() && !manualStationInput()
+                && stationPlacementHand == null;
+    }
+    private void revokeCleanupRestoration() {
+        if (cleanupRun != null) cleanupRun.restorationRevoked = true;
+        stationRecovery.revokeRestoration();
+    }
+    private boolean tickCleanupReturnObserver() {
+        if (cleanupRun == null || !stationRecovery.observingReturn() || !cleanupReturnBarrier()) return false;
+        if (airRecovery.active() || airRecovery.ready()) {
+            revokeCleanupRestoration();
+            if (!paused && recoverAirIfNeeded()) return true;
+        }
+        tickStationCleanup();
+        return true;
+    }
+    private void settleRecoveredStation(CleanupRun cleanup) {
+        var recovered = cleanup.current;
+        placementProvenance.recovered(recovered);
+        completedStandaloneTables.remove(recovered);
+        if (recovered.equals(pendingStationPickup)) pendingStationPickup = null;
+        org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                "[Lodekeeper] OWNED_STATION_RECOVERED job={} producerJob={} consumerJob={} position={}",
+                cleanup.request.jobToken(), recovered.jobToken(), cleanup.request.jobToken(), stationPosition(recovered));
+        knownStations.values().removeIf(stationPosition(recovered)::equals);
+        stationRecovery.stop();
+        if (cleanupReturnBarrier()) { status = stationRecovery.status(); return; }
+        cleanup.current = null;
+        terrain.changed();
+        observeInventory();
+    }
+
     private void stopStationCleanup() {
         stationRecovery.stop();
+        if (cleanupReturnBarrier()) {
+            if (cleanupRun != null && cleanupRun.current != null) pendingStationPickup = cleanupRun.current;
+            status = "retaining the original owned station RETURN actor and cleanup budget";
+            return;
+        }
         if (stationRecovery.pickupRetained() && cleanupRun != null && cleanupRun.current != null)
             pendingStationPickup = cleanupRun.current;
         else if (cleanupRun != null && cleanupRun.current != null
@@ -3345,9 +4224,28 @@ final class AutomationEngine {
     private void tickStationCleanup() {
         CleanupRun cleanup = cleanupRun;
         if (cleanup == null) return;
-        if (active != cleanup.request || !placementProvenance.session().filter(cleanup.session::equals).isPresent()) {
+        if (acquisitionScope != cleanup.acquisition || active != cleanup.acquisition.parent() || !placementProvenance.session().filter(cleanup.session::equals).isPresent()) {
             pause("Owned station cleanup lost its job or native session; remaining stations were left in place");
             return;
+        }
+        if (cleanup.current != null && stationRecovery.observingReturn() && cleanupReturnBarrier()) {
+            boolean rights = cleanupRestorationCurrent(cleanup);
+            boolean pickup = rights && !paused && newEffectCurrent(active) && config.recoverPlacedStations;
+            if (stationRecovery.tickRetainedReturn(rights, pickup)) {
+                settleRecoveredStation(cleanup);
+            } else if (!cleanupReturnBarrier()) {
+                skipCleanupStation(cleanup, stationRecovery.status());
+            } else status = stationRecovery.status();
+            if (!cleanupReturnBarrier() && stopAfterStep) stopNow(true);
+            return;
+        }
+        if (cleanup.restorationRevoked || !newEffectCurrent(active)) {
+            stationRecovery.stop();
+            if (cleanupReturnBarrier()) { status = stationRecovery.status(); return; }
+            cleanup.incomplete = true;
+            cleanup.incompleteReason = cleanup.restorationRevoked ? "restoration rights revoked; remaining stations were left in place"
+                    : "job authority ended; no fresh station recovery admitted";
+            completeStationCleanup(cleanup); return;
         }
         if (!config.recoverPlacedStations) {
             message("Owned station recovery was disabled; remaining stations were left in place");
@@ -3372,18 +4270,7 @@ final class AutomationEngine {
             status = stationCleanupStatus(cleanup);
             try {
                 if (stationRecovery.tick()) {
-                    var recovered = cleanup.current;
-                    placementProvenance.recovered(recovered);
-                    completedStandaloneTables.remove(recovered);
-                    if (recovered.equals(pendingStationPickup)) pendingStationPickup = null;
-                    org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
-                            "[Lodekeeper] OWNED_STATION_RECOVERED job={} producerJob={} consumerJob={} position={}",
-                            cleanup.request.jobToken(), recovered.jobToken(), cleanup.request.jobToken(), stationPosition(recovered));
-                    knownStations.values().removeIf(stationPosition(recovered)::equals);
-                    stationRecovery.stop();
-                    cleanup.current = null;
-                    terrain.changed();
-                    observeInventory();
+                    settleRecoveredStation(cleanup);
                 }
             } catch (MovementController.NavigationFailure failure) {
                 if (failure.kind == MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) {
@@ -3429,6 +4316,11 @@ final class AutomationEngine {
     }
 
     private void skipCleanupStation(CleanupRun cleanup, String reason) {
+        if (cleanupReturnBarrier()) {
+            pendingStationPickup = cleanup.current;
+            status = stationRecovery.status();
+            return;
+        }
         cleanup.incomplete = true;
         cleanup.incompleteReason = reason.length() > 180 ? reason.substring(0, 180) : reason;
         if (stationRecovery.pickupRetained()) pendingStationPickup = cleanup.current;
@@ -3447,30 +4339,40 @@ final class AutomationEngine {
             return;
         }
         stationRecovery.stop();
+        if (cleanupReturnBarrier()) { status = stationRecovery.status(); return; }
         cleanup.current = null;
     }
 
     private void completeStationCleanup(CleanupRun cleanup) {
+        stationRecovery.stop();
+        if (cleanupReturnBarrier()) { status = stationRecovery.status(); return; }
+        if (stopAfterStep) { stopNow(true); return; }
         if (cleanup.purpose == CleanupPurpose.CARRY_TABLE || cleanup.purpose == CleanupPurpose.PREVIOUS_COMMAND_TABLE) {
             stopStationCleanup();
+            if (cleanupReturnBarrier()) return;
             observeInventory();
-            requestPlan();
+            continueActiveRequest();
             return;
         }
-        cleanedJobToken = cleanup.request.jobToken();
+        cleanedJobToken = cleanup.request.jobToken(); cleanedAcquisitionScope = cleanup.acquisition;
         if (cleanup.incomplete) {
             stationCleanupIncompleteJobToken = cleanup.request.jobToken();
             stationCleanupIncompleteReason = cleanup.incompleteReason;
         }
         stopStationCleanup();
+        if (cleanupReturnBarrier()) return;
         observeInventory();
         finishGoal();
     }
 
     private void finishGoal() {
+        if (cleanupRun != null || cleanupReturnBarrier()) return;
+        if (stopAfterStep) { stopNow(true); return; }
         if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
-        Request finished = active;
+        AcquireRequest finished = acquisitionView();
         if (finished == null) return;
+        if (cancelledRequest == active) { tickCancelledRequest(); return; }
+        if (acquisitionScope.parent() != finished) { finishAcquisitionPhase(acquisitionScope); return; }
         if (config.autoEquipArmor && !paused && !transactionInProgress() && !openingStation) {
             if (moving || exploring || hasOwnedStationMenuOpen()) resetAction();
             if (!movement.finishCancellation()) { status = "finishing movement before equipping completed gear"; return; }
@@ -3486,9 +4388,10 @@ final class AutomationEngine {
                         && CRAFTING_TABLE_ITEM.equals(record.expectedBlockId())
                         && CRAFTING_TABLE_ITEM.equals(record.stationItemId())) completedStandaloneTables.add(record);
         }
-        active = null;
-        pendingPlan = null;
         resetAction();
+        if (cleanupReturnBarrier()) return;
+        active = null; acquisitionScope = null;
+        pendingPlan = null;
         status = "idle";
         String cleanupWarning = stationCleanupWarning(finished);
         if (finished.maintained()) {
@@ -3507,7 +4410,7 @@ final class AutomationEngine {
         }
     }
 
-    private String stationCleanupWarning(Request request) {
+    private String stationCleanupWarning(AcquireRequest request) {
         if (stationCleanupIncompleteJobToken != request.jobToken()) return "";
         return "; owned station cleanup incomplete: " + stationCleanupIncompleteReason
                 + ". Retry owned station cleanup in a later job within this server session";
@@ -3537,7 +4440,7 @@ final class AutomationEngine {
         run.pending.clear();
         for (Map.Entry<ItemId, Integer> goal : missing) {
             run.pending.add(goal.getKey());
-            queue.addLast(request("project " + run.spec.name() + " · " + goal.getKey(), goal.getKey(),
+            appendRequest(request("project " + run.spec.name() + " · " + goal.getKey(), goal.getKey(),
                     goal.getValue(), false, null, run));
         }
         message("Rechecking project " + run.spec.name() + " after inventory changed (pass "
@@ -3549,7 +4452,7 @@ final class AutomationEngine {
         run.aborted = true;
         run.pending.clear();
         projects.remove(run);
-        queue.removeIf(request -> request.project() == run);
+        queue.removeIf(request -> request instanceof AcquireRequest acquire && acquire.project() == run);
     }
 
     private String sourceDiagnostic() {
@@ -3559,7 +4462,12 @@ final class AutomationEngine {
     }
 
     private void failActive(String reason) {
-        Request failed = active;
+        if (cleanupRun != null || cleanupReturnBarrier()) { pause(reason); return; }
+        if (active instanceof TravelRequest && acquisitionScope == null) {
+            if (travelAction != null) travelAction.requestDrain(NativeRun.DrainReason.FAILURE);
+            pause(reason); return;
+        }
+        AcquireRequest failed = acquisitionView();
         if (reason.startsWith("Cannot place required station ")) {
             pause(reason + ". The current goal and remaining project are preserved");
             return;
@@ -3577,7 +4485,8 @@ final class AutomationEngine {
             pendingPlan = null;
             boolean keepOwnedMenu = hasOwnedStationMenuOpen();
             resetAction(!keepOwnedMenu);
-            active = null;
+            if (cleanupReturnBarrier()) { pause(reason); return; }
+            active = null; acquisitionScope = null;
             retireMovementProgressScopes();
             observeInventory();
             scheduleMaintenanceRequests(maintained.fail(failed.maintenanceTaskId(), observedInventory));
@@ -3588,11 +4497,12 @@ final class AutomationEngine {
             return;
         }
         if (failed != null && failed.project() != null) {
-            abortProject(failed.project());
-            active = null;
             if (pendingPlan != null) pendingPlan.cancel(false);
             pendingPlan = null;
             resetAction(!hasOwnedStationMenuOpen());
+            if (cleanupReturnBarrier()) { pause(reason); return; }
+            abortProject(failed.project());
+            active = null; acquisitionScope = null;
             pause("Project " + failed.project().spec.name() + " blocked: " + reason + sourceDiagnostic());
             return;
         }
@@ -3615,12 +4525,12 @@ final class AutomationEngine {
         OwnedStationLedger.Session session = placementProvenance.session().orElse(null);
         boolean retired = false;
         if (parentMovementScope != null
-                && !parentMovementScope.matches(active, client.level, client.player, session)) {
+                && !parentMovementScope.matches(acquisitionScope, client.level, client.player, session)) {
             parentMovementScope = null;
             retired = true;
         }
         if (auxiliaryMovementScope != null
-                && !auxiliaryMovementScope.matches(active, client.level, client.player, session)) {
+                && !auxiliaryMovementScope.matches(acquisitionScope, client.level, client.player, session)) {
             auxiliaryMovementScope = null;
             retired = true;
         }
@@ -3651,12 +4561,12 @@ final class AutomationEngine {
         List<ItemId> logs = catalog.tags.getOrDefault(LOGS_TAG, List.of());
         // Prerequisite logs retain their unfinished ingredient scope across species choices.
         if (next.kind() == PlanKind.GATHER && logs.contains(output)
-                && (active.anyLogs || !logs.contains(active.item))) output = null;
+                && (acquisitionView().anyLogs || !logs.contains(acquisitionView().item))) output = null;
         MovementDemand demand = new MovementDemand(next.kind(), output,
                 next.kind() == PlanKind.PLACE_STATION ? next.station() : null, next.customType());
         MovementProgressScope scope = auxiliary ? auxiliaryMovementScope : parentMovementScope;
         if (scope == null || scope.demand != null && !scope.demand.equals(demand))
-            scope = new MovementProgressScope(active, client.level, client.player, session, demand);
+            scope = new MovementProgressScope(acquisitionScope, client.level, client.player, session, demand);
         else scope.demand = demand;
         if (auxiliary) auxiliaryMovementScope = scope;
         else {
@@ -3670,16 +4580,17 @@ final class AutomationEngine {
         OwnedStationLedger.Session session = validateMovementProgressScopes();
         if (active == null || session == null) { useMovementProgress(null); return; }
         if (parentMovementScope == null)
-            parentMovementScope = new MovementProgressScope(active, client.level, client.player, session, null);
+            parentMovementScope = new MovementProgressScope(acquisitionScope, client.level, client.player, session, null);
         auxiliaryMovementScope = null;
         useMovementProgress(parentMovementScope);
     }
 
     private void begin(PlanStep next, boolean auxiliaryInvestment, long plannedPreferencesVersion,
                        ShieldPlanningIdentity shieldIdentity) {
+        if (!planIdentityCurrent(pendingPlanIdentity)) { continueActiveRequest(); return; }
         if (shieldIdentity != null && !shieldIdentityCurrent(shieldIdentity)) {
             deferShieldPreparation = true;
-            requestPlan();
+            continueActiveRequest();
             return;
         }
         if (next.kind() == PlanKind.SMELT && AnimalHarvestAction.ordinaryCommodity(next.output())) {
@@ -3691,8 +4602,10 @@ final class AutomationEngine {
         }
         MiningContinuation continuation = miningContinuation;
         resetAction();
+        if (cleanupReturnBarrier()) return;
+        stepPlanIdentity = pendingPlanIdentity;
         if (next.kind() == PlanKind.GATHER && continuation != null
-                && continuation.matches(client.level, client.level.dimension(), active, next.sourceId()))
+                && continuation.matches(client.level, client.level.dimension(), acquisitionScope, next.sourceId()))
             miningContinuation = continuation;
         prepareStationAttempts(next);
         stationDiscoveryDone = false;
@@ -3747,7 +4660,7 @@ final class AutomationEngine {
     }
     private void explore() {
         if (!config.allowExploration) throw new IllegalStateException("Exploration was disabled");
-        if (!animalAcquisition.active() && goalCount() >= active.count) { finishGoal(); return; }
+        if (!animalAcquisition.active() && goalCount() >= acquisitionView().count) { finishGoal(); return; }
         movement.observeConfirmedProgress();
         long movementProgress = movement.progressToken();
         if (movementProgress != lastMovementProgressToken) {
@@ -3768,7 +4681,7 @@ final class AutomationEngine {
                             || feetY16 == GameTerrain.INVALID_FEET_Y16 || feetY16 != waypoint.feetY16()) {
                         throw new MovementController.NavigationFailure("Exploration segment stopped before its waypoint");
                     }
-                    movement.stop(); unavailableSources.clear(); resetLogDiscovery(); resetAction(); planningRetries = 0; requestPlan();
+                    movement.stop(); unavailableSources.clear(); resetLogDiscovery(); resetAction(); planningRetries = 0; continueActiveRequest();
                 }
             } catch (MovementController.NavigationFailure blocked) { retryExploration(); }
             return;
@@ -3860,9 +4773,9 @@ final class AutomationEngine {
         var eye = client.player.getEyePosition();
         Set<BlockPos> rejected = Set.copyOf(rejectedResources);
         LocalReachScan localReachScan = localReachScan(purpose);
-        if (localReachScan == null || !localReachScan.matches(client.level, client.level.dimension(), active,
+        if (localReachScan == null || !localReachScan.matches(client.level, client.level.dimension(), acquisitionScope,
                 catalog.generation(), blocks, sourceIds, rejected, origin)) {
-            localReachScan = new LocalReachScan(client.level, client.level.dimension(), active, catalog.generation(),
+            localReachScan = new LocalReachScan(client.level, client.level.dimension(), acquisitionScope, catalog.generation(),
                     blocks, sourceIds, rejected, origin, eye.x, eye.y, eye.z);
             localReachScan(purpose, localReachScan);
         }
@@ -3910,7 +4823,7 @@ final class AutomationEngine {
         if (hint == null) return null;
         Set<BlockPos> rejected = Set.copyOf(rejectedResources);
         if (client.level == null || client.player == null || catalog == null || hint.world() != client.level
-                || !java.util.Objects.equals(hint.dimension(), client.level.dimension()) || hint.request() != active
+                || !java.util.Objects.equals(hint.dimension(), client.level.dimension()) || hint.acquisition() != acquisitionScope
                 || hint.generation() != catalog.generation() || !hint.rejected().equals(rejected)
                 || !hint.origin().equals(client.player.blockPosition())) {
             localReachHint = null;
@@ -3933,6 +4846,7 @@ final class AutomationEngine {
         nearbyResources.observeDiscoveredSource(sourceId, position, block);
     }
     private void gather() {
+        if (!inventoryAdmissionSafe()) { input.release(); return; }
         if (beginPreviousCommandTable(step)) return;
         if (!config.allowBreaking) throw new IllegalStateException("Gathering requires allowBreaking=true");
         Set<Block> blocks = new LinkedHashSet<>();
@@ -3942,11 +4856,11 @@ final class AutomationEngine {
         });
         SelectedToolRequirement tool = step.requirements().stream().filter(SelectedToolRequirement.class::isInstance)
                 .map(SelectedToolRequirement.class::cast).findFirst().orElse(null);
-        if (tool != null && !actions.hasTool(tool)) { resetAction(); requestPlan(); return; }
+        if (tool != null && !actions.hasTool(tool)) { resetAction(); continueActiveRequest(); return; }
         refreshNavigationProtection();
         Set<BlockPos> priorRejectedPositions = Set.of();
         if (miningContinuation != null) {
-            if (miningContinuation.matches(client.level, client.level.dimension(), active, step.sourceId()))
+            if (miningContinuation.matches(client.level, client.level.dimension(), acquisitionScope, step.sourceId()))
                 priorRejectedPositions = miningContinuation.rejectedPositions();
             else miningContinuation = null;
         }
@@ -3960,9 +4874,9 @@ final class AutomationEngine {
 
     private void refreshNavigationProtection() {
         Set<net.minecraft.world.item.Item> reserved = new HashSet<>();
-        protectedCounts(captureInventoryCounts(), active == null ? null : active.item).keySet()
+        protectedCounts(captureInventoryCounts(), acquisitionView() == null ? null : acquisitionView().item).keySet()
                 .forEach(item -> reserved.add(GameCatalog.item(item)));
-        if (active != null) reserved.add(GameCatalog.item(active.item));
+        if (acquisitionView() != null) reserved.add(GameCatalog.item(acquisitionView().item));
         if (step != null) {
             if (step.output() != null) reserved.add(GameCatalog.item(step.output()));
             for (SelectedRequirement requirement : step.requirements()) {
@@ -3984,7 +4898,7 @@ final class AutomationEngine {
         if (step != null && Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))
                 && (!shieldStepCurrent() || !config.autoDefend || !config.autoUseShield || !config.autoCraftShield)
                 && (stationPlacementWait == null || !stationPlacementWait.sent())) {
-            resetAction(); requestPlan(); return;
+            resetAction(); continueActiveRequest(); return;
         }
         if (client.player == null || client.level == null || active == null || step == null
                 || step.kind() != PlanKind.PLACE_STATION || step.station() == null) {
@@ -3995,7 +4909,7 @@ final class AutomationEngine {
         Block block = GameCatalog.block(BlockId.parse(step.station().toString()));
         if (stationPlacementWait != null) {
             StationPlacementWait waiting = stationPlacementWait;
-            if (active != waiting.request() || block != waiting.block() || step == null || step.kind() != PlanKind.PLACE_STATION
+            if (active != waiting.request() || waiting.acquisition() != acquisitionScope || block != waiting.block() || step == null || step.kind() != PlanKind.PLACE_STATION
                     || !placementProvenance.session().filter(waiting.session()::equals).isPresent()) {
                 pause("Station placement context changed; ownership was not assumed");
                 return;
@@ -4068,7 +4982,7 @@ final class AutomationEngine {
         if (target == null) target = findStationCandidate(true);
         if (target == null) target = findStationCandidate(false);
         if (target == null) {
-            BlockPos preparation = config.allowBreaking ? findStationPreparation() : null;
+            BlockPos preparation = config.allowBreaking && !isTravelFoodPreparation(step) ? findStationPreparation() : null;
             if (preparation != null) {
                 if (stationRoom.begin(preparation)) status = stationRoom.status();
                 else rejectStationSite(preparation);
@@ -4100,7 +5014,7 @@ final class AutomationEngine {
                 || step == null || catalog == null) return null;
         var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
         if (owner == null) return null;
-        return new StationHandAdmission(active, step, client.player, client.level, client.getConnection(),
+        return new StationHandAdmission(acquisitionScope, stepPlanIdentity, active, step, client.player, client.level, client.getConnection(),
                 client.getConnection().getConnection(), client.player.containerMenu, client.player.input,
                 placementProvenance.session().orElse(null), catalog, catalog.generation(), owner, owner.captureSession(),
                 owner.policyGeneration());
@@ -4109,7 +5023,9 @@ final class AutomationEngine {
     private boolean admitStationHandEffect(StationHandAdmission captured, BlockPos position, Block block, boolean allowOwnedInput) {
         if (captured == null || !client.isSameThread() || client.player == null || !client.player.isAlive()
                 || client.level == null || client.level != world || client.gameMode == null
-                || active != captured.request() || step != captured.plannedStep() || step.kind() != PlanKind.PLACE_STATION
+                || active != captured.request() || !scopeCurrent(captured.acquisition())
+                || captured.planning() != stepPlanIdentity || !planIdentityCurrent(stepPlanIdentity)
+                || cancelledRequest == active || step != captured.plannedStep() || step.kind() != PlanKind.PLACE_STATION
                 || step.station() == null || !step.station().toString().equals(BuiltInRegistries.BLOCK.getKey(block).toString())
                 || target == null || !target.equals(position) || paused || stopAfterStep || editingSettings()
                 || !config.allowBuilding || client.player.getHealth() <= config.pauseBelowHealth
@@ -4140,6 +5056,8 @@ final class AutomationEngine {
                 || Boolean.parseBoolean(step.attributes().getOrDefault("shieldPreparation", "false"))
                     && (!shieldStepCurrent() || !config.autoDefend || !config.autoUseShield || !config.autoCraftShield))
             return false;
+        if (isTravelFoodPreparation(captured.plannedStep()) && (stationPlacementHand == null || !stationPlacementHand.sent)
+                && !travelFoodPlacementCurrent(captured.acquisition(), captured.plannedStep(), block)) return false;
         movement.checkAirRecoveryOwnership();
         if (!movement.finishCancellation() || !stationHandNativeQuiescent(captured.nativeOwner())) return false;
         return hasLoadedChunk(position) && safeStationStructure(position) && actions.canPlaceAt(position)
@@ -4162,7 +5080,29 @@ final class AutomationEngine {
         return true;
     }
 
+    private boolean travelFoodPlacementCurrent(AcquisitionScope scope, PlanStep planned, Block block) {
+        if (!travelFoodDemandCurrent(scope) || !scopeCurrent(scope) || step != planned
+                || !planIdentityCurrent(stepPlanIdentity) || paused || stopAfterStep) return false;
+        Map<ItemId, Integer> reserved = new HashMap<>(shieldExecutionReservations());
+        Map<ItemId, Integer> needed = new HashMap<>();
+        planned.attributes().forEach((key, value) -> {
+            if (key.startsWith("travelFoodReserved:")) reserved.merge(ItemId.parse(key.substring(19)), Integer.parseInt(value), Math::max);
+            if (key.startsWith("travelFoodFuture:")) needed.merge(ItemId.parse(key.substring(17)), Integer.parseInt(value), Math::addExact);
+        });
+        needed.merge(GameCatalog.id(block.asItem()), 1, Math::addExact);
+        Map<ItemId, Integer> ordinary = ordinaryTravelFoodCounts();
+        for (var need : needed.entrySet())
+            if (ordinary.getOrDefault(need.getKey(), 0) - (long) reserved.getOrDefault(need.getKey(), 0) < need.getValue()) return false;
+        return true;
+    }
+
     private void sendStationPlacement(Block block) {
+        if (isTravelFoodPreparation(step) && !travelFoodPlacementCurrent(acquisitionScope, step, block)) {
+            travelFoodInvalidated = true;
+            cancelStationPlacement();
+            if (stationPlacementHand == null) finishAcquisitionPhase(travelFoodScope);
+            return;
+        }
         if (!admitStationHandEffect(captureStationHandAdmission(), target, block, stationPlacementHand == null)) {
             if (stationPlacementHand != null) cancelStationPlacement();
             status = "station placement admission yielded without a new effect"; return;
@@ -4172,7 +5112,7 @@ final class AutomationEngine {
                 deferShieldPreparation = true;
                 cancelStationPlacement();
                 resetAction();
-                requestPlan();
+                continueActiveRequest();
                 return;
             }
             ItemId table = GameCatalog.id(block.asItem());
@@ -4191,7 +5131,7 @@ final class AutomationEngine {
             if (ordinaryTables <= reserved.getOrDefault(table, 0)) {
                 cancelStationPlacement();
                 resetAction();
-                requestPlan();
+                continueActiveRequest();
                 return;
             }
         }
@@ -4219,7 +5159,7 @@ final class AutomationEngine {
             }
             case SENT, WAITING_FOR_PROVENANCE -> {
                 var session = placementProvenance.session().orElseThrow();
-                stationPlacementWait = new StationPlacementWait(active, target, block, session,
+                stationPlacementWait = new StationPlacementWait(acquisitionScope, active, target, block, session,
                         attempt == PlayerActions.PlacementAttempt.SENT, stationPlacementHand);
                 status = attempt == PlayerActions.PlacementAttempt.SENT
                         ? "waiting for confirmed station ownership"
@@ -4298,10 +5238,10 @@ final class AutomationEngine {
 
     private void prepareStationAttempts(PlanStep next) {
         if (next.kind() != PlanKind.PLACE_STATION) return;
-        if (stationPlacementOwner != active || !Objects.equals(stationPlacementStation, next.station())) {
+        if (stationPlacementOwner != acquisitionScope || !Objects.equals(stationPlacementStation, next.station())) {
             rejectedStationSites.clear();
             stationPlacementFailures = 0;
-            stationPlacementOwner = active;
+            stationPlacementOwner = acquisitionScope;
             stationPlacementStation = next.station();
         }
     }
@@ -4389,7 +5329,7 @@ final class AutomationEngine {
             if (!stationReady()) return;
             GameCatalog.RecipeWork recipe = catalog.recipes.get(step.sourceId());
             if (recipe == null) throw new IllegalStateException("Recipe is no longer visible to this client");
-            crafting = new CraftingAction(client, actions, recipe, step, this::shieldStepCurrent, this::shieldExecutionReservations,
+            crafting = new CraftingAction(client, actions, recipe, step, optionalPreparationAuthority(), this::shieldExecutionReservations,
                     () -> config.autoDefend && config.autoUseShield && config.autoCraftShield,
                     Set.copyOf(catalog.tags.getOrDefault(PLANKS_TAG, List.of())),
                     () -> config.shieldIronReserve, () -> config.shieldPlankReserve);
@@ -4406,29 +5346,32 @@ final class AutomationEngine {
             if (isFoodPreparation(step) && (!config.autoEat
                     || step.outputCount() > gatherCapacity(step.output()))) {
                 resetAction();
-                requestPlan();
+                continueActiveRequest();
                 return;
             }
-            smelting = new SmeltingAction(client, actions, recipe, step);
+            smelting = new SmeltingAction(client, actions, recipe, step, optionalPreparationAuthority(), this::shieldExecutionReservations);
         }
         if (shouldDrainActiveTransaction()) smelting.requestDrain();
         if (smelting.tick()) completeStep();
     }
 
     private void completeStep() {
-        if (stepAuxiliaryInvestment) auxiliaryMovementScope = null;
-        else parentMovementScope = null;
-        useMovementProgress(null);
+        boolean auxiliaryCompleted = stepAuxiliaryInvestment;
         if (stopAfterStep) { stopNow(true); return; }
+        if (cancelledRequest == active && active != null) { resetAction(); tickCancelledRequest(); return; }
         boolean prepareCombatWeapon = step != null && step.kind() == PlanKind.CRAFT
                 && step.output().equals(STONE_SWORD)
                 && Boolean.parseBoolean(step.attributes().getOrDefault("combatPreparation", "false"));
         resetAction();
+        if (cleanupReturnBarrier()) return;
+        if (auxiliaryCompleted) auxiliaryMovementScope = null;
+        else parentMovementScope = null;
+        useMovementProgress(null);
         planningRetries = 0;
         if (prepareCombatWeapon && config.autoDefend && !paused && movement.finishCancellation())
             actions.select(GameCatalog.item(STONE_SWORD));
         if (applyDeferredUnmaintain()) return;
-        if (foregroundYieldPending && active != null && active.maintained()) {
+        if (foregroundYieldPending && active != null && activeMaintained()) {
             if (canYieldMaintenanceNow()) yieldActiveMaintenance();
             else {
                 status = "foreground queued; waiting for inventory screen and cursor to be safe";
@@ -4436,14 +5379,16 @@ final class AutomationEngine {
             }
             return;
         }
-        requestPlan();
+        continueActiveRequest();
     }
 
     private boolean applyDeferredUnmaintain() {
-        if (active == null || !active.maintained() || !unmaintainAfterStep.remove(active.item())) return false;
-        ItemId item = active.item();
+        if (active == null || !activeMaintained() || !unmaintainAfterStep.contains(acquisitionView().item())) return false;
+        if (cleanupRun != null || cleanupReturnBarrier()) { cancelledRequest = active; return true; }
+        ItemId item = acquisitionView().item();
+        unmaintainAfterStep.remove(item);
         Integer replacementTarget = maintainAfterStep.remove(item);
-        active = null;
+        active = null; acquisitionScope = null;
         retireMovementProgressScopes();
         pendingPlan = null;
         cancelMaintenanceTasks(maintained.unmaintain(item));
@@ -4484,6 +5429,7 @@ final class AutomationEngine {
     private void resetAction() { resetAction(true); }
 
     private void resetAction(boolean closeOwnedMenu) {
+        if (cleanupReturnBarrier()) { stopStationCleanup(); return; }
         if (stationPlacementHand != null && !stationPlacementHand.settled) { cancelStationPlacement(); return; }
         if (animalAcquisition.active()) { animalAcquisition.requestDrain(NativeRun.DrainReason.REPLAN); return; }
         dropStationStockHint();
@@ -4493,6 +5439,7 @@ final class AutomationEngine {
         miningContinuation = null;
         stationRoom.stop();
         stopStationCleanup();
+        if (cleanupReturnBarrier()) return;
         try { animalAcquisition.stop(); }
         catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
@@ -4523,6 +5470,8 @@ final class AutomationEngine {
     }
 
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
+        revokeCleanupRestoration();
+        if (travelAction != null && nativeRun == travelAction) travelAction.pause();
         if (stationPlacementHand != null) {
             stationPlacementHand.loseRights();
             actions.captureStationHandRightsLoss(stationPlacementHand, "AutomationEngine.pauseAfterOwnershipLoss", "navigation_ownership_lost");
@@ -4546,6 +5495,7 @@ final class AutomationEngine {
 
     void pause(String reason) {
         logStationHandRightsLoss(stationPlacementHand);
+        if (travelAction != null && nativeRun == travelAction) travelAction.pause();
         dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
@@ -4574,15 +5524,20 @@ final class AutomationEngine {
     }
 
     void resume() {
+        if (travelAction != null) travelAction.resume();
         animalQuotaTickNanos = System.nanoTime();
         paused = false;
         actionTicks = 0;
         lastMovementProgressToken = movement.progressToken();
-        if (active != null && !exploring && pendingPlan == null && step == null) requestPlan();
+        if (active != null && !exploring && pendingPlan == null && step == null) continueActiveRequest();
         message(stopAfterStep ? "Resuming the safe drain before stopping" : "Resumed");
     }
 
     void stop() {
+        if (travelAction != null && nativeRun == travelAction) {
+            stopAfterStep = true; paused = false; travelAction.requestDrain(NativeRun.DrainReason.STOP);
+            status = "stopping after travel cancellation and settings release"; return;
+        }
         cancelStationPlacement();
         if (stationPlacementHand != null) {
             stopAfterStep = true; paused = false; airRecovery.stop();
@@ -4606,6 +5561,15 @@ final class AutomationEngine {
     }
 
     private void stopNow(boolean announce) {
+        if (cleanupReturnBarrier()) {
+            stopAfterStep = true; paused = false;
+            stopStationCleanup();
+            status = "stopping after retained owned station RETURN settlement";
+            return;
+        }
+        if (travelAction != null && nativeRun == travelAction && !travelAction.safeToRelease()) {
+            stopAfterStep = true; paused = false; travelAction.requestDrain(NativeRun.DrainReason.STOP); return;
+        }
         if (stationPlacementHand != null && !stationPlacementHand.settled) {
             cancelStationPlacement(); stopAfterStep = true; paused = false; airRecovery.stop(); return;
         }
@@ -4613,10 +5577,17 @@ final class AutomationEngine {
             stopAfterStep = true; paused = false; airRecovery.stop();
             animalAcquisition.requestDrain(NativeRun.DrainReason.STOP); return;
         }
+        stopAfterStep = true; paused = false;
+        stopStationCleanup();
+        if (cleanupReturnBarrier()) {
+            status = "stopping after retained owned station RETURN settlement";
+            return;
+        }
+        resetAction();
+        if (cleanupReturnBarrier() || stationPlacementHand != null || animalAcquisition.active()) return;
         retireMovementProgressScopes();
         cleanupBudget = null;
         cancelStationPlacement();
-        stopStationCleanup();
         airRecovery.stop();
         stationPlacementOwner = null; stationPlacementStation = null;
         rejectedStationSites.clear(); stationPlacementFailures = 0;
@@ -4633,8 +5604,12 @@ final class AutomationEngine {
         maintained.unmaintainAll();
         maintenanceQueue.clear();
         for (ProjectRun run : new ArrayList<>(projects)) abortProject(run);
-        resetAction();
-        active = null;
+        active = null; acquisitionScope = null; cancelledRequest = null;
+        nativeRun = null; nativeRunParent = null; nativeRunScope = null;
+        travelAction = null; travelActionParent = null; travelShieldPreflightParent = null; travelFoodPreflightParent = null;
+        travelShieldScope = null; travelFoodScope = null; travelFoodOffer = null; travelFoodPreparation = null;
+        travelFoodDemand = null; travelFoodInvalidated = false;
+        pendingPlanIdentity = stepPlanIdentity = null;
         queue.clear();
         paused = false;
         foregroundYieldPending = false;
@@ -4661,7 +5636,12 @@ final class AutomationEngine {
     }
     boolean visualizationPaused() { return paused || editingSettings() || config.pauseOnScreen && GameApi.screen(client) != null
                 && crafting == null && stonecutting == null && smelting == null && !openingStation && cleanupRun == null; }
-    String visualizationGoal() { return active == null ? "Idle" : (active.project() == null ? active.name : active.project().spec.name() + " · " + active.item().path()) + " · " + goalCount() + "/" + active.count; }
+    String visualizationGoal() {
+        if (active == null) return "Idle";
+        if (acquisitionView() == null) return active.name() + " · job " + active.jobToken();
+        return (activeProject() == null ? active.name() : activeProject().spec.name() + " · " + acquisitionView().item().path())
+                + " · " + goalCount() + "/" + acquisitionView().count();
+    }
     String visualizationDetail() { return visualizationPaused() && !paused ? "Waiting for the screen to close" : status; }
     BlockPos visualizationTarget() { return visualizationActive() && !visualizationPaused() ? diagnosticTarget() : null; }
     dev.lodekeeper.nav.NavigationSnapshot visualizationNavigation(boolean includeNodes) {
@@ -4697,10 +5677,15 @@ final class AutomationEngine {
     String placementInventoryReadiness() { return placementProvenance.inventoryReadiness(); }
     AnimalHarvestAction.Observation nativeAnimalObservation() { return animalAcquisition.observation(); }
 
+    record TravelCompletionObservation(Object requestIdentity, NativeRun.TravelReceipt receipt,
+                                       long acceptedNanos, long deadlineNanos, long completedNanos) { }
+    private TravelCompletionObservation lastTravelCompletion;
+    TravelCompletionObservation diagnosticTravelCompletion() { return lastTravelCompletion; }
+
     Object diagnosticTaskIdentity() {
-        if (active != null) return active.project() == null ? active : active.project();
+        if (active != null) return activeProject() == null ? active : activeProject();
         Request next = queue.peekFirst();
-        return next == null || next.project() == null ? null : next.project();
+        return next instanceof AcquireRequest acquire && acquire.project() != null ? acquire.project() : next;
     }
     dev.lodekeeper.nav.NavigationSnapshot diagnosticNavigation() {
         return (moving || explorationMoving || animalAcquisition.active() || stationRecovery.active() || threats.active()) ? movement.visualization(false) : dev.lodekeeper.nav.NavigationSnapshot.EMPTY;
@@ -4721,12 +5706,20 @@ final class AutomationEngine {
     }
 
     String status() {
-        String waiting = foregroundYieldPending && active != null && active.maintained()
+        String waiting = foregroundYieldPending && active != null && activeMaintained()
                 ? " · foreground waiting for a safe station boundary" : "";
-        return (paused ? "paused · " : "") + status + waiting + " · " + queue.size() + " foreground queued · "
+        return (paused ? "paused · " : "") + status + waiting + (active == null ? "" : " · job " + active.jobToken()) + " · " + queue.size() + " foreground queued · "
                 + maintenanceQueue.size() + " maintenance queued";
     }
-    void showQueue() { message("Active: " + active + "; foreground: " + queue + "; maintenance: " + maintenanceQueue); }
+    private static String requestSummary(Request request) {
+        if (request == null) return "idle";
+        return "job " + request.jobToken() + " " + request.name()
+                + (request instanceof AcquireRequest acquire ? " · target " + acquire.count() + " " + acquire.item() : "");
+    }
+    void showQueue() {
+        message("Active: " + requestSummary(active) + "; foreground: " + queue.stream().map(AutomationEngine::requestSummary).toList()
+                + "; maintenance: " + maintenanceQueue.stream().map(AutomationEngine::requestSummary).toList());
+    }
     void message(String message) {
         if (client.player != null) client.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("[Lodekeeper] " + message));
     }

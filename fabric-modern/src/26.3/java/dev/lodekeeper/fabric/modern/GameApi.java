@@ -39,6 +39,67 @@ import java.util.stream.Collectors;
 final class GameApi {
     private GameApi() {}
 
+    static boolean supportsTravel() { return true; }
+    static java.util.UUID resolveTravelPlayer(net.minecraft.client.Minecraft client, String selector) {
+        var player = travelPlayerCensus(client, selector, null);
+        if (player == null) throw new IllegalArgumentException("Travel requires one unique live player and a complete bounded census");
+        return player.getUUID();
+    }
+    static net.minecraft.world.entity.Entity loadedTravelPlayer(net.minecraft.client.Minecraft client, java.util.UUID id) {
+        return id == null ? null : travelPlayerCensus(client, null, id);
+    }
+    private static net.minecraft.world.entity.Entity travelPlayerCensus(net.minecraft.client.Minecraft client, String selector, java.util.UUID pinned) {
+        if (!supportsTravel() || client.player == null || client.level == null || client.getConnection() == null) return null;
+        var world = client.level;
+        var local = client.player;
+        var network = client.getConnection();
+        var connection = network.getConnection();
+        var owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+        var session = owner == null ? null : owner.captureSession();
+        if (connection == null || !connection.isConnected() || owner == null || !owner.isCurrent(session)
+                || session.world() != world) return null;
+        long deadline = System.nanoTime() + 2_000_000L;
+        int entries = 0;
+        java.util.Set<java.util.UUID> profileIds = new java.util.HashSet<>();
+        java.util.Set<String> names = new java.util.HashSet<>();
+        java.util.Set<java.util.UUID> loadedIds = new java.util.HashSet<>();
+        java.util.UUID selected = pinned;
+        net.minecraft.world.entity.Entity found = null;
+        try {
+            for (var entry : network.getOnlinePlayers()) {
+                if (++entries > 128 || System.nanoTime() - deadline >= 0 || entry == null) return null;
+                var profile = entry.getProfile();
+                if (profile == null || profile.id() == null || profile.name() == null
+                        || !profileIds.add(profile.id()) || !names.add(profile.name())) return null;
+                if (selector != null && (selector.equals(profile.name()) || selector.equals(profile.id().toString()))) {
+                    if (selected != null) return null;
+                    selected = profile.id();
+                }
+            }
+            for (var player : world.players()) {
+                if (++entries > 128 || System.nanoTime() - deadline >= 0 || player == null
+                        || player.getUUID() == null || !loadedIds.add(player.getUUID())) return null;
+                if (selected != null && selected.equals(player.getUUID())) found = player;
+            }
+        } catch (RuntimeException incomplete) { return null; }
+        if (System.nanoTime() - deadline >= 0 || selected == null || !profileIds.contains(selected)
+                || found == null || found == local || selected.equals(local.getUUID()) || !found.isAlive() || found.isRemoved()
+                || found.level() != world || client.level != world || client.player != local
+                || client.getConnection() != network || network.getConnection() != connection || !connection.isConnected()
+                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner || !owner.isCurrent(session)) return null;
+        double distance = found.distanceToSqr(local);
+        return System.nanoTime() - deadline < 0 && Double.isFinite(distance) && distance <= 4096 ? found : null;
+    }
+    static boolean travelPose(net.minecraft.client.Minecraft client) {
+        return supportsTravel() && client.player != null && client.level != null && client.player.isAlive()
+                && !client.player.isPassenger() && !client.player.isSleeping() && !client.player.getAbilities().flying
+                && !client.player.isFallFlying() && !client.player.isInWater() && !client.player.onClimbable();
+    }
+    static boolean travelBounds(net.minecraft.client.Minecraft client, net.minecraft.core.BlockPos feet) {
+        return supportsTravel() && client.level != null && client.level.isInsideBuildHeight(feet) && client.level.getWorldBorder().isWithinBounds(feet);
+    }
+
+
     static boolean animalAttackWindow(net.minecraft.world.entity.LivingEntity animal) {
         return animal.damageCooldownTime <= 10 && animal.hurtTime <= 0;
     }
