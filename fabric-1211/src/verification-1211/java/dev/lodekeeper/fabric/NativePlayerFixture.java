@@ -74,6 +74,7 @@ final class NativePlayerFixture {
     private int lastTick = -1, moves;
     private long outboundPackets, discardedBytes;
     private String failure;
+    private Throwable failureCause;
     private boolean closed, hostOtherStockUnchanged = true, peerOtherStockUnchanged = true;
     private int initialCombinedBread, maxObservedCombinedBread;
     private boolean breadConservationViolated;
@@ -112,7 +113,7 @@ final class NativePlayerFixture {
                 created.pipeline().addLast("fixture-discard", new ChannelOutboundHandlerAdapter() {
                     @Override public void write(ChannelHandlerContext context, Object message, ChannelPromise promise) {
                         if (message instanceof ByteBuf bytes) discardedBytes += bytes.readableBytes();
-                        else failure = "unencoded fixture outbound value";
+                        else failure = "unencoded fixture outbound value: " + message.getClass().getName();
                         ReferenceCountUtil.release(message);
                         promise.trySuccess();
                     }
@@ -124,6 +125,9 @@ final class NativePlayerFixture {
                     }
                 });
                 ClientConnection.addLocalValidator(created.pipeline(), NetworkSide.SERVERBOUND);
+                // Direct PLAY enrollment needs the native transition consumer after configuration.
+                created.pipeline().replace("decoder", "inbound_config",
+                        new net.minecraft.network.handler.NetworkStateTransitions.InboundConfigurer());
                 created.pipeline().addLast("fixture-observer", new ChannelDuplexHandler() {
                     @Override public void write(ChannelHandlerContext context, Object message, ChannelPromise promise) throws Exception {
                         observePacket(message);
@@ -131,6 +135,7 @@ final class NativePlayerFixture {
                     }
                     @Override public void exceptionCaught(ChannelHandlerContext context, Throwable error) {
                         failure = "fixture transport failure: " + error.getClass().getSimpleName();
+                        failureCause = error;
                         context.fireExceptionCaught(error);
                     }
                 });
@@ -160,7 +165,7 @@ final class NativePlayerFixture {
             event("joined profile=" + id + " entity=" + entityId + " fullRecipient=" + fullRecipient);
             checkFailure();
         } catch (RuntimeException error) {
-            closeOwned();
+            closeAfterFailure(error);
             throw error;
         }
     }
@@ -272,7 +277,7 @@ final class NativePlayerFixture {
             result.put("events", List.copyOf(events).toString()); result.put("fixtureAuthority", "offline supplied ServerPlayer; no certified chat");
             latest = Map.copyOf(result);
             return latest;
-        } catch (RuntimeException error) { closeOwned(); throw error; }
+        } catch (RuntimeException error) { closeAfterFailure(error); throw error; }
     }
 
     static Map<String, String> tracking(Object handle, MinecraftClient client) {
@@ -313,7 +318,10 @@ final class NativePlayerFixture {
     private void ensureOpen() {
         if (!server.isOnThread() || Thread.currentThread() != ownerThread) throw new IllegalStateException("fixture server-thread violation");
         if (closed) throw new IllegalStateException("fixture peer is closed");
-        if (failure != null) { closeOwned(); throw new IllegalStateException(failure); }
+        if (failure != null) {
+            IllegalStateException error = new IllegalStateException(failure, failureCause);
+            closeAfterFailure(error); throw error;
+        }
         if (host.getServerWorld() != world || peer.getServerWorld() != world
                 || server.getPlayerManager().getPlayer(hostId) != host || server.getPlayerManager().getPlayer(id) != peer
                 || connection.getPacketListener() != peer.networkHandler) {
@@ -323,13 +331,17 @@ final class NativePlayerFixture {
             closeOwned(); throw new IllegalStateException("fixture peer lifetime expired");
         }
     }
-    private void checkFailure() { if (failure != null) throw new IllegalStateException(failure); }
+    private void checkFailure() { if (failure != null) throw new IllegalStateException(failure, failureCause); }
     private void event(String value) {
         if (events.size() >= EVENT_CAP) { failure = "fixture event limit"; return; }
         events.add(value);
     }
 
     static void close(Object handle) { if (handle != null) ((NativePlayerFixture) handle).closeOwned(); }
+    private void closeAfterFailure(RuntimeException error) {
+        try { closeOwned(); }
+        catch (RuntimeException cleanup) { if (cleanup != error) error.addSuppressed(cleanup); }
+    }
     private void closeOwned() {
         if (!server.isOnThread() || Thread.currentThread() != ownerThread) throw new IllegalStateException("fixture teardown requires server thread");
         if (closed) return;

@@ -1,0 +1,305 @@
+{
+  "recordedAtUtc": "2026-10-09T10:33:15.322758+00:00",
+  "sourceBaseline": "5108f5b873d55d9d77fc086a63ee34568f03aa2d",
+  "status": "COMPILED_NATIVE_PENDING",
+  "changedSourcePaths": {
+    "fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java": {
+      "baseline": "fddfffaef39fb2bf04f1dc27dd65727070e1261addeab56e9293ad87e731a53b",
+      "candidate": "e3c2d3f1b60f17570c38b0d426e87b6642f4315ee9764c23bfab668776116042"
+    },
+    "fabric-1212/build.gradle": {
+      "baseline": "78edc747068b1903878d64cae942ec2984c76b56febb0b188b8c122add0ccd95",
+      "candidate": "cd02bf2b461d5d7aa2f5665d9313b09e377a5f017c3fd6fa61e8cd5a2c52b9e7"
+    },
+    "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java": {
+      "baseline": "df5316cba5cb8b2754c1ade5a978a16ef781dbdc33c605a3792a486e5356588b",
+      "candidate": "0cbd32f473eabccf9c4778d0132c11b10845b2f18b9cb5e43f43de97126289d7"
+    },
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": {
+      "baseline": "88a69786ca6d9364f5a84049c6b950fd51beb61a1423a88c80996387a122f1d3",
+      "candidate": "bdb12a4e22cf96bd6dd9b03cef1ea4efbfe4aedb6e64abaf9ea2136175b7e1d8"
+    },
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": {
+      "baseline": "aa0cdd0aa47967a6217ded9a1dcc32fbe387a67c6e084cf73ebc15d9aed647cf",
+      "candidate": "667252c5efe94eaf1b76815539e5c52f489b82618e819be5b586b32df6081c4f"
+    }
+  },
+  "compiledSourcePaths": {
+    "core/src/main/java/dev/lodekeeper/core/CommandParser.java": {
+      "baseline": "755d85e8c90dcfb827609298d6d7af025ec245ecafc977cbdbad88e74051d4bf",
+      "source": "755d85e8c90dcfb827609298d6d7af025ec245ecafc977cbdbad88e74051d4bf"
+    },
+    "core/src/main/java/dev/lodekeeper/core/TravelGoal.java": {
+      "baseline": "b11cc034094f4ed6df97f04f432ac0d35703f8e0db4dc063b91e154146aa8cc6",
+      "source": "b11cc034094f4ed6df97f04f432ac0d35703f8e0db4dc063b91e154146aa8cc6"
+    },
+    "core/src/test/java/dev/lodekeeper/core/TravelCommandParserTest.java": {
+      "baseline": "1858232c69a2c1ad8cb1fb38f6b2dc7c291af48d0cad55810abb07f319415081",
+      "source": "1858232c69a2c1ad8cb1fb38f6b2dc7c291af48d0cad55810abb07f319415081"
+    },
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "baseline": "08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79",
+      "source": "08d00e191bea47324fe592e745f598e35124984e57037605267f8adf5264ec79"
+    },
+    "fabric-1211/build.gradle": {
+      "baseline": "96dbfa00dc8dda773fe02186ac1f0af41c9175782fb8c8775332de1ad8a76974",
+      "source": "96dbfa00dc8dda773fe02186ac1f0af41c9175782fb8c8775332de1ad8a76974"
+    },
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": {
+      "baseline": "407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c",
+      "source": "407706f2405b6dc1c9a2032f221949d95f5a115e8b2a7ab2050823c6707bb38c"
+    },
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "baseline": "e264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad",
+      "source": "e264c76de84d44fb573f92a4805871ec8ca6e80a1b372c338a114ad4c16b89ad"
+    },
+    "fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java": {
+      "baseline": "fddfffaef39fb2bf04f1dc27dd65727070e1261addeab56e9293ad87e731a53b",
+      "source": "e3c2d3f1b60f17570c38b0d426e87b6642f4315ee9764c23bfab668776116042"
+    },
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": {
+      "baseline": "fd37cb6ecadc014648451f6110f9bad8ee31982588cca1ff898cef553d46feb0",
+      "source": "fd37cb6ecadc014648451f6110f9bad8ee31982588cca1ff898cef553d46feb0"
+    },
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": {
+      "baseline": "37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765",
+      "source": "37c702ee6f1e89a45355b769cfb04e08e5358b68f97da7ce4b7c3c3c4a2a2765"
+    },
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "baseline": "4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe",
+      "source": "4619cc6ce0e42a9e20c6cab21c4ce7af1357658bb4d4be8499a11bccd3c6ecfe"
+    },
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "baseline": "c4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194",
+      "source": "c4075d10de1b209620144d13e0f8e14fc98af83c6b15d67739b6eebfdd857194"
+    },
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": {
+      "baseline": "99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349",
+      "source": "99c859ae12c06174f7a5751de8db38cddb78d498191097ceb474936b202b6349"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": {
+      "baseline": "81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572",
+      "source": "81f24aedd8e2eac0ecc95a56934df75998a7f0935257df72107bcc4dbbafa572"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CraftingAction.java": {
+      "baseline": "8aa041815f5c334a94b4bcf5f8cea7addddb296af09c70322f2224e2c992d84b",
+      "source": "8aa041815f5c334a94b4bcf5f8cea7addddb296af09c70322f2224e2c992d84b"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameTerrain.java": {
+      "baseline": "eaa9fc87aad465cbb5d75283475b27902cc2dc079b7f7af3aac391646927e831",
+      "source": "eaa9fc87aad465cbb5d75283475b27902cc2dc079b7f7af3aac391646927e831"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/LodekeeperClient.java": {
+      "baseline": "0fb89468550a13ffd0090de9a1b523756441e6e88b086801a113f0788db7e943",
+      "source": "0fb89468550a13ffd0090de9a1b523756441e6e88b086801a113f0788db7e943"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": {
+      "baseline": "7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6",
+      "source": "7dabccc04f57dda8ac3966e3605f145857c2028134b4cb6e47336bcaba09fbe6"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": {
+      "baseline": "9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4",
+      "source": "9635087b57306d3ed232d52794efebb4608e78635452a6690cdf4023f198d0e4"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/OwnedStationRecoveryAction.java": {
+      "baseline": "72f06cb2e57f88937172df47ab38a0f5578685492568331938b72964b1302d05",
+      "source": "72f06cb2e57f88937172df47ab38a0f5578685492568331938b72964b1302d05"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SlotTransfer.java": {
+      "baseline": "350d97a6b73e19ba1613dc80731150b607fd3b9466edfbd802cff1447af6c31a",
+      "source": "350d97a6b73e19ba1613dc80731150b607fd3b9466edfbd802cff1447af6c31a"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/SmeltingAction.java": {
+      "baseline": "55eb0c87557b9eebe76dfda14315cd656bf14cde50c5d98cadf3e98710c4fefb",
+      "source": "55eb0c87557b9eebe76dfda14315cd656bf14cde50c5d98cadf3e98710c4fefb"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/TravelAction.java": {
+      "baseline": "a9184c6150274d540dec815a30c28c8b361a5ecd373c97af6f8336a0f3453bec",
+      "source": "a9184c6150274d540dec815a30c28c8b361a5ecd373c97af6f8336a0f3453bec"
+    },
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WaypointStore.java": {
+      "baseline": "51263bd6c65e131034e2340c7bed1c2772eda6c302677e9828cb4cc85f4b3c15",
+      "source": "51263bd6c65e131034e2340c7bed1c2772eda6c302677e9828cb4cc85f4b3c15"
+    },
+    "fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java": {
+      "baseline": "df5316cba5cb8b2754c1ade5a978a16ef781dbdc33c605a3792a486e5356588b",
+      "source": "0cbd32f473eabccf9c4778d0132c11b10845b2f18b9cb5e43f43de97126289d7"
+    },
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": {
+      "baseline": "88a69786ca6d9364f5a84049c6b950fd51beb61a1423a88c80996387a122f1d3",
+      "source": "bdb12a4e22cf96bd6dd9b03cef1ea4efbfe4aedb6e64abaf9ea2136175b7e1d8"
+    },
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": {
+      "baseline": "f0f3bd30217a1083478486f6e06ab72a2a6d5a1d7ecb7e69d8114f884276d0e6",
+      "source": "f0f3bd30217a1083478486f6e06ab72a2a6d5a1d7ecb7e69d8114f884276d0e6"
+    },
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": {
+      "baseline": "614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a",
+      "source": "614daa806b3622caf7f3e6cba66b8365e0e0e2aef80016abded1951e22e8022a"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": {
+      "baseline": "b442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6",
+      "source": "b442d06df694c7f9f0ebfe7b9aac49a11946db7a93197ad92b709529932787d6"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/CraftingAction.java": {
+      "baseline": "259a4a8515731c38ce37eeddd1797e4f9857c67109d88c521c26ef735471d447",
+      "source": "259a4a8515731c38ce37eeddd1797e4f9857c67109d88c521c26ef735471d447"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameTerrain.java": {
+      "baseline": "2c1628c5e4c9299a76de061d46cf5e3186b609e2ee77e8aa5648c64cca1e94b8",
+      "source": "2c1628c5e4c9299a76de061d46cf5e3186b609e2ee77e8aa5648c64cca1e94b8"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/LodekeeperClient.java": {
+      "baseline": "8e6ddc6cb7e87c81857f0aa920913276db69d65e6117d6b573a4c7003f4e990e",
+      "source": "8e6ddc6cb7e87c81857f0aa920913276db69d65e6117d6b573a4c7003f4e990e"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": {
+      "baseline": "d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da",
+      "source": "d89c6c28dc663bbd6f2edb398aba985e406554ad1524676b7f91e1dbbbaa96da"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": {
+      "baseline": "c0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c",
+      "source": "c0e46bf1050716ae9adc6a6864a61f4144d4eb0ba2fea87fcddff34261a40b8c"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/OwnedStationRecoveryAction.java": {
+      "baseline": "c4c9a7c101076d2ea8288fa683baf237fb6d61d6de12477cb865ea8452b75cff",
+      "source": "c4c9a7c101076d2ea8288fa683baf237fb6d61d6de12477cb865ea8452b75cff"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/SlotTransfer.java": {
+      "baseline": "09218a95d8dbb8d0450b4652d4a4eed3f3ae4bf3327016d42c56a662add61673",
+      "source": "09218a95d8dbb8d0450b4652d4a4eed3f3ae4bf3327016d42c56a662add61673"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/SmeltingAction.java": {
+      "baseline": "5dc4b081d2f0b52643b8504a416bc2be8a9ac83bd27759e0a997005ffe22f975",
+      "source": "5dc4b081d2f0b52643b8504a416bc2be8a9ac83bd27759e0a997005ffe22f975"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/TravelAction.java": {
+      "baseline": "e931122f3ff98388bca4ad2643ea765aa382d2ff6e83d3787881fdb294121d85",
+      "source": "e931122f3ff98388bca4ad2643ea765aa382d2ff6e83d3787881fdb294121d85"
+    },
+    "fabric/src/main/java/dev/lodekeeper/fabric/WaypointStore.java": {
+      "baseline": "0ebd3a5cb92ead9ad98d9df218c5a4bab7173d27bf9b4f305c9b67c388c7693b",
+      "source": "0ebd3a5cb92ead9ad98d9df218c5a4bab7173d27bf9b4f305c9b67c388c7693b"
+    },
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": {
+      "baseline": "aa0cdd0aa47967a6217ded9a1dcc32fbe387a67c6e084cf73ebc15d9aed647cf",
+      "source": "667252c5efe94eaf1b76815539e5c52f489b82618e819be5b586b32df6081c4f"
+    },
+    "fabric-1212/build.gradle": {
+      "baseline": "78edc747068b1903878d64cae942ec2984c76b56febb0b188b8c122add0ccd95",
+      "source": "cd02bf2b461d5d7aa2f5665d9313b09e377a5f017c3fd6fa61e8cd5a2c52b9e7"
+    }
+  },
+  "sourcePatchSha256": "63df9f94c1a9c71bd74a2d7c4d6de6171b6054428c30d1e33c0b4ebdef934f54",
+  "compiledSourceManifestSha256": "6a34239cb4ce902e0caff0fafff476daac84881e59fc0481a5fd366ca34f23c5",
+  "unchangedDiagnosticDependencies": {
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "c7df60c3b899f71147e40e8d6a65b0de6f60729d6fe14f18b57630fae11698b4",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "24061e063112402d1c3ba20abc92ad1a9a2df778cbed14dae6814da7b48a3ad0"
+  },
+  "review": {
+    "path": "/tmp/lodekeeper-cooperative-peer-ci-source-review-r2.md",
+    "sha256": "4c6d38d4f7a2d128695ba43ac5c1c20ffa84cc2104e16fc26c5ba0850658e186",
+    "text": "# Cooperative peer and CI source review round 2\n\nCLEAN for the frozen five-file candidate. No actionable source finding or further source repair was identified. Compilation and native acceptance remain open. This verdict does not close FULL11 or establish that the captured primary failure is solved.\n\nThe reviewed baseline is supplied canonical main HEAD `5108f5b873d55d9d77fc086a63ee34568f03aa2d`. The reviewed candidate is `/tmp/lodekeeper-cooperative-peer-ci-root-r1/source/`, identified by patch SHA256 `63df9f94c1a9c71bd74a2d7c4d6de6171b6054428c30d1e33c0b4ebdef934f54`. All five canonical files matched the frozen candidate at initial and terminal readback. HEAD and the claim of exactly five dirty repository paths are root-supplied state. No Git command was run to certify repository-wide status. The interrupted prior review supplies no verdict or adjudicated objection.\n\nOnly this report was written, once. No repository or prior-package write, Git command, Gradle invocation, javac, test execution, Java process, native client, app or service restart, memory access, or nested delegation occurred. Independent standard-library Python checked complete file bytes, exact patch application, hashes, preserved source spans, and an in-memory model of the two symbol replacements. It did not execute the author's audit, generator, or candidate Java. The source-transform model is not a Gradle result.\n\n## Inspected inputs and integrity\n\nThe original cooperative travel brief, native movement-profile brief, and cooperative engine integration brief A were read. The complete r3 transport report and its four-file patch were checked against the five-file candidate. Both complete helper sources, the complete build file, changed Runtime methods, peer bridge, cooperative acceptance paths, and corresponding baseline spans were inspected. Both complete Runtime files and baselines were read as bytes and compared across their full length. Their unchanged remainder is preservation evidence, not a new audit of every unrelated verifier case.\n\nAll 141 entries in `/tmp/lodekeeper-native-player-fixture-transport-r3/manifest.sha256` rehash correctly. All 83 cached r2 API files and 18 fresh API capture files were read and their index hashes independently checked. Relevant transition, encoder, decoder, frame, Netty ownership, join, absolute teleport, tracking, and removal contracts were inspected. The two failed speculative LocalPacketEncoder/Decoder captures are marked `classFound=false` and provide no API support. All 20 locked dependencies still match their recorded sizes and SHA256, including processed primary Minecraft `775ab63cf3a2ecbbe65a4ec54e2030882556c8945907f7c450200e6b3ef466fc` and modern Minecraft `9efea1f5fc02fd49f34607cbac755671d905acdaa933dc20ff0596c100a1d2c4`.\n\nThe preserved original r1 fixture report, accepted r1 ownership finding, complete r2 report and r1-to-r2 repair were read. The cooperative fixture r3/r4 reviews, final travel integration r4 review, compiler-binding r4c review, and getter r4d review were also read. All original input-lineage records match their preserved bytes and available original files. Earlier CLEAN labels were treated as history. The accepted buffer repair was independently checked in the current helpers.\n\nThe five-file patch reconstructs exactly through 20 hunks. Every old context and deletion, old/new line count and position, unchanged tail, and complete result matches. A separately generated sorted unified diff equals the frozen patch. The four peer files and their baselines equal transport r3 byte for byte. Against the 40-path artifact source manifest, only those four peer files differ, with exactly the reviewed hashes. The other 36 paths, both PlayerActions dependencies, both VerificationApi files, and the two frozen production jars retain their recorded hashes. The build file is the fifth candidate path outside that 40-path source manifest.\n\n## Native transition repair\n\nPrimary `fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java:127-130` and modern `fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java:129-132` replace the owned bootstrap `decoder` with the exact public native inbound transition consumer. This occurs before outbound PLAY setup and ordinary native player enrollment.\n\nThe pinned contracts support this change. Fresh primary `ClientConnection.javap:993-1058,1094-1101` and modern `Connection.javap:982-1090` show SERVERBOUND local setup installing the initial HANDSHAKING decoder and outbound configuration handler. Primary `ClientConnection.javap:344-392` and modern `Connection.javap:334-382` install the listener and write an inbound configuration task. The complete public InboundConfigurer and UnconfiguredPipelineHandler.Inbound classes consume that task, release it, and settle its promise. Their transition factories replace that consumer with the bound native PLAY decoder and enable reads. The native connection still owns bundle installation.\n\nThe native processed join traces call these transitions from normal `PlayerManager.onPlayerConnect` and `PlayerList.placeNewPlayer`. Their subsequent list, UUID map, player-info broadcast, and world enrollment remain native operations. The fixture does not replace those operations with private insertion. The correction supplies the expected configuration consumer at the disclosed offline PLAY boundary. It does not perform authenticated LOGIN or CONFIGURATION exchange.\n\nThe old decoder is an inbound-only ByteToMessageDecoder, so it cannot consume the outbound transition task. The actual hackfix adapters forward writes. Native packet encoders accept Packet and encode through the bound codec. Primary local framing forwards messages. Modern LocalFrameEncoder wraps only ByteBuf and forwards other values unchanged. The candidate therefore repairs a static missing-consumer mismatch without accepting raw Packet values at the terminal sink. This supports the proposed correction. It does not prove the nested cause of the captured native failure.\n\n## Ownership, boundedness, and diagnostics\n\nThe passive admission handlers remain ahead of every native decoder. Primary helper `:195-223` and modern helper `:200-228` preserve exact frame identity, refusal of reentrant drains, transport admission before allocation and after encoding, and release only before pipeline admission. Both exact EmbeddedChannel contracts call `ensureOpen` before `fireChannelRead`. A downstream consuming exception cannot return ownership to the caller. Queue rejection, `checkException`, and retained inbound/outbound data rejection remain exact.\n\nThe primary sink at `:113-118` still requires ByteBuf. The modern sink at `:114-120` unpacks HiddenByteBuf for accounting and releases the original message once. Unexpected values still latch failure. No Packet allowlist, quiet sink, codec bypass, direct listener response, or fabricated ACK was added.\n\nComplete source spans covering packet observation, queue/drain/transport admission, tracking, movement/domain checks, normal teardown, and all physical-stock/drop methods equal baseline. Limits remain 120 seconds or 2,400 native ticks, 64 moves, 256 events and responses, 32 responses per drain, 2,048 encoded bytes, and 256 census entities. Thread, native player/world/listener, survival, lifetime, and monotonic tick guards remain. Modern still requires its encoded PlayerLoaded response and actual `hasClientLoaded` admission.\n\nTransport exceptions retain their actual Throwable at primary `:136-139` and modern `:138-141`. `closeAfterFailure` at primary `:341-344` and modern `:346-349` preserves the original RuntimeException and attaches a distinct cleanup failure as suppressed evidence. Explicit normal close still propagates failure. Normal owned disconnect, native removal checks, and embedded queue release are unchanged.\n\nRuntime changes are confined to the peer bridge catch and `nativePlayerPeerCauseChain`, primary `:92-120` and modern `:87-115`. Method selection, arguments, and exact-family VerificationApi bindings are unchanged. The diagnostic message allows eight cause nodes, 128 type characters, and 512 message characters per node. It replaces CR/LF and labels truncation. Cycles terminate at the depth limit. The original cause object remains attached. Suppressed cleanup failures remain on that object but are not printed by this cause-only summary. That diagnostic limit does not turn a failed operation into success.\n\n## CI source generation\n\n`fabric-1212/build.gradle:16-17,78-101` selects client API family `1219` only for 1.21.9, 1.21.10, and 1.21.11. The new replacement is inside the existing MovementController filter. It changes exactly the two Entity world getters at shared controller `:443` and `:462`. Both exact object-identity comparisons remain. The filter leaves earlier families' world getters unchanged.\n\nThe saved CI failure log shows missing `getWorld()` at those two callsites for each affected version. Official [Yarn 1.21.9 Entity documentation](https://maven.fabricmc.net/docs/yarn-1.21.9+build.1/net/minecraft/entity/Entity.html#getEntityWorld()) exposes public `getEntityWorld()` returning World. The official [1.21.11 documentation](https://maven.fabricmc.net/docs/yarn-1.21.11+build.6/net/minecraft/entity/Entity.html#getEntityWorld()) agrees. The 1.21.10 documentation request returned `Internal Error` and was not used as supporting API evidence. Exact 1.21.10 compilation remains a root gate.\n\nThe added `inputs.property('clientApiFamily', clientApiFamily)` distinguishes the world-getter transform when the input family stays `1215` across a client-family change. Existing source-set selection and compile dependency on the Sync task remain. The change adds no native API shim or runtime travel support. `fabric-1212` GameApi still returns false from `supportsTravel`; unreachable Java methods still require valid compile-time bindings. Dependencies, kernel source, notices, and source-access rules are unchanged within this delta.\n\n## Preserved acceptance and existing failures\n\nEvery Runtime byte from `prepareNativePlayerPeer` through end-of-file equals baseline in both mirrors. The entire goto setup, intercepted command, arrival, restoration, and completion predicate is unchanged. The modern original-selection getter correction also remains.\n\nThe actual follow command remains `!lk follow <realUUID> 20`. The exact original 20-second acceptance deadline, original request identity, native context/owner, 1,200-client-tick and 90-second case budgets remain. Actual native FOLLOW, matching UUID/filter, radius two, and all five MOVEMENT_ONLY flags false are still required. Both absolute peer moves require successful futures, strictly newer END_SERVER_TICK receipts at exact coordinates, then a later host observation request and client tick. The helper's native five-argument teleports use empty relative sets. Relative packets still refuse.\n\nPrimary Runtime `:2518-2778` and modern Runtime `:1960-2221` retain independent settings snapshots, original input and selection, released controls, stopped native navigation, full stock/equipment/cursor checks, health restoration, and placement readiness. Opaque settings leaves still cover identity only. Completion requires actual ARRIVED for goto or actual FOLLOW_EXPIRED at or after the original deadline for follow. Idle, refusal, cancellation, early expiry, and stale request observations cannot substitute.\n\nNormal retirement must succeed. `peerClosed`, matching context, both native client list/entity disappearance, a new post-idle observation request, a strictly newer server tick, and 20 stable client ticks remain required. SERVER_STOPPING cleanup remains. No post-command host teleport/restock, actor injection, fake ACK, certificate, or altered acceptance predicate appears.\n\nThe captured primary run remains FAILED before command dispatch, after two case ticks. Its complete native JSON and runner receipt were inspected. The runner records clean source 5108f5b, separate verification-class loading, no timeout, and a failed native receipt. Full latest/debug logs show the peer joining and owned removal, then only the outer CompletionException/IllegalStateException. They contain no nested fixture cause. Modern follow remains UNRUN in the captured progress record. Primary and modern goto PASS belong to the prior artifact, as recorded by root, and do not certify this candidate.\n\nThe candidate 1.21.11 build log ends during core test-class preparation. It has no complete result or exit proof. Its status remains INTERRUPTED. No candidate compilation PASS, repaired native join/follow PASS, runtime cleanup acceptance, signed-chat success, or FULL11 result follows from this review.\n\n## Frozen five-file identity\n\nAll paths below are relative to the root stage. Complete baseline and candidate hashes were verified independently.\n\n| Path | Baseline SHA256 | Candidate SHA256 |\n| --- | --- | --- |\n| `fabric-1211/src/verification-1211/java/dev/lodekeeper/fabric/NativePlayerFixture.java` | `fddfffaef39fb2bf04f1dc27dd65727070e1261addeab56e9293ad87e731a53b` | `e3c2d3f1b60f17570c38b0d426e87b6642f4315ee9764c23bfab668776116042` |\n| `fabric-1212/build.gradle` | `78edc747068b1903878d64cae942ec2984c76b56febb0b188b8c122add0ccd95` | `cd02bf2b461d5d7aa2f5665d9313b09e377a5f017c3fd6fa61e8cd5a2c52b9e7` |\n| `fabric-modern/src/verification-263/java/dev/lodekeeper/fabric/modern/NativePlayerFixture.java` | `df5316cba5cb8b2754c1ade5a978a16ef781dbdc33c605a3792a486e5356588b` | `0cbd32f473eabccf9c4778d0132c11b10845b2f18b9cb5e43f43de97126289d7` |\n| `fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java` | `88a69786ca6d9364f5a84049c6b950fd51beb61a1423a88c80996387a122f1d3` | `bdb12a4e22cf96bd6dd9b03cef1ea4efbfe4aedb6e64abaf9ea2136175b7e1d8` |\n| `fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java` | `aa0cdd0aa47967a6217ded9a1dcc32fbe387a67c6e084cf73ebc15d9aed647cf` | `667252c5efe94eaf1b76815539e5c52f489b82618e819be5b586b32df6081c4f` |\n\nRoot owns exact primary 1.21.1 and modern 26.3 verifier compilation, affected adapter artifacts, then primary and modern native follow through the unchanged predicates with one client at a time. Separate helper/verifier class provenance remains necessary because production jar hashes do not identify this transport change. Commits, pushes, and canonical evidence also remain root work.\n\nThe required anti-ai writing, pstack runtime, poteto-mode, investigation, how, no-comments, unslop, and technical-writing guidance were read. Prove It Works directed independent byte reconstruction and exact evidence limits. Boundary Discipline directed native transition, reflection, and buffer-ownership inspection. Explicit scope overrides live reproduction, source/Git delivery, nested review, and approval defaults. Throughput checkpoint is n/a, read-only investigation.\n\nActionable source findings and requested source repairs are none. CLEAN applies only to the pinned five-file delta. Report ready for root review. Terminal immutable acknowledgment. This report and all reviewed packages receive no further writes from this reviewer.\n"
+  },
+  "targetBuilds": {
+    "primary": {
+      "version": "1.21.1",
+      "log": "/tmp/lodekeeper-cooperative-peer-ci-1.21.1-r2-build.log",
+      "logSha256": "e2b5c4a29542f6f937ee5a03e04db392c73a9b9b7b996a68e2d2c3001e16a0ce",
+      "checks": {
+        "core": {
+          "tests": 173,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1211": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "sum": 319,
+      "unchangedProductionClassEntries": 803,
+      "newJarSha256": "5d7f816d51f4a3c631a8a9626ef29d2e553fbeeffa9b151596c1526dca327773"
+    },
+    "modern": {
+      "version": "26.3",
+      "log": "/tmp/lodekeeper-cooperative-peer-ci-26.3-r2-build.log",
+      "logSha256": "fddeebb5a4f9312be6e4e4d58c76bad13f7783e8d6f7a2c7add525fbde5dade2",
+      "checks": {
+        "core": {
+          "tests": 173,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-modern": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "sum": 274,
+      "unchangedProductionClassEntries": 818,
+      "newJarSha256": "4ada90da26bf0bd71d7dc49267546db08c8999760eac932989bf07eda78b10c9"
+    }
+  },
+  "targetChecksSha256": "a2555d71284aa5e1ca732291c5fd79424a70521f0e66eff4b6333ab5b83186a2",
+  "affectedProfileBuild": {
+    "capturedAtUtc": "2026-10-09T10:22:50.196541+00:00",
+    "version": "1.21.11",
+    "buildLog": "/tmp/lodekeeper-cooperative-peer-ci-1.21.11-r2-build.log",
+    "logSha256": "7da1e929c5e392567793d3a7adc09c5cb8ff47ad7d8f3ab1c9022b2400ed2872",
+    "checks": {
+      "core": {
+        "tests": 173,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "nav": {
+        "tests": 98,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "fabric-1212": {
+        "tests": 53,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "generatedControllerSha256": "2eacc0ddf21d1eab858c4c7e3cf5b57b0247eded34bc88b08e7e931b60c31272",
+    "native": "UNRUN",
+    "interruptedAttemptRetained": "/tmp/lodekeeper-cooperative-peer-ci-1.21.11-r1-build.log"
+  },
+  "affectedProfileChecksSha256": "3fff21c02d6c2a38ad3c13c8b66951faaaa5ab6bf45ce55a6ef71c9bce8c92d4",
+  "priorNativeEvidence": "main-5108f5b-travel-initial.json",
+  "nativeFollow": "UNRUN for repaired helper",
+  "allProfileCi": "UNRUN for repaired source",
+  "userAcceptance": "OPEN",
+  "limits": [
+    "The repaired inbound transition consumer closes a proven static mismatch; the earlier hidden runtime cause remains unknown.",
+    "Both production jars and all 803/818 production class entries remain identical to the original goto artifacts. Separate rebuilt verifier/helper outputs identify this repair.",
+    "Source review and exact builds do not establish native enrollment, moving follow, expiry, restoration or owned teardown.",
+    "The offline peer proves no authenticated login or certified signed chat.",
+    "Recent-version travel remains refused by the adapter; the mapping repairs compilation only.",
+    "All remaining FULL11 units retain their separate gates."
+  ]
+}

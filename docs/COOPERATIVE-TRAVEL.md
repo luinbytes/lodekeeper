@@ -2,7 +2,7 @@
 
 Travel uses the foreground queue shared with acquisition and projects. Each accepted command prints its job token. `!lk queue` lists queued jobs, and `!lk status` reports the current job.
 
-The 1.21.1 and 26.3 artifacts compile with these commands. Native travel verification remains pending. Other adapters refuse travel before starting a route.
+The 1.21.1 and 26.3 artifacts compile with these commands. Coordinate travel passes the prepared native case on both. The first primary follow case fails during peer enrollment before sending the command; modern follow remains unrun. Other adapters refuse travel before starting a route. The [initial native evidence](evidence/cooperative/main-5108f5b-travel-initial.json) preserves all three results.
 
 | Command | Behavior and limits |
 | --- | --- |

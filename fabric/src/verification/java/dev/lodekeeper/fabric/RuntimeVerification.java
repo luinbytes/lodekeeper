@@ -90,10 +90,31 @@ public final class RuntimeVerification implements ClientModInitializer {
                     return method.invoke(null, arguments);
             throw new IllegalStateException("native player fixture unavailable for this artifact");
         } catch (java.lang.reflect.InvocationTargetException error) {
-            throw new IllegalStateException("native player fixture failed in " + name, error.getCause());
+            Throwable cause = error.getCause();
+            throw new IllegalStateException("native player fixture failed in " + name + "; "
+                    + nativePlayerPeerCauseChain(cause), cause);
         } catch (ReflectiveOperationException error) {
             throw new IllegalStateException("native player fixture unavailable for this artifact", error);
         }
+    }
+
+    private static String nativePlayerPeerCauseChain(Throwable error) {
+        StringBuilder result = new StringBuilder();
+        Throwable cause = error;
+        for (int depth = 0; cause != null && depth < 8; depth++) {
+            if (depth > 0) result.append(" caused by ");
+            String type = cause.getClass().getName();
+            result.append(type, 0, Math.min(type.length(), 128));
+            String message = cause.getMessage();
+            if (message != null) {
+                result.append(": ").append(message.substring(0, Math.min(message.length(), 512))
+                        .replace('\n', ' ').replace('\r', ' '));
+                if (message.length() > 512) result.append(" [message truncated]");
+            }
+            cause = cause.getCause();
+        }
+        if (cause != null) result.append(" [cause chain truncated]");
+        return result.toString();
     }
 
     private CompletableFuture<Object> prepareNativePlayerPeer(boolean fullRecipient) {
