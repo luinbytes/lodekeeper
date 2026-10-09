@@ -1,0 +1,283 @@
+{
+  "recordedAtUtc": "2026-10-09T01:18:10.494150+00:00",
+  "sourceCommit": "9cb8f1755d86dd7fa44c4a9757566a5639e4d128",
+  "scope": "Frozen main 9cb8f17 native animal pending-attack AIR failure; unchanged original screenshot; no passing recovery claim",
+  "summary": "Primary pending-attack AIR fails: the first observation exceeds its cumulative 4ms budget, AIR pauses before admitting a route or acquiring movement input, then the player drowns and the unchanged 120-second case fails.",
+  "limits": [
+    "The exact failure string establishes a block-observation deadline expiry; it does not identify which individual native call consumed the budget or prove cold initialization/JIT as its cause.",
+    "Fixture remains the approved real invulnerable cow attack, retained one send, followed by server-prepared roofed-water relocation with starting air170.",
+    "The original attack remains observed as one sent effect with zero damage/output. No second attack send is evidenced in this case; full stop/hand/input/settings restoration was not reached or established.",
+    "Modern pending attack, both pending transfer cases and both roofed-water controls were not run for this artifact.",
+    "Compilation and source reviews do not establish native recovery convergence, full entity clearance along a native path, fresh Survival reliability or Lu acceptance."
+  ],
+  "verificationOutputsUnchanged": {
+    "primary": 75,
+    "modern": 65
+  },
+  "publicScreenshotManifest": {
+    "assetName": "main-9cb8f17-air-budget-failure-screenshots.json",
+    "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9cb8f17-air-budget-failure-screenshots.json",
+    "anonymousHttpStatus": 200,
+    "bytes": 877,
+    "sha256": "7abc79302b11e43255ff9d1c742b677d2cb6ae1e45cbe2723591725218f39a16"
+  },
+  "publicScreenshotChecks": [
+    {
+      "assetName": "main-9cb8f17-air-budget-failure-screenshots.json",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9cb8f17-air-budget-failure-screenshots.json",
+      "anonymousHttpStatus": 200,
+      "bytes": 877,
+      "sha256": "7abc79302b11e43255ff9d1c742b677d2cb6ae1e45cbe2723591725218f39a16"
+    },
+    {
+      "assetName": "main-9cb8f17-primary-air-budget-failure.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9cb8f17-primary-air-budget-failure.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 107486,
+      "sha256": "6997107bd6f3fd33aa5a0b82b48582b972aff6210bc3516b9b3874dcb2ef5964"
+    }
+  ],
+  "browserReceipt": {
+    "verifiedAtUtc": "2026-10-09T01:17:24.965Z",
+    "page": "https://github.com/luinbytes/lodekeeper/releases/tag/main-gameplay-evidence",
+    "loggedOut": true,
+    "count": 1,
+    "loaded": 1,
+    "failures": [],
+    "verifiedUrls": [
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9cb8f17-primary-air-budget-failure.png"
+    ],
+    "captures": [
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9cb8f17-primary-air-budget-failure.png",
+        "width": 640,
+        "height": 360
+      }
+    ]
+  },
+  "localScreenshotCopiesDeleted": [
+    "/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/verification/evidence/screenshots/lodekeeper-2026-10-09T01-12-40-918479Z-315dd1e3-failed-native_animal_air_pending_attack.png",
+    "/tmp/lodekeeper-native-animal-9cb8f17-air-failure-screenshot-upload/main-9cb8f17-primary-air-budget-failure.png"
+  ],
+  "runs": [
+    {
+      "case": "air_pending_attack",
+      "family": "primary",
+      "minecraftVersion": "1.21.1",
+      "status": "failed",
+      "runnerReceiptPath": "/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/runner-receipt.json",
+      "runnerReceiptSha256": "d4996a4511e7023b28b6a1260e4099b1a3b347940898d52cb92bc3cfe34940af",
+      "nativeEvidencePath": "/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/verification/evidence/run-2026-10-09T01-12-40-918479Z-315dd1e3.json",
+      "nativeEvidenceSha256": "998e582c003564a9734722026efa0f86584d8fd22f5e0f16e8a389295d4bd1df",
+      "startedAtUtc": "2026-10-09T01:12:21.028227+00:00",
+      "finishedAtUtc": "2026-10-09T01:15:16.483320+00:00",
+      "productionJar": {
+        "minecraftDependency": "1.21.1",
+        "modId": "lodekeeper",
+        "modVersion": "0.1.0-preview.11",
+        "path": "/private/tmp/lodekeeper-native-animal-9cb8f17-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "productionClassEntries": [
+          "dev/lodekeeper/fabric/AutomationEngine.class"
+        ],
+        "sha256": "68e028e14e28d0ee1207b44e1fad65e9d3ade18d9704d02ad5d8236b8e77cd05"
+      },
+      "source": {
+        "commit": "9cb8f1755d86dd7fa44c4a9757566a5639e4d128",
+        "dirty": false,
+        "dirtyPaths": [],
+        "gitStatusError": null
+      },
+      "artifactUnchangedDuringRun": true,
+      "classLoadProvenance": {
+        "foreignKernelClasses": 0,
+        "generatedClasses": 277,
+        "lodekeeperClasses": 680,
+        "log": "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/class-load.log",
+        "productionArtifactClasses": 374,
+        "productionJarClasses": 0,
+        "runtimeArtifactTransformation": {
+          "cacheDirectory": "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/.fabric/processedMods",
+          "cacheWasFresh": true,
+          "candidateCount": 1,
+          "candidatePaths": [
+            "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+          ],
+          "devLodekeeperEntryCount": 800,
+          "devLodekeeperEntryNamesMatch": true,
+          "fabricModJsonMatches": true,
+          "identityPreservedClasses": {
+            "dev/lodekeeper/core/": {
+              "bytesMatch": true,
+              "classCount": 145,
+              "namesMatch": true
+            },
+            "dev/lodekeeper/nav/": {
+              "bytesMatch": true,
+              "classCount": 40,
+              "namesMatch": true
+            }
+          },
+          "inputArtifact": {
+            "path": "/private/tmp/lodekeeper-native-animal-9cb8f17-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "sha256": "68e028e14e28d0ee1207b44e1fad65e9d3ade18d9704d02ad5d8236b8e77cd05"
+          },
+          "loadedClassCount": 374,
+          "loadedClassesPresentInInputAndOutput": true,
+          "manifestMatches": true,
+          "observedSourceCount": 1,
+          "runtimeArtifact": {
+            "filenameMatchesLoaderPattern": true,
+            "path": "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+            "sha256": "eddda65b322226c8a2d1aa48ad43ed1181904a0702fe9cafe34726fe44de1146"
+          },
+          "runtimeModId": "lodekeeper",
+          "runtimeModVersion": "0.1.0-preview.11",
+          "transformation": "fabric-loader-runtime-remap",
+          "verified": true
+        },
+        "runtimeRemappedClasses": 374,
+        "sourceCounts": {
+          "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 29,
+          "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 374
+        },
+        "verifierClasses": 29,
+        "violations": []
+      },
+      "client": {
+        "exitCode": 0,
+        "finishedAtUtc": "2026-10-09T01:15:16.264968+00:00",
+        "pid": 87665,
+        "processLog": "/private/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/client-process.log",
+        "startedAtUtc": "2026-10-09T01:12:21.133916+00:00",
+        "timedOut": false,
+        "timeoutSeconds": 180
+      },
+      "nativeStatus": "failed",
+      "nativeFailure": "native animal case exceeded 120 seconds; receipt={ordinaryBeef=0, headInWater=true, effects=0, shearsDamage=-1, dead=0, airSupply=0, cursorEmpty=true, wrongColorSheared=0, shearsPresent=false, serverTick=2489, maxAirSupply=300, playerZ=0.5, playerY=64.0, selectedSlot=0, stagedHotbarEmpty=true, sheared=0, playerX=0.5, submersionTick=116, shearsOrdinary=false, targets=f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;}",
+      "nativeAnimal": {
+        "scenario": "air_pending_attack",
+        "command": "!lk get minecraft:beef 1",
+        "fixtureGrants": "bounded bedrock pad; one adult NoAI invulnerable vanilla cow rejects the real native attack; after exactly one send is retained without damage, server fixture builds a roofed two-block water pool with one exit, teleports the same player to 0.5,64,0.5 and sets air to 170; no granted items, output, damage or actor/receipt state; real AIR movement and refill follow; full starting health and hunger",
+        "autoEat": false,
+        "allowBreaking": false,
+        "pendingInteractionObservedClientTick": 242,
+        "pendingInteractionJob": 1,
+        "pendingInteractionTarget": "f7351503-3676-47d6-9e32-0eba25d11e84",
+        "pendingInteractionSentEffects": 1,
+        "initialServerReceipt": {
+          "ordinaryBeef": "0",
+          "headInWater": "false",
+          "effects": "0",
+          "shearsDamage": "-1",
+          "dead": "0",
+          "airSupply": "300",
+          "cursorEmpty": "true",
+          "wrongColorSheared": "0",
+          "shearsPresent": "false",
+          "serverTick": "88",
+          "maxAirSupply": "300",
+          "playerZ": "0.5",
+          "playerY": "64.0",
+          "selectedSlot": "0",
+          "stagedHotbarEmpty": "true",
+          "sheared": "0",
+          "playerX": "0.5",
+          "submersionTick": "-1",
+          "shearsOrdinary": "false",
+          "targets": "f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;"
+        },
+        "finalServerReceipt": {
+          "ordinaryBeef": "0",
+          "headInWater": "true",
+          "effects": "0",
+          "shearsDamage": "-1",
+          "dead": "0",
+          "airSupply": "0",
+          "cursorEmpty": "true",
+          "wrongColorSheared": "0",
+          "shearsPresent": "false",
+          "serverTick": "2489",
+          "maxAirSupply": "300",
+          "playerZ": "0.5",
+          "playerY": "64.0",
+          "selectedSlot": "0",
+          "stagedHotbarEmpty": "true",
+          "sheared": "0",
+          "playerX": "0.5",
+          "submersionTick": "116",
+          "shearsOrdinary": "false",
+          "targets": "f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;"
+        }
+      },
+      "cases": [
+        {
+          "name": "native_animal_air_pending_attack",
+          "item": "minecraft:beef",
+          "expected": 1,
+          "serverObserved": 0,
+          "inventoryEmptyAtStart": true,
+          "passed": false,
+          "clientTicks": 2401,
+          "worldTicks": 2401,
+          "engineStatus": "paused \u00b7 air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "native animal case exceeded 120 seconds; receipt={ordinaryBeef=0, headInWater=true, effects=0, shearsDamage=-1, dead=0, airSupply=0, cursorEmpty=true, wrongColorSheared=0, shearsPresent=false, serverTick=2489, maxAirSupply=300, playerZ=0.5, playerY=64.0, selectedSlot=0, stagedHotbarEmpty=true, sheared=0, playerX=0.5, submersionTick=116, shearsOrdinary=false, targets=f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;}",
+          "serverHealth": 0.0,
+          "serverDifficulty": "PEACEFUL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 20,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            0.5,
+            64.0,
+            0.5
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-09T01-12-40-918479Z-315dd1e3-failed-native_animal_air_pending_attack.png"
+        }
+      ],
+      "runnerFailures": [
+        "native run receipt verification/evidence/run-2026-10-09T01-12-40-918479Z-315dd1e3.json status is 'failed'",
+        "native run receipt verification/evidence/run-2026-10-09T01-12-40-918479Z-315dd1e3.json reports failure 'native animal case exceeded 120 seconds; receipt={ordinaryBeef=0, headInWater=true, effects=0, shearsDamage=-1, dead=0, airSupply=0, cursorEmpty=true, wrongColorSheared=0, shearsPresent=false, serverTick=2489, maxAirSupply=300, playerZ=0.5, playerY=64.0, selectedSlot=0, stagedHotbarEmpty=true, sheared=0, playerX=0.5, submersionTick=116, shearsOrdinary=false, targets=f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;}'"
+      ],
+      "logPath": "/tmp/lodekeeper-native-animal-9cb8f17-air_pending_attack-primary-r1/run/logs/latest.log",
+      "logSha256": "983dfa0927c725e4446306c1358296b147c97980c98f583029dfafe7e4a11d7c",
+      "selectedLogEvidence": [
+        {
+          "line": 133,
+          "text": "[02:13:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=begin phase=DRAINING air=168 maxAir=300 submerged=true attempts=0 elapsedMs=0 swimIndex=0 swimSteps=0 feet=0.5,64.0,0.5"
+        },
+        {
+          "line": 134,
+          "text": "[02:13:15] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=1 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=STOPPING action=295654507 actionStartNanos=1356713118907693 movement=1518226016 ownerPlayer=1259438599 player=1259438599 playerUuid=6b7bc9c9-e7da-3a47-9bb3-2051e22e10b9 ownerWorld=200957488 world=200957488 input=1613590312 air=168 maxAir=300 submerged=true waterContact=true onGround=true pose=STANDING health=20.0 feet=0.5,64.0,0.5 feetCell=BlockPos{x=0, y=64, z=0} feetFluidAtCell=net.minecraft.fluid.WaterFluid$Still@6ca7a65b[falling=false] eye=0.5,65.62000000476837,0.5 velocity=0.0,-0.005,0.0 horizontalCollision=false verticalCollision=true bbox=AABB[0.19999998807907104, 64.0, 0.19999998807907104] -> [0.800000011920929, 65.79999995231628, 0.800000011920929] attempts=1 elapsedMs=7 swimIndex=0 routeSize=0 currentTarget=null followingTarget=null nativeTarget=unavailable-read-only-api inputOwned=false inputClass=KeyboardInput ownedInputState=unowned appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=2 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=false nearbyHostiles="
+        },
+        {
+          "line": 135,
+          "text": "[02:13:15] [Render thread/INFO] (Minecraft) [System] [CHAT] [Lodekeeper] Paused: air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit. Use resume or stop."
+        },
+        {
+          "line": 218,
+          "text": "[02:14:58] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=NATIVE_ANIMAL, engine=paused \u00b7 air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit \u00b7 0 foreground queued \u00b7 0 maintenance queued, screen=DeathScreen, server=ServerSnapshot[serverTick=2154, worldTime=2154, inventory={}, woodenAxeRemainingDurability=[], ironPickaxeDeepslateRemaining=-1, coalRecoveryEncasedOreRemaining=-1, coalRecoveryAccessibleOreRemaining=-1, coalStartSurfaceRemaining=-1, coalNavigationCourseMismatchCount=-1, coalNavigationCourseObservedMask=-1, coalNavigationCourseMinimumHealth=-1.0, coalNavigationCourseCheckpointServerTicks=[], nearbyWoodLocalFixture=null, storageInventory={}, equippedItems={}, serverCursorEmpty=true, preparedSafetyThreatReceipt={}, preparedSafetyStationRoomReceipt={}, preparedSafetyPursuitReceipt={}, preparedSafetyAirReceipt={}, preparedSafetyWorkbenchReceipt={}, preparedSafetyHeldFuelReceipt={}, worldPolicyServerReceipt={}, health=0.0, foodLevel=20, difficulty=PEACEFUL, x=0.5, y=64.0, z=0.5]"
+        },
+        {
+          "line": 221,
+          "text": "[02:15:03] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=NATIVE_ANIMAL, engine=paused \u00b7 air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit \u00b7 0 foreground queued \u00b7 0 maintenance queued, screen=DeathScreen, server=ServerSnapshot[serverTick=2254, worldTime=2254, inventory={}, woodenAxeRemainingDurability=[], ironPickaxeDeepslateRemaining=-1, coalRecoveryEncasedOreRemaining=-1, coalRecoveryAccessibleOreRemaining=-1, coalStartSurfaceRemaining=-1, coalNavigationCourseMismatchCount=-1, coalNavigationCourseObservedMask=-1, coalNavigationCourseMinimumHealth=-1.0, coalNavigationCourseCheckpointServerTicks=[], nearbyWoodLocalFixture=null, storageInventory={}, equippedItems={}, serverCursorEmpty=true, preparedSafetyThreatReceipt={}, preparedSafetyStationRoomReceipt={}, preparedSafetyPursuitReceipt={}, preparedSafetyAirReceipt={}, preparedSafetyWorkbenchReceipt={}, preparedSafetyHeldFuelReceipt={}, worldPolicyServerReceipt={}, health=0.0, foodLevel=20, difficulty=PEACEFUL, x=0.5, y=64.0, z=0.5]"
+        },
+        {
+          "line": 225,
+          "text": "[02:15:08] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=NATIVE_ANIMAL, engine=paused \u00b7 air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit \u00b7 0 foreground queued \u00b7 0 maintenance queued, screen=DeathScreen, server=ServerSnapshot[serverTick=2354, worldTime=2354, inventory={}, woodenAxeRemainingDurability=[], ironPickaxeDeepslateRemaining=-1, coalRecoveryEncasedOreRemaining=-1, coalRecoveryAccessibleOreRemaining=-1, coalStartSurfaceRemaining=-1, coalNavigationCourseMismatchCount=-1, coalNavigationCourseObservedMask=-1, coalNavigationCourseMinimumHealth=-1.0, coalNavigationCourseCheckpointServerTicks=[], nearbyWoodLocalFixture=null, storageInventory={}, equippedItems={}, serverCursorEmpty=true, preparedSafetyThreatReceipt={}, preparedSafetyStationRoomReceipt={}, preparedSafetyPursuitReceipt={}, preparedSafetyAirReceipt={}, preparedSafetyWorkbenchReceipt={}, preparedSafetyHeldFuelReceipt={}, worldPolicyServerReceipt={}, health=0.0, foodLevel=20, difficulty=PEACEFUL, x=0.5, y=64.0, z=0.5]"
+        },
+        {
+          "line": 228,
+          "text": "[02:15:13] [Render thread/INFO] (Minecraft) [STDOUT]: [Lodekeeper verification] state=NATIVE_ANIMAL, engine=paused \u00b7 air recovery needs attention: Air swim obstacle coverage is unavailable: block observation time limit \u00b7 0 foreground queued \u00b7 0 maintenance queued, screen=DeathScreen, server=ServerSnapshot[serverTick=2454, worldTime=2454, inventory={}, woodenAxeRemainingDurability=[], ironPickaxeDeepslateRemaining=-1, coalRecoveryEncasedOreRemaining=-1, coalRecoveryAccessibleOreRemaining=-1, coalStartSurfaceRemaining=-1, coalNavigationCourseMismatchCount=-1, coalNavigationCourseObservedMask=-1, coalNavigationCourseMinimumHealth=-1.0, coalNavigationCourseCheckpointServerTicks=[], nearbyWoodLocalFixture=null, storageInventory={}, equippedItems={}, serverCursorEmpty=true, preparedSafetyThreatReceipt={}, preparedSafetyStationRoomReceipt={}, preparedSafetyPursuitReceipt={}, preparedSafetyAirReceipt={}, preparedSafetyWorkbenchReceipt={}, preparedSafetyHeldFuelReceipt={}, worldPolicyServerReceipt={}, health=0.0, foodLevel=20, difficulty=PEACEFUL, x=0.5, y=64.0, z=0.5]"
+        },
+        {
+          "line": 229,
+          "text": "[02:15:14] [Render thread/INFO] (Minecraft) [STDERR]: [Lodekeeper verification] FAILED: native animal case exceeded 120 seconds; receipt={ordinaryBeef=0, headInWater=true, effects=0, shearsDamage=-1, dead=0, airSupply=0, cursorEmpty=true, wrongColorSheared=0, shearsPresent=false, serverTick=2489, maxAirSupply=300, playerZ=0.5, playerY=64.0, selectedSlot=0, stagedHotbarEmpty=true, sheared=0, playerX=0.5, submersionTick=116, shearsOrdinary=false, targets=f7351503-3676-47d6-9e32-0eba25d11e84/entity.minecraft.cow/10.0;}"
+        }
+      ]
+    }
+  ]
+}
