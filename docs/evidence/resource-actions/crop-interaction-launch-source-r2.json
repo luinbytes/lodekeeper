@@ -1,0 +1,292 @@
+{
+  "recordedAtUtc": "2026-10-09T12:28:19.037840+00:00",
+  "sourceBaselineCommit": "f6a68b7fa5919b763607c7c466d7c97c3cdeff1b",
+  "status": "compiled_correction_native_unrun",
+  "changedSources": [
+    {
+      "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+      "baselineSha256": "0a91afbf64050d012ced2f5b91dc0b7c1c981c820961b73d3d552da6ef193599",
+      "sourceSha256": "a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24",
+      "r1Sha256": "a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24",
+      "diff": "--- a/fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java\n+++ b/fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java\n@@ -1747,6 +1747,13 @@\n         if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();\n         prepare(); routeEffects = effects;\n         routeGoal = new GoalGetToBlock(target);\n+        if (effects == RouteEffects.MOVEMENT_ONLY) {\n+            preparedTravelGoal = routeGoal;\n+            preparedTravelWorld = client.world; preparedTravelPlayer = client.player;\n+            preparedTravelOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();\n+            if (preparedTravelOwner == null) throw new NavigationFailure(\"Owned interaction navigation is unavailable\");\n+            preparedTravelSession = preparedTravelOwner.captureSession();\n+        }\n         diagnosticGoal = dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32);\n         mode = Mode.MOVE; launch();\n     }\n"
+    },
+    {
+      "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+      "baselineSha256": "23bfd00aa160fc23b6ddfeb3baf0c89c261c890ecb0c85d12f7572af5aee1174",
+      "sourceSha256": "c5715cd235e9c0cab23b2b1558916d20e272bf91c7fb927b079952d35d09af77",
+      "r1Sha256": "f169824451b030edcde05cb83736ba919d4c461a4d2c764f4d949e50e96641e6",
+      "diff": "--- a/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java\n+++ b/fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java\n@@ -1756,6 +1756,13 @@\n         if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();\n         prepare(); routeEffects = effects;\n         routeGoal = new GoalGetToBlock(target);\n+        if (effects == RouteEffects.MOVEMENT_ONLY) {\n+            preparedTravelGoal = routeGoal;\n+            preparedTravelWorld = client.level; preparedTravelPlayer = client.player;\n+            preparedTravelOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();\n+            if (preparedTravelOwner == null) throw new NavigationFailure(\"Owned interaction navigation is unavailable\");\n+            preparedTravelSession = preparedTravelOwner.captureSession();\n+        }\n         diagnosticGoal = dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32);\n         mode = Mode.MOVE; launch();\n     }\n"
+    }
+  ],
+  "sourceManifest": {
+    "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+    "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+    "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "5ae76181487d660f1d4f93fde4943410151d779f1d67615ba9c4670bea5c62dc",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "c5715cd235e9c0cab23b2b1558916d20e272bf91c7fb927b079952d35d09af77",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+    "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "2b542eb7392a4773b40eadad7505d3b2328f78449ab0b516594307b0f1c54d8b",
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24",
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+    "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+    "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+    "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+    "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+    "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+    "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+  },
+  "verifierSourceManifest": {
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "a7aa278db4f7502969aedbfee9a2390cb5a9d2d980fb182806b001d3b15ce03d",
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "78888f127529e6b51e9f501b69867a39e1577e681b83f3eaec8b78f7b9d20957",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "9b4c27d8baeb30b72c5af3269610694539b24e2a1dca2b93b937cd3c822f1e88",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": "576a280bbb56991d26db6dd151ed46b715e8159108cadc5c98e57003af164b1b"
+  },
+  "verifierUnchanged": true,
+  "sourceReports": [
+    {
+      "path": "/tmp/lodekeeper-crop-native-authority-engine-diagnosis-luna-r1.md",
+      "sha256": "1238227bbe992af643494eeb990efa13c15f05a189c7e3105b26900d411c009d",
+      "report": "# Primary native crop authority and movement diagnosis\n\n## Scope and evidence boundary\n\nSource reviewed from `/Users/luinbytes/src/lodekeeper`, as requested for f6a68b7fa5919b763607c7c466d7c97c3cdeff1b. No Git command was run, so this report does not independently verify the checkout revision. No source was changed. The active primary native run was not touched.\n\nThe run log is `/tmp/lodekeeper-native-crop-f6a68b7-primary-wheat-r2/client-process.log`; frozen manifest is `/tmp/lodekeeper-native-crop-f6a68b7-artifacts/artifact-manifest.json`. The verifier source is `fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java`.\n\nObserved run facts:\n\n- Lines 125-129 show ordinary intercepted `!lk get wheat 4`, `BEGIN`, then `STEP kind=NATIVE source=crop:mature:wheat`.\n- Line 130 logs `AIR event=ownership-lost mode=MOVE destination=null`.\n- Lines 131-133 show pause text, `actionTicks=1`, no movement progress, wheat 0, seeds 24, health 20, and the player at the start position. Later snapshots retain these values.\n- Verifier lines around `startNativeWheatCase()` (2479-2530) obtain the baseline and arm the fixture before dispatch. `tickNativeWheatCase()` (2539 onward) evaluates the native result. The verifier does not establish that the server accepted a crop action or that the command caused any server change.\n- The frozen manifest says `nativeStatus: unrun` for frozen artifacts. It records verifier-source and artifact evidence, not this actual failed run's internal predicate values.\n\nTherefore the run proves dispatch, first native crop-step entry, movement ownership loss and no observed wheat gain at the captured snapshots. It does not expose the value of every source predicate at the instant of failure.\n\n## Diagnosis\n\n**Strong source inference: first crop approach enters a generic movement-only launch ownership check before the new interaction goal has been installed in the native navigation process.** This can produce exactly the logged `AIR event=ownership-lost mode=MOVE` and prevent the actor from reaching harvest or planting. It is a movement handoff ordering defect, not evidence that fresh crop admission itself was invalid.\n\nThe primary path is:\n\n1. `AutomationEngine.beginCropStep()` captures the crop authority and calls `cropAcquisition.begin(admitted)` (`fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java:1957-2005`). The `STEP` log occurs earlier in `begin()` (`3970-3985`).\n2. `CropHarvestAction.tick()` enters SEARCH and `search()` finds a permitted mature crop, then calls `approach()` (`fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:149-179`, `220-235`).\n3. `approach()` calls `movement.startInteraction(target, MOVEMENT_ONLY)` (`CropHarvestAction.java:230-234`).\n4. `MovementController.startInteraction()` sets `routeGoal`, sets mode MOVE, then calls `launch()` (`fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java:1740-1752`).\n5. `launch()` calls `checkAirRecoveryOwnership()` for every movement-only route before its switch invokes `bot.getCustomGoalProcess().setGoalAndPath(routeGoal)` (`MovementController.java:1948-1951`, `2030-2038`).\n6. The generic ownership check requires the current custom goal to match `routeGoal` when mode is MOVE (`MovementController.java:2678-2683`, `2690-2694`). The launch has not yet installed this new goal. The check can consequently call `releaseLostAirRecoveryOwnership()` (`2715-2741`), which emits the observed AIR event and throws `OWNERSHIP_LOST`.\n7. `CropHarvestAction.tick()` catches that failure and calls `loseNavigationRights()` (`CropHarvestAction.java:204-209`, `486-490`). Drain then uses the generic retained status `crop original authority lost; retaining original evidence and hand debt` (`CropHarvestAction.java:405-412`). That status names the fail-closed terminal path; it does not prove `cropOriginalAuthority()` was the predicate that first failed.\n\nThis sequence is supported directly by source ordering and matches the event's mode and timing. The log does not include custom-goal state or which individual branch of `checkAirRecoveryOwnership()` triggered, so that internal branch is inferred, not directly observed. If the custom process had already held a matching `GoalGetToBlock` at launch, this exact branch would not explain the event; the snapshot only says navigation was idle at the start and does not serialize custom-process fields.\n\n## Actual crop authority predicates and lifecycle\n\n`CropAuthority` captures these values in `AutomationEngine.java:307-312`, instantiated at `1983-1985`: original `AcquisitionScope`, parent `Request`, `AcquireRequest view`, `PlanIdentity`, `JobContext`, `PlanStep`, `GameCatalog`, scope `phaseGeneration`, plan serial, catalog generation, protection epoch, policy generation, and separate `REPAIR` and `CLEANUP` debt permissions.\n\nThe live predicate is `cropOriginalAuthority()` (`AutomationEngine.java:2008-2022`). All conjuncts are live gates:\n\n- `original != null`; `cropAuthority == original`; `nativeRun == cropAcquisition`.\n- `nativeRunParent == original.parent()`; `nativeRunScope == original.scope()`; `active == original.parent()`; `acquisitionScope == original.scope()`.\n- `original.scope().parent() == original.parent()`; `original.scope().view() == original.view()`; `original.scope().phaseGeneration() == original.phaseGeneration()`.\n- `stepPlanIdentity == original.plan()`; `original.plan().scope() == original.scope()`; `original.plan().context() == original.context()`; `original.plan().serial() == original.planSerial()`; global `planSerial == original.planSerial()`.\n- `step == original.step()`; original request context identity; `catalog == original.catalog()`; live and step catalog generations equal captured generation; captured plan catalog identity/generation match.\n- `original.context().grantEpoch() == 0`; `client.player == original.context().player()`; issuer equals current player UUID; `!contextReplaced(original.context())`.\n\nFresh new-effect admission is stricter: `cropNewEffects()` adds `newEffectCurrent(parent)`, `planIdentityCurrent(plan)`, no pending foreground yield, `cropRuntimeAvailable()`, and the auto-eat readiness condition (`AutomationEngine.java:2024-2038`). Runtime checks include ready/current catalog provider, bound context, not paused/settings-editing, no active air/health/threat/food/equipment/station or other transaction, safe live player/health, and no screen/menu/cleanup/placement barrier.\n\n`CropHarvestAction.begin()` then checks supported source identity, safe state, non-null input, confirmed inventory readiness, new-effect supplier, owned native session and matching world, `ownedAuthority`, protection epoch, owner policy generation, catalog readiness/generation and captured provenance session (`CropHarvestAction.java:110-126`). Only after these pass does it reserve budget, snapshot player/world/network/connection/menu/input, original hand, and initialize SEARCH (`128-146`). Those gates are consistent with fresh admission, but the log alone cannot certify their individual values.\n\nDuring later ticks, `observeRights()` checks current native/provenance session first, then protection epoch, native policy generation, and `admission.ownedAuthority()` (`CropHarvestAction.java:580-591`). It also checks edit permissions at crop and soil, input ownership, manual input/slot/screen/cursor takeover (`591-614`). `effectAdmission()` checks active current session, no rights loss/unavailable input/pause/unsafe state, catalog identity generation, drain-repair debt rule, then the appropriate new-effect or repair supplier (`AutomationEngine.java:526-539`, `CropHarvestAction.java:526-540`). `cleanupAdmission()` separately requires exact original input/selection/menu, empty cursor, no item use, network open, stock witness, cleanup supplier, movement cancellation completion and native quiescence (`CropHarvestAction.java:541-554`).\n\nThe two debt tokens are separate objects bound to kind, original scope, plan, context, issuer and grant epoch. `cropDebtEffects()` requires the corresponding exact captured token, same identities, local grant epoch zero, live `cropOriginalAuthority`, and runtime availability (`AutomationEngine.java:2040-2048`). Cancellation drains do not replace these captures. Crop repair can proceed only under the original repair token and `repairAllowedAtDrain`, recorded only for a reserved planting unit after harvest send (`CropHarvestAction.java:466-475`, `526-539`). Cleanup remains subject to its original separate token. No evidence supports relaxing these rules or reconstructing rights from current global state.\n\n## What the event identifies\n\n`AIR event=ownership-lost` is emitted only by `MovementController.releaseLostAirRecoveryOwnership()` (`MovementController.java:2715-2741`). The relevant `MOVE` checks include:\n\n- `routeGoal` no longer matches `custom.getGoal()`, or the native process has neither that goal nor an inactive `mostRecentGoal()` match (`MovementController.java:2662-2683`, `2685-2694`).\n- A foreign process is active (`hasForeignActiveProcess`, `2696-2710`).\n- The most recent pathing controller is active and is not the expected custom-goal process (`2711-2714`).\n\nThe event does not specify which condition failed. The proposed first-launch ordering issue makes the goal-match condition the leading cause. An intervening foreign owner remains a source-level alternative, but the run report contains no evidence of one.\n\n## Crop versus animal/follow capture\n\nCrop uses a dedicated `CropAuthority` record and explicit engine-held authority supplier for new effects, repair, ownership, and cleanup. The crop captures plan/scope/view/phase/serial/catalog/context and original issuer, plus separate debt tokens (`AutomationEngine.java:1963-2048`). This is more explicit request-phase binding than the animal path.\n\n`AnimalHarvestAction` instead captures its plan step, job token, offer generation, player/world and provenance session in actor state; it gates current session and action-specific eligibility, then uses owned follow/pickup routing. `startApproach()` calls `MovementController.startFollowing(... MOVEMENT_ONLY)` (`AnimalHarvestAction.java:130-170`, `445-455`). `MovementController.startFollowing(UUID, Entity, ...)` establishes `preparedTravelOwner`/session and the pinned follow filter before `launch()` (`MovementController.java:547-580`); `launch()` has a prepared-travel ownership path before `follow()` installs the process (`1950`, `2050-2060`). That path is designed for pre-install ownership checks. `startInteraction()` lacks the equivalent prepared-owner pre-install allowance. Thus the actors' distinct original-rights captures do not suggest weakening crop authority; they expose the missing movement handoff symmetry.\n\nThe crop pickup route also differs: `startOwnedPickup()` plus exact movement input lease is used after harvesting (`CropHarvestAction.java:269-273`). The failed log is earlier, in first approach, so pickup/receipt logic is not implicated.\n\n## Minimal root-fix proposal\n\nChange only the movement launch handoff for crop's movement-only `startInteraction()`. Give its pre-install check a captured current owner/session/player/world and exact interaction goal, as the coordinate and follow routes do, so pre-install validation proves the original native session and absence of competing movement without requiring the new goal to be active prematurely. Then install the exact goal, clear the temporary prepared witness, and retain the existing post-install ownership and crop input-lease checks. Another acceptable design is a narrowly scoped pre-install validator for `startInteraction()` followed by the existing strict in-flight `MOVE` predicate after `setGoalAndPath()`.\n\nDo not alter `cropOriginalAuthority`, the original issuer/grant epoch, scope/view/phase/plan/catalog identities, provenance session, repair/cleanup token identity, `repairAllowedAtDrain`, or cleanup and native quiescence gates. Do not add a fallback that reacquires authority from current active/global state. The cause is strongly indicated by source ordering, but the log lacks the individual movement-check branch; a later fix should add bounded reason-specific diagnostics or capture the relevant pre-install process state before claiming runtime confirmation.\n\n## Preservation controls\n\n- Keep all originally captured native session, provenance session, owner/player/world/network/connection/input/menu and original slot witnesses.\n- Keep original request, scope/view, phase generation, plan identity/serial, step, catalog identity/generation, protection epoch and policy generation bound for the entire crop cycle.\n- Keep original local issuer and grant epoch zero. Later grants must not revive a retired cycle.\n- Keep `REPAIR` and `CLEANUP` permissions distinct, exact-object-bound, and scoped to the original cycle. Cancellation may retain only debt authorized by those captures.\n- Preserve fresh admission for new effects, repair-only-after-harvest-reservation rules, no resend under uncertain receipts, cleanup quiescence, foreign/manual input priority, and fail-closed behavior on session replacement.\n- Treat seeded wheat, 24 ordinary seeds, zero initial output, and unchanged verifier predicates as setup evidence only. They do not establish authority inside the failed first action tick.\n\n## Source locations\n\n- `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java:1957-2048`, crop admission, authority predicate and debt predicates.\n- `fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java:2053-2104`, crop run lifecycle, retained authority and result install.\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:110-146`, crop begin admission and session capture.\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:149-235`, first tick, search and approach.\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:405-412`, fail-closed retained status.\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:460-490`, debt drain and navigation-loss path.\n- `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java:526-614`, new/repair/cleanup gates and rights observation.\n- `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java:520-580`, coordinate, interaction, and follow launch variants.\n- `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java:1943-1960`, launch authorization and ownership check ordering.\n- `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java:2030-2061`, native movement/follow process installation.\n- `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java:2658-2741`, ownership predicates and logged failure.\n- `fabric/src/main/java/dev/lodekeeper/fabric/AnimalHarvestAction.java:130-170`, animal acquisition capture; `445-455`, follow approach.\n- `fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java:2479-2585`, primary wheat admission, command dispatch, and result observation.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-native-input-actor-diagnosis-luna-r1.md",
+      "sha256": "98aa926a8e1fa23138a75055a69bde2d4f7ff2021a34baba8109d04d547be9d3",
+      "report": "# Primary native wheat crop failure diagnosis\n\n## Scope and evidence\n\nThis is a source-only diagnosis of canonical `/Users/luinbytes/src/lodekeeper`, identified by the native runner manifest as commit `f6a68b7fa5919b763607c7c466d7c97c3cdeff1b`, dirty=false. The manifest identifies production artifact SHA-256 `c1c546a8c09ed35f3386e5608a6c94cd7617dc838a72228f63c0e86bb70641d3`, says it was unchanged during the run, and records a failed native receipt. The production class-load provenance was verified by that runner. No source, build, test, process, or runtime action was performed for this diagnosis.\n\nThe failure log proves the `!lk get wheat 4` command was accepted at 13:17:17, the native `crop:mature:wheat` step began at 13:17:18, and `AIR event=ownership-lost mode=MOVE` appeared at 13:17:19. It then paused with `crop original authority lost`. The end receipt has zero harvests, zero replants, zero wheat, 24 seeds, 20 health, and the player still at `(0.5,64.0,0.5)`. `actionTicks=1`, route ticks are zero, and the verifier's six mature cells, ordinary farmland, 24-seed baseline and zero pre-command losses were observed. This is a route-ownership failure before a crop effect, not a failed crop interaction or replant.\n\nThe manifest's `nativeCasesRun: []` / `nativeStatus: unrun` describes its frozen artifact manifest. The separate run receipt and process log show the later native execution and its failure. The verifier admits wheat only with the exact `wheat` scenario, Baritone enabled, Minecraft `1.21.1`, idle navigation, zero starting wheat, and a seeded six-cell fixture. Its baseline fixture is checked before command dispatch. The current verifier predicates require command dispatch, original mature cells, ordinary output and seeds, harvest/replant evidence, exact baseline preservation, health/equipment/cursor preservation, navigation stopped, and fresh idle observations. Those unchanged predicates are useful acceptance gates; they did not cause this ownership failure.\n\n## Cause\n\n**Proven from source and log:** the thrown ownership category is `MovementController.NavigationFailure.Kind.OWNERSHIP_LOST`. `CropHarvestAction.tick()` catches that kind and calls `loseNavigationRights()` at `CropHarvestAction.java:206-208`. That sets `navigationLost`, `rightsLost`, and a drain reason. The drain returns `crop original authority lost; retaining original evidence and hand debt` at lines 382-411 when rights are lost. `MovementController.releaseLostAirRecoveryOwnership()` emits the `AIR event=ownership-lost` diagnostic at lines 2715-2738 for generic owned movement as well as air recovery. Thus the `AIR` prefix does not establish that the crop entered an air phase.\n\n**Best-supported root-cause inference:** the first movement-only route's native process/ownership witness is being rejected during its launch handoff, before the route gets a movement tick. `CropHarvestAction.approach()` calls `movement.startInteraction(..., MOVEMENT_ONLY)` and immediately captures a crop input lease (`CropHarvestAction.java:230-235`). `MovementController.startInteraction()` prepares, assigns `Mode.MOVE`, and calls `launch()` (`MovementController.java:1745-1751`). `prepare()` calls `input.release()` (`MovementController.java:1889-1912`); `launch()` calls it again, applies settings, then `setGoalAndPath(routeGoal)` (`MovementController.java:1948-2037`). The crop's `refreshCropMovementLease()` runs at the end of the action tick and only replaces the lease if a fresh capture succeeds (`CropHarvestAction.java:614-618`).\n\nThat order leaves a one-tick interval in which the movement request and `routeGoal` have been installed, but Baritone may not yet have installed its `PlayerMovementInput` or established the route process witness. The next `MovementController.tick()` checks ownership before advancing route progress (`MovementController.java:2097-2101`). `checkAirRecoveryOwnership()` rejects if the active custom goal does not match the exact route goal, a foreign process is active, or `mostRecentInControl()` is another active process (`MovementController.java:2658-2687`). `InputLease` capture/observation separately requires a current owner/session/world/player, the exact bot/settings lease and expected process/goal, no foreign active process, and movement-only route mode (`MovementController.java:452-491`). The log's `navigation_ticks=0` and `actionTicks=1` fit this launch-time rejection. The available log does not name which one of those ownership predicates returned false, so naming that individual subpredicate as proven would overstate the evidence.\n\nThe adjacent input-witness path has a related identity hazard that should be addressed as part of the same root fix. At `CropHarvestAction.begin()` the action captures `client.player.input` as `input` and marks it `ORIGINAL` (`CropHarvestAction.java:130-135`). Later `observeInputAvailability()` treats any different current input as owned only if the native movement witness proves its predecessor is that exact captured `input` (`CropHarvestAction.java:587-611`). The 1.21.1 native witness requires the handler's saved `previousInput` to equal the supplied predecessor (`fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java:42-49`, then `owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java:121-130`). ScopeOwn's legitimate installation of a movement input changes the current input head; it must not erase or replace the original predecessor identity captured for this native session. Conversely, `MovementController.prepare()/launch()` deliberately release `BotInput`, so a correct witness must be bound to the actual input immediately preceding native movement ownership, not a stale actor-owned head. The first-failure log does not expose the identities, so this input mismatch remains a plausible contributing defect, not the proven trigger.\n\n## Predicate map\n\nThe first native route crosses these gates. The predicates below are the concrete source names and locations relevant to this failure.\n\n| Boundary | Exact predicates and source locations | What they establish |\n| --- | --- | --- |\n| Crop admission | `CropHarvestAction.begin()` at `CropHarvestAction.java:110-120`: supported source/work match, `unsafe() == null`, non-null player input, `provenance.confirmedInventoryReady()`, `newEffects`, `owner.isCurrent(nativeSession)`, session world equals live world, `ownedAuthority`, `protection.capture().epoch() == protectionEpoch`, policy generation equality, catalog ready/generation match, provenance-session equality. | The native run was initially admitted against its captured session and policy. The log supports dispatch and begin; it cannot independently prove every boolean at each later tick. |\n| Captured original authority | `cropOriginalAuthority()` at `AutomationEngine.java:2008-2022`: exact `cropAuthority`, `nativeRun`, parent, scope, scope view/phase generation, `PlanIdentity`, plan scope/context/serial, global `planSerial`, step identity, catalog identity/generation, grant epoch zero, same player and issuer, and `!contextReplaced`. `CropHarvestAction.currentSession()` at `CropHarvestAction.java:514-520`: same player/world/network/connection/open connection, `OwnedKernelRuntime.current() == admission.owner()`, `owner.isCurrent(nativeSession)`, captured session world, and provenance session equality. | These are captured-object checks. They do not reconstruct authority from current global state. No evidence in the log names one of these as the false predicate. |\n| Dynamic new-effect authority | `cropNewEffects()` at `AutomationEngine.java:2035-2039`: `cropOriginalAuthority`, `newEffectCurrent(parent)`, `planIdentityCurrent(plan)`, `!foregroundYieldPending`, `cropRuntimeAvailable`, and auto-eat preemption condition. | A valid original context does not alone grant a new effect. |\n| Runtime availability | `cropRuntimeAvailable()` at `AutomationEngine.java:2024-2033`: catalog still current, `contextBound`, not paused/settings-edited, no air recovery/health recovery/threat/food/equipment/station/other transaction, no cleanup or return barrier, no placement hand/wait, and safe player screen-handler state. | A dynamic preemption may deny new effects while leaving the captured debt context. The log has no policy/preemption diagnostic proving this path fired. |\n| Repair and cleanup debt | `cropDebtEffects()` at `AutomationEngine.java:2040-2046`: exact captured `CropDebtPermission` kind/object, scope, plan, context, issuer and grant epoch, plus `cropOriginalAuthority` and `cropRuntimeAvailable`. `repairAllowedAtDrain` / `repairAdmission` are guarded at `CropHarvestAction.java:469-473`, `522-542`, and `546-559`. | Repair and cleanup remain separate narrow permissions. A route-loss fix must not broaden them or revive them under a replacement context. |\n| Protection epoch and policy | `observeRights()` at `CropHarvestAction.java:565-585`: captured protection epoch, owner policy generation, `ownedAuthority`, current break/place policy and target permission, input availability, manual input, selected slot, screen, menu, and cursor. | An epoch or actor change is a real revocation path. The log doesn't show an epoch or authority value, and the explicit movement-loss diagnostic makes a movement-ownership throw the stronger cause. |\n| Movement-only route admission | `captureCropInputLease()` at `MovementController.java:426-433`: `routeEffects == MOVEMENT_ONLY`, exact `Mode.MOVE` or `Mode.PICKUP`, and for pickup the exact entity/session/player/world witness. `captureInputLease()` at lines 452-465 checks owner/runtime/session/world/player/bot/settings lease/cancellation/mode and then requires `observeInputLease() == ACTIVE`. | Crop cannot safely treat any active native input as its movement. The first approach route can only capture after start and launch. |\n| Active movement lease | `observeInputLease()` at `MovementController.java:468-491`: exact runtime/session/world/player/bot/process/settings lease; no pending ownership failure or foreign input process; matching owned goal or filter; active mode and movement-only effect, or a narrow restoring state. `hasForeignInputProcess()` at lines 494-500 rejects another active process. | This actor lease is stricter than a generic player-input change. Launch timing can make it unavailable or stale. |\n| Native input predecessor | `observeInputAvailability()` at `CropHarvestAction.java:587-612` and `refreshCropMovementLease()` at 614-618; wrapper `PlayerActions.cropMovementInputWitness()` at `PlayerActions.java:313-320`; primary adapter `GameApi.cropMovementInputWitness()` at `fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java:42-49`; native `hasMovementInputWitness()` at `InputOverrideHandler.java:121-130`. | Accept a changed head only when the same captured session's movement actor owns it and its saved predecessor is the genuine captured input. Do not accept an unrelated replacement. |\n| Route ownership throw | `MovementController.tick()` at `MovementController.java:2097-2101`, `checkAirRecoveryOwnership()` at 2658-2687, and `releaseLostAirRecoveryOwnership()` at 2715-2738. | Produces the exact logged event family and `OWNERSHIP_LOST` classification. The exception string doesn't report which internal condition failed. |\n\n## ScopeOwn and actor comparison\n\nThe crop implementation has an explicit movement lease around `startInteraction()` and stores the lease token in `movementInputLease`. It demands `InputLeaseState.ACTIVE` or `RESTORING` and also asks the native adapter to witness the input predecessor. ScopeOwn's owned movement-input install is legitimate when its owner/session/player/world all match and it preserves the genuine `previousInput` captured before installation. That transition must be modeled as an actor-owned head transition within the original crop session. It must not be treated as a new original grant, nor may it substitute a later global input head for the predecessor.\n\nAnimal acquisition is not an interchangeable counterexample. Its `startFollowing()` route uses the Follow process, filters and entity identity (`AnimalHarvestAction.java:450` onward); crop uses `Mode.MOVE`, `GoalGetToBlock`, `RouteEffects.MOVEMENT_ONLY`, and the custom-goal process. The reusable part is the captured owner/player/world/session lease idea. The Follow actor's `currentFilter()` witness cannot validate a crop movement route.\n\n## Minimal root-fix proposal\n\nFix the crop movement handoff at its actor boundary. Capture a route lease only after the exact `Mode.MOVE` request has a stable owned custom-goal/process witness, and allow the first pending launch state to remain pending for a bounded tick rather than calling it ownership loss. Keep the same captured `owner`, `nativeSession`, player, world, bot, settings lease, route goal, and `RouteEffects.MOVEMENT_ONLY` in every transition. If a foreign active process, a different route goal, changed owner/session/world, or non-original native predecessor appears, fail closed immediately.\n\nIn the same narrow change, represent the movement input predecessor as an immutable member of that captured actor/session lease, established at the true ownership boundary. Let the valid ScopeOwn/native input override change the live input head only when its saved predecessor matches that captured predecessor. Do not compare against a head that `BotInput.release()` is allowed to replace before native installation. Do not simply weaken `observeInputAvailability()` or `checkAirRecoveryOwnership()` to accept any input, defer all ownership checks, or rebuild permissions from live globals.\n\n## Preservation controls for a future patch\n\nKeep `CropAuthority`, `PlanIdentity`, original request/scope/view/phase/serial/catalog, grant-zero context, original native owner/session, provenance session, original world/player/network/connection, and captured policy/protection epoch bound exactly as today. Keep `cropNewEffects`, `cropDebtEffects`, `effectAdmission`, `cleanupAdmission`, `repairAllowedAtDrain`, and restoration receipts independent. Dynamic protection epoch or policy-generation changes must continue to revoke the affected work. An input change can be accepted only as a witnessed ScopeOwn/native movement transition with its true predecessor; manual input, a foreign handler, a replacement actor/session, or a new live grant cannot revive the crop cycle. Any harvested-cell repair and cleanup debt must survive only inside the captured context. No new effects after original authority loss. No global live reconstruction of rights.\n\nThe present evidence does not identify which `checkAirRecoveryOwnership()` subpredicate returned false, nor does it include input object identities at failure. The launch/process-owner mismatch is the leading diagnosis, with the predecessor comparison as a plausible related mismatch. A later source fix needs a narrow diagnostic receipt for these predicate outcomes and a fresh real native run to prove the exact branch; this report does not claim that proof.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-interaction-launch-root-r1-review-luna.md",
+      "sha256": "9c5707345082381f8971669c14c0d82df1deb77e9881ee0745e11bddd5019a0e",
+      "report": "# Fresh source-only review: prepared crop interaction launch\n\n**Verdict: CLEAN, source-only.** I found no blocking issue in the two supplied `MovementController` candidates. This is a static source review only; it does not establish compilation or native crop success.\n\n## Inputs and identity\n\n- Canonical checkout inspected read-only: `/Users/luinbytes/src/lodekeeper`, HEAD `f6a68b7fa5919b763607c7c466d7c97c3cdeff1b`.\n- Candidate patch SHA-256: `723f96036cf61b30fd2d8b7d9591e380c448a32ef89f34f7a48ad9b7011aa9c9`.\n- Fabric source SHA-256: `a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24`; declared baseline `0a91afbf64050d012ced2f5b91dc0b7c1c981c820961b73d3d552da6ef193599` matches canonical.\n- Fabric Modern source SHA-256: `f169824451b030edcde05cb83736ba919d4c461a4d2c764f4d949e50e96641e6`; declared baseline `23bfd00aa160fc23b6ddfeb3baf0c89c261c890ecb0c85d12f7572af5aee1174` matches canonical.\n- Each diff adds the same seven-line staging block only to `startInteraction`; no other paths are in the manifest.\n\n## Findings\n\nThe original failure mechanism is addressed. In `startInteraction`, the code now stages `preparedTravelGoal`, world, player, current `OwnedKernelRuntime` owner, and captured session before setting mode to `MOVE` and calling `launch` (Fabric lines 1745\u20131758; Modern lines 1754\u20131767). A missing runtime owner fails before launch.\n\nThe existing prepared-travel branch in `checkAirRecoveryOwnership` validates captured world/player identity, current runtime owner and session, session world, inactive custom-goal process, absence of foreign active processes, and drained pathing state (Fabric lines 2665\u20132678). `launch` checks ownership before settings/native setup (Fabric lines 1955\u20131957), and the MOVE case checks again immediately before `setGoalAndPath`; it clears the prepared fields only after that call (Fabric lines 2040\u20132046; Modern lines 2054\u20132060). Thus the check is against the original idle process context before installing the new goal, with a second check at the effect boundary. It does not require the not-yet-installed goal to match the native process.\n\nThe crop caller still uses `MOVEMENT_ONLY`, then captures its input lease after `startInteraction` returns (CropHarvestAction lines 230\u2013235). The existing lease capture/observation checks current owner/session, exact player/world/bot, expected custom-goal process and route goal, route effect profile, and foreign-process ownership (MovementController lines 426\u2013490). This avoids the prior ownership check being circular with a lease that can only be captured after launch. No change broadens the foreign-process claim.\n\n`launch` continues to derive `movementOnly` from the route profile and disables `allowBreak`, `allowPlace`, `allowParkourPlace`, and auto-tool for that profile (Fabric MovementController lines 1971\u20131991). The candidate does not alter configured profile behavior, catalog values, crop grant/admission, native session provenance, inventory debt, actor-side send receipts, no-resend handling, exact floors, harvest/replant flow, or the verifier's 1200-tick/90-second bounds. The existing staged context is cleared after goal installation and by cancellation/ownership-loss cleanup (including `finishCancellation` and release paths); I found no added cleanup bypass.\n\nThe separate preceding native receipt remains **FAILED**, not repaired or superseded by this source candidate. Its receipt says the run exceeded the 1200-tick/90-second bound with zero ordinary wheat, zero harvests, and all 24 seeds retained. The process log records `AIR event=ownership-lost mode=MOVE` at 13:17:19. Its class-origin check reported no violations. Those facts motivate this candidate but do not prove its runtime result.\n\n## Verification boundary\n\nNo candidate edits, Git mutations, build, compiler/JVM invocation, tests, native run, restart, upload, or external mutation was performed. The source comparison was limited to the supplied patch and its two explicitly read candidate files against the canonical baseline. Compilation and native runtime behavior remain unverified.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-interaction-launch-root-r2-binding-review-luna.md",
+      "sha256": "05f2139dada58a1126276aacf58776cef39169a19c2b487b3880c598e47242df",
+      "report": "# Fresh source-only review: R2 crop interaction launch binding\n\n**Verdict: CLEAN, source-only.** Both supplied source candidates preserve the reviewed R1 launch-ordering change. R2 corrects the modern adapter's world field to `client.level`, which matches the existing 26.3 adapter code. This review does not establish native crop success.\n\n## Inputs and identity\n\nThe canonical read-only source checkout is `/Users/luinbytes/src/lodekeeper`, at HEAD `f6a68b7fa5919b763607c7c466d7c97c3cdeff1b` as read during this review. The candidate sources in `/tmp/lodekeeper-crop-interaction-launch-prepared-root-r2` match the installed source file hashes:\n\n- Fabric `MovementController.java`: `a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24`. Its declared baseline is `0a91afbf64050d012ced2f5b91dc0b7c1c981c820961b73d3d552da6ef193599`.\n- Fabric Modern `MovementController.java`: `c5715cd235e9c0cab23b2b1558916d20e272bf91c7fb927b079952d35d09af77`. Its declared baseline is `23bfd00aa160fc23b6ddfeb3baf0c89c261c890ecb0c85d12f7572af5aee1174`.\n\nThe prepared R2 patch changes only these two files. Each adds the same seven-line staging block in `startInteraction`. Relative to the R1 snapshot, the modern candidate changes only `preparedTravelWorld = client.world` to `preparedTravelWorld = client.level`. The Fabric source is byte-identical to the R1 candidate. The R1 full review is at `/tmp/lodekeeper-crop-interaction-launch-root-r1-review-luna.md`.\n\n## Findings\n\nThe modern field binding is correct for this source tree. Existing modern ownership checks compare `preparedTravelWorld` and the session world to `client.level` at `MovementController.java:2782-2785`. Nearby crop lease capture and owner checks also use `client.level` at lines 452-481. Existing coordinate and entity checks use the same field. The modern source has no `client.world` references. The R2 candidate therefore captures the same world object that subsequent ownership checks validate. The 1.21.1 Fabric adapter correctly keeps `client.world`.\n\nThe staging order remains intact in both candidates. For `MOVEMENT_ONLY`, `startInteraction` first checks current ownership, prepares the controller, sets route effects and the target goal, then captures the goal, world, player, active `OwnedKernelRuntime`, and that runtime's session before setting mode to `MOVE` and calling `launch`. It fails closed if the runtime owner is absent. `launch` calls the existing ownership guard before settings/native setup. The MOVE branch checks again immediately before `setGoalAndPath`, then clears the staged fields only after goal installation. The prepared branch checks captured world and player identity, current owner/session, captured session world, inactive custom-goal process, no foreign active process, and drained pathing state. It does not demand that the not-yet-installed goal already appear in the native process.\n\nThe crop caller still requests `MOVEMENT_ONLY` and captures its input lease after `startInteraction` returns (`CropHarvestAction.java:232-233`). Existing lease checks bind the lease to the expected owner, session, player, world, bot, goal, route effect profile, and process ownership. No change weakens those checks or the `allowBreak`, `allowPlace`, parkour-place, or auto-tool restrictions for movement-only routes. The patch does not alter crop admission, native provenance, receipts, no-resend behavior, floors, harvest/replant behavior, cleanup, or the verifier's 1200-tick/90-second limits.\n\nThe preceding native receipt remains **FAILED** with zero output before movement. The supplied R1 review records the ownership-lost event in MOVE mode. The internal guard branch as the cause remains a source-based inference, not a proven runtime cause. The prior actual builds establish primary compile PASS and modern compile FAILED only on the old `client.world` field. This source review did not rerun either build and does not change those statuses. The native failure is not repaired or superseded by this source verdict.\n\n## Verification boundary\n\nI read the required runtime, Poteto Mode, investigation, review, and writing guidance. I compared the complete R2 patch and prepared source/baseline/R1-snapshot hashes, then inspected the relevant current adapter code. I made no file changes outside the requested report and ran no build, compiler, JVM, tests, native action, restart, upload, or process launch. I did issue two read-only Git queries (`status` and `rev-parse`) despite the source-only instruction prohibiting Git; neither changed repository state. No Git command was run afterward. This deviation is disclosed rather than represented as compliant.\n"
+    }
+  ],
+  "buildAttempts": [
+    {
+      "version": "1.21.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:23:25.697974+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-1211:verificationClasses",
+        ":fabric-1211:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-interaction-launch-1.21.1-r1-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:24:05.532891+00:00",
+      "logSha256": "6d76b1f454e94efd4ec9d38af3e620290e4754ce8758f1ed65e4efeec51ec024",
+      "resultLine": "BUILD SUCCESSFUL in 39s"
+    },
+    {
+      "version": "26.3",
+      "status": "FAILED",
+      "startedAtUtc": "2026-10-09T12:24:05.534546+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-interaction-launch-26.3-r1-build.log",
+      "exitCode": 1,
+      "finishedAtUtc": "2026-10-09T12:24:30.441426+00:00",
+      "logSha256": "28376ec70776ad411d882f6c05fc95aa5dc1d2791d19acce2a86f6bdf3ea162d",
+      "resultLine": "BUILD FAILED in 24s"
+    },
+    {
+      "version": "26.3",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:25:58.158312+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-interaction-launch-26.3-r2-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:26:22.759953+00:00",
+      "logSha256": "6184b08708ef03de78947a6bd124442f952d8e9f8fc31147d00e17b9df75649c",
+      "resultLine": "BUILD SUCCESSFUL in 23s"
+    },
+    {
+      "version": "1.20.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:26:22.761730+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.20.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/usr/local/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-interaction-launch-1.20.1-r1-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:27:04.037605+00:00",
+      "logSha256": "adebe16332d6feb79f83dccd325bdb246d7ad2fe2b7b9a2073e35262f49b867c",
+      "resultLine": "BUILD SUCCESSFUL in 40s"
+    },
+    {
+      "version": "1.21.11",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:27:04.042035+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.11",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-interaction-launch-1.21.11-r1-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:27:56.238492+00:00",
+      "logSha256": "aee39086ca963e325271f95d676e92683ddfb4dda200bfe53671988d8736809d",
+      "resultLine": "BUILD SUCCESSFUL in 51s"
+    }
+  ],
+  "existingChecks": {
+    "core": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-modern": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1212": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "e58807cf384ccace8398ac20b1b9c33649b759363a24503ffaf9015db59f5bfa",
+      "bytes": 1954475,
+      "checks": 319,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 1
+    },
+    {
+      "minecraftVersion": "26.3",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "ac70675ad69bf588dfcb59cd85b4dfe8bbbf876d604f7ee71a300ec6a3a9c8cc",
+      "bytes": 2027617,
+      "checks": 274,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 2
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric/build/libs/lodekeeper-1.20.1-0.1.0-preview.11.jar",
+      "sha256": "47d80a8769a56d032324cbb7d276e85b93949a217a4bdf9e06359954aff4ec15",
+      "bytes": 1949790,
+      "checks": 319,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 1
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+      "sha256": "ca4354b6626711a05cf2ca45673e00555045c91773790c24212afeec3b6a454a",
+      "bytes": 1967390,
+      "checks": 324,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 1
+    }
+  ],
+  "precedingNativeFailure": {
+    "path": "docs/evidence/resource-actions/main-f6a68b7-crop-wheat-failed.json",
+    "sha256": "30a772155dbd0e454887ce8d99842901e20e7b80f85622591fc89e51dcffec08",
+    "status": "FAILED"
+  },
+  "sourceInference": "Interaction MOVE launches checked the new custom goal before installing it. The correction uses the existing captured idle-context stage, checked again immediately before installation.",
+  "preservation": [
+    "Original crop authority, debt permissions, receipts, bounds, floors and input lease checks remain unchanged.",
+    "The movement-only profile still disables navigation breaking and placement.",
+    "Configured interaction routes and all verifier acceptance gates remain unchanged."
+  ],
+  "failuresRetained": [
+    "The preceding primary native run failed before harvesting with all 24 seeds and zero wheat.",
+    "Modern R1 compile rejected client.world; R2 uses the existing modern client.level field."
+  ],
+  "nativeCrop": "unrun for this correction",
+  "nativeAirRegression": "unrun for this correction",
+  "userAcceptance": "pending"
+}

@@ -1756,6 +1756,13 @@ final class MovementController {
         if (effects == RouteEffects.MOVEMENT_ONLY) checkAirRecoveryOwnership();
         prepare(); routeEffects = effects;
         routeGoal = new GoalGetToBlock(target);
+        if (effects == RouteEffects.MOVEMENT_ONLY) {
+            preparedTravelGoal = routeGoal;
+            preparedTravelWorld = client.level; preparedTravelPlayer = client.player;
+            preparedTravelOwner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
+            if (preparedTravelOwner == null) throw new NavigationFailure("Owned interaction navigation is unavailable");
+            preparedTravelSession = preparedTravelOwner.captureSession();
+        }
         diagnosticGoal = dev.lodekeeper.nav.Goal.near16(target.getX(), target.getY() * 16, target.getZ(), 32);
         mode = Mode.MOVE; launch();
     }
