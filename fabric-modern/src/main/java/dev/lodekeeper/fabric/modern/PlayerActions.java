@@ -448,6 +448,12 @@ final class PlayerActions {
         ItemStack originalStack, selectedBefore;
         int originalSlot, selectedSlot;
         boolean captured, selectionSent, restoreHotbar, rightsLost, sent, draining, settled, abandoned;
+        boolean diagnosticCaptured, diagnosticLogged, diagnosticRestored;
+        int diagnosticBorrowedSlot = -1;
+        String diagnosticFirstLoss, diagnosticLastAdmission = "not_evaluated";
+        String diagnosticFailedPredicate, diagnosticCallsite;
+        long diagnosticGuardEvaluated, diagnosticGuardValues;
+        int diagnosticManualEvaluated, diagnosticManualDown;
 
         StationPlacementHand(long jobToken, net.minecraft.core.BlockPos position, Block block, Object input,
                              dev.lodekeeper.navigation.kernel.OwnedKernelRuntime nativeOwner,
@@ -462,8 +468,8 @@ final class PlayerActions {
     }
 
     private boolean admitStationHand(StationPlacementHand hand) {
-        observeStationPlacementHand(hand, false);
-        if (hand.draining || hand.sent || hand.settled || hand.rightsLost || !hand.newEffectAdmission.getAsBoolean()) {
+        observeStationPlacementHand(hand, false, "PlayerActions.admitStationHand.observe");
+        if (hand.draining || hand.sent || hand.settled || hand.rightsLost || !stationHandAdmission(hand)) {
             hand.requestDrain(); return false;
         }
         return true;
@@ -496,6 +502,7 @@ final class PlayerActions {
         hand.menu = client.player.containerMenu; hand.playerMenu = client.player.inventoryMenu;
         hand.session = session; hand.originalSlot = original;
         hand.selectedSlot = chosen < 9 ? chosen : original;
+        hand.diagnosticBorrowedSlot = chosen;
         hand.originalStack = client.player.getInventory().getItem(original).copy();
         hand.selectedBefore = client.player.getInventory().getItem(chosen).copy();
         hand.restoreHotbar = chosen < 9; hand.captured = true;
@@ -509,52 +516,87 @@ final class PlayerActions {
     }
 
     void observeStationPlacementHand(StationPlacementHand hand, boolean ownedAirInput) {
-        if (!hand.captured || hand.settled) return;
-        if (client.player != hand.player || client.level != hand.world || client.getConnection() != hand.network
-                || client.getConnection() == null || client.getConnection().getConnection() != hand.connection
-                || client.getConnection().getConnection() == null || !client.getConnection().getConnection().isConnected()
-                || !placementProvenance.session().filter(hand.session::equals).isPresent()
-                || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != hand.nativeOwner
-                || !hand.nativeOwner.isCurrent(hand.nativeSession) || hand.nativeSession.world() != client.level) {
-            hand.loseRights(); hand.abandoned = true; return;
+        observeStationPlacementHand(hand, ownedAirInput, "PlayerActions.observeStationPlacementHand");
+    }
+
+    void observeStationPlacementHand(StationPlacementHand hand, boolean ownedAirInput, String callsite) {
+        StationHandGuardTrace trace = stationHandTrace(hand, callsite, ownedAirInput);
+        if (!stationHandGuard(trace, 0, hand.captured) || !stationHandGuard(trace, 1, !hand.settled)) return;
+        if (!stationHandGuard(trace, 2, client.player == hand.player)
+                || !stationHandGuard(trace, 3, client.level == hand.world)
+                || !stationHandGuard(trace, 4, client.getConnection() == hand.network)
+                || !stationHandGuard(trace, 5, client.getConnection() != null)
+                || !stationHandGuard(trace, 6, client.getConnection().getConnection() == hand.connection)
+                || !stationHandGuard(trace, 7, client.getConnection().getConnection() != null)
+                || !stationHandGuard(trace, 8, client.getConnection().getConnection().isConnected())
+                || !stationHandGuard(trace, 9, placementProvenance.session().filter(hand.session::equals).isPresent())
+                || !stationHandGuard(trace, 10, dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() == hand.nativeOwner)
+                || !stationHandGuard(trace, 11, hand.nativeOwner.isCurrent(hand.nativeSession))
+                || !stationHandGuard(trace, 12, hand.nativeSession.world() == client.level)) {
+            hand.loseRights(); hand.abandoned = true;
+            captureStationHandRightsLoss(hand, trace, firstStationHandFailure(trace, 2, 12));
+            return;
         }
         int expectedSlot = hand.selectionSent ? hand.selectedSlot : hand.originalSlot;
-        if (!client.player.isAlive() || client.player.containerMenu != hand.menu
-                || client.player.inventoryMenu != hand.playerMenu || GameApi.screen(client) != null
-                || !client.player.containerMenu.getCarried().isEmpty() || client.player.isUsingItem()
-                || client.player.getInventory().getSelectedSlot() != expectedSlot
-                || !ownedAirInput && client.player.input != hand.input || manualStationHandInput()) hand.loseRights();
-        if (!hand.selectionSent) {
-            if (!sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack)) hand.loseRights();
+        if (!stationHandGuard(trace, 13, client.player.isAlive())
+                || !stationHandGuard(trace, 14, client.player.containerMenu == hand.menu)
+                || !stationHandGuard(trace, 15, client.player.inventoryMenu == hand.playerMenu)
+                || !stationHandGuard(trace, 16, GameApi.screen(client) == null)
+                || !stationHandGuard(trace, 17, client.player.containerMenu.getCarried().isEmpty())
+                || !stationHandGuard(trace, 18, !client.player.isUsingItem())
+                || !stationHandGuard(trace, 19, client.player.getInventory().getSelectedSlot() == expectedSlot)
+                || !ownedAirInput && !stationHandGuard(trace, 20, client.player.input == hand.input)
+                || !stationHandGuard(trace, 21, !manualStationHandInput(trace))) {
+            hand.loseRights();
+            captureStationHandRightsLoss(hand, trace, firstStationHandFailure(trace, 13, 21));
+        }
+        if (!stationHandGuard(trace, 22, hand.selectionSent)) {
+            if (!sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack, trace, 23)) {
+                hand.loseRights();
+                captureStationHandRightsLoss(hand, trace, stationHandStackFailure(trace, 23));
+            }
             return;
         }
         ItemStack selected = client.player.getInventory().getItem(hand.selectedSlot);
         ItemStack after = hand.selectedBefore.copy(); after.shrink(1);
-        if (!sameStationHandStack(selected, hand.selectedBefore) && (!hand.sent || !sameStationHandStack(selected, after))
-                || hand.restoreHotbar && hand.originalSlot != hand.selectedSlot
-                && !sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack))
+        if (stationHandGuard(trace, 49, !sameStationHandStack(selected, hand.selectedBefore, trace, 27)
+                && (!stationHandGuard(trace, 41, hand.sent) || !sameStationHandStack(selected, after, trace, 31)))
+                || stationHandGuard(trace, 39, hand.restoreHotbar) && stationHandGuard(trace, 40, hand.originalSlot != hand.selectedSlot)
+                && !sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack, trace, 23)) {
             hand.loseRights();
+            captureStationHandRightsLoss(hand, trace, trace != null && (trace.values & 1L << 49) != 0
+                    ? "selected_changed_without_permitted_debit" : stationHandStackFailure(trace, 23));
+        }
     }
 
     boolean finishStationPlacementHand(StationPlacementHand hand,
                                       dev.lodekeeper.core.OwnedStationLedger.StationRecord record) {
         if (hand.settled) return true;
         if (!hand.captured || !hand.selectionSent) { hand.settled = true; return true; }
-        observeStationPlacementHand(hand, false);
+        observeStationPlacementHand(hand, false, "PlayerActions.finishStationPlacementHand.observe");
         if (hand.abandoned) return false;
-        if (hand.sent && (record == null || record.ticket() != hand.ticket
-                || record.jobToken() != hand.jobToken || !record.session().equals(hand.session)
-                || !record.position().equals(hand.ticket.intent().position())
-                || !record.expectedBlockId().equals(hand.ticket.intent().expectedBlockId()))) return false;
-        if (!placementProvenance.confirmedInventoryReady()) return false;
+        StationHandGuardTrace trace = stationHandTrace(hand, "PlayerActions.finishStationPlacementHand.stack", false);
+        if (trace != null) { trace.record = record; trace.recordArgumentSupplied = true; }
+        if (stationHandGuard(trace, 41, hand.sent) && (!stationHandGuard(trace, 43, record != null)
+                || !stationHandGuard(trace, 44, record.ticket() == hand.ticket)
+                || !stationHandGuard(trace, 45, record.jobToken() == hand.jobToken)
+                || !stationHandGuard(trace, 46, record.session().equals(hand.session))
+                || !stationHandGuard(trace, 47, record.position().equals(hand.ticket.intent().position()))
+                || !stationHandGuard(trace, 48, record.expectedBlockId().equals(hand.ticket.intent().expectedBlockId())))) return false;
+        if (!stationHandGuard(trace, 42, placementProvenance.confirmedInventoryReady())) return false;
         ItemStack expected = hand.selectedBefore.copy();
         if (hand.sent) expected.shrink(1);
-        if (!sameStationHandStack(client.player.getInventory().getItem(hand.selectedSlot), expected)
-                || hand.restoreHotbar && hand.originalSlot != hand.selectedSlot
-                && !sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack))
+        if (stationHandGuard(trace, 50, !sameStationHandStack(client.player.getInventory().getItem(hand.selectedSlot), expected, trace, 35))
+                || stationHandGuard(trace, 39, hand.restoreHotbar) && stationHandGuard(trace, 40, hand.originalSlot != hand.selectedSlot)
+                && !sameStationHandStack(client.player.getInventory().getItem(hand.originalSlot), hand.originalStack, trace, 23)) {
             hand.loseRights();
-        if (!hand.rightsLost && hand.restoreHotbar && hand.originalSlot != hand.selectedSlot)
+            captureStationHandRightsLoss(hand, trace, trace != null && (trace.values & 1L << 50) != 0
+                    ? stationHandStackFailure(trace, 35) : stationHandStackFailure(trace, 23));
+        }
+        if (!hand.rightsLost && hand.restoreHotbar && hand.originalSlot != hand.selectedSlot) {
             client.player.getInventory().setSelectedSlot(hand.originalSlot);
+            hand.diagnosticRestored = true;
+        }
         hand.settled = true;
         return true;
     }
@@ -564,12 +606,199 @@ final class PlayerActions {
                 && (left.isEmpty() || ItemStack.isSameItemSameComponents(left, right));
     }
 
-    private boolean manualStationHandInput() {
+
+    private static final class StationHandGuardTrace {
+        static final String[] NAMES = {
+                "captured", "unsettled", "player_same", "world_same", "network_same", "network_present",
+                "connection_same", "connection_present", "connection_open", "provenance_session_equal",
+                "native_owner_same", "native_session_current", "native_world_same", "alive", "menu_same",
+                "player_menu_same", "screen_absent", "cursor_empty", "not_using_item", "selected_slot_expected",
+                "input_same", "manual_idle", "selection_sent", "original_count_equal", "original_empty_equal",
+                "original_left_empty", "original_components_equal", "selected_before_count_equal",
+                "selected_before_empty_equal", "selected_before_left_empty", "selected_before_components_equal",
+                "selected_after_count_equal", "selected_after_empty_equal", "selected_after_left_empty",
+                "selected_after_components_equal", "selected_expected_count_equal", "selected_expected_empty_equal",
+                "selected_expected_left_empty", "selected_expected_components_equal", "restore_hotbar",
+                "original_slot_different", "sent", "confirmed_inventory_ready", "record_present", "record_ticket_same",
+                "record_job_equal", "record_session_equal", "record_position_equal", "record_block_equal",
+                "selected_changed_without_permitted_debit", "selected_expected_mismatch"
+        };
+        final String callsite;
+        final boolean ownedAirInput;
+        long evaluated, values;
+        int manualEvaluated, manualDown;
+        Object record;
+        boolean recordArgumentSupplied;
+
+        StationHandGuardTrace(String callsite, boolean ownedAirInput) {
+            this.callsite = callsite; this.ownedAirInput = ownedAirInput;
+        }
+    }
+
+    private static StationHandGuardTrace stationHandTrace(StationPlacementHand hand, String callsite, boolean ownedAirInput) {
+        if (hand.diagnosticCaptured) return null;
+        try { return new StationHandGuardTrace(callsite, ownedAirInput); }
+        catch (RuntimeException | Error ignored) { return null; }
+    }
+
+    private static boolean stationHandGuard(StationHandGuardTrace trace, int predicate, boolean value) {
+        if (trace != null) {
+            long bit = 1L << predicate;
+            trace.evaluated |= bit;
+            if (value) trace.values |= bit;
+        }
+        return value;
+    }
+
+    private static boolean stationHandKey(StationHandGuardTrace trace, int bit, boolean down) {
+        if (trace != null) {
+            trace.manualEvaluated |= bit;
+            if (down) trace.manualDown |= bit;
+        }
+        return down;
+    }
+
+    private static String firstStationHandFailure(StationHandGuardTrace trace, int first, int last) {
+        if (trace == null) return "trace_unavailable";
+        for (int index = first; index <= last; index++) {
+            if ((trace.evaluated & 1L << index) != 0 && (trace.values & 1L << index) == 0)
+                return StationHandGuardTrace.NAMES[index];
+        }
+        return "trace_unavailable";
+    }
+
+    private static String stationHandStackFailure(StationHandGuardTrace trace, int base) {
+        String scalar = firstStationHandFailure(trace, base, base + 1);
+        return !scalar.equals("trace_unavailable") ? scalar : firstStationHandFailure(trace, base + 3, base + 3);
+    }
+
+    private static boolean sameStationHandStack(ItemStack left, ItemStack right, StationHandGuardTrace trace, int base) {
+        return stationHandGuard(trace, base, left.getCount() == right.getCount())
+                && stationHandGuard(trace, base + 1, left.isEmpty() == right.isEmpty())
+                && (stationHandGuard(trace, base + 2, left.isEmpty())
+                || stationHandGuard(trace, base + 3, ItemStack.isSameItemSameComponents(left, right)));
+    }
+
+    private static boolean stationHandAdmission(StationPlacementHand hand) {
+        boolean admitted = hand.newEffectAdmission.getAsBoolean();
+        hand.diagnosticLastAdmission = admitted ? "engine_admission_delegate_true" : "engine_admission_delegate_false";
+        return admitted;
+    }
+
+    private static String stationHandToken(String value, int limit) {
+        StringBuilder result = new StringBuilder(Math.min(value.length(), limit));
+        for (int index = 0; index < value.length() && index < limit; index++) {
+            char character = value.charAt(index);
+            result.append(character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z'
+                    || character >= '0' && character <= '9' || ".:_/-@".indexOf(character) >= 0 ? character : '_');
+        }
+        return result.toString();
+    }
+
+    private static String stationHandIdentity(Object value) {
+        return value == null ? "null" : stationHandToken(value.getClass().getName(), 96)
+                + "@" + Integer.toHexString(System.identityHashCode(value));
+    }
+
+    private static String stationHandStackSnapshot(ItemStack source) {
+        if (source == null) return "unavailable";
+        try {
+            return "item:" + stationHandToken(String.valueOf(BuiltInRegistries.ITEM.getKey(source.getItem())), 64)
+                    + ",count:" + source.getCount() + ",damage:" + source.getDamageValue()
+                    + ",component_types:omitted,component_values:omitted";
+        } catch (RuntimeException | Error ignored) { return "snapshot_unavailable"; }
+    }
+
+    void captureStationHandRightsLoss(StationPlacementHand hand, String callsite, String failedPredicate) {
+        captureStationHandRightsLoss(hand, stationHandTrace(hand, callsite, false), failedPredicate);
+    }
+
+    private void captureStationHandRightsLoss(StationPlacementHand hand, StationHandGuardTrace trace, String failedPredicate) {
+        if (hand.diagnosticCaptured) return;
+        hand.diagnosticCaptured = true;
+        hand.diagnosticFailedPredicate = failedPredicate;
+        hand.diagnosticCallsite = trace == null ? "trace_unavailable" : trace.callsite;
+        hand.diagnosticGuardEvaluated = trace == null ? 0 : trace.evaluated;
+        hand.diagnosticGuardValues = trace == null ? 0 : trace.values;
+        hand.diagnosticManualEvaluated = trace == null ? 0 : trace.manualEvaluated;
+        hand.diagnosticManualDown = trace == null ? 0 : trace.manualDown;
+        hand.diagnosticFirstLoss = "schema=1 capture=unavailable evidence=client_only";
+        try {
+            StringBuilder line = new StringBuilder(6144);
+            line.append("schema=1 evidence=client_only callsite=").append(trace == null ? "trace_unavailable" : trace.callsite)
+                    .append(" first_failed_predicate=").append(failedPredicate)
+                    .append(" tick_kind=player_age tick=").append(client.player == null ? -1 : client.player.tickCount)
+                    .append(" job=").append(hand.jobToken).append(" position=")
+                    .append(hand.position.getX()).append(',').append(hand.position.getY()).append(',').append(hand.position.getZ())
+                    .append(" original_slot=").append(hand.originalSlot).append(" selected_slot=").append(hand.selectedSlot)
+                    .append(" borrowed_slot=").append(hand.diagnosticBorrowedSlot)
+                    .append(" captured=").append(hand.captured).append(" selection_sent=").append(hand.selectionSent)
+                    .append(" sent=").append(hand.sent).append(" restored=").append(hand.diagnosticRestored)
+                    .append(" restore_hotbar=").append(hand.restoreHotbar).append(" draining=").append(hand.draining)
+                    .append(" rights_lost=").append(hand.rightsLost).append(" abandoned=").append(hand.abandoned)
+                    .append(" settled=").append(hand.settled).append(" admission_last=").append(hand.diagnosticLastAdmission)
+                    .append(" owned_air_input_argument=").append(trace == null ? "unavailable" : trace.ownedAirInput)
+                    .append(" evaluated_guards={");
+            if (trace != null) {
+                boolean separator = false;
+                for (int index = 0; index < StationHandGuardTrace.NAMES.length; index++) {
+                    if ((trace.evaluated & 1L << index) == 0) continue;
+                    if (separator) line.append(',');
+                    line.append(StationHandGuardTrace.NAMES[index]).append(':').append((trace.values & 1L << index) != 0);
+                    separator = true;
+                }
+            }
+            line.append("} manual_evaluated_mask=").append(trace == null ? 0 : trace.manualEvaluated)
+                    .append(" manual_down_mask=").append(trace == null ? 0 : trace.manualDown);
+            hand.diagnosticFirstLoss = line.toString() + " capture=partial";
+            line.append(" input_captured=").append(stationHandIdentity(hand.input))
+                    .append(" input_snapshot=").append(stationHandIdentity(client.player == null ? null : client.player.input))
+                    .append(" player_captured=").append(stationHandIdentity(hand.player))
+                    .append(" world_captured=").append(stationHandIdentity(hand.world))
+                    .append(" network_captured=").append(stationHandIdentity(hand.network))
+                    .append(" connection_captured=").append(stationHandIdentity(hand.connection))
+                    .append(" menu_captured=").append(stationHandIdentity(hand.menu))
+                    .append(" player_menu_captured=").append(stationHandIdentity(hand.playerMenu))
+                    .append(" native_owner_captured=").append(stationHandIdentity(hand.nativeOwner))
+                    .append(" native_session_captured=").append(stationHandIdentity(hand.nativeSession))
+                    .append(" provenance_session_captured=").append(stationHandIdentity(hand.session))
+                    .append(" ticket=").append(stationHandIdentity(hand.ticket))
+                    .append(" record_argument=").append(trace == null || !trace.recordArgumentSupplied
+                            ? "not_evaluated" : stationHandIdentity(trace.record))
+                    .append(" readiness=only_if_evaluated");
+            if (hand.ticket != null) {
+                var intent = hand.ticket.intent();
+                line.append(" ticket_job=").append(intent.jobToken()).append(" ticket_generation=").append(intent.session().generation())
+                        .append(" ticket_start_sequence=").append(intent.startNetworkSequence())
+                        .append(" ticket_start_count=").append(intent.startingInventoryCount());
+            }
+            line.append(" saved_original={").append(stationHandStackSnapshot(hand.originalStack))
+                    .append("} saved_selected={").append(stationHandStackSnapshot(hand.selectedBefore)).append('}');
+            if (client.player != null) {
+                var inventory = client.player.getInventory();
+                int currentSlot = inventory.getSelectedSlot();
+                line.append(" current_slot=").append(currentSlot)
+                        .append(" current_original={").append(stationHandSlotSnapshot(hand.originalSlot)).append('}')
+                        .append(" current_selected={").append(stationHandSlotSnapshot(hand.selectedSlot)).append('}')
+                        .append(" current_borrowed={").append(stationHandSlotSnapshot(hand.diagnosticBorrowedSlot)).append('}')
+                        .append(" current_held={").append(stationHandSlotSnapshot(currentSlot)).append('}');
+            }
+            line.append(" component_types=omitted component_values=omitted exact_component_comparisons=only_if_evaluated");
+            hand.diagnosticFirstLoss = line.length() <= 8192 ? line.toString() : line.substring(0, 8150) + " line_truncated=true";
+        } catch (RuntimeException | Error ignored) { }
+    }
+
+    private String stationHandSlotSnapshot(int slot) {
+        if (client.player == null || slot < 0 || slot >= 36) return "unavailable";
+        return stationHandStackSnapshot(client.player.getInventory().getItem(slot));
+    }
+
+    private boolean manualStationHandInput(StationHandGuardTrace trace) {
         var options = client.options;
-        return options.keyAttack.isDown() || options.keyUse.isDown()
-                || options.keyUp.isDown() || options.keyDown.isDown()
-                || options.keyLeft.isDown() || options.keyRight.isDown()
-                || options.keyJump.isDown() || options.keyShift.isDown() || options.keySprint.isDown();
+        return stationHandKey(trace, 1, options.keyAttack.isDown()) || stationHandKey(trace, 2, options.keyUse.isDown())
+                || stationHandKey(trace, 4, options.keyUp.isDown()) || stationHandKey(trace, 8, options.keyDown.isDown())
+                || stationHandKey(trace, 16, options.keyLeft.isDown()) || stationHandKey(trace, 32, options.keyRight.isDown())
+                || stationHandKey(trace, 64, options.keyJump.isDown()) || stationHandKey(trace, 128, options.keyShift.isDown()) || stationHandKey(trace, 256, options.keySprint.isDown());
     }
 
     PlacementAttempt placeStation(net.minecraft.core.BlockPos destination, Block block, long jobToken) {

@@ -3749,26 +3749,46 @@ final class AutomationEngine {
     private void abandonStationPlacementHand() {
         if (stationPlacementHand != null) {
             stationPlacementHand.loseRights(); stationPlacementHand.abandoned = true;
+            actions.captureStationHandRightsLoss(stationPlacementHand, "AutomationEngine.abandonStationPlacementHand", "engine_abandonment");
+            logStationHandRightsLoss(stationPlacementHand);
         }
         stationPlacementHand = null; stationPlacementWait = null;
+    }
+
+    private void logStationHandRightsLoss(PlayerActions.StationPlacementHand hand) {
+        if (hand == null || !hand.diagnosticCaptured || hand.diagnosticLogged) return;
+        hand.diagnosticLogged = true;
+        try {
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info(
+                    "[Lodekeeper] STATION_HAND_RIGHTS_LOST first_failed_predicate={} callsite={} evaluated_mask={} value_mask={} manual_evaluated_mask={} manual_down_mask={} {}",
+                    hand.diagnosticFailedPredicate, hand.diagnosticCallsite,
+                    hand.diagnosticGuardEvaluated, hand.diagnosticGuardValues,
+                    hand.diagnosticManualEvaluated, hand.diagnosticManualDown, hand.diagnosticFirstLoss);
+        } catch (RuntimeException | Error ignored) { }
     }
 
     /** Observes the captured hand before pause/settings and every other hand writer. */
     private boolean tickStationPlacementHand() {
         PlayerActions.StationPlacementHand hand = stationPlacementHand;
         if (hand == null) return false;
-        actions.observeStationPlacementHand(hand, airRecovery.active() && client.player != null && client.player.input == input);
+        actions.observeStationPlacementHand(hand, airRecovery.active() && client.player != null && client.player.input == input,
+                "AutomationEngine.tickStationPlacementHand.observe");
         if (hand.abandoned) { abandonStationPlacementHand(); return false; }
         if (airRecovery.active() || !paused && !stopAfterStep && airRecovery.ready()) {
             cancelStationPlacement();
+            logStationHandRightsLoss(hand);
             if (stopAfterStep || paused || editingSettings()) airRecovery.stop();
             else { recoverAirIfNeeded(); return true; }
         }
         try { movement.checkAirRecoveryOwnership(); }
         catch (MovementController.NavigationFailure failure) {
             if (failure.kind != MovementController.NavigationFailure.Kind.OWNERSHIP_LOST) throw failure;
-            hand.loseRights(); pauseAfterOwnershipLoss(failure); return true;
+            hand.loseRights();
+            actions.captureStationHandRightsLoss(hand, "AutomationEngine.tickStationPlacementHand.checkAirRecoveryOwnership", "navigation_ownership_lost");
+            logStationHandRightsLoss(hand);
+            pauseAfterOwnershipLoss(failure); return true;
         }
+        logStationHandRightsLoss(hand);
         if (hand.rightsLost && !paused && !stopAfterStep)
             pause("Station hand restoration yielded to changed player ownership; pending placement evidence is retained");
         if (active == null || active.jobToken() != hand.jobToken || step == null || step.kind() != PlanKind.PLACE_STATION)
@@ -3783,6 +3803,7 @@ final class AutomationEngine {
                 && client.world.getBlockState(hand.position).isOf(hand.block);
         if ((!hand.sent || loadedRecord) && !moving && !explorationMoving && movement.finishCancellation()
                 && stationHandNativeQuiescent(hand.nativeOwner) && actions.finishStationPlacementHand(hand, confirmed)) {
+            logStationHandRightsLoss(hand);
             boolean draining = hand.draining;
             stationPlacementHand = null;
             if (stopAfterStep) { stopNow(true); return true; }
@@ -3793,6 +3814,7 @@ final class AutomationEngine {
             }
             return false;
         }
+        logStationHandRightsLoss(hand);
         input.release();
         if (!paused) {
             status = "waiting for exact station placement and hand inventory evidence";
@@ -4359,7 +4381,11 @@ final class AutomationEngine {
         if (!warning.isBlank()) message("Inventory recovery needs your attention: " + warning);
     }
     private void pauseAfterOwnershipLoss(MovementController.NavigationFailure failure) {
-        if (stationPlacementHand != null) stationPlacementHand.loseRights();
+        if (stationPlacementHand != null) {
+            stationPlacementHand.loseRights();
+            actions.captureStationHandRightsLoss(stationPlacementHand, "AutomationEngine.pauseAfterOwnershipLoss", "navigation_ownership_lost");
+            logStationHandRightsLoss(stationPlacementHand);
+        }
         dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
@@ -4377,6 +4403,7 @@ final class AutomationEngine {
     }
 
     void pause(String reason) {
+        logStationHandRightsLoss(stationPlacementHand);
         dropStationStockHint();
         useMovementProgress(null);
         cancelStationPlacement();
