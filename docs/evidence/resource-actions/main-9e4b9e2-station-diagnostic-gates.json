@@ -1,0 +1,2570 @@
+{
+  "recordedAtUtc": "2026-10-09T08:44:32.429500+00:00",
+  "sourceCommit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+  "scope": "Two unchanged normal station-room cases on the frozen observation-only station-hand diagnostic artifact",
+  "sourceProof": {
+    "path": "/Users/luinbytes/src/lodekeeper/docs/evidence/resource-actions/station-hand-diagnostic-source-r4.json",
+    "sha256": "a3e10595ba1e61428bbdc7c63d8c17810ec8fb5309f280a6b931a117751d093a",
+    "reviewSha256": "d592a5ad3c3d57d616c6bdc826b0c13039f6562462c7969dcbb715cba90355d4"
+  },
+  "artifactManifest": {
+    "frozenAtUtc": "2026-10-09T08:38:39.166704+00:00",
+    "sourceCommit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+    "sourceBaseline": "0dd0bf0902384eae9d2f69ebdc98f76859bfb010",
+    "sourceCleanAtFreeze": true,
+    "sourceManifest": [
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java",
+        "sha256": "c7df60c3b899f71147e40e8d6a65b0de6f60729d6fe14f18b57630fae11698b4"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java",
+        "sha256": "5efc41ee36fbb38aeb9811c29966b84214a7fd36532b79bb23a909475c57c8cd"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+        "sha256": "24061e063112402d1c3ba20abc92ad1a9a2df778cbed14dae6814da7b48a3ad0"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java",
+        "sha256": "4e84069e929d44a276f4c6b2d4d7e3baa3ff7a9e1653e9546aa5f3c7b924e305"
+      }
+    ],
+    "sourceManifestPath": "/tmp/lodekeeper-station-hand-diagnostic-prepared-r4/source-manifest.txt",
+    "sourceManifestSha256": "9acc890b50ee24d61a48fa018958ac1143113db09a5b160412e06f9d9e250184",
+    "artifacts": [
+      {
+        "family": "primary",
+        "minecraftVersion": "1.21.1",
+        "buildOutputPath": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "path": "/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "bytes": 1818066,
+        "sha256": "2baeea1287434e77927f90c427ac89a457d50729ae80efdbd86d5c093cdfba79",
+        "buildLog": "/tmp/lodekeeper-station-hand-diagnostic-r4-primary-build.log",
+        "buildLogSha256": "635ab1a8d18e5edb4463918af2983b79e2e9780b806c002a8d44c56c93a6b9db"
+      },
+      {
+        "family": "modern",
+        "minecraftVersion": "26.3",
+        "buildOutputPath": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "path": "/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "bytes": 1890613,
+        "sha256": "07c8e7eb38751731dad09d70b949824361fea545d49c58cc9906a3286480dfbb",
+        "buildLog": "/tmp/lodekeeper-station-hand-diagnostic-r4-modern-build.log",
+        "buildLogSha256": "6c1e19f946bfea1d026ea62e4335b35012f8cdb07c21b970b118017570b577d7"
+      }
+    ],
+    "existingChecks": {
+      "primary": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1211": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "modern": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-modern": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    },
+    "nativeCasesRun": [],
+    "nativeStatus": "unrun",
+    "note": "Exact committed placement-hand diagnostic source and frozen production jars. Work-in-progress main, not a newly released preview. This observation changes no admission or restoration authority. Native station-room diagnosis and cleanup are unrun at freeze."
+  },
+  "artifactManifestSha256": "f72beddec09717cbfe163e63004b82a47d071fcd296b99168d92c268061d81d9",
+  "verificationOutputs": {
+    "primary": {
+      "classPathEntries": [
+        "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification",
+        "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification"
+      ],
+      "files": [
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/ConfigRoundTripVerification$1.class",
+          "sha256": "f9cddb130080194866a8db1fb527edc657969061b2f52adf54b7727f1b670395"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/ConfigRoundTripVerification.class",
+          "sha256": "4f4a83cf6587db2c62f4ccb5230c4c531d5dc326e51c9c5cc406092a73d32d86"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/GeometryEpochVerification$GridObservation.class",
+          "sha256": "c8e98d5a363503ed7acb3057ec711b995e83e7be9abe5e053c2848b1e5952101"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/GeometryEpochVerification$Phase.class",
+          "sha256": "4c4792a1cec9e975802b7c8ce97debac575731add56d5ef7e56d40004cf69075"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/GeometryEpochVerification$ScaleAccess.class",
+          "sha256": "8aeaa25d3d55238dc630ff50e9a248611dbd07915a0308641f8158fe5d513dc5"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/GeometryEpochVerification$ScaleUnavailableException.class",
+          "sha256": "d748874f9c7179b59f066f86e18eabdd3ebd82a15972f4ad665264a7c6fefbef"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/GeometryEpochVerification.class",
+          "sha256": "ccf70ead8a19e16262613c9f5c56e6f898456dc608e6b1512c8d41a05e388aea"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NativeSettingsUiAccess.class",
+          "sha256": "18d8f826038198f3a2be8e0686010485a46c7624cd57b33e75a27cb1ac0e1ba9"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NaturalWorldVerification$ScreenshotRequest.class",
+          "sha256": "0a3ca3d729bf679e1b1ba71376f5bf794832629bc1578224ab477a472cf36816"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NaturalWorldVerification$ServerObservation.class",
+          "sha256": "38abc3284238cdcf86d53b6c18683bc9e0e054b56c5b84121b4b0066332c0e78"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NaturalWorldVerification$State.class",
+          "sha256": "3ca407366ae9c828b31ced9a089bca8667523b281a71935ce0c310068b99217a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NaturalWorldVerification.class",
+          "sha256": "f310c4fe0a9d633c37c48be654a498ea075e692d97d5328a61498854acb71c46"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/NavigationSettingsVerification.class",
+          "sha256": "05a296aa87764402b04150252eda31fb8222481ee1b74824f7ad5e299db059ea"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$CaseResult.class",
+          "sha256": "63795e841253fb5465c5e2ab0621218d280412379ba272d65f096c478ab22bbb"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$CoalDropEdge.class",
+          "sha256": "8890f4378d1de48bc68171eb583217d75fddc1b09d3c3d613fe92eb51e2604d8"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$CoalDropServerCheckpoint.class",
+          "sha256": "95f74f8d5d6f1c52dd844262f710d00f9aeeca5ed43ad15dacb9d0f6ccf22d15"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$CoalDropStartingPosition.class",
+          "sha256": "522adb7f7fa7f5f0a3b7b1639ef9d3295dedaa7c7294046eebb9f36ab69c7d7e"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$CoalNavigationCheckpoint.class",
+          "sha256": "1e92a53f51fdb153d3d2dadc56f6c096bd9e471bf032891a3d3fe331c7632734"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$ContactLowHealthPhase.class",
+          "sha256": "d90446a4b0f60655570b5a5150b6616171a7289fc2e38d73bef4404a6604e56b"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$MovementClock.class",
+          "sha256": "daa9678740d432782ed46aa772f67befd813f841c23c83984fc4103a7fc5b81a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodLaunchHandoffObservation.class",
+          "sha256": "0d4c6f1be9f75fc5fbdd4b77935d836446fc0c7f8373aaa6c75829280f18c075"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodLocalFixtureSnapshot.class",
+          "sha256": "7963cf0ab7b7104c5f248cddfe0a0eb405d2a846084b9b9c0d7b58dcd3f0eff5"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodServerRemovalObservation.class",
+          "sha256": "bc8305387070246d088323549ea4535365ff29f85b427ac37951c309d2ed7c66"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodTargetObservation.class",
+          "sha256": "db09e8d6bf6cade7cea653861df7cf116b3b31bbef460f62227bd4da061bd4d3"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodWalkActionSnapshot.class",
+          "sha256": "c055db4087c9f27d000c3b148eb96fefb07e9667a87a04f0c651b096cbcdfa57"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodWalkObservation.class",
+          "sha256": "72fafdeace0f4012bd032614c9ee788aae9ddfe3f125c545632c84f39076cbab"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$NearbyWoodWalkStepSnapshot.class",
+          "sha256": "a45b85a70eb3430b63ed95a81bc776c184830d51ed45d9bb1d365ee83802d74d"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$PreparedSafetyPhase.class",
+          "sha256": "49fecad8ffa1d01b6dffbb77302451bf12d1afa5927d92a49eeba1e4e98a7b70"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$ServerInventorySnapshot.class",
+          "sha256": "24f5c1bf09d6eafd56f9836278c1b42e081f2401cffb1b7f27c6c57ee8eb369d"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$ServerSnapshot.class",
+          "sha256": "01f2058e9a23a66f63cf00837e493437066de19a8f7bdd8e91fe54571f9ea5f4"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$ShieldPhase.class",
+          "sha256": "eb310a11a9bfa026033ea3351e21f9d3fe1c4e154eef63f74baaaf6d576967e2"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$State.class",
+          "sha256": "5914b3fbc12b74aa395cf352c2a12d3e1560afd397e2dba205940eb0d69fb14c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$WorkbenchStatusObservation.class",
+          "sha256": "5de2a6a7679ec701f7d29256140d48fb8b60e5f12bcd3e29a81bfd2c6d6e0572"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$WorldPolicyFace.class",
+          "sha256": "3063bc7a8d8dd4ab8e9caf03bf978b58b55f113a8015a53806f6694d77ac18a5"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$WorldPolicyPhase.class",
+          "sha256": "2f32e435954bae29f12a75964252c6b649b593ae402a29bfbeabd9bd379a1c40"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification$WorldPolicyPlacementProbe.class",
+          "sha256": "1938ad66820c23e6a55f0141d5c1cc6f980b0ec087df513c59f4266b68a74467"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/RuntimeVerification.class",
+          "sha256": "d7c23309262d35485fe103eea30b3ff2e0e7c2d30a8f5f669f7a0d9143862a71"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Access.class",
+          "sha256": "ef2fae430a7c2397543e3a92a4ad7c29fd6c6c6307a7410c70beb649e38e0c59"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Action.class",
+          "sha256": "9bf7a2c3c6a7a7bb468965628ca72378c3cc98e7b18dde1d96b32f38cdd8b3b7"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Bounds.class",
+          "sha256": "ac38abee2d32c56e640d0c4572129c2af0eff7496adb74b359ed533411131e95"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Check.class",
+          "sha256": "b80abec4ddd233babcaa9cb3b8247d13ad42e6c21b468f261533078d7169f56a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Corner.class",
+          "sha256": "4d3942bc72529d4f5de2d71146d3d473376fcb0dc165f30e5ba5b5b90b186c56"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Plot.class",
+          "sha256": "5fb3023b270c43b53b371343af31770e5120f9ed0a753689308a67e824a7eb6e"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$PlotState.class",
+          "sha256": "6cbcfe597e8569352472d07635aa59811df08c59b88790fd588d86c31a8ac6ad"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Setting.class",
+          "sha256": "d5dbed83e208d9550a60d1dbd14eea226f664f0ce8339fdcc85b06dc2a7c63ca"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$State.class",
+          "sha256": "577d7155dc87b241cba58fa720d9d7844ded6f6cfd5dbb2064e07a8ae2334a5c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification$Widget.class",
+          "sha256": "b1dcb014356b0d8a508457740241a717ba240d949727705d2427b4481ea22b0d"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/SettingsUiVerification.class",
+          "sha256": "e7573bb9e022e77cc81b1d99312eee1ed6f94aba3249472403b00c3cb5f059cf"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$1.class",
+          "sha256": "94a1fed0366d5f5c818b91369500e05a9f816fd2936d79369e498c1f97923a05"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$1ClientObservation.class",
+          "sha256": "391ca9e1eb802c80e1498773a209457aeb04dd35cece968ac614d2cc2e2dd0a6"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ContactLowHealthMarker$1.class",
+          "sha256": "04c23a2613cfabcbb4a6c3f235ce2fe1d763c87efaab804be5b4606f9674f9a4"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ContactLowHealthMarker.class",
+          "sha256": "61f273951923bc9611b1fa188287780b581c1eda76497d9b6765de83a346354d"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ContactLowHealthObservation.class",
+          "sha256": "67d95aebde9c76efb7dbe2a3738b3456ddfee5482658665ba569c0968921ea43"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ContactSwordAttempt.class",
+          "sha256": "3b67b0780f9c40cbe557329fcd7486339f4f416d08d26d5273b885f806d3dc1c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ContactThreatObservation.class",
+          "sha256": "41041292a180afddde7b10abed2597c3fe99485b5c26018a9aad248709a05d83"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$DynamicCollisionBlock.class",
+          "sha256": "dc7489a4bb69e27b6611381b2f6bc9084fc6b9096b83d67478b4ea4040a265cb"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$NativeAnimalFixture.class",
+          "sha256": "73e186f4fef215e07585a8ea49846190aaef682aa52dca0a5095c0e535c9c967"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$PreparedSafetyAirFixture.class",
+          "sha256": "404b848317805b359cd6c90a4400bdd2742ad884cb6fca2bbb0939a464f13717"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$PreparedSafetyPursuitFixture.class",
+          "sha256": "47801464f3154b2ad0bf13875f1faed262f3ced0071a26e7041e0c4b3d757a65"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$PreparedSafetyStationRoomFixture.class",
+          "sha256": "1edd88fa4baef1bbcc7d9f4922c15fbd58de2223ed5718c38d07a4cd5fe70587"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$PreparedSafetyThreatFixture.class",
+          "sha256": "3b4c8534204d42919d366f2f5441888f18f5a6c5d7fd01948891a05a0f52bd13"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$PreparedSafetyWorkbenchFixture.class",
+          "sha256": "fe7b1cd3c9e5f3bbcfab46cdd4ad7c608c4d0f7e6e24ad0383df1cc6c43da1d4"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$RubyOreBlock.class",
+          "sha256": "86943d2c64d0d0ec12f13a9f9b6351e6f7b18c071b2ba921f81021bfad657c8b"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$ShieldScenarioFixture.class",
+          "sha256": "91a1fb8209f667559762fdfbb5a7eb7cdfe468440dde4a17fbd4759c99c0f2f5"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$StaircaseMarker$1.class",
+          "sha256": "d4a57368d2e6d8b4ee52ac82731e1a26d35d479155c3804ba0b4e6aeb0e5b5eb"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$StaircaseMarker.class",
+          "sha256": "157a91d3958b7f5294d2bb0cc1677af5107f6f144556c765704f697f89a7d5de"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi$StaircaseObservation.class",
+          "sha256": "cc9de9b5550c34c685e41ca12bae1f0994502bc67e9fd0a58b36481e9b2f3484"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationApi.class",
+          "sha256": "f0c350b0731461ff83b2dfad120ee604d086c8842effced9c6e51d03691ee12c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationContentInitializer.class",
+          "sha256": "f22b887feaa5a2bce335c8f027e75af170c477e9710aa836ffc360a4750085ac"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification/dev/lodekeeper/fabric/VerificationDamageEvents.class",
+          "sha256": "c2627740b0f99554ada25d35a624a92cbbc2403c8bddaf73facb07423a3fdae4"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification/data/lodekeeper_verification/loot_table/blocks/ruby_ore.json",
+          "sha256": "1349f8a67474191488b1d2394a20137f3029f0839d736e1d2f3c4432e0f8316f"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification/data/lodekeeper_verification/recipe/ruby_gear.json",
+          "sha256": "67a9deb0e3faf5088282494ee3662eb825beaf359189edce9bd5a0e8d664b52c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification/data/minecraft/tags/block/mineable/pickaxe.json",
+          "sha256": "b2dd2b1a86a66d7caf297e14df548aa4ef39916a0c6b398d3fd30b9a60a5d6ff"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification/data/minecraft/tags/block/needs_stone_tool.json",
+          "sha256": "b2dd2b1a86a66d7caf297e14df548aa4ef39916a0c6b398d3fd30b9a60a5d6ff"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/verification/fabric.mod.json",
+          "sha256": "0a652410fcbee88ec1c19bc6a7c171a7c82bd0367e2f9dc5405b1d5505ed4b76"
+        }
+      ]
+    },
+    "modern": {
+      "classPathEntries": [
+        "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification",
+        "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification"
+      ],
+      "files": [
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/ConfigRoundTripVerification$1.class",
+          "sha256": "9bb49cca725fe8fb0d9814520444ea6c7a5f14cdeddb38ed96db897c13131b41"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/ConfigRoundTripVerification.class",
+          "sha256": "766665d9fa452303a6d495a123e3663abcf33b687d3ac951201514ff7a1a1021"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/GeometryEpochVerification$GridObservation.class",
+          "sha256": "2e5ac4664551691e2c492129ca8aa26251f6486b0665e8c8a48a92618e7dfe14"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/GeometryEpochVerification$Phase.class",
+          "sha256": "d301a5b6991dac6805acce5e3e6ee2e4453a0f801cfda3fcb9ff1859fbabc399"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/GeometryEpochVerification$ScaleAccess.class",
+          "sha256": "1a30a219d124376aa88e636fefa0d8468496842f2bb0ef33cb1b1dc58726ad62"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/GeometryEpochVerification$ScaleUnavailableException.class",
+          "sha256": "e7226155895ee546f3d29b6ab9c1203529cc545207d7099c87920a21b3c29ba9"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/GeometryEpochVerification.class",
+          "sha256": "0a25a3fe6cff88e0d86f2bcedaaaddf560b9a038e5ad5de728eb039e0605c1cb"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NativeSettingsInput.class",
+          "sha256": "2798a2e4da48f047de5c83bb1b2c70e3981d2dbe82645b3960f1d871a10a73ad"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NativeSettingsUiAccess.class",
+          "sha256": "ec9c31f4aa5724f657ef4c23ca1c476f2b4c43a6ed3527583d09265cc9fa3e12"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NaturalWorldVerification$ScreenshotRequest.class",
+          "sha256": "1be4d3dcb249f9941ebd0aec1f87df57d11e54cb02cdfa8d187d6db32370fc18"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NaturalWorldVerification$ServerObservation.class",
+          "sha256": "5fc51733807dcb1d01b3ba1fdafa79c7724b648a67a504426613d53dd829849b"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NaturalWorldVerification$State.class",
+          "sha256": "721de65cb5133eb0ebd7e3bb8e17be68b9f681521b581e107f4831af9302b274"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NaturalWorldVerification.class",
+          "sha256": "1fdc8a15dc345cf92a8ba7a9c30191dc2212b9387d99eca3bc84b9735b2465de"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/NavigationSettingsVerification.class",
+          "sha256": "0fcb5a10208faa3aeda1910cda560eb18342fcdb00707e0aa8d50e4af3b435c8"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$CaseResult.class",
+          "sha256": "0abae480f0d197085146e5b44d9ec5c2f22bda1c40e487ee108b3cb02312b82e"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$CoalNavigationCheckpoint.class",
+          "sha256": "42e2bf2e52e7040ed418cb87981278ffb6ef186d7bfa8d49b04bde6fcd4e22d3"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$ContactLowHealthPhase.class",
+          "sha256": "7ac39e75dc14d0315e3b7c030b1ed1e2f4b6f238df51f7e3aa9b0735916da482"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$MovementClock.class",
+          "sha256": "cb214fab2f6d2789a697d5ea768d67794332c2514e2224851d356eeb3feac559"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$NearbyWoodLaunchHandoffObservation.class",
+          "sha256": "ac27d8800508d14efdf3aedf8d5a5b28e7ae8e62ec4246bc96c80e991d0aba33"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$PreparedSafetyPhase.class",
+          "sha256": "41b2375354b4c2639c4b732ed4c74fd49a61978c10fd292e7d4e4f43031984fe"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$ServerInventorySnapshot.class",
+          "sha256": "5809bcc580344412c464ec52d67e0385631af298dcbc0fc9a6082d3e31ba0eac"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$ServerSnapshot.class",
+          "sha256": "fba56332d0d7fe9358f1de546cab5000df0e278497d78b05f0da0b94389bebea"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$ShieldPhase.class",
+          "sha256": "a0e07bb93729f0279511a765451358c2a12a37995baadba947043d5a4cbfd41e"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$State.class",
+          "sha256": "0160401e02fe25df080209e4412d401b39c2b2d2a7ca99a2a5a88f929fcfc5f4"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$WorkbenchStatusObservation.class",
+          "sha256": "6ad0dad36ed0bf19bf2f76d1239633b92ffef2107543170957457f670aa82a22"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$WorldPolicyFace.class",
+          "sha256": "4bd877b630c0841e55645ab97fc6575905a64aef947dba57f941e63a9df3a983"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$WorldPolicyPhase.class",
+          "sha256": "9c1723905a1fe7b6f641419b68e13b67d56d7187152f1454620eeff04bfdb393"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification$WorldPolicyPlacementProbe.class",
+          "sha256": "466d5521b9288571fb4729bd0e98626dac265aed4c7eec13452a66115c00054e"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/RuntimeVerification.class",
+          "sha256": "6f60720beef1fed90612184cae8168f1079959d0c9d4b773d44bbcd96f7fb1c9"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Access.class",
+          "sha256": "a4ab2cccfbd07edb7f3510f8abd883aef950f3539911fa8c2cfeae07f3fbf381"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Action.class",
+          "sha256": "87e7102797fee69a41151f8cf13da85c28810546980ff0e8d4798edf0445be80"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Bounds.class",
+          "sha256": "be2beb39cf6672ec12c555b40bfb1d45b985064fe0cfb698db94a2eb9cc02bb7"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Check.class",
+          "sha256": "182e97b1207aca970553795a9565ce7694d38bd8919acecd8357df73e891c55c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Corner.class",
+          "sha256": "61d7fe8e442574ea2ba1879bec71c528589413b12ce5bdfe4a2041f71ff3d74a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Plot.class",
+          "sha256": "9a5f6888a4c96b38c3b988a2808301e20c728c889ecee35f9989e27088b75d2d"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$PlotState.class",
+          "sha256": "1664a2140eafc2151b3eb8f2771ae76e384b3b827be91b8ecec793c8744df5ac"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Setting.class",
+          "sha256": "f11deadf19c5fceb0b2fa72a084d6ef2475a6152584e2f42fd75612328e7c5a2"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$State.class",
+          "sha256": "42218fc5c2d4fe33cb568db6045f9f4d68d4735e12bd91cc86dcb59727baa290"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification$Widget.class",
+          "sha256": "b26600e6da8ec152cdbb13600eff03768d537fa3565bbaa94f7f5350cd90fad9"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/SettingsUiVerification.class",
+          "sha256": "2004a0b6a53247ad2ca891600d6ed6dc2e3f7cd680e16831c388b6ca85fe597c"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$1.class",
+          "sha256": "a2d10b3cc15439fb853d79b73e88f017dd45c087e219e573fd479764220af7c8"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$1ClientObservation.class",
+          "sha256": "7c960f1232225c6edebc60472133a8dcef3ec2fca96d2a4881138839862cce75"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ContactLowHealthMarker$1.class",
+          "sha256": "da111eea77a748d9475537820dea9c896c914b05231de9739523a340642dd376"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ContactLowHealthMarker.class",
+          "sha256": "5c08c6d0fb82526412d6971b84ab67924e034f6ad53e35a37ebe050320967f8a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ContactLowHealthObservation.class",
+          "sha256": "2d04f1a3429ed732e3b1b2aa57dd98b3270dda4e58d3d9bc103d6fc40565fa11"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ContactSwordAttempt.class",
+          "sha256": "63969875dafa22bc93b4787883e145aad5191c23fe8010525cd3c13d505ee016"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ContactThreatObservation.class",
+          "sha256": "2a9a7c747f8529d181048e94a24975e97d7a8c74dc1dae2fe00bbbe887bbc722"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$DynamicCollisionBlock.class",
+          "sha256": "0b93c7184c1bb0a4f85f3ce8d79c859bf7b3885e85ac09bc330d52b09ada5063"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$NativeAnimalFixture.class",
+          "sha256": "a1611844580e3fcfc94453dc40a2c4841169a2033183428c15e55380347db807"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$PreparedSafetyAirFixture.class",
+          "sha256": "afda674f5f7b2241e9a0eb29f6b9f0d5b064e218ad68e917f543deb51f20d8ad"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$PreparedSafetyPursuitFixture.class",
+          "sha256": "8df561807924c97b8374e7be1398b864740da93778858b87b8f604c197c73f98"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$PreparedSafetyStationRoomFixture.class",
+          "sha256": "ad1032091bdc1f3b525be18515b9f9d54f67fd48ae3db0abb02f4593ad276cb1"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$PreparedSafetyThreatFixture.class",
+          "sha256": "99ffcba03d1c77b6909fb2036f10b7de3980e156d7c25491266e0f86f90adf95"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$PreparedSafetyWorkbenchFixture.class",
+          "sha256": "3d58f9213dbb9efa1f47e13990ad4f0a253c3a736639ac6c01973c4efa6e00be"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$ShieldScenarioFixture.class",
+          "sha256": "5eb6d290303355474391aec287b177ed38941d89bda3a0a3cc062cad44f2fc5a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$StaircaseMarker$1.class",
+          "sha256": "c9a63779f6e326c62741f48cf7cebf2264016c051165453e8ebb0e46d56bfccd"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$StaircaseMarker.class",
+          "sha256": "5c99cf4e4d1ccd2a0c97fdc129de3e420bf2413da6c97719e9899426f245f374"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi$StaircaseObservation.class",
+          "sha256": "aba82eb7880e60b39ef1d9be76d576a9a3fa0fd36eb355ab7f6e9ea9f42ad81b"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationApi.class",
+          "sha256": "577aa24a26f3e10684de93a6db885e51029193681ca0732d8ee7796c0e109874"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification/dev/lodekeeper/fabric/modern/VerificationContentInitializer.class",
+          "sha256": "5d958cb289ae9a043ad6bcd9ced5d154cf9b5acf1e56516e1541ab3076b732b7"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification/data/lodekeeper_verification/loot_table/blocks/ruby_ore.json",
+          "sha256": "3ae8f04cf3011b692bcb1d20beafac405fb336d2d21a25202dcd548a8bbfd62a"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification/data/lodekeeper_verification/recipe/ruby_gear.json",
+          "sha256": "75e3b691b7b4183c965b4e0e6364d9238a7322c56da67d2048507a70b2b4c059"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification/data/minecraft/tags/block/mineable/pickaxe.json",
+          "sha256": "b2dd2b1a86a66d7caf297e14df548aa4ef39916a0c6b398d3fd30b9a60a5d6ff"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification/data/minecraft/tags/block/needs_stone_tool.json",
+          "sha256": "b2dd2b1a86a66d7caf297e14df548aa4ef39916a0c6b398d3fd30b9a60a5d6ff"
+        },
+        {
+          "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/verification/fabric.mod.json",
+          "sha256": "1b4018219604783e690c03ba49a2a17a522c413f3e6ab9b8662e806fe739c920"
+        }
+      ]
+    }
+  },
+  "verificationOutputsSha256": "82c889f343159cca7a2f89f1bd2029af234c85c167ec619417d447db2b0bc57d",
+  "progress": {
+    "startedAtUtc": "2026-10-09T08:38:39.334877+00:00",
+    "sourceCommit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+    "status": "passed",
+    "results": [
+      {
+        "case": "prepared_station_room",
+        "family": "modern",
+        "outputRoot": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1",
+        "startedAtUtc": "2026-10-09T08:38:39.405498+00:00",
+        "finishedAtUtc": "2026-10-09T08:39:32.540112+00:00",
+        "runnerExitCode": 0,
+        "status": "passed",
+        "receiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/runner-receipt.json",
+        "failures": []
+      },
+      {
+        "case": "prepared_station_room",
+        "family": "primary",
+        "outputRoot": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1",
+        "startedAtUtc": "2026-10-09T08:40:07.020186+00:00",
+        "finishedAtUtc": "2026-10-09T08:41:04.325624+00:00",
+        "runnerExitCode": 0,
+        "status": "passed",
+        "receiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/runner-receipt.json",
+        "failures": []
+      }
+    ],
+    "finishedAtUtc": "2026-10-09T08:41:04.366419+00:00",
+    "separateExecutionProgress": [
+      "/tmp/lodekeeper-native-animal-9e4b9e2-station-history-progress-modern.json",
+      "/tmp/lodekeeper-native-animal-9e4b9e2-station-history-progress-primary.json"
+    ]
+  },
+  "progressSha256": "fe89e992bd585347e5564045ac8c4b4dfa4f91d3d653cd85c77fee48792325b1",
+  "native": {
+    "sourceCommit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+    "runs": [
+      {
+        "case": "prepared_station_room",
+        "family": "modern",
+        "status": "passed",
+        "nativeReceiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification/verification/2026-10-09T08-38-54-022011Z-35622b74/evidence/run-2026-10-09T08-38-54-022011Z-35622b74.json",
+        "nativeReceiptSha256": "b9a5d2c08987148858ad2990d36e6827bc59dd45cd75362bccef210552bf7cfd",
+        "runnerReceiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/runner-receipt.json",
+        "runnerReceiptSha256": "fec248a3067b09b84817cee24e6f56e3ade1065a3039c2c9c1e327986d09c27f",
+        "rawNative": {
+          "runId": "2026-10-09T08-38-54-022011Z-35622b74",
+          "status": "passed",
+          "minecraftVersion": "26.3",
+          "navigationBackend": "baritone",
+          "baritoneMiningObserved": false,
+          "worldKind": "isolated_superflat_fixture",
+          "preparedWorld": true,
+          "threatWaterRetreat": false,
+          "threatCreeperContact": false,
+          "threatContact": false,
+          "threatContactManualInput": false,
+          "threatContactLowHealth": false,
+          "threatStaircase": false,
+          "stationRoomTunnel": false,
+          "preparedSafetyProperty": "station_room",
+          "evidenceAuthority": "integrated_server_inventory_furnace_menu_and_block_states",
+          "verificationMode": "prepared_safety_station_room",
+          "runDirectory": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification",
+          "worldId": "run-568428525da64dc7",
+          "elapsedMillis": 36964,
+          "clientTicks": 508,
+          "failure": "",
+          "serverTableOpened": false,
+          "serverFurnaceOpened": true,
+          "serverTableOpenings": 0,
+          "serverFurnaceOpenings": 2,
+          "ironPickaxeFixture": false,
+          "ironPickaxeEmptyDistantWoodFlag": false,
+          "nearbyWoodFlag": false,
+          "nearbyWoodGoal": "wood",
+          "nearbyWoodTerrain": "flat",
+          "coalRecoveryFixture": false,
+          "cases": [
+            {
+              "name": "prepared_station_room_iron_ingot",
+              "item": "minecraft:iron_ingot",
+              "expected": 1,
+              "serverObserved": 1,
+              "inventoryEmptyAtStart": false,
+              "passed": true,
+              "clientTicks": 329,
+              "worldTicks": 324,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+              "detail": "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded 2 changed native stone cell(s), with preserved support and ordered native furnace placement on bedrock, same-position removal and ordinary return",
+              "serverHealth": 20.0,
+              "serverDifficulty": "NORMAL",
+              "serverCraftingTableOpenedDuringCase": false,
+              "serverFurnaceOpenedDuringCase": true,
+              "serverIronPickaxeCount": 0,
+              "serverFoodLevelAtStart": 20,
+              "serverFoodLevelObserved": 20,
+              "serverBreadAtStart": 0,
+              "serverBreadObserved": 0,
+              "serverPosition": "-0.3343141559851175,64.0,0.492008577665246",
+              "screenshot": "screenshots/lodekeeper-2026-10-09T08-38-54-022011Z-35622b74-prepared-safety-prepared_station_room_iron_ingot.png",
+              "screenshotCaptureCallback": "Saved screenshot as lodekeeper-2026-10-09T08-38-54-022011Z-35622b74-prepared-safety-prepared_station_room_iron_ingot.png",
+              "initialStorageInventory": {
+                "minecraft:raw_iron": 1,
+                "minecraft:furnace": 1,
+                "minecraft:stone_pickaxe": 1,
+                "minecraft:coal": 1
+              },
+              "finalStorageInventory": {
+                "minecraft:furnace": 1,
+                "minecraft:cobblestone": 2,
+                "minecraft:stone_pickaxe": 1,
+                "minecraft:iron_ingot": 1
+              },
+              "fullServerHeldInventory": {
+                "minecraft:furnace": 1,
+                "minecraft:cobblestone": 2,
+                "minecraft:stone_pickaxe": 1,
+                "minecraft:iron_ingot": 1
+              },
+              "elapsedMillisFromCommand": 16448,
+              "baritoneCompletionGuardEnabled": true,
+              "baritoneNavigationStoppedAtReceipt": true,
+              "initialEquipmentSlotItems": {},
+              "serverEquipmentSlotItems": {},
+              "initialServerCursorEmpty": true,
+              "serverCursorEmpty": true,
+              "noMaintenanceQueuedBeforeForeground": true,
+              "maintainedReservationObservedBeforeForeground": false,
+              "maintainedReservationPresentAtCompletion": false,
+              "noMaintenanceQueued": true,
+              "initialPreparedThreatReceipt": {},
+              "serverPreparedThreatReceipt": {},
+              "initialPreparedStationRoomReceipt": {
+                "stationCurrentOrdinaryFurnaceCount": "1",
+                "playerSupportBedrock": "true",
+                "stationHistoryValid": "true",
+                "roomStoneCellCandidateCount": "73",
+                "roomStoneCellsStillStone": "73",
+                "stationSeededAtServerTick": "73",
+                "stationFurnaceDebitServerTick": "-1",
+                "stationHistoryEndTickObservations": "9",
+                "stationPlacedOnBedrock": "false",
+                "stationPlacedPosition": "",
+                "roomStoneCellsChangedCount": "0",
+                "stationFloorBedrock": "false",
+                "stationRemovedServerTick": "-1",
+                "stationOrdinaryFurnaceCount": "1",
+                "stationObservedAtServerTick": "82",
+                "nearbyFurnaceCount": "0",
+                "nearbyFurnacePositions": "",
+                "preparedRoomStartPosition": "0.5,64,0.5",
+                "stationHistoryLastEndServerTick": "82",
+                "stationReturnedServerTick": "-1",
+                "stationPlacedServerTick": "-1",
+                "roomStoneCellsChangedPositions": ""
+              },
+              "serverPreparedStationRoomReceipt": {
+                "stationCompletionObservationSequence": "21",
+                "roomStoneCellCandidateCount": "73",
+                "stationPlacedServerTick": "157",
+                "stationReturnedServerTick": "419",
+                "stationCompletionObservationServerTick": "422",
+                "roomStoneCellsChangedPositions": "-1,64,0=minecraft:air;-1,65,0=minecraft:air",
+                "stationObservedAtServerTick": "422",
+                "stationPlacedPosition": "-1,64,0",
+                "stationPlacedOnBedrock": "true",
+                "stationHistoryValid": "true",
+                "stationHistoryLastEndServerTick": "422",
+                "roomStoneCellsStillStone": "71",
+                "nearbyFurnacePositions": "",
+                "nearbyFurnaceCount": "0",
+                "stationCurrentOrdinaryFurnaceCount": "1",
+                "stationSeededAtServerTick": "73",
+                "stationFloorBedrock": "false",
+                "stationCompletionRequestFence": "19",
+                "stationRemovedServerTick": "410",
+                "stationCompletionServerFenceTick": "421",
+                "stationFurnaceDebitServerTick": "157",
+                "stationHistoryEndTickObservations": "349",
+                "stationCompletionServerFenceSequence": "20",
+                "preparedRoomStartPosition": "0.5,64,0.5",
+                "roomStoneCellsChangedCount": "2",
+                "playerSupportBedrock": "true",
+                "stationOrdinaryFurnaceCount": "1"
+              },
+              "initialPreparedPursuitReceipt": {},
+              "serverPreparedPursuitReceipt": {},
+              "initialPreparedAirReceipt": {},
+              "serverPreparedAirReceipt": {}
+            }
+          ],
+          "explorationFixture": false,
+          "diamondBootsFixture": false,
+          "bulkWoodFixtureLogCount": 0,
+          "woodToolsFlag": false,
+          "woodToolsEnabled": false,
+          "miningRequestLimit": false,
+          "miningZeroYield": false,
+          "resourceInitiallyLoaded": false,
+          "explorationAttempts": 0
+        },
+        "runner": {
+          "artifactUnchangedDuringRun": true,
+          "classLoadProvenance": {
+            "foreignKernelClasses": 0,
+            "generatedClasses": 377,
+            "lodekeeperClasses": 878,
+            "log": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/class-load.log",
+            "productionArtifactClasses": 483,
+            "productionJarClasses": 483,
+            "runtimeArtifactTransformation": null,
+            "runtimeRemappedClasses": 0,
+            "sourceCounts": {
+              "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification": 18,
+              "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar": 483
+            },
+            "verifierClasses": 18,
+            "violations": []
+          },
+          "client": {
+            "exitCode": 0,
+            "finishedAtUtc": "2026-10-09T08:39:32.350636+00:00",
+            "pid": 95046,
+            "processLog": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/client-process.log",
+            "startedAtUtc": "2026-10-09T08:38:41.410308+00:00",
+            "timedOut": false,
+            "timeoutSeconds": 180
+          },
+          "failures": [],
+          "finishedAtUtc": "2026-10-09T08:39:32.511534+00:00",
+          "java": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home/bin/java",
+          "launch": {
+            "activeProcessors": 2,
+            "classLoadLog": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/class-load.log",
+            "classpathCount": 142,
+            "maxHeap": "1536m",
+            "optionsFile": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification/options.txt",
+            "outputIsolated": true,
+            "productionDevelopmentOutputsRemoved": true,
+            "productionModArgumentCount": 1,
+            "productionModInput": "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+            "removedProductionDevelopmentOutputs": [
+              "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/main",
+              "/Users/luinbytes/src/lodekeeper/fabric-modern/build/resources/main",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/classes/java/api",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/resources/api",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/classes/java/schematica_api",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/resources/schematica_api",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/classes/java/main",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/resources/main",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/classes/java/launch",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/modern26.3/build/resources/launch",
+              "/Users/luinbytes/src/lodekeeper/core/build/libs/core-0.1.0-preview.11.jar",
+              "/Users/luinbytes/src/lodekeeper/nav/build/libs/nav-0.1.0-preview.11.jar"
+            ],
+            "renderDistance": 2,
+            "separateBaritoneMod": false,
+            "verificationClassesRetainedSeparately": [
+              "/Users/luinbytes/src/lodekeeper/fabric-modern/build/classes/java/verification"
+            ],
+            "workingDirectory": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification",
+            "workingDirectoryCreatedFresh": true
+          },
+          "loom": {
+            "launchArgs": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/verification-launch/launch.args",
+            "launchConfig": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/verification-launch/launch.cfg",
+            "launchMetadata": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/verification-launch/launch-metadata.json",
+            "preparedConfig": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/launch.cfg",
+            "sourceRunDirectory": "/Users/luinbytes/src/lodekeeper/fabric-modern/run-verification"
+          },
+          "minecraftVersion": "26.3",
+          "module": "fabric-modern",
+          "nativeReceiptGate": {
+            "passed": true,
+            "problems": []
+          },
+          "nativeReceipts": [
+            {
+              "failure": "",
+              "path": "verification/2026-10-09T08-38-54-022011Z-35622b74/evidence/run-2026-10-09T08-38-54-022011Z-35622b74.json",
+              "sha256": "b9a5d2c08987148858ad2990d36e6827bc59dd45cd75362bccef210552bf7cfd",
+              "status": "passed",
+              "verificationMode": "prepared_safety_station_room"
+            }
+          ],
+          "productionJar": {
+            "minecraftDependency": "26.3",
+            "modId": "lodekeeper",
+            "modVersion": "0.1.0-preview.11",
+            "path": "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+            "productionClassEntries": [
+              "dev/lodekeeper/fabric/modern/AutomationEngine.class"
+            ],
+            "sha256": "07c8e7eb38751731dad09d70b949824361fea545d49c58cc9906a3286480dfbb"
+          },
+          "profile": "verificationClient",
+          "repository": "/Users/luinbytes/src/lodekeeper",
+          "requireStationCleanup": true,
+          "schemaVersion": 1,
+          "screenshots": [
+            {
+              "path": "verification/2026-10-09T08-38-54-022011Z-35622b74/evidence/screenshots/lodekeeper-2026-10-09T08-38-54-022011Z-35622b74-prepared-safety-prepared_station_room_iron_ingot.png",
+              "sha256": "9c37ac3995c94c622b783f94406bbd354376b2c80e9c198a9ffed4a0d38d3ffd"
+            }
+          ],
+          "source": {
+            "commit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+            "dirty": false,
+            "dirtyPaths": [],
+            "gitStatusError": null
+          },
+          "startedAtUtc": "2026-10-09T08:38:41.296507+00:00",
+          "stationCleanupGate": {
+            "passed": true,
+            "problems": [],
+            "required": true
+          },
+          "stationDiagnostics": {
+            "left": [],
+            "recovered": [
+              {
+                "line": "2668",
+                "log": "logs/debug.log",
+                "text": "[09:39:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+              },
+              {
+                "line": "347",
+                "log": "logs/latest.log",
+                "text": "[09:39:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+              }
+            ]
+          },
+          "status": "passed",
+          "verificationFlags": [
+            "-Dlodekeeper.verify.baritone=true",
+            "-Dlodekeeper.verify.preparedSafety=station_room",
+            "-Dlodekeeper.verify.candidateSha256=07c8e7eb38751731dad09d70b949824361fea545d49c58cc9906a3286480dfbb",
+            "-Dlodekeeper.verify=true"
+          ]
+        },
+        "diagnosticLog": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification/logs/latest.log",
+        "diagnosticLogSha256": "f7a524a4f682ff85116e81d2b053c2e8c432f2ae611c0b67e69de2890ea28172",
+        "boundedEvents": [
+          "[09:39:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=none previousSequence=-1 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3056 stableRemovalSequence=0",
+          "[09:39:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3056 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3057 stableRemovalSequence=0",
+          "[09:39:16] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3057 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3060 stableRemovalSequence=0",
+          "[09:39:17] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3060 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3067 stableRemovalSequence=0",
+          "[09:39:27] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3067 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3073 stableRemovalSequence=0",
+          "[09:39:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3073 previousRemovalSequence=0 observedBlock=minecraft:air observedSequence=3075 stableRemovalSequence=3075",
+          "[09:39:29] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+        ],
+        "rawRunnerCanonicalSha256": "fdba0d655de961517dcf5c307671021950693df1604ae91ea8c6c7e8d7955d14"
+      },
+      {
+        "case": "prepared_station_room",
+        "family": "primary",
+        "status": "passed",
+        "nativeReceiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/verification/evidence/run-2026-10-09T08-40-27-463367Z-a1f5cbdd.json",
+        "nativeReceiptSha256": "ba64f720a618d16cf0b3d05bc693e575e169bb909478b5a00f9b1b2327c03735",
+        "runnerReceiptPath": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/runner-receipt.json",
+        "runnerReceiptSha256": "68c7639c513534b64d2573074ea0408d70c4cdebfd9b0d83d9afe5f35e545be0",
+        "rawNative": {
+          "runId": "2026-10-09T08-40-27-463367Z-a1f5cbdd",
+          "status": "passed",
+          "minecraftVersion": "1.21.1",
+          "worldKind": "isolated_superflat_fixture",
+          "preparedWorld": true,
+          "threatWaterRetreat": false,
+          "threatCreeperContact": false,
+          "stationRoomTunnel": false,
+          "stationRoomTunnelProperty": null,
+          "stationRoomSetupScreenshot": null,
+          "preparedSafetyProperty": "station_room",
+          "evidenceAuthority": "integrated_server_inventory_furnace_menu_and_block_states",
+          "verificationMode": "prepared_safety_station_room",
+          "shieldScenario": null,
+          "worldPolicy": null,
+          "settingsUiChatEntryConfirmed": false,
+          "settingsUiReceipt": null,
+          "settingsUiScreenshots": null,
+          "settingsUiFinalScreenshot": null,
+          "elapsedMillis": 35032,
+          "clientTicks": 573,
+          "failure": "",
+          "serverTableOpened": false,
+          "serverFurnaceOpened": true,
+          "serverTableOpenings": 0,
+          "serverFurnaceOpenings": 2,
+          "cases": [
+            {
+              "name": "prepared_station_room_iron_ingot",
+              "item": "minecraft:iron_ingot",
+              "expected": 1,
+              "serverObserved": 1,
+              "inventoryEmptyAtStart": false,
+              "passed": true,
+              "clientTicks": 327,
+              "worldTicks": 326,
+              "engineStatus": "idle \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+              "detail": "the integrated server consumed raw iron, opened the nearby placed furnace, and recorded 2 changed native stone cell(s), with preserved support and ordered native furnace placement on bedrock, same-position removal and ordinary return",
+              "serverHealth": 20.0,
+              "serverDifficulty": "NORMAL",
+              "serverCraftingTableOpenedDuringCase": false,
+              "serverFurnaceOpenedDuringCase": true,
+              "serverIronPickaxeCount": 0,
+              "serverFoodLevelAtStart": 20,
+              "serverFoodLevelObserved": 20,
+              "serverBreadAtStart": 0,
+              "serverBreadObserved": 0,
+              "serverPosition": [
+                -0.3377114748318422,
+                64.0,
+                0.5020152803540963
+              ],
+              "screenshot": "screenshots/lodekeeper-2026-10-09T08-40-27-463367Z-a1f5cbdd-prepared_station_room_iron_ingot.png",
+              "initialStorageInventory": {
+                "minecraft:coal": 1,
+                "minecraft:furnace": 1,
+                "minecraft:raw_iron": 1,
+                "minecraft:stone_pickaxe": 1
+              },
+              "finalStorageInventory": {
+                "minecraft:cobblestone": 2,
+                "minecraft:furnace": 1,
+                "minecraft:iron_ingot": 1,
+                "minecraft:stone_pickaxe": 1
+              },
+              "fullServerHeldInventory": {
+                "minecraft:cobblestone": 2,
+                "minecraft:furnace": 1,
+                "minecraft:iron_ingot": 1,
+                "minecraft:stone_pickaxe": 1
+              },
+              "elapsedMillisFromCommand": 16355,
+              "baritoneCompletionGuardEnabled": true,
+              "baritoneNavigationStoppedAtReceipt": true,
+              "initialEquipmentSlotItems": {},
+              "serverEquipmentSlotItems": {},
+              "initialServerCursorEmpty": true,
+              "serverCursorEmpty": true,
+              "noMaintenanceQueuedBeforeForeground": true,
+              "maintainedReservationObservedBeforeForeground": false,
+              "maintainedReservationPresentAtCompletion": false,
+              "noMaintenanceQueued": true,
+              "initialPreparedThreatReceipt": {},
+              "serverPreparedThreatReceipt": {},
+              "initialPreparedStationRoomReceipt": {
+                "nearbyFurnaceCount": "0",
+                "nearbyFurnacePositions": "",
+                "playerSupportBedrock": "true",
+                "preparedRoomStartPosition": "0.5,64,0.5",
+                "roomStoneCellCandidateCount": "73",
+                "roomStoneCellsChangedCount": "0",
+                "roomStoneCellsChangedPositions": "",
+                "roomStoneCellsStillStone": "73",
+                "stationCurrentOrdinaryFurnaceCount": "1",
+                "stationFloorBedrock": "false",
+                "stationFurnaceDebitServerTick": "-1",
+                "stationHistoryEndTickObservations": "16",
+                "stationHistoryLastEndServerTick": "85",
+                "stationHistoryValid": "true",
+                "stationObservedAtServerTick": "85",
+                "stationOrdinaryFurnaceCount": "1",
+                "stationPlacedOnBedrock": "false",
+                "stationPlacedPosition": "",
+                "stationPlacedServerTick": "-1",
+                "stationRemovedServerTick": "-1",
+                "stationReturnedServerTick": "-1",
+                "stationSeededAtServerTick": "69"
+              },
+              "serverPreparedStationRoomReceipt": {
+                "nearbyFurnaceCount": "0",
+                "nearbyFurnacePositions": "",
+                "playerSupportBedrock": "true",
+                "preparedRoomStartPosition": "0.5,64,0.5",
+                "roomStoneCellCandidateCount": "73",
+                "roomStoneCellsChangedCount": "2",
+                "roomStoneCellsChangedPositions": "-1,64,0=minecraft:air;-1,65,0=minecraft:air",
+                "roomStoneCellsStillStone": "71",
+                "stationCompletionObservationSequence": "21",
+                "stationCompletionObservationServerTick": "417",
+                "stationCompletionRequestFence": "18",
+                "stationCompletionServerFenceSequence": "19",
+                "stationCompletionServerFenceTick": "416",
+                "stationCurrentOrdinaryFurnaceCount": "1",
+                "stationFloorBedrock": "false",
+                "stationFurnaceDebitServerTick": "150",
+                "stationHistoryEndTickObservations": "348",
+                "stationHistoryLastEndServerTick": "417",
+                "stationHistoryValid": "true",
+                "stationObservedAtServerTick": "417",
+                "stationOrdinaryFurnaceCount": "1",
+                "stationPlacedOnBedrock": "true",
+                "stationPlacedPosition": "-1,64,0",
+                "stationPlacedServerTick": "150",
+                "stationRemovedServerTick": "402",
+                "stationReturnedServerTick": "411",
+                "stationSeededAtServerTick": "69"
+              },
+              "initialPreparedPursuitReceipt": {},
+              "serverPreparedPursuitReceipt": {},
+              "initialPreparedAirReceipt": {},
+              "serverPreparedAirReceipt": {}
+            }
+          ],
+          "explorationFixture": false,
+          "diamondBootsFixture": false,
+          "ironPickaxeFixture": false,
+          "coalRecoveryFixture": false,
+          "bulkWoodFixtureLogCount": 0,
+          "woodToolsFlag": false,
+          "woodToolsEnabled": false,
+          "miningRequestLimit": false,
+          "miningZeroYield": false,
+          "threatContact": false,
+          "threatContactManualInput": false,
+          "threatStaircase": false,
+          "threatContactLowHealth": false,
+          "resourceInitiallyLoaded": false,
+          "explorationAttempts": 0
+        },
+        "runner": {
+          "artifactUnchangedDuringRun": true,
+          "classLoadProvenance": {
+            "foreignKernelClasses": 0,
+            "generatedClasses": 352,
+            "lodekeeperClasses": 844,
+            "log": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/class-load.log",
+            "productionArtifactClasses": 472,
+            "productionJarClasses": 0,
+            "runtimeArtifactTransformation": {
+              "cacheDirectory": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/.fabric/processedMods",
+              "cacheWasFresh": true,
+              "candidateCount": 1,
+              "candidatePaths": [
+                "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+              ],
+              "devLodekeeperEntryCount": 819,
+              "devLodekeeperEntryNamesMatch": true,
+              "fabricModJsonMatches": true,
+              "identityPreservedClasses": {
+                "dev/lodekeeper/core/": {
+                  "bytesMatch": true,
+                  "classCount": 145,
+                  "namesMatch": true
+                },
+                "dev/lodekeeper/nav/": {
+                  "bytesMatch": true,
+                  "classCount": 40,
+                  "namesMatch": true
+                }
+              },
+              "inputArtifact": {
+                "path": "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+                "sha256": "2baeea1287434e77927f90c427ac89a457d50729ae80efdbd86d5c093cdfba79"
+              },
+              "loadedClassCount": 472,
+              "loadedClassesPresentInInputAndOutput": true,
+              "manifestMatches": true,
+              "observedSourceCount": 1,
+              "runtimeArtifact": {
+                "filenameMatchesLoaderPattern": true,
+                "path": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+                "sha256": "bedd25ee9268ff606dfd58b634287e3b25f2e1cc5394644c6423f29fefa70c57"
+              },
+              "runtimeModId": "lodekeeper",
+              "runtimeModVersion": "0.1.0-preview.11",
+              "transformation": "fabric-loader-runtime-remap",
+              "verified": true
+            },
+            "runtimeRemappedClasses": 472,
+            "sourceCounts": {
+              "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 20,
+              "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 472
+            },
+            "verifierClasses": 20,
+            "violations": []
+          },
+          "client": {
+            "exitCode": 0,
+            "finishedAtUtc": "2026-10-09T08:41:04.037571+00:00",
+            "pid": 95472,
+            "processLog": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/client-process.log",
+            "startedAtUtc": "2026-10-09T08:40:08.780726+00:00",
+            "timedOut": false,
+            "timeoutSeconds": 180
+          },
+          "failures": [],
+          "finishedAtUtc": "2026-10-09T08:41:04.262486+00:00",
+          "java": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home/bin/java",
+          "launch": {
+            "activeProcessors": 2,
+            "classLoadLog": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/class-load.log",
+            "classpathCount": 131,
+            "maxHeap": "1536m",
+            "optionsFile": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/options.txt",
+            "outputIsolated": true,
+            "productionDevelopmentOutputsRemoved": true,
+            "productionModArgumentCount": 1,
+            "productionModInput": "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "removedProductionDevelopmentOutputs": [
+              "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/main",
+              "/Users/luinbytes/src/lodekeeper/fabric-1211/build/resources/main",
+              "/Users/luinbytes/src/lodekeeper/owned-kernel/primary1.21.1-hostremap/build/owned-kernel/lodekeeper-owned-navigation-kernel-primary-1211-1.21.1-source-owned-host-named.jar",
+              "/Users/luinbytes/src/lodekeeper/core/build/libs/core-0.1.0-preview.11.jar",
+              "/Users/luinbytes/src/lodekeeper/nav/build/libs/nav-0.1.0-preview.11.jar"
+            ],
+            "renderDistance": 2,
+            "separateBaritoneMod": false,
+            "verificationClassesRetainedSeparately": [
+              "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification"
+            ],
+            "workingDirectory": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run",
+            "workingDirectoryCreatedFresh": true
+          },
+          "loom": {
+            "launchArgs": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/verification-launch/launch.args",
+            "launchConfig": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/verification-launch/launch.cfg",
+            "launchMetadata": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/verification-launch/launch-metadata.json",
+            "preparedConfig": "/private/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/launch.cfg",
+            "sourceRunDirectory": "/Users/luinbytes/src/lodekeeper/fabric-1211/run"
+          },
+          "minecraftVersion": "1.21.1",
+          "module": "fabric-1211",
+          "nativeReceiptGate": {
+            "passed": true,
+            "problems": []
+          },
+          "nativeReceipts": [
+            {
+              "failure": "",
+              "path": "verification/evidence/run-2026-10-09T08-40-27-463367Z-a1f5cbdd.json",
+              "sha256": "ba64f720a618d16cf0b3d05bc693e575e169bb909478b5a00f9b1b2327c03735",
+              "status": "passed",
+              "verificationMode": "prepared_safety_station_room"
+            }
+          ],
+          "productionJar": {
+            "minecraftDependency": "1.21.1",
+            "modId": "lodekeeper",
+            "modVersion": "0.1.0-preview.11",
+            "path": "/private/tmp/lodekeeper-native-animal-9e4b9e2-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+            "productionClassEntries": [
+              "dev/lodekeeper/fabric/AutomationEngine.class"
+            ],
+            "sha256": "2baeea1287434e77927f90c427ac89a457d50729ae80efdbd86d5c093cdfba79"
+          },
+          "profile": "verificationClient",
+          "repository": "/Users/luinbytes/src/lodekeeper",
+          "requireStationCleanup": true,
+          "schemaVersion": 1,
+          "screenshots": [
+            {
+              "path": "verification/evidence/screenshots/lodekeeper-2026-10-09T08-40-27-463367Z-a1f5cbdd-prepared_station_room_iron_ingot.png",
+              "sha256": "bd264d765acf5819b376c5cf3f2fc272897bfc89725e72710201503465ff4a93"
+            }
+          ],
+          "source": {
+            "commit": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+            "dirty": false,
+            "dirtyPaths": [],
+            "gitStatusError": null
+          },
+          "startedAtUtc": "2026-10-09T08:40:08.608729+00:00",
+          "stationCleanupGate": {
+            "passed": true,
+            "problems": [],
+            "required": true
+          },
+          "stationDiagnostics": {
+            "left": [],
+            "recovered": [
+              {
+                "line": "2506",
+                "log": "logs/debug.log",
+                "text": "[09:41:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+              },
+              {
+                "line": "182",
+                "log": "logs/latest.log",
+                "text": "[09:41:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+              }
+            ]
+          },
+          "status": "passed",
+          "verificationFlags": [
+            "-Dlodekeeper.verify.baritone=true",
+            "-Dlodekeeper.verify.preparedSafety=station_room",
+            "-Dlodekeeper.verify.candidateSha256=2baeea1287434e77927f90c427ac89a457d50729ae80efdbd86d5c093cdfba79",
+            "-Dlodekeeper.verify=true"
+          ]
+        },
+        "diagnosticLog": "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/logs/latest.log",
+        "diagnosticLogSha256": "e73a2c853f3aa15ed54787cd6329e7ee6821510d02d52e86ebc8a46474cc13cf",
+        "boundedEvents": [
+          "[09:40:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=none previousSequence=-1 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3056 stableRemovalSequence=0",
+          "[09:40:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3056 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3057 stableRemovalSequence=0",
+          "[09:40:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3057 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3060 stableRemovalSequence=0",
+          "[09:40:48] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3060 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3067 stableRemovalSequence=0",
+          "[09:40:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3067 previousRemovalSequence=0 observedBlock=minecraft:furnace observedSequence=3073 stableRemovalSequence=0",
+          "[09:41:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] STATION_BLOCK_RECEIPT generation=0 position=BlockPos{x=-1, y=64, z=0} previousBlock=minecraft:furnace previousSequence=3073 previousRemovalSequence=0 observedBlock=minecraft:air observedSequence=3075 stableRemovalSequence=3075",
+          "[09:41:01] [Render thread/INFO] (lodekeeper) [Lodekeeper] OWNED_STATION_RECOVERED job=1 producerJob=1 consumerJob=1 position=BlockPos{x=-1, y=64, z=0}"
+        ],
+        "rawRunnerCanonicalSha256": "3bc5b695b0ce0ad25faebe00b7dd49f5b2ec63b1be44bad916ba560608e3daf2"
+      }
+    ],
+    "unrun": []
+  },
+  "collectedNativeSha256": "1c8aa75c5348266d7587f046ef67f5d9912581032c2ec251f90605f78086212b",
+  "summary": [
+    {
+      "family": "modern",
+      "clientTicks": 329,
+      "elapsedMillisFromCommand": 16448,
+      "finalStationHistory": {
+        "stationCompletionObservationSequence": "21",
+        "roomStoneCellCandidateCount": "73",
+        "stationPlacedServerTick": "157",
+        "stationReturnedServerTick": "419",
+        "stationCompletionObservationServerTick": "422",
+        "roomStoneCellsChangedPositions": "-1,64,0=minecraft:air;-1,65,0=minecraft:air",
+        "stationObservedAtServerTick": "422",
+        "stationPlacedPosition": "-1,64,0",
+        "stationPlacedOnBedrock": "true",
+        "stationHistoryValid": "true",
+        "stationHistoryLastEndServerTick": "422",
+        "roomStoneCellsStillStone": "71",
+        "nearbyFurnacePositions": "",
+        "nearbyFurnaceCount": "0",
+        "stationCurrentOrdinaryFurnaceCount": "1",
+        "stationSeededAtServerTick": "73",
+        "stationFloorBedrock": "false",
+        "stationCompletionRequestFence": "19",
+        "stationRemovedServerTick": "410",
+        "stationCompletionServerFenceTick": "421",
+        "stationFurnaceDebitServerTick": "157",
+        "stationHistoryEndTickObservations": "349",
+        "stationCompletionServerFenceSequence": "20",
+        "preparedRoomStartPosition": "0.5,64,0.5",
+        "roomStoneCellsChangedCount": "2",
+        "playerSupportBedrock": "true",
+        "stationOrdinaryFurnaceCount": "1"
+      },
+      "diagnosticRejectionCount": 0,
+      "genuineOwnedCleanup": true
+    },
+    {
+      "family": "primary",
+      "clientTicks": 327,
+      "elapsedMillisFromCommand": 16355,
+      "finalStationHistory": {
+        "nearbyFurnaceCount": "0",
+        "nearbyFurnacePositions": "",
+        "playerSupportBedrock": "true",
+        "preparedRoomStartPosition": "0.5,64,0.5",
+        "roomStoneCellCandidateCount": "73",
+        "roomStoneCellsChangedCount": "2",
+        "roomStoneCellsChangedPositions": "-1,64,0=minecraft:air;-1,65,0=minecraft:air",
+        "roomStoneCellsStillStone": "71",
+        "stationCompletionObservationSequence": "21",
+        "stationCompletionObservationServerTick": "417",
+        "stationCompletionRequestFence": "18",
+        "stationCompletionServerFenceSequence": "19",
+        "stationCompletionServerFenceTick": "416",
+        "stationCurrentOrdinaryFurnaceCount": "1",
+        "stationFloorBedrock": "false",
+        "stationFurnaceDebitServerTick": "150",
+        "stationHistoryEndTickObservations": "348",
+        "stationHistoryLastEndServerTick": "417",
+        "stationHistoryValid": "true",
+        "stationObservedAtServerTick": "417",
+        "stationOrdinaryFurnaceCount": "1",
+        "stationPlacedOnBedrock": "true",
+        "stationPlacedPosition": "-1,64,0",
+        "stationPlacedServerTick": "150",
+        "stationRemovedServerTick": "402",
+        "stationReturnedServerTick": "411",
+        "stationSeededAtServerTick": "69"
+      },
+      "diagnosticRejectionCount": 0,
+      "genuineOwnedCleanup": true
+    }
+  ],
+  "publicOriginalScreenshots": {
+    "verifiedAtUtc": "2026-10-09T08:41:39.528374+00:00",
+    "checks": [
+      {
+        "assetName": "main-9e4b9e2-modern-station-room-history.png",
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-modern-station-room-history.png",
+        "anonymousHttpStatus": 200,
+        "bytes": 44646,
+        "sha256": "9c37ac3995c94c622b783f94406bbd354376b2c80e9c198a9ffed4a0d38d3ffd"
+      },
+      {
+        "assetName": "main-9e4b9e2-primary-station-room-history.png",
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-primary-station-room-history.png",
+        "anonymousHttpStatus": 200,
+        "bytes": 37737,
+        "sha256": "bd264d765acf5819b376c5cf3f2fc272897bfc89725e72710201503465ff4a93"
+      },
+      {
+        "assetName": "main-9e4b9e2-station-history-screenshots.json",
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-station-history-screenshots.json",
+        "anonymousHttpStatus": 200,
+        "bytes": 2090,
+        "sha256": "89280511ba700eadc1d5858cd453019c3328345384b8b9252efd4c8f06778c8f"
+      }
+    ],
+    "pendingLocalCopies": [],
+    "deletedLocalOriginals": [
+      "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-modern-r1/run-verification/verification/2026-10-09T08-38-54-022011Z-35622b74/evidence/screenshots/lodekeeper-2026-10-09T08-38-54-022011Z-35622b74-prepared-safety-prepared_station_room_iron_ingot.png",
+      "/tmp/lodekeeper-native-animal-9e4b9e2-station-history-screenshot-upload/main-9e4b9e2-modern-station-room-history.png",
+      "/tmp/lodekeeper-native-animal-9e4b9e2-prepared_station_room-primary-r1/run/verification/evidence/screenshots/lodekeeper-2026-10-09T08-40-27-463367Z-a1f5cbdd-prepared_station_room_iron_ingot.png",
+      "/tmp/lodekeeper-native-animal-9e4b9e2-station-history-screenshot-upload/main-9e4b9e2-primary-station-room-history.png"
+    ],
+    "browserReceipt": "/tmp/lodekeeper-native-animal-9e4b9e2-station-history-browser.json",
+    "browserVerifiedAtUtc": "2026-10-09T08:42:31.238Z",
+    "deletedAtUtc": "2026-10-09T08:42:41.757093+00:00"
+  },
+  "publicOriginalScreenshotsSha256": "afe502c78502d0fcc023e0c4352db0f47fe20b687a3f2a4f6aad271a9c78ef9d",
+  "signedOutBrowserDecode": {
+    "loggedOut": true,
+    "count": 2,
+    "loaded": 2,
+    "failures": [],
+    "verifiedUrls": [
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-modern-station-room-history.png",
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-primary-station-room-history.png"
+    ],
+    "results": [
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-modern-station-room-history.png",
+        "loaded": true,
+        "width": 640,
+        "height": 360
+      },
+      {
+        "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-9e4b9e2-primary-station-room-history.png",
+        "loaded": true,
+        "width": 640,
+        "height": 360
+      }
+    ],
+    "verifiedAtUtc": "2026-10-09T08:42:31.238Z",
+    "browser": "T3 collaborative preview"
+  },
+  "signedOutBrowserDecodeSha256": "8766db651fd58e698496c929106dabf1a583ddd8a2fd61d24a26fa4835d0be0f",
+  "ciAtRecord": {
+    "conclusion": "",
+    "headSha": "9e4b9e27f528931d5bf2dff672fe2cb1448b28bf",
+    "jobs": [
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109577,
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:41:34Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:41:37Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:41:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:39Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:41:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:44Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:41:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:41:44Z",
+            "status": "in_progress"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109577"
+      },
+      {
+        "completedAt": "2026-10-09T08:43:09Z",
+        "conclusion": "success",
+        "databaseId": 113740109757,
+        "name": "adapters (1.20.1, 17, fabric)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:36Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:04Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:43:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:06Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:43:06Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109757"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109817,
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109817"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109820,
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:43:12Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:43:14Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:43:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:16Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:43:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:21Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:43:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:43:21Z",
+            "status": "in_progress"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109820"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109850,
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109850"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109894,
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109894"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109910,
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:44:00Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:44:02Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:44:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:04Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:44:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:44:10Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:44:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:44:10Z",
+            "status": "in_progress"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109910"
+      },
+      {
+        "completedAt": "2026-10-09T08:41:32Z",
+        "conclusion": "success",
+        "databaseId": 113740109913,
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:39:20Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:39:22Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:39:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:25Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:39:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:30Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:39:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:39:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:28Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:41:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:41:29Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:41:29Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109913"
+      },
+      {
+        "completedAt": "2026-10-09T08:43:58Z",
+        "conclusion": "success",
+        "databaseId": 113740109921,
+        "name": "adapters (1.20, 17, fabric)",
+        "startedAt": "2026-10-09T08:40:06Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:40:09Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:40:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:12Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:40:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:18Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:40:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:40:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:54Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:43:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:43:56Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:43:56Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109921"
+      },
+      {
+        "completedAt": "2026-10-09T08:39:18Z",
+        "conclusion": "success",
+        "databaseId": 113740109923,
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:34Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:13Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:39:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:39:15Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:39:15Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109923"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740109957,
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109957"
+      },
+      {
+        "completedAt": "2026-10-09T08:42:13Z",
+        "conclusion": "success",
+        "databaseId": 113740109966,
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "startedAt": "2026-10-09T08:38:24Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:28Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:09Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:10Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:42:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:10Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:42:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:11Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:42:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:42:11Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740109966"
+      },
+      {
+        "completedAt": "2026-10-09T08:40:04Z",
+        "conclusion": "success",
+        "databaseId": 113740110021,
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:23Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:38:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:38:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:29Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:38:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:38:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:38:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "success",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:38:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "skipped",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:00Z",
+            "conclusion": "success",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "2026-10-09T08:40:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:01Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:40:02Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-09T08:40:01Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740110021"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740110056,
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "startedAt": "2026-10-09T08:42:15Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "completedAt": "2026-10-09T08:42:18Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-09T08:42:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:20Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "startedAt": "2026-10-09T08:42:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-09T08:42:26Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 3,
+            "startedAt": "2026-10-09T08:42:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Compile, check and package the exact game adapter",
+            "number": 4,
+            "startedAt": "2026-10-09T08:42:26Z",
+            "status": "in_progress"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Preserve regression failure details",
+            "number": 5,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Record artifact digest",
+            "number": 6,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "number": 7,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3",
+            "number": 13,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 14,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740110056"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111291,
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111291"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111423,
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111423"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111458,
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111458"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111466,
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111466"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111500,
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111500"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111534,
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111534"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111539,
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111539"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111629,
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111629"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740111924,
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740111924"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 113740112408,
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "startedAt": "2026-10-09T08:38:21Z",
+        "status": "queued",
+        "steps": [],
+        "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477/job/113740112408"
+      }
+    ],
+    "status": "queued",
+    "url": "https://github.com/luinbytes/lodekeeper/actions/runs/37906190477"
+  },
+  "ciAtRecordSha256": "5f10c5d0155d05a8dea0a5a2e8a4a0ae373316ba96631aa99b982ac8b5d00a06",
+  "retainedEarlierFailure": "docs/evidence/resource-actions/main-7c442d9-station-history-gates.json",
+  "limits": [
+    "Modern and primary each confirm one ingot, ordinary furnace return, bedrock placement and same-position removal, a fresh post-idle server END observation and genuine owned cleanup.",
+    "Modern history records placement/debit at END157, removal at END410, return at END419 and final END422 after fence END421. Primary records END150, END402, END411 and END417 after fence END416.",
+    "Both clients exit normally with full health, empty cursor, stopped navigation, unchanged frozen production bytes and no class-origin violation.",
+    "Neither case reaches a station-hand ownership rejection. No diagnostic loss record is emitted. The first rejected predicate and the cause of the earlier modern failure remain unknown.",
+    "The source adds bounded observation only. These passes do not prove a behavior repair, intermittent-failure reliability, natural gameplay, full parity or user acceptance.",
+    "The earlier modern failure and earlier primary verifier assertion failure remain separate evidence for their named artifacts.",
+    "Exact primary, modern and legacy local builds pass. CI is recorded at its exact source head and may still be running; incomplete jobs do not establish compile support.",
+    "Two original gameplay captures pass anonymous byte/hash read-back and signed-out 640x360 decode. Four exact local original/staging PNG copies are removed. Worlds, logs, receipts and frozen artifacts remain."
+  ]
+}
