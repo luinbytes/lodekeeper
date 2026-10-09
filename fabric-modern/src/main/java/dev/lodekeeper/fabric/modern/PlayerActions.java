@@ -295,8 +295,12 @@ final class PlayerActions {
     }
 
     private BlockHitResult hitFace(net.minecraft.core.BlockPos position, Direction face) {
-        Vec3 eye = client.player.getEyePosition();
         Vec3 center = Vec3.atCenterOf(position).add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(.499));
+        return hitFace(position, face, center);
+    }
+
+    private BlockHitResult hitFace(net.minecraft.core.BlockPos position, Direction face, Vec3 center) {
+        Vec3 eye = client.player.getEyePosition();
         Vec3 closest = new Vec3(
                 face.getStepX() == 0 ? Math.max(position.getX() + .001, Math.min(position.getX() + .999, eye.x)) : center.x,
                 face.getStepY() == 0 ? Math.max(position.getY() + .001, Math.min(position.getY() + .999, eye.y)) : center.y,
@@ -421,7 +425,12 @@ final class PlayerActions {
                 || !client.level.getBlockState(destination.below()).is(Blocks.FARMLAND)
                 || !AnimalHarvestAction.ordinary(client.player.getMainHandItem()) || !GameCatalog.id(client.player.getMainHandItem().getItem()).equals(plantingItem)
                 || !cropRepairPermitted(destination)) return false;
-        BlockHitResult hit = hitFace(destination.below(), net.minecraft.core.Direction.UP);
+        net.minecraft.core.BlockPos farmland = destination.below();
+        double surfaceY = farmland.getY() + client.level.getBlockState(farmland)
+                .getShape(client.level, farmland, net.minecraft.world.phys.shapes.CollisionContext.empty())
+                .max(Direction.Axis.Y) - .001;
+        BlockHitResult hit = hitFace(farmland, net.minecraft.core.Direction.UP,
+                new Vec3(farmland.getX() + .5, surfaceY, farmland.getZ() + .5));
         if (hit == null || !admission.getAsBoolean() || !permitsPlacement(hit)) return false;
         look(hit.getLocation());
         if (!admission.getAsBoolean() || !client.level.getBlockState(destination).isAir()

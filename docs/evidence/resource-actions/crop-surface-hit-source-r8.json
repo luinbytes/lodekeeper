@@ -1,0 +1,291 @@
+{
+  "recordedAtUtc": "2026-10-09T14:09:22.194898+00:00",
+  "sourceBaselineCommit": "93ac718b0d58da849f1a7997431ea66e7997aa3a",
+  "status": "compiled_correction_native_unrun",
+  "changedSources": [
+    {
+      "path": "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java",
+      "baseline_sha256": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+      "candidate_sha256": "c67b5f4202cb43651a8190d3212461014747895f431a7ecbf1b0eba723eb3634",
+      "baseline_bytes": 56692,
+      "candidate_bytes": 57183
+    },
+    {
+      "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+      "baseline_sha256": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+      "candidate_sha256": "197779eeb03f795dc54e36bc74b35979a86f72c837e8a78ad950f85c2d84b240",
+      "baseline_bytes": 59064,
+      "candidate_bytes": 59596
+    }
+  ],
+  "sourceManifest": {
+    "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+    "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+    "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "13259e007d308844fc98732c2fe8d9f09d3251ff13d59e0fd616073aee5af302",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "a0df9378d1d248673d21fa1e71123afb8470e39d30ae776296194798c184c724",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "197779eeb03f795dc54e36bc74b35979a86f72c837e8a78ad950f85c2d84b240",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+    "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "802cc450ee3c8e91fe53f072584b152c8b66c9caacb7a6671054555fc00b62c0",
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6",
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "c67b5f4202cb43651a8190d3212461014747895f431a7ecbf1b0eba723eb3634",
+    "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+    "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+    "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+    "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+    "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+    "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+  },
+  "verifierSourceManifest": {
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "a7aa278db4f7502969aedbfee9a2390cb5a9d2d980fb182806b001d3b15ce03d",
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "78888f127529e6b51e9f501b69867a39e1577e681b83f3eaec8b78f7b9d20957",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "9b4c27d8baeb30b72c5af3269610694539b24e2a1dca2b93b937cd3c822f1e88",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": "576a280bbb56991d26db6dd151ed46b715e8159108cadc5c98e57003af164b1b"
+  },
+  "verifierUnchanged": true,
+  "patch": {
+    "sha256": "60d3cd61ac085978a0edf5f4d0f5fac8716df2e0b96bce7b0ebf223a62aa0cb0",
+    "reconstruction": "two files replayed byte-identical"
+  },
+  "sourceReports": [
+    {
+      "path": "/tmp/lodekeeper-crop-surface-hit-prepared-luna-r8/report.md",
+      "sha256": "39591543411550806912b4efd4791cf37ccb57162280290ee79d71583bc94e57",
+      "report": "# Prepared crop surface hit fix\n\nBaseline content is pinned to commit `93ac718b0d58da849f1a7997431ea66e7997aa3a`; SHA-256 values are in `manifest.txt`.\n\nThe supplied native reproduction reports harvest 1 wheat, 1 seed, 26 seeds remaining, and 0 replants. The combined native predicate is unlogged, so this report does not identify its first actual failing conjunct. The source path calls `hitFace(farmland, UP)`, whose default aim is the full cube top at `supportY + .999`. The reported farmland outline is 15/16 block high. With the player's eyes and aim endpoint above that surface, an outline raycast cannot enter farmland from above. This supports the crop aim point as the source-level issue; the specific runtime first failure remains unproven.\n\nBoth mirrors now derive the replant endpoint from the live farmland outline shape's maximum Y, inset by .001, and center it in X/Z. The crop call uses a new `hitFace(position, face, center)` overload. The existing helper delegates with its prior cube-face center, preserving the existing behavior for every other caller.\n\nThe existing reach bound, two-attempt raycast loop, `BLOCK` result check, exact target position check, and `UP` face check remain in the shared helper. The returned native raycast hit is used unchanged. No guards, mutation admission, protection, stock, cell, input, authority, or UNKNOWN/no-resend behavior changed. Existing native fixture gates were not edited.\n\nMapped API evidence was read from cached class files: Yarn 1.20.1 exposes `BlockState.getOutlineShape(BlockView, BlockPos, ShapeContext)`, `ShapeContext.absent()`, and `VoxelShape.getMax(Axis)`; Mojang-mapped 26.3 exposes `BlockState.getShape(BlockGetter, BlockPos, CollisionContext)`, `CollisionContext.empty()`, and `VoxelShape.max(Axis)`.\n\nNo canonical files were written. No build, test, Java/native verification, restart, upload, or commit was run. The root implementation owner must integrate and perform the required compile and runtime verification. This artifact is prepared source only, not a proven runtime fix.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-surface-hit-r8-review-luna.md",
+      "sha256": "f59bba9c6921ffdeec5a9b97c9abfafa01882bf0a5715a9ce84aaddcc1d40bbb",
+      "report": "# Independent review: crop surface hit candidate R8\n\n**Verdict: CLEAN for the requested source-only scope. Runtime outcome remains unproven.**\n\n## Evidence reviewed\n\nThe prepared manifest pins baseline content to `93ac718b0d58da849f1a7997431ea66e7997aa3a`. I recomputed SHA-256 for the baseline, candidate, reconstruction, and canonical copies of both `PlayerActions.java` files. Both reconstructions match their candidate and canonical hashes exactly. The canonical source therefore matches the prepared two-file candidate. The change is confined to the legacy and modern `PlayerActions` mirrors.\n\nThe repository source uses the API forms shown by the candidate: Yarn source calls `BlockState.getOutlineShape(BlockView, BlockPos, ShapeContext)` with `ShapeContext.absent()` and `VoxelShape.getMax(Direction.Axis.Y)`; the modern Mojang-mapped source calls `BlockState.getShape(BlockGetter, BlockPos, CollisionContext)` with `CollisionContext.empty()` and `VoxelShape.max(Direction.Axis.Y)`. This confirms source-level API naming in these trees. I did not compile either target.\n\n## Source findings\n\n- `replantCrop` gets the current farmland shape and aims at its X/Z center, with Y at the shape's maximum top minus `0.001`. This puts the endpoint just inside a non-full farmland outline. The earlier default aim was the full cube top (`soilY + 0.999`), which sits above a 15/16-high outline. The supplied cached-geometry evidence reports that shape height; source review alone does not prove a native ray will hit under every player position or occlusion state.\n- Existing `hitFace(position, face)` callers retain their old cube-face center through delegation to the overload. The custom point is used only by crop replant in the two mirrors.\n- The common hit loop still rejects endpoints beyond block reach, performs up to two outline raycasts, and accepts only a `BLOCK` hit at the exact farmland position with the requested `UP` face. It returns the native raycast result unchanged.\n- Replant guard order remains intact: supported version, admission, live world/player/interaction manager, air destination, farmland support, ordinary matching held seed, crop repair permission, hit acquisition, admission recheck, placement permission, look, then fresh admission/air/repair/placement checks. `beforeSend` and `sendCropPlant` remain after those checks. No source change loosens ownership, protection, safe-equipment, planning, execution, stock, receipt, or UNKNOWN/no-resend gates.\n- Only the two action files are present in the prepared patch. The native fixtures are not part of it and their hashes were not supplied here for independent recomputation.\n\n## Limits and unresolved point\n\nThe supplied `93ac718` receipt says one wheat harvested, 26 seeds remaining, and zero replants. Any prior phrase calling this a 25-seed receipt or \u201creserved seed\u201d should be corrected as a typo; this review found no receipt evidence for 25. The combined native refusal was before `sendCropPlant`, but its first failed predicate was not logged. The surface aim is a plausible narrow correction to the source-level hit geometry, not a proven diagnosis of that particular refusal.\n\nNo build, test, Java/native command, restart, upload, canonical write, or Git command was run for this review. This is not a compile claim and does not prove `!lk get wheat 4` now harvests, collects, replants, and restores four crops. That requires the already requested native checkpoint with the unchanged gates and receipt, including the exact harvest, seed debit, replant, and restoration outcome. Stop at that crop release checkpoint; other lanes remain parked.\n"
+    }
+  ],
+  "mappedGeometryEvidence": {
+    "mappedJar": "/Users/luinbytes/src/lodekeeper/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-a5fe06f283/1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2/minecraft-merged-a5fe06f283-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar",
+    "mappedJarSha256": "775ab63cf3a2ecbbe65a4ec54e2030882556c8945907f7c450200e6b3ef466fc",
+    "command": [
+      "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home/bin/javap",
+      "-c",
+      "-p",
+      "-classpath",
+      "/Users/luinbytes/src/lodekeeper/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-merged-a5fe06f283/1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2/minecraft-merged-a5fe06f283-1.21.1-net.fabricmc.yarn.1_21_1.1.21.1+build.3-v2.jar",
+      "net.minecraft.block.FarmlandBlock"
+    ],
+    "outputSha256": "d93d731988a09d8cf0e93d5ec796e0fef8f5ac91195151923335a7509df93317",
+    "shapeInitializer": "  static {};\n    Code:\n       0: invokedynamic #362,  0            // InvokeDynamic #0:apply:()Ljava/util/function/Function;\n       5: invokestatic  #366                // Method createCodec:(Ljava/util/function/Function;)Lcom/mojang/serialization/MapCodec;\n       8: putstatic     #50                 // Field CODEC:Lcom/mojang/serialization/MapCodec;\n      11: getstatic     #369                // Field net/minecraft/state/property/Properties.MOISTURE:Lnet/minecraft/state/property/IntProperty;\n      14: putstatic     #69                 // Field MOISTURE:Lnet/minecraft/state/property/IntProperty;\n      17: dconst_0\n      18: dconst_0\n      19: dconst_0\n      20: ldc2_w        #370                // double 16.0d\n      23: ldc2_w        #372                // double 15.0d\n      26: ldc2_w        #370                // double 16.0d\n      29: invokestatic  #377                // Method net/minecraft/block/Block.createCuboidShape:(DDDDDD)Lnet/minecraft/util/shape/VoxelShape;\n      32: putstatic     #172                // Field SHAPE:Lnet/minecraft/util/shape/VoxelShape;\n      35: return\n}\n",
+    "sourceAim": "soilY + .5 + .499 = soilY + .999",
+    "actualOutlineTop": "soilY + 15/16 = soilY + .9375",
+    "scope": "Static mapped binary geometry proves endpoint above farmland surface for a ray starting above. Native combined refusal first conjunct remains unlogged."
+  },
+  "buildAttempts": [
+    {
+      "version": "1.21.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T14:06:17.824873+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-1211:verificationClasses",
+        ":fabric-1211:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-surface-hit-1.21.1-r8-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T14:06:58.742263+00:00",
+      "round": 8,
+      "logSha256": "255d4730dede8e1cfe9c6959c4a3323d904badf624cd6f596c325fba2512cbc0",
+      "resultLine": "BUILD SUCCESSFUL in 40s"
+    },
+    {
+      "version": "26.3",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T14:06:58.743894+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-surface-hit-26.3-r8-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T14:07:31.517721+00:00",
+      "round": 8,
+      "logSha256": "5d84755e3e753985cee26a1cdff6db6d867d9ad0ee1872aeb0f34ce1d64eee69",
+      "resultLine": "BUILD SUCCESSFUL in 32s"
+    },
+    {
+      "version": "1.20.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T14:07:31.518566+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.20.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/usr/local/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-surface-hit-1.20.1-r8-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T14:08:11.313327+00:00",
+      "round": 8,
+      "logSha256": "89c26868141ed0a56ed932bd90c081e3d4fb538d727bc6788449823168d887c5",
+      "resultLine": "BUILD SUCCESSFUL in 39s"
+    },
+    {
+      "version": "1.21.11",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T14:08:11.317152+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.11",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-surface-hit-1.21.11-r8-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T14:09:02.866137+00:00",
+      "round": 8,
+      "logSha256": "add786f943c0e883b598c473fbb4d3ca8c58460ca75c126b693ae3e98dcf2b62",
+      "resultLine": "BUILD SUCCESSFUL in 50s"
+    }
+  ],
+  "existingChecks": {
+    "core": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-modern": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1212": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "e0747bcb203b670c0f599f2b84d9b8638fbc486d7b226fffaf1456d5933e7525",
+      "bytes": 1956155,
+      "checks": 319,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 8
+    },
+    {
+      "minecraftVersion": "26.3",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "51de87960a52455ef9cc6137f6e1075949fa313301ea064f506d8f6e9408de00",
+      "bytes": 2029264,
+      "checks": 274,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 8
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric/build/libs/lodekeeper-1.20.1-0.1.0-preview.11.jar",
+      "sha256": "8342c2ddcaf3ba1922e98dcd3254dacaba0e20fc10e4de7515c53f525376050a",
+      "bytes": 1951498,
+      "checks": 319,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 8
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+      "sha256": "bf0edec02fa8da4342571748e69818984f998f2204eae35aef1619d1c160a517",
+      "bytes": 1969067,
+      "checks": 324,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 8
+    }
+  ],
+  "precedingNativeFailure": {
+    "path": "docs/evidence/resource-actions/main-93ac718-crop-wheat-failed.json",
+    "sha256": "dddea7ebcfa08bd0c8ddc186cdc94652ae20ed65e9fe2009bb409421580951b0",
+    "status": "FAILED"
+  },
+  "preservation": [
+    "Crop replant aim uses live farmland outline maximum Y minus .001; the native raycast still must return BLOCK at the exact support with UP face inside unchanged reach.",
+    "All other hitFace callers retain their cube-face aim and shared two-attempt raycast.",
+    "Original authority, repair/cleanup permissions, protection, actual stock/receipts, ordinary components, native input, AIR predecessor and UNKNOWN no-resend remain unchanged.",
+    "The four native wheat fixture sources and every acceptance bound/predicate remain unchanged."
+  ],
+  "reviewCorrections": [
+    "The worker used disallowed read-only Git queries and disclosed them; it made no Git or canonical writes.",
+    "The worker opening sentence has an ambiguous seed count. Actual native receipt records wheat1 seeds26 harvest1 replant0."
+  ],
+  "runtimeLimits": [
+    "The source and mapped geometry show an unreachable old farmland ray endpoint, but the combined native refusal did not log its first failing conjunct.",
+    "Native wheat and AIR acceptance on these artifacts remains unrun until separate case receipts. Other crop/refusal/cancellation and FULL11 gates remain open."
+  ],
+  "nativeCrop": "unrun for this correction",
+  "nativeAirRegression": "unrun for this correction",
+  "userAcceptance": "pending"
+}
