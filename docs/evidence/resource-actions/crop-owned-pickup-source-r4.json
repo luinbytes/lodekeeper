@@ -1,0 +1,301 @@
+{
+  "recordedAtUtc": "2026-10-09T12:48:44.687026+00:00",
+  "sourceBaselineCommit": "42840297f8794bd130c4c61ac81f8b9aa26424a6",
+  "status": "compiled_correction_native_unrun",
+  "changedSources": [
+    {
+      "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+      "baseline_sha256": "a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24",
+      "candidate_sha256": "0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6"
+    },
+    {
+      "path": "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java",
+      "baseline_sha256": "2b542eb7392a4773b40eadad7505d3b2328f78449ab0b516594307b0f1c54d8b",
+      "candidate_sha256": "1ee48db18a4b6bc53a434e2b4a1bbe2083d5439f8c6cf39060d81d951103b502"
+    },
+    {
+      "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+      "baseline_sha256": "c5715cd235e9c0cab23b2b1558916d20e272bf91c7fb927b079952d35d09af77",
+      "candidate_sha256": "a0df9378d1d248673d21fa1e71123afb8470e39d30ae776296194798c184c724"
+    },
+    {
+      "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java",
+      "baseline_sha256": "5ae76181487d660f1d4f93fde4943410151d779f1d67615ba9c4670bea5c62dc",
+      "candidate_sha256": "052c1ef607ae047c8974c5a51f4b16aa8baeb18c29b483b9c5298e087ed0cf4f"
+    }
+  ],
+  "sourceManifest": {
+    "core/src/main/java/dev/lodekeeper/core/CropHarvestSource.java": "de9cdf4ee62ec0fad05edecabb600f686e5e685adeaee0ab8f7cbf6671487b81",
+    "core/src/main/java/dev/lodekeeper/core/NativeAcquisitionSource.java": "42baa475e79de5f4a218f7405c09797d92518b369414b2c55a3773036a7e8353",
+    "core/src/main/java/dev/lodekeeper/core/NativeWork.java": "8efe8bc3093f7c4829d4ee2f6f6f4545ab01143d5aeb9048b8ae9a47ad6d728e",
+    "fabric-1202/src/main/java/dev/lodekeeper/fabric/GameApi.java": "28c24d4b0fe52e77b3a100b5a1820bb8114ea30b17ab8b1a036a5c8b147991f2",
+    "fabric-1211/src/1205/java/dev/lodekeeper/fabric/GameApi.java": "1c869065e54c56a099940d8dee5f71d39bfcdc01d02b9faf6e5a95003022c2b2",
+    "fabric-1211/src/main/java/dev/lodekeeper/fabric/GameApi.java": "37c1e443ce78f161d656b1795b9d90e31417e38ba754f0caca228f41e07f8cdd",
+    "fabric-1212/src/main/java/dev/lodekeeper/fabric/GameApi.java": "976ba9a30909866dd2a8c63e73207eb8010f7ad928d71ca561fb21f7f0019db4",
+    "fabric-modern/src/26.1/java/dev/lodekeeper/fabric/modern/GameApi.java": "3be28214f5e81e761d98405af22f76e253e2fd6ed197f16fb2724a4c03f0ab44",
+    "fabric-modern/src/26.2/java/dev/lodekeeper/fabric/modern/GameApi.java": "fe8318d5f6c663c2a674b632bd8b89e95352038cb0679873eeab04886682913e",
+    "fabric-modern/src/26.3/java/dev/lodekeeper/fabric/modern/GameApi.java": "0307ebaecdaa7de29978c8b7a28f3aa3e3eaa0bfcbdcce839b95d2410f3ea3ea",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java": "483a59e4e1e80c154bfe8df9732d8c4bd86fe527dd8d0729b4b551ac5c5d08c0",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java": "717c27a0a718e44a27ea7c8d53254f9ea5a9d71e71e9fbc1cd56efafbed27466",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BackfillController.java": "90c3020e017fa430d33a9ffa1ce1cb18d3ac1308ae16444078f8a605b3f3b332",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/BotInput.java": "ec0a81d49ac417312cda33c429fdfa6182ebd3326555a0af19311ea16cb2ba94",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java": "052c1ef607ae047c8974c5a51f4b16aa8baeb18c29b483b9c5298e087ed0cf4f",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/GameCatalog.java": "128d66d03ae3783d81a74933822e62f164056c14a5808b6d87c8c9edd96740f7",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java": "a0df9378d1d248673d21fa1e71123afb8470e39d30ae776296194798c184c724",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/NativeRun.java": "3f0037ae1488cdbce0d625caba1b10d04340819de121619ba1a64040465d20c1",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlacementProvenance.java": "77a555b6afcf0f2358dc3b52bdde23c003b5f233b28f4edd5af84274b3d1c45b",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java": "c6444c046bf192b0aa274d9fb30939e7f74a2457bd0a8c46880e5fc2004f03b3",
+    "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/WorldProtection.java": "7219e53ee818baeb154fda450e8b720e1b0786388909bd0e302ce9e6bd2831cc",
+    "fabric/src/legacy/java/dev/lodekeeper/fabric/GameApi.java": "6dde628497a68be09e35fc392e4a76bb1891f1ea8d8e4a797d3b889c95f8c5c2",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java": "3d7c6a583f215afda5af82b6b29bde952474adcb5de62bb51107099508018938",
+    "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java": "c9e74570ad6dece42b0726ca7929919b91119932ea676a189a3e606e920193fc",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BackfillController.java": "fce0e526ab5d3e2b343bb02bbf15844025f8789acfa82f5ce6484e247080e3d5",
+    "fabric/src/main/java/dev/lodekeeper/fabric/BotInput.java": "bff73dfab0c14cd524625ce6c3ea45a9d4ae4c579e04a3c1cea060361f7a75e8",
+    "fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java": "1ee48db18a4b6bc53a434e2b4a1bbe2083d5439f8c6cf39060d81d951103b502",
+    "fabric/src/main/java/dev/lodekeeper/fabric/GameCatalog.java": "7787c16ddbf8bb5b563ec36b78be83e0e73f7124dff49cff4a0018d8f32a9436",
+    "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java": "0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6",
+    "fabric/src/main/java/dev/lodekeeper/fabric/NativeRun.java": "72f2384915d0ea6c7c7c0435d17005cfa3eb9679f8908525dbf6482fea069791",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlacementProvenance.java": "61bcf53d80c25371a020ab327595e3a633f84a2a452b8ac12a3259fd77151c94",
+    "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java": "376b7743d89e4c52ba1b6ef04509763e7c4132807fbdf34b5bd07e65eab38335",
+    "fabric/src/main/java/dev/lodekeeper/fabric/WorldProtection.java": "ad88e423be49958013372c4ac4dc32ba62f1bb96951c282f0543cd92c5119e5c",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides.sha256": "639690f03cbc820260f0cbed9197ff71c6618698e5fa57294a7c012cf8ce2eb1",
+    "owned-kernel/modern26.3/overrides/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "d23f9bda8a933b9b8d060f1573edc84a317a7fdffff14ec2f7ea49e40d2d494a",
+    "owned-kernel/primary1.21.1/lifecycle-overrides.sha256": "d32f8fca41105c8336ad5184b9b06834bc22633aa9c3034edac019e0202c4c72",
+    "owned-kernel/primary1.21.1/lifecycle-overrides/main/java/dev/lodekeeper/navigation/kernel/utils/InputOverrideHandler.java": "25b5eb8662d38ef22676666708abd385775e6bf16b613b9c9c286c4b1b46371f",
+    "fabric-1212/src/1212/java/dev/lodekeeper/fabric/BotInput.java": "72ef7a2bd0b671e842b039a6b7d99852a40eef1f5e0b03358113eae09cdec6e0",
+    "fabric-1212/src/1214/java/dev/lodekeeper/fabric/BotInput.java": "a3e76ce0b228d4832144441b42169c524c9dcad9d76eb54207bc3eb91374ef3c",
+    "fabric-1212/src/1215/java/dev/lodekeeper/fabric/BotInput.java": "05d6ae74197cba53e3e7be81af775fa861b721032a0e40f35d241c7aa14ed1ac"
+  },
+  "verifierSourceManifest": {
+    "fabric/src/verification/java/dev/lodekeeper/fabric/RuntimeVerification.java": "a7aa278db4f7502969aedbfee9a2390cb5a9d2d980fb182806b001d3b15ce03d",
+    "fabric-1211/src/verification/java/dev/lodekeeper/fabric/VerificationApi.java": "78888f127529e6b51e9f501b69867a39e1577e681b83f3eaec8b78f7b9d20957",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/RuntimeVerification.java": "9b4c27d8baeb30b72c5af3269610694539b24e2a1dca2b93b937cd3c822f1e88",
+    "fabric-modern/src/verification/java/dev/lodekeeper/fabric/modern/VerificationApi.java": "576a280bbb56991d26db6dd151ed46b715e8159108cadc5c98e57003af164b1b"
+  },
+  "verifierUnchanged": true,
+  "sourceReports": [
+    {
+      "path": "/tmp/lodekeeper-crop-owned-pickup-prepared-root-r4/report.md",
+      "sha256": "a1d6d6edd95f800cb440f7c25f3d62b74dd06bdbc6754bbeece82319171119cd",
+      "report": "# Lodekeeper crop pickup candidate r3\n\nStatus: **ISSUES**. The source candidate, copied-baseline hashes, and local patch reconstruction passed. This task did not permit compilation or a native run, so API/linkage and behavior remain unverified. The earlier crop evidence proves exact-goal search exhaustion; it does not prove the exact rejected stance or the later cancellation subpredicate.\n\n## Candidate change\n\nThe crop caller now uses `startCropPickup`. That wrapper selects `MOVEMENT_ONLY` and radius 1. The existing `startOwnedPickup` callers keep radius 0 through their unchanged entry points. Radius is held on the immutable `OwnedPickupTarget` and applied only when the pinned target launches. The target still pins the entity object and UUID, item type and initial count, owner world/player, and provenance session. The filter, count ceiling, receipts, and the existing 1200-tick / 90-second acceptance gates are untouched.\n\nThe geometric evidence is concrete but limited. The failed log reports `GoalNear{x=4,y=63,z=0,rangeSq=0}` and an exhausted A* open set. The generated primary 1.21.1 `FollowProcess.towards` passes `followRadius` to `GoalNear`; generated `GoalNear.isInGoal` uses squared 3D block distance. Thus radius 1 admits a stance one block from the observed goal, including a directly-above stance if that stance is reachable. This does not prove the failed item actually had a reachable above stance, or that radius 1 resolves all route failures.\n\nWhen crop quiescence returns false, debug logging now records once per second at most: the `finishCancellation` result, original input identity, `cropNativeQuiescent` result, native `hasPath` / `isPathing` / `inProgress`, player ground state and horizontal speed, mode/resume mode/cancelling, settings lease presence, current follow-filter presence, and forced-key count. Follow state uses `currentFilter()`, not `FollowProcess.isActive()`. Existing quiescence guards still gate return; diagnostics do not clear leases, pending state, or unknown ownership. Adapter velocity reads use `getVelocity()` on primary and `getDeltaMovement()` on modern.\n\nNo cause for the cancellation subpredicate is asserted. The log proves the pickup route failed before the pending cancellation status. The receipt records `harvests=1`, wheat 0, seeds 24, replants 0, and failure beyond the original tick/time limit. No evidence here supports changing the later cancellation policy.\n\n## Validation\n\n- Copied the four canonical files into `baseline/` and checked their SHA256 values against the canonical source after candidate creation. All four still match.\n- Generated `source.patch` with `a/` and `b/` paths. Applied it with system `patch` to a temporary reconstruction copied from `baseline/`. All four reconstructed files matched `sources/` byte for byte.\n- Reviewed the four-file diff. No source outside the permitted four paths is in `sources/` or `source.patch`. The 40-source crop manifest and four verifier file hashes were not edited.\n- Read the primary and modern adapter source, both diagnosis reports, the failed client log, runner receipt, and native evidence receipt. Read the generated primary `FollowProcess` and `GoalNear` source only.\n- No Git, build, test, Java/JVM, client, restart, upload, or external write command was run. No tests or fixtures were changed. No canonical source was edited.\n\nCommands used were `cat`, `sed`, `rg`, `find`, `diff`, `python3` for copying, candidate edits, SHA256 manifests, and patch generation, plus `patch -p1` for local reconstruction. A temporary helper at `/tmp/build-crop-candidate.py` was created during assembly and then deleted; no other path outside the requested candidate directory was intentionally used for output. The reconstruction tree inside the candidate directory was also deleted after byte comparison.\n\n## Bundle map\n\n- `sources/<repo-relative-path>` contains the four candidate source files.\n- `baseline/<repo-relative-path>` contains the four copied originals.\n- `source.patch` reconstructs the candidate from the baseline.\n- `manifest.json` records base commit `42840297f8794bd130c4c61ac81f8b9aa26424a6` and baseline/candidate SHA256 values.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-pickup-geometry-independent-luna-r3.md",
+      "sha256": "c0eef6d5b3ec600dfeda450366946162636837956e0f62dfcfa8ad29138110d6",
+      "report": "# Crop pickup goal geometry review\n\n**Verdict: ISSUES.** Base commit: `42840297f8794bd130c4c61ac81f8b9aa26424a6` (user-specified; artifact manifest records the same source commit). This is a source-only geometry review. No Git, build, test, client, restart, upload, or canonical checkout write was performed.\n\n## Overview\n\nThe exact pinned follow target uses the item entity's `getBlockPos()`. For the observed crop item at `(4,63,0)`, primary `GoalNear(range=1)` accepts feet `(4,64,0)`: `0\u00b2 + 1\u00b2 + 0\u00b2 = 1`, and the predicate is inclusive. The native trace's best reachable feet are exactly `(4,64,0)`. This proves goal admission, not item pickup.\n\nA radius-one goal can satisfy FollowProcess without any further movement. If the fresh entity is still outside Minecraft's pickup distance at that moment, the route can stop short of collection. Entity coordinates within the target block and player/entity pickup semantics matter; block-position distance alone cannot rule this out. The current trace has no radius-one rerun or item pickup receipt, so crop-only radius one remains unproven as a collection fix.\n\n## Key concepts\n\n- `FollowProcess.towards` uses `following.blockPosition()` when follow offset is zero, then constructs `GoalNear` from that block position (primary lines 62-73).\n- `GoalNear` squares the configured integer radius and checks the sum of squared integer block-coordinate deltas with `<=` (primary lines 34-47).\n- Owned pickup pins the entity identity, world, player, owner session, live state, and item type, then sets follow radius to zero in launch (MovementController lines 1805-1832, 2048-2055). The pinned entity is therefore correct, but its current route radius is still zero.\n\n## How it works\n\nThe real wheat run logged `GoalNear{x=4, y=63, z=0, rangeSq=0}` from start feet `(0,64,0)`. A* exhausted the open set twice. The diagnostic's best endpoint was `(4,64,0)`, with movement east blocked by infinite cost. The supplied runner receipt reports one harvest, zero replants, and timeout. This supports the reported radius-zero failure; it does not test radius one.\n\nWith radius one, the generated primary goal predicate admits `(4,64,0)` because its integer delta from the target is `(0,1,0)`. FollowProcess keeps issuing the follow goal, but a goal already satisfied gives pathing no reason to move. That can be an improvement when the item is already collectible. It can also leave an item behind when entity-space distance still exceeds the game's pickup threshold. This latter case is a geometry inference, not a result measured by this fixture.\n\nCrop pickup starts with the exact `ItemEntity` and calls `startOwnedPickup` from `CropHarvestAction.collect` (lines 264-274). That method stores the target's identity and builds its diagnostic goal from `item.getBlockPos()` (MovementController lines 1813-1832). Do not shift the diagnostic target: it is not the native follow goal and would misstate the observed geometry.\n\n## Primary and modern comparison\n\nThe generated primary and `modern26.3` `FollowProcess.java` files are byte-identical. Their generated `GoalNear.java` files are byte-identical too. Hashes:\n\n- `FollowProcess.java`: `6e0dfbc8a92a896ef86c72b4878e26d9ee69be703d15004fd9ad2ee2ece19342` in both trees.\n- `GoalNear.java`: `cee884249006bc24c2e2710c44c42345bc1bcd487066c4747ecc30b7d7340da8` in both trees.\n\nThe source adapter hashes in the artifact manifest differ by version, but the goal shaping under review does not. This comparison establishes identical generated follow and goal logic, not a modern runtime outcome.\n\n## Gotchas and limits\n\n- **Proven:** radius one admits feet `(4,64,0)` for target `(4,63,0)` under the exact generated predicate.\n- **Proven:** the native primary run used range zero and reported that same feet position as its best reachable endpoint.\n- **Inference:** an already-in-goal follow target can yield no-motion, and an in-goal feet cell does not by itself prove the item is within Minecraft pickup range.\n- **Not established:** whether this fixture's precise item position and player bounding box would trigger pickup from `(4,64,0)`; whether radius one yields successful crop repair; whether modern26.3 behaves the same at runtime.\n- Animal and station radius policies were not changed or evaluated here. If radius one is adopted for crops, keep it scoped to crop-owned pickup and retain radius zero for animal/station pickup as requested.\n\n## Evidence and commands\n\nSource hashes were computed with `shasum -a 256`; primary/modern parity was checked with `diff -u`; relevant code and logs were read with `nl -ba`, `rg`, `jq`, and `cat`. No source was edited. The artifact manifest records `sourceCleanAtFreeze: true`, the requested base commit, and `nativeStatus: unrun` with no `nativeCasesRun`; the separate runner receipt records the failed wheat run described above. Thus this report does not treat artifact packaging or the primary failure as a radius-one native pass.\n\nthroughput checkpoint: n/a, read-only investigation\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-owned-pickup-source-review-r3-luna.md",
+      "sha256": "363105a8615e56b1820a5da3f04733894a6a431ac5bca56f7899d2c9b55dbc41",
+      "report": "# Bounded crop pickup source review r3\n\n**Verdict: CLEAN (source only).** Reviewed the candidate against canonical source baseline `42840297f8794bd130c4c61ac81f8b9aa26424a6`. Per request, this review is limited to the crop release checkpoint. It does not approve handoff, storage, remote, or bucket integration.\n\n## Scope and hashes\n\nThe candidate bundle is `/tmp/lodekeeper-crop-owned-pickup-prepared-r3`. `source.patch` changes only the four allowed files. The bundle manifest's baseline hashes match the canonical files; its candidate hashes match the four files under `sources/`.\n\n| File | Baseline SHA256 | Candidate SHA256 |\n| --- | --- | --- |\n| `fabric/.../MovementController.java` | `a8d9c6004fead77fd81383e466d6316a5f7118d8d29e632aa68aec4acbb8ff24` | `0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6` |\n| `fabric/.../CropHarvestAction.java` | `2b542eb7392a4773b40eadad7505d3b2328f78449ab0b516594307b0f1c54d8b` | `1ee48db18a4b6bc53a434e2b4a1bbe2083d5439f8c6cf39060d81d951103b502` |\n| `fabric-modern/.../MovementController.java` | `c5715cd235e9c0cab23b2b1558916d20e272bf91c7fb927b079952d35d09af77` | `6061e074ec9ac304665f87e80c7c2c0ad6be8f73b940e04e863ffdc21a63fb66` |\n| `fabric-modern/.../CropHarvestAction.java` | `5ae76181487d660f1d4f93fde4943410151d779f1d67615ba9c4670bea5c62dc` | `052c1ef607ae047c8974c5a51f4b16aa8baeb18c29b483b9c5298e087ed0cf4f` |\n\nNo Git command, build, test, JVM/native client, restart, upload, canonical edit, or output outside the requested review file was used. I read the project `AGENTS.md`, runtime/poteto-mode instructions, candidate patch/manifest/report, and the referenced geometry and diagnosis reports. No nested agent was used.\n\n## Findings\n\nNo source defect found in the reviewed patch.\n\n- The crop call site now uses `startCropPickup`; that wrapper fixes `MOVEMENT_ONLY` and radius 1. The immutable owned target carries the radius into `launch()`. Other owned-pickup call sites still use existing overloads, which supply radius 0. Animal and station call sites therefore retain their prior radius policy.\n- The target still pins the original entity object and UUID, item type and starting count, owner world/player, and provenance session. Existing follow filtering still requires that exact live entity and item. Crop collection still checks the pinned UUID, accepted components/item rules, count ceiling, and existing receipt and timeout flow.\n- No change was made to authority/session admission, original input/predecessor lease capture, reserved planting/floor handling, manual takeover/AIR guards, or resend behavior. Crop navigation continues to use `MOVEMENT_ONLY`; `launch()` keeps break/place disabled for that route.\n- The crop cancellation log is gated by debug logging and throttled to one write per second. Its fields read movement mode, cancellation state, path state, ground/velocity state, lease/filter presence, and forced-key count. It does not clear leases or ownership state and does not call `FollowProcess.isActive()`.\n- Candidate `debugLogging()` exists in both movement controllers. The primary and modern velocity APIs and `Vec3.x/z` access match adjacent source uses in their respective adapter trees.\n- `quiesce()` now evaluates `cropNativeQuiescent()` even when cancellation or input identity has not settled. The source method only reads native path/process/input state; the final `ready` result still requires cancellation, input identity, and native quiescence all to pass. I found no state mutation or guard weakening from this evaluation-order change.\n\n## Limits\n\nThis verdict is source-only. It does not establish API linkage by compiling any supported artifact or prove that radius 1 collects the real wheat drop. The geometry report establishes that radius 1 admits the observed reachable feet cell, but not that the item is within Minecraft pickup range from there. The frozen native wheat run and AIR gate run remain for the root agent; runtime success must be reported separately from this review.\n\nThe diagnosis evidence describes the earlier failure as `harvests=1`, wheat `0`, seeds `24`, replants `0`, with radius-zero `GoalNear` exhaustion. The later cancellation subpredicate remains unproven. The candidate adds diagnostics without claiming or changing that predicate.\n"
+    },
+    {
+      "path": "/tmp/lodekeeper-crop-owned-pickup-r4-binding-review-luna.md",
+      "sha256": "a17590c7e773c16c81412fb483d0b5f0bf5ff0971a543ef2466d8be900179cb7",
+      "report": "# Lodekeeper crop pickup R4 binding review\n\n**Verdict: CLEAN (source only).** Reviewed the four-file R4 candidate against the supplied original baseline `42840297f8794bd130c4c61ac81f8b9aa26424a6`. No source defect found in the corrected candidate.\n\n## Candidate hashes\n\n| File | SHA256 |\n| --- | --- |\n| `fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java` | `0bcca60e157f81a37294e446a0b1b1403c85269718addb27ad2298529fde4bf6` |\n| `fabric/src/main/java/dev/lodekeeper/fabric/CropHarvestAction.java` | `1ee48db18a4b6bc53a434e2b4a1bbe2083d5439f8c6cf39060d81d951103b502` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java` | `a0df9378d1d248673d21fa1e71123afb8470e39d30ae776296194798c184c724` |\n| `fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/CropHarvestAction.java` | `052c1ef607ae047c8974c5a51f4b16aa8baeb18c29b483b9c5298e087ed0cf4f` |\n\nThe candidate bytes match the R4 manifest. Against the R3 candidate hashes recorded in the earlier report, only modern `MovementController.java` changed. Its sole R3-to-R4 correction replaces the unsupported new `client.player.isOnGround()` call with `client.player.onGround()`.\n\n## Findings\n\n- The corrected modern ground-state call matches existing uses in that same `MovementController` source (`player.onGround()` in movement snapshots and physical-start checks). The neighboring modern velocity binding remains `getDeltaMovement()`, also used repeatedly in that adapter. Primary\u2019s diagnostic uses its adapter\u2019s existing `isOnGround()` and `getVelocity()` calls.\n- Crop collection calls `startCropPickup`, which fixes `MOVEMENT_ONLY` and radius 1. That value is carried by the immutable `OwnedPickupTarget` and applied only when the pinned target launches. Existing animal and station calls still use the existing overloads, which default to radius 0.\n- The target continues to pin entity identity and UUID, item type and starting count, owner world/player, and provenance session. The exact-entity follow filter and existing count, receipt, timeout, and session checks remain. The original 1200-tick and 90-second bounds are unchanged.\n- The crop authority, input/predecessor ownership, debt/receipt, reserved seed and floor, ordinary component, manual takeover, and AIR gates are preserved in the reviewed diff. Crop pickup remains movement-only. No resend path or other-radius caller was widened.\n- Quiescence logging is debug-gated, happens only while the existing quiescence predicate is false, and is throttled to one entry per second per action. The added diagnostic reads current state; it does not release leases or clear movement/input state. Quiescence still returns true only when cancellation, original input identity, and native quiescence all pass.\n\n## Correction history and limits\n\nMy R3 review incorrectly marked the candidate CLEAN without catching that the modern adapter did not provide `LocalPlayer.isOnGround()`. The R3 26.3 compile failed at that new call, as shown in `/tmp/lodekeeper-crop-owned-pickup-26.3-r3-build.log`. The R4 source fixes that exact defect. This is a correction to the review, not evidence that the failed R3 build passed.\n\nThis review did not compile the candidate or run a client. Root\u2019s separate R4 26.3 build log records a successful build after the fix; that evidence is outside this source-only verdict. Native pickup behavior remains unproven: radius 1 broadens the follow goal, but source review cannot establish that the real wheat item is collected from an admitted stance. No new finding is based solely on native verification being unrun.\n"
+    }
+  ],
+  "buildAttempts": [
+    {
+      "version": "1.21.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:44:03.081916+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-1211:verificationClasses",
+        ":fabric-1211:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-owned-pickup-1.21.1-r3-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:44:43.631558+00:00",
+      "logSha256": "6d76b1f454e94efd4ec9d38af3e620290e4754ce8758f1ed65e4efeec51ec024",
+      "resultLine": "BUILD SUCCESSFUL in 39s"
+    },
+    {
+      "version": "26.3",
+      "status": "FAILED",
+      "startedAtUtc": "2026-10-09T12:44:43.633421+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-owned-pickup-26.3-r3-build.log",
+      "exitCode": 1,
+      "finishedAtUtc": "2026-10-09T12:45:09.346002+00:00",
+      "logSha256": "f3030da5a8a3a222e77f82c884dcb3817d1116f20c2c194219834d3bb5d44454",
+      "resultLine": "BUILD FAILED in 25s"
+    },
+    {
+      "version": "26.3",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:46:23.711136+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "26.3",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1",
+        ":fabric-modern:verificationClasses",
+        ":fabric-modern:prepareArtifactVerification"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-25.0.4.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-owned-pickup-26.3-r4-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:46:47.004100+00:00",
+      "logSha256": "c464a0cd55e16c1624adead63bd6ba9320c562bbdfe53ba3d9b47a5449e2d356",
+      "resultLine": "BUILD SUCCESSFUL in 22s"
+    },
+    {
+      "version": "1.20.1",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:46:47.004686+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.20.1",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/usr/local/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-owned-pickup-1.20.1-r4-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:47:27.670121+00:00",
+      "logSha256": "4813f64517b8a56db3c52916328aae085b2422c09ab79cd7bac0772812c91d69",
+      "resultLine": "BUILD SUCCESSFUL in 40s"
+    },
+    {
+      "version": "1.21.11",
+      "status": "PASS",
+      "startedAtUtc": "2026-10-09T12:47:27.673509+00:00",
+      "command": [
+        "scripts/build-version.sh",
+        "1.21.11",
+        "--no-daemon",
+        "--no-parallel",
+        "--max-workers=1"
+      ],
+      "javaHome": "/Users/luinbytes/src/lodekeeper/.tools/jdk-21.0.12.1+1/Contents/Home",
+      "log": "/tmp/lodekeeper-crop-owned-pickup-1.21.11-r4-build.log",
+      "exitCode": 0,
+      "finishedAtUtc": "2026-10-09T12:48:16.532196+00:00",
+      "logSha256": "23598e38129727b98ee7d9518557584923c136854195542ddb70c91e8fb56fea",
+      "resultLine": "BUILD SUCCESSFUL in 48s"
+    }
+  ],
+  "existingChecks": {
+    "core": {
+      "tests": 173,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "nav": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1211": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-modern": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric": {
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fabric-1212": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "artifacts": [
+    {
+      "minecraftVersion": "1.21.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "sha256": "ccdcbba9a84dd70460abef5efe53b90b2a9052538b7bde490e3f1923c280bfc1",
+      "bytes": 1955617,
+      "checks": 319,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 3
+    },
+    {
+      "minecraftVersion": "26.3",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+      "sha256": "163573e802cf1d22eb4cc912253a3931275826fc5df83c207053b9e0bbc6f7fa",
+      "bytes": 2028769,
+      "checks": 274,
+      "cropMechanicAvailable": true,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 4
+    },
+    {
+      "minecraftVersion": "1.20.1",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric/build/libs/lodekeeper-1.20.1-0.1.0-preview.11.jar",
+      "sha256": "9dcc57c731af497ba70c7af746dbc6315a95ab4048c457eb1ced3a43b2adbd03",
+      "bytes": 1950947,
+      "checks": 319,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 4
+    },
+    {
+      "minecraftVersion": "1.21.11",
+      "path": "/Users/luinbytes/src/lodekeeper/fabric-1212/build/libs/lodekeeper-1.21.11-0.1.0-preview.11.jar",
+      "sha256": "a81338272cf80f00b32ad9ab4b404674ce5a094b55d1812ae0734db5d3a0d848",
+      "bytes": 1968531,
+      "checks": 324,
+      "cropMechanicAvailable": false,
+      "nativeStatus": "unrun for this correction",
+      "sameArtifactBytesAsBeforeCommentTrim": null,
+      "finalBuildRound": 4
+    }
+  ],
+  "precedingNativeFailure": {
+    "path": "docs/evidence/resource-actions/main-4284029-crop-wheat-failed.json",
+    "sha256": "a5f8217988287a652f7b41adb35dd3a862073e3f9965544d3f0eb5999dfc7dbc",
+    "status": "FAILED"
+  },
+  "preservation": [
+    "Only crop pinned pickups use radius one. Existing owned animal and station pickups retain radius zero.",
+    "Original authority, debt, receipts, stock floors, ordinary components, UUID/session pinning, manual input and AIR guards remain unchanged.",
+    "Quiescence remains fail closed. Once per second debug diagnostics identify pending predicates.",
+    "Four native wheat verifier sources and all acceptance gates remain unchanged."
+  ],
+  "runtimeLimits": [
+    "A radius-one goal admits the observed reachable feet cell; it does not establish item collection.",
+    "The exact pending cancellation subpredicate from the preceding failed run remains unknown."
+  ],
+  "failuresRetained": [
+    "Modern R3 compilation rejected isOnGround in the new diagnostic. R4 changes only that binding to onGround. The R3 review missed that API defect."
+  ],
+  "nativeCrop": "unrun for this correction",
+  "nativeAirRegression": "unrun for this correction",
+  "userAcceptance": "pending"
+}

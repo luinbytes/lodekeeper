@@ -344,7 +344,8 @@ final class MovementController {
     enum RouteEffects { CONFIGURED, MOVEMENT_ONLY }
     private enum Mode { IDLE, MOVE, AIR, MINE, DESCEND, PICKUP, FOLLOW, SUSPENDED }
     private record OwnedPickupTarget(ItemEntity entity, UUID entityId, Item item, int startingCount,
-                                     Object ownerWorld, Object ownerPlayer, Object ownerSession) { }
+                                     Object ownerWorld, Object ownerPlayer, Object ownerSession,
+                                     int followRadius) { }
     private final Minecraft client;
     private final LodekeeperConfig config;
     private final PlayerActions actions;
@@ -1808,10 +1809,18 @@ final class MovementController {
     }
 
     void startOwnedPickup(ItemEntity item, Object ownerSession) {
-        startOwnedPickup(item, ownerSession, RouteEffects.CONFIGURED);
+        startOwnedPickup(item, ownerSession, RouteEffects.CONFIGURED, 0);
     }
 
     void startOwnedPickup(ItemEntity item, Object ownerSession, RouteEffects effects) {
+        startOwnedPickup(item, ownerSession, effects, 0);
+    }
+
+    void startCropPickup(ItemEntity item, Object ownerSession) {
+        startOwnedPickup(item, ownerSession, RouteEffects.MOVEMENT_ONLY, 1);
+    }
+
+    private void startOwnedPickup(ItemEntity item, Object ownerSession, RouteEffects effects, int followRadius) {
         if (item == null || !item.isAlive() || ownerSession == null)
             throw new NavigationFailure("Owned pickup requires a live item and recovery session");
         Objects.requireNonNull(effects);
@@ -1820,7 +1829,7 @@ final class MovementController {
         routeEffects = effects;
         Item itemType = item.getItem().getItem();
         pickupTarget = new OwnedPickupTarget(item, item.getUUID(), itemType, item.getItem().getCount(),
-                client.level, client.player, ownerSession);
+                client.level, client.player, ownerSession, followRadius);
         output = itemType;
         targetCount = 0;
         followTargetId = pickupTarget.entityId();
@@ -1839,6 +1848,27 @@ final class MovementController {
         diagnosticGoal = dev.lodekeeper.nav.Goal.near16(position.getX(), position.getY() * 16, position.getZ(), 32);
         mode = Mode.PICKUP;
         launch();
+    }
+
+    String cropCancellationDiagnostic(boolean finishResult, boolean inputRestored, boolean nativeQuiescent) {
+        if (!config.debugLogging) return "debugDisabled=true";
+        var pathing = bot == null ? null : bot.getPathingBehavior();
+        int forcedKeys = 0;
+        if (bot != null) for (var key : dev.lodekeeper.navigation.kernel.api.utils.input.Input.values())
+            if (bot.getInputOverrideHandler().isInputForcedDown(key)) forcedKeys++;
+        var velocity = client.player == null ? null : client.player.getDeltaMovement();
+        double horizontalSpeed = velocity == null ? Double.NaN : Math.hypot(velocity.x, velocity.z);
+        var follow = bot == null ? null : bot.getFollowProcess();
+        return "finishCancellation=" + finishResult + " inputRestored=" + inputRestored
+                + " cropNativeQuiescent=" + nativeQuiescent
+                + " hasPath=" + (pathing != null && pathing.hasPath())
+                + " isPathing=" + (pathing != null && pathing.isPathing())
+                + " inProgress=" + (pathing != null && pathing.getInProgress().isPresent())
+                + " onGround=" + (client.player != null && client.player.onGround())
+                + " horizontalSpeed=" + horizontalSpeed + " mode=" + mode + " resumeMode=" + resumeMode
+                + " cancelling=" + cancelling + " settingsLeasePresent=" + (lease != null)
+                + " followFilterPresent=" + (follow != null && follow.currentFilter() != null)
+                + " forcedKeyCount=" + forcedKeys;
     }
 
     String ownedPickupDiagnostic(ItemEntity entity, Object ownerSession) {
@@ -2062,7 +2092,7 @@ final class MovementController {
             case PICKUP -> {
                 if (pickupTarget == null) bot.getFollowProcess().pickup(stack -> stack.is(output));
                 else {
-                    lease.set(settings.followRadius, 0);
+                    lease.set(settings.followRadius, pickupTarget.followRadius());
                     lease.set(settings.followOffsetDistance, 0.0);
                     lease.set(settings.followTargetMaxDistance, 64);
                     bot.getFollowProcess().follow(followFilter);

@@ -68,7 +68,7 @@ final class CropHarvestAction implements NativeRun {
     private ItemEntity pickup;
     private UUID pickupId;
     private int pickupCount, searchIndex, routeFailures, waitTicks, originalSlot, selectedSlot, swapSource = -1;
-    private long started, lastTick, pauseStarted, breakSequence, plantSequence, swapSequence;
+    private long started, lastTick, pauseStarted, breakSequence, plantSequence, swapSequence, lastQuiesceDiagnostic;
     private long harvestReceipt, replantReceipt, manualRepairReceipt;
     private boolean harvestSent, plantSent, swapSent, restoreSwapSent, swapConfirmed, plantRejected, plantAcknowledged, restoreSwapConfirmed;
     private boolean reservedPlanting, drainRequested, paused, rightsLost, navigationLost, timedOut;
@@ -268,7 +268,7 @@ final class CropHarvestAction implements NativeRun {
             ItemEntity item = fresh.stream().filter(ItemEntity::isOnGround).findFirst().orElse(null);
             if (item == null) { status = "waiting for ordinary crop drops to land"; return; }
             pickup = item; pickupId = item.getUuid(); pickupCount = item.getStack().getCount();
-            movement.startOwnedPickup(item, admission.provenanceSession(), MovementController.RouteEffects.MOVEMENT_ONLY);
+            movement.startCropPickup(item, admission.provenanceSession());
             movementInputLease = movement.captureCropInputLease(admission.owner(), admission.nativeSession(), admission.provenanceSession(), true);
             if (movementInputLease == null) { block("crop pickup has no exact owned movement lease witness"); return; }
             phase = Phase.PICKUP; return;
@@ -560,7 +560,17 @@ final class CropHarvestAction implements NativeRun {
     }
     private boolean quiesce() {
         movement.checkAirRecoveryOwnership(); movement.stop();
-        return movement.finishCancellation() && client.player.input == input && actions.cropNativeQuiescent(admission.owner());
+        boolean cancellationFinished = movement.finishCancellation();
+        boolean inputRestored = client.player != null && client.player.input == input;
+        boolean nativeQuiescent = actions.cropNativeQuiescent(admission.owner());
+        boolean ready = cancellationFinished && inputRestored && nativeQuiescent;
+        long now = System.nanoTime();
+        if (!ready && movement.debugLogging() && now - lastQuiesceDiagnostic >= 1_000_000_000L) {
+            lastQuiesceDiagnostic = now;
+            org.slf4j.LoggerFactory.getLogger("lodekeeper").info("[Lodekeeper] CROP_QUIESCE status={} {}", status,
+                    movement.cropCancellationDiagnostic(cancellationFinished, inputRestored, nativeQuiescent));
+        }
+        return ready;
     }
     private void observeRights() {
         if (!currentSession() || rightsLost) return;
