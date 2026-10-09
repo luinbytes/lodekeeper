@@ -58,6 +58,9 @@ final class MovementController {
     private static final int AIR_RECOVERY_MAX_GOALS = 16;
     private static final int AIR_SWIM_MAX_VISITED = 4_096;
     private static final int AIR_SWIM_MAX_PATH = 64;
+    private static final int AIR_SWIM_MAX_OBSTACLE_INSPECTIONS = 128;
+    private static final int AIR_SWIM_MAX_COLLISION_SHAPES = 128;
+    private static final double AIR_SWIM_VEHICLE_PUSH_REACH = .20000000298023224;
     private static final int DEFENSE_HOP_MAX_TICKS = 30;
     private static final double DEFENSE_HOP_LAUNCH_TOLERANCE = 0.125;
     private static final double DEFENSE_HOP_MAX_HORIZONTAL_DISPLACEMENT = 1.25;
@@ -105,6 +108,62 @@ final class MovementController {
     private record AirRecoveryOffset(int x, int z, int distanceSquared) { }
     private record AirSwimCell(boolean surface, boolean dryExit) { }
     private record AirSwimNode(BlockPos position, int depth) { }
+    private record AirSwimObstacle(net.minecraft.util.math.Box hardBounds, net.minecraft.util.math.Box pushBounds) { }
+    private record AirSwimObstacles(List<AirSwimObstacle> bodies, net.minecraft.util.math.Box coverage,
+                                    Set<Long> loadedChunks, boolean complete) {
+        AirSwimObstacles { bodies = List.copyOf(bodies); loadedChunks = Set.copyOf(loadedChunks); }
+
+        boolean covers(net.minecraft.util.math.Box body) {
+            var query = body.expand(AIR_SWIM_VEHICLE_PUSH_REACH, 0, AIR_SWIM_VEHICLE_PUSH_REACH);
+            if (query.minX < coverage.minX || query.minY < coverage.minY || query.minZ < coverage.minZ
+                    || query.maxX > coverage.maxX || query.maxY > coverage.maxY || query.maxZ > coverage.maxZ) return false;
+            // Native block collision iteration also reads neighboring block cells.
+            var blocks = body.expand(1, 0, 1);
+            for (int x = ((int) Math.floor(blocks.minX)) >> 4; x <= ((int) Math.floor(blocks.maxX)) >> 4; x++)
+                for (int z = ((int) Math.floor(blocks.minZ)) >> 4; z <= ((int) Math.floor(blocks.maxZ)) >> 4; z++)
+                    if (!loadedChunks.contains(((long) x << 32) | (z & 0xffffffffL))) return false;
+            return true;
+        }
+
+        boolean hardClear(net.minecraft.util.math.Box body) {
+            if (!covers(body)) return false;
+            for (var obstacle : bodies)
+                if (obstacle.hardBounds() != null && obstacle.hardBounds().intersects(body)) return false;
+            return true;
+        }
+
+        boolean softOverlap(net.minecraft.util.math.Box body) {
+            for (var obstacle : bodies)
+                if (obstacle.pushBounds() != null && obstacle.pushBounds().intersects(body)) return true;
+            return false;
+        }
+
+        boolean clear(net.minecraft.util.math.Box body) { return hardClear(body) && !softOverlap(body); }
+
+        boolean edgeClear(net.minecraft.util.math.Box from, net.minecraft.util.math.Box to, net.minecraft.util.math.Box swept, boolean separatingStart) {
+            if (!hardClear(swept)) return false;
+            for (var obstacle : bodies) {
+                var push = obstacle.pushBounds();
+                if (push != null && push.intersects(swept)
+                        && !(separatingStart && push.intersects(from) && separates(from, to, push))) return false;
+            }
+            return true;
+        }
+
+        private static boolean separates(net.minecraft.util.math.Box from, net.minecraft.util.math.Box to, net.minecraft.util.math.Box obstacle) {
+            if (obstacle.intersects(to)) return false;
+            double dx = to.minX - from.minX, dz = to.minZ - from.minZ;
+            // Each moving horizontal axis must point away from the overlapping body's center.
+            // Its interval penetration therefore never increases; at least one axis must fully exit.
+            if (dx * (from.minX + from.maxX - obstacle.minX - obstacle.maxX) < 0
+                    || dz * (from.minZ + from.maxZ - obstacle.minZ - obstacle.maxZ) < 0) return false;
+            return dx < 0 && to.maxX <= obstacle.minX || dx > 0 && to.minX >= obstacle.maxX
+                    || dz < 0 && to.maxZ <= obstacle.minZ || dz > 0 && to.minZ >= obstacle.maxZ;
+        }
+    }
+    private static final class AirSwimCoverageFailure extends IllegalStateException {
+        AirSwimCoverageFailure(String reason) { super("Air swim obstacle coverage is unavailable: " + reason); }
+    }
 
     private static final Comparator<AirRecoveryCandidate> AIR_RECOVERY_CANDIDATE_ORDER =
             Comparator.comparingInt(AirRecoveryCandidate::score)
@@ -269,6 +328,7 @@ final class MovementController {
     private dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal airRecoveryGoal;
     private BlockPos lastAirRecoveryDestination;
     private BlockPos airSwimOrigin;
+    private BlockPos airSwimSeparationStep;
     private boolean airRecoveryCancellationPending;
     private dev.lodekeeper.nav.Goal diagnosticGoal;
     private Block[] mineBlocks = new Block[0];
@@ -550,6 +610,9 @@ final class MovementController {
         private final AirExitPreference preference;
         private final BlockPos center = client.player.getBlockPos();
         private final long startedNanos = System.nanoTime();
+        private final net.minecraft.util.math.Box playerBounds = client.player.getBoundingBox();
+        private final double playerX = client.player.getX(), playerY = client.player.getY(), playerZ = client.player.getZ();
+        private AirSwimObstacles obstacles;
         private final Map<Long, Boolean> loadedChunks = new HashMap<>();
         private final List<AirRecoveryCandidate> dryCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
         private final List<AirRecoveryCandidate> floatingCandidates = new ArrayList<>(AIR_RECOVERY_MAX_GOALS);
@@ -565,6 +628,13 @@ final class MovementController {
         }
 
         private List<BlockPos> findGoals() {
+            // This validates the current body and offered endpoints, not the entire native path.
+            var coverage = playerBounds.offset(center.getX() - 12 + .5 - playerX,
+                    center.getY() - 1 - playerY, center.getZ() - 12 + .5 - playerZ).stretch(24, 17, 24);
+            obstacles = airSwimObstacles(coverage, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS);
+            if (!obstacles.clear(playerBounds)
+                    || !airSwimBlockClear(playerBounds, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles))
+                throw new AirSwimCoverageFailure("native AIR starting body is obstructed or uncovered");
             scanOffset(0, 0);
             List<AirRecoveryOffset> offsets = new ArrayList<>();
             for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) {
@@ -625,6 +695,9 @@ final class MovementController {
             boolean supported = supportState.getFluidState().isEmpty() && !hazardousAirRecoveryState(supportState)
                     && Block.isShapeFullCube(supportState.getCollisionShape(client.world, support));
             if (!waterFeet && !supported) return;
+            var body = playerBounds.offset(x + .5 - playerX, y - playerY, z + .5 - playerZ);
+            if (!obstacles.clear(body)
+                    || !airSwimBlockClear(body, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) return;
             int distanceSquared = dx * dx + dy * dy + dz * dz;
             int score = distanceSquared + (supported ? 0 : 3) + (waterFeet ? 2 : 0);
             AirRecoveryCandidate candidate = new AirRecoveryCandidate(feet.toImmutable(), score,
@@ -675,14 +748,20 @@ final class MovementController {
                     "Native movement cancellation must finish before air-swim routing");
 
         BlockPos start = client.player.getBlockPos();
+        airSwimOrigin = null;
+        airSwimSeparationStep = null;
         AirSwimSearch search = new AirSwimSearch(start);
         List<BlockPos> route = search.findRoute();
         airSwimOrigin = route.isEmpty() ? null : start.toImmutable();
+        if (!route.isEmpty() && search.startingSoftOverlap) airSwimSeparationStep = route.get(0);
         return route;
     }
 
-    /** Revalidates a planned swim step against loaded native collision and fluid state only. */
-    boolean airSwimStepClear(BlockPos feetPosition) {
+    long airSwimObservationDeadline() { return System.nanoTime() + AIR_RECOVERY_SEARCH_BUDGET_NANOS; }
+
+    /** Revalidates native terrain and the actual swept player within the caller's shared observation deadline. */
+    boolean airSwimStepClear(BlockPos feetPosition, long deadline) {
+        if (System.nanoTime() > deadline) return false;
         if (feetPosition == null || airSwimOrigin == null || client.player == null || client.world == null
                 || !withinAirSwimBounds(feetPosition, airSwimOrigin)) return false;
         int x = feetPosition.getX(), y = feetPosition.getY(), z = feetPosition.getZ();
@@ -710,7 +789,80 @@ final class MovementController {
         boolean supportedDry = supportState.getFluidState().isEmpty()
                 && Block.isShapeFullCube(supportState.getCollisionShape(client.world, supportPosition));
         boolean aboveWater = supportState.getFluidState().isIn(FluidTags.WATER);
-        return feetWater || supportedDry || feetDry && headDry && aboveWater;
+        if (!(feetWater || supportedDry || feetDry && headDry && aboveWater)) return false;
+        var body = client.player.getBoundingBox();
+        double dx = x + .5 - client.player.getX(), dy = y - client.player.getY(), dz = z + .5 - client.player.getZ();
+        var destination = body.offset(dx, dy, dz);
+        var swept = body.stretch(dx, dy, dz);
+        try {
+            var obstacles = airSwimObstacles(swept, deadline);
+            return obstacles.edgeClear(body, destination, swept, feetPosition.equals(airSwimSeparationStep))
+                    && airSwimBlockClear(swept, deadline, obstacles);
+        } catch (AirSwimCoverageFailure unavailable) {
+            if (config.debugLogging) logNativeDebug(unavailable.getMessage());
+            return false;
+        }
+    }
+
+    private boolean finiteAirSwimBox(net.minecraft.util.math.Box box) {
+        return Double.isFinite(box.minX) && Double.isFinite(box.minY) && Double.isFinite(box.minZ)
+                && Double.isFinite(box.maxX) && Double.isFinite(box.maxY) && Double.isFinite(box.maxZ)
+                && box.maxX >= box.minX && box.maxY >= box.minY && box.maxZ >= box.minZ;
+    }
+
+    private boolean airSwimBlockClear(net.minecraft.util.math.Box body, long deadline, AirSwimObstacles obstacles) {
+        if (!obstacles.covers(body)) return false;
+        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("block observation time limit");
+        int shapes = 0;
+        for (var collision : client.world.getBlockCollisions(client.player, body)) {
+            if (++shapes > AIR_SWIM_MAX_COLLISION_SHAPES || System.nanoTime() > deadline)
+                throw new AirSwimCoverageFailure("block collision cap or observation time limit");
+            if (!collision.isEmpty()) return false;
+        }
+        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("block observation time limit");
+        return true;
+    }
+
+    private AirSwimObstacles airSwimObstacles(net.minecraft.util.math.Box bodyCoverage, long deadline) {
+        var coverage = bodyCoverage.expand(AIR_SWIM_VEHICLE_PUSH_REACH, 0, AIR_SWIM_VEHICLE_PUSH_REACH);
+        var chunkCoverage = coverage.expand(1, 0, 1);
+        if (!finiteAirSwimBox(chunkCoverage) || chunkCoverage.maxX - chunkCoverage.minX > 32
+                || chunkCoverage.maxY - chunkCoverage.minY > 24 || chunkCoverage.maxZ - chunkCoverage.minZ > 32)
+            throw new AirSwimCoverageFailure("invalid or oversized native bounds");
+        Set<Long> loadedChunks = new HashSet<>();
+        boolean complete = true;
+        int minChunkX = ((int) Math.floor(chunkCoverage.minX)) >> 4, maxChunkX = ((int) Math.floor(chunkCoverage.maxX)) >> 4;
+        int minChunkZ = ((int) Math.floor(chunkCoverage.minZ)) >> 4, maxChunkZ = ((int) Math.floor(chunkCoverage.maxZ)) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("snapshot time limit");
+                if (client.world.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) != null)
+                    loadedChunks.add(((long) chunkX << 32) | (chunkZ & 0xffffffffL));
+                else complete = false;
+            }
+        int[] inspected = {0};
+        // Living entities can initiate a push even when their own isPushable recipient predicate is false.
+        var entities = client.world.getOtherEntities(client.player, coverage, entity -> {
+            if (++inspected[0] > AIR_SWIM_MAX_OBSTACLE_INSPECTIONS || System.nanoTime() > deadline)
+                throw new AirSwimCoverageFailure("entity inspection cap or snapshot time limit");
+            return !entity.isRemoved() && !entity.isSpectator()
+                    && (entity instanceof net.minecraft.entity.LivingEntity || entity.isPushable() || client.player.collidesWith(entity));
+        });
+        List<AirSwimObstacle> bodies = new ArrayList<>(entities.size());
+        for (var entity : entities) {
+            var bounds = entity.getBoundingBox();
+            if (!finiteAirSwimBox(bounds) || System.nanoTime() > deadline)
+                throw new AirSwimCoverageFailure("invalid entity bounds or snapshot time limit");
+            var raw = new net.minecraft.util.math.Box(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ);
+            boolean living = entity instanceof net.minecraft.entity.LivingEntity;
+            boolean hard = client.player.collidesWith(entity);
+            // Boats and minecarts are nonliving pushable/hard entities with a native .2 horizontal push query.
+            // Applying that envelope to other admitted nonliving entities is a conservative rejection.
+            var push = living ? raw : raw.expand(AIR_SWIM_VEHICLE_PUSH_REACH, 0, AIR_SWIM_VEHICLE_PUSH_REACH);
+            bodies.add(new AirSwimObstacle(hard ? raw : null, push));
+        }
+        if (System.nanoTime() > deadline) throw new AirSwimCoverageFailure("snapshot time limit");
+        return new AirSwimObstacles(bodies, coverage, loadedChunks, complete);
     }
 
     private final class AirSwimSearch {
@@ -726,16 +878,27 @@ final class MovementController {
         private int probes;
         private boolean exhausted;
         private BlockPos surfaceFallback;
+        private AirSwimObstacles obstacles;
+        private boolean startingSoftOverlap, entityBlocked, bodyBlocked, incomplete;
+        private final net.minecraft.util.math.Box playerBounds = client.player.getBoundingBox();
+        private final double playerX = client.player.getX(), playerY = client.player.getY(), playerZ = client.player.getZ();
 
         private AirSwimSearch(BlockPos origin) { this.origin = origin.toImmutable(); }
 
         private List<BlockPos> findRoute() {
+            // The existing search volume carries immutable loaded-chunk coverage for this bounded attempt.
+            var coverage = boundsAt(origin.getX() - 12, origin.getY() - 1, origin.getZ() - 12).stretch(24, 17, 24);
+            obstacles = airSwimObstacles(coverage, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS);
+            if (!obstacles.hardClear(playerBounds)
+                    || !airSwimBlockClear(playerBounds, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles))
+                throw new AirSwimCoverageFailure("starting body has incomplete coverage or a hard collision");
+            startingSoftOverlap = obstacles.softOverlap(playerBounds);
             AirSwimCell startCell = inspect(origin);
-            if (startCell == null) return List.of();
+            if (startCell == null) return emptyResult();
             parents.put(origin, null);
             frontier.addLast(new AirSwimNode(origin, 0));
-            if (startCell.surface()) surfaceFallback = origin;
-            if (startCell.dryExit()) return List.of();
+            if (startCell.surface() && !startingSoftOverlap) surfaceFallback = origin;
+            if (startCell.dryExit() && !startingSoftOverlap) return emptyResult();
 
             while (!frontier.isEmpty() && !exhausted) {
                 AirSwimNode current = frontier.removeFirst();
@@ -756,6 +919,19 @@ final class MovementController {
                     }
                     AirSwimCell cell = inspect(next);
                     if (cell == null) continue;
+                    var swept = sweptBounds(current.position(), next);
+                    if (!obstacles.covers(swept)) { incomplete = true; continue; }
+                    var from = current.position().equals(origin) ? playerBounds
+                            : boundsAt(current.position().getX(), current.position().getY(), current.position().getZ());
+                    var to = boundsAt(next.getX(), next.getY(), next.getZ());
+                    if (!obstacles.edgeClear(from, to, swept, current.position().equals(origin) && startingSoftOverlap)) {
+                        entityBlocked = true;
+                        continue;
+                    }
+                    if (!airSwimBlockClear(swept, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) {
+                        bodyBlocked = true;
+                        continue;
+                    }
                     parents.put(next, current.position());
                     int depth = current.depth() + 1;
                     if (cell.dryExit()) return reconstruct(next);
@@ -763,7 +939,15 @@ final class MovementController {
                     frontier.addLast(new AirSwimNode(next, depth));
                 }
             }
-            return surfaceFallback == null ? List.of() : reconstruct(surfaceFallback);
+            if (surfaceFallback == null) return emptyResult();
+            List<BlockPos> result = reconstruct(surfaceFallback);
+            return result.isEmpty() ? emptyResult() : result;
+        }
+
+        private List<BlockPos> emptyResult() {
+            if (startingSoftOverlap || entityBlocked || bodyBlocked || incomplete || exhausted || !obstacles.complete())
+                throw new AirSwimCoverageFailure("no complete unobstructed swim route; native fallback refused");
+            return List.of();
         }
 
         private AirSwimCell inspect(BlockPos position) {
@@ -771,6 +955,16 @@ final class MovementController {
             if (!withinAirSwimBounds(position, origin) || !airSwimInWorld(y - 1)
                     || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)
                     || !loaded(x, z)) return null;
+            var body = position.equals(origin) ? playerBounds : boundsAt(x, y, z);
+            if (!obstacles.covers(body)) { incomplete = true; return null; }
+            if (!(position.equals(origin) && startingSoftOverlap ? obstacles.hardClear(body) : obstacles.clear(body))) {
+                entityBlocked = true;
+                return null;
+            }
+            if (!airSwimBlockClear(body, startedNanos + AIR_RECOVERY_SEARCH_BUDGET_NANOS, obstacles)) {
+                bodyBlocked = true;
+                return null;
+            }
             feet.set(x, y, z); head.set(x, y + 1, z); support.set(x, y - 1, z); overhead.set(x, y + 2, z);
             BlockState feetState = client.world.getBlockState(feet);
             BlockState headState = client.world.getBlockState(head);
@@ -793,6 +987,17 @@ final class MovementController {
             boolean transition = feetDry && headDry && aboveWater;
             if (!feetWater && !supportedDry && !transition) return null;
             return new AirSwimCell(feetWater && headDry, feetDry && headDry && supportedDry);
+        }
+
+        private net.minecraft.util.math.Box boundsAt(int x, int y, int z) {
+            return playerBounds.offset(x + .5 - playerX, y - playerY, z + .5 - playerZ);
+        }
+
+        private net.minecraft.util.math.Box sweptBounds(BlockPos from, BlockPos to) {
+            if (from.equals(origin)) return playerBounds.stretch(to.getX() + .5 - playerX,
+                    to.getY() - playerY, to.getZ() + .5 - playerZ);
+            return boundsAt(from.getX(), from.getY(), from.getZ()).stretch(to.getX() - from.getX(),
+                    to.getY() - from.getY(), to.getZ() - from.getZ());
         }
 
         private boolean loaded(BlockPos position) { return loaded(position.getX(), position.getZ()); }

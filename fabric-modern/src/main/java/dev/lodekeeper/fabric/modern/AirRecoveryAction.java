@@ -146,6 +146,9 @@ final class AirRecoveryAction {
         double dx = client.player.getX() - progressX, dy = client.player.getY() - progressY,
                 dz = client.player.getZ() - progressZ;
         if (dx * dx + dy * dy + dz * dz >= .25) observeProgress();
+        long deadline = movement.airSwimObservationDeadline();
+        BlockPos admitted = null;
+        boolean centering = false;
         while (swimIndex < swimRoute.size()) {
             BlockPos next = swimRoute.get(swimIndex);
             dx = next.getX() + .5 - client.player.getX();
@@ -154,6 +157,17 @@ final class AirRecoveryAction {
             boolean terminal = swimIndex == swimRoute.size() - 1;
             if (dx * dx + dz * dz > .0784
                     || (terminal ? Math.floor(client.player.getY()) < next.getY() : Math.abs(dy) > .35)) break;
+            // Finish a clear current segment before a conservative actual-body sweep can take the turn.
+            BlockPos following = terminal ? null : swimRoute.get(swimIndex + 1);
+            if (!terminal && !movement.airSwimStepClear(following, deadline)) {
+                centering = true;
+                break;
+            }
+            if (System.nanoTime() > deadline) {
+                input.release(); phase = Phase.STOPPING; log("swim-retry");
+                return;
+            }
+            admitted = following;
             swimIndex++; observeProgress();
         }
         if (swimIndex == swimRoute.size()) {
@@ -162,20 +176,29 @@ final class AirRecoveryAction {
             return;
         }
         BlockPos next = swimRoute.get(swimIndex);
-        if (!movement.airSwimStepClear(next) || System.nanoTime() - progressAt >= 3_000_000_000L) {
+        if ((!next.equals(admitted) && !movement.airSwimStepClear(next, deadline))
+                || System.nanoTime() > deadline || System.nanoTime() - progressAt >= 3_000_000_000L) {
             input.release(); phase = Phase.STOPPING; log("swim-retry");
             return;
         }
         dx = next.getX() + .5 - client.player.getX();
         dz = next.getZ() + .5 - client.player.getZ();
-        boolean horizontal = dx * dx + dz * dz > .04;
+        double distanceSquared = dx * dx + dz * dz;
+        boolean horizontal = distanceSquared > .04 || centering && distanceSquared > 0;
+        // Reuse the normal .2 drive radius to damp correction without leaving a centering dead zone.
+        float forward = horizontal ? 1 : 0;
+        if (centering) forward = (float) Math.min(1, Math.sqrt(distanceSquared) / .2);
         boolean descend = next.getY() < client.player.getY() - .4;
+        if (System.nanoTime() > deadline) {
+            input.release(); phase = Phase.STOPPING; log("swim-retry");
+            return;
+        }
         if (horizontal) {
             client.player.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
             client.player.setXRot(0);
         }
         input.acquire(client);
-        input.drive(horizontal ? 1 : 0, 0, !descend, descend);
+        input.drive(forward, 0, !descend, descend);
     }
 
     private void observeProgress() {
