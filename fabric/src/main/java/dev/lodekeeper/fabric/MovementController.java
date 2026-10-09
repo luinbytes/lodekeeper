@@ -57,6 +57,7 @@ final class MovementController {
     private static final long AIR_RECOVERY_SEARCH_BUDGET_NANOS = 4_000_000L;
     private static final int AIR_RECOVERY_MAX_GOALS = 16;
     private static final int AIR_PLANNING_MAX_WORK = 128;
+    private static final int AIR_PLANNING_MAX_REANCHORS = 8;
     private static final int AIR_SWIM_MAX_VISITED = 4_096;
     private static final int AIR_SWIM_MAX_PATH = 64;
     private static final int AIR_SWIM_MAX_OBSTACLE_INSPECTIONS = 128;
@@ -647,11 +648,11 @@ final class MovementController {
             slice.observation();
             requireAirPlanningIdle();
             slice.check();
-            if (!plan.current()) throw new AirSwimCoverageFailure("retained planning context, pose or position changed");
+            plan.requireCurrent(slice);
             AirPlanResult result = plan.advance(slice);
             slice.observation();
             checkAirRecoveryOwnership();
-            if (!plan.current()) throw new AirSwimCoverageFailure("context changed before publishing AIR admission");
+            plan.requireCurrent(slice);
             plan.diagnostic(slice, "admission");
             slice.check();
             if (result instanceof AirPlanReady ready && ready.kind() == AirPlanKind.NATIVE) {
@@ -659,12 +660,12 @@ final class MovementController {
                 if (!plan.prepared) {
                     prepare(); plan.prepared = true;
                     slice.check();
-                    if (!plan.current()) throw new AirSwimCoverageFailure("context changed while preparing native AIR");
+                    plan.requireCurrent(slice);
                     plan.admitNative(slice);
                 }
                 slice.observation();
                 checkAirRecoveryOwnership();
-                if (!plan.current()) throw new AirSwimCoverageFailure("context changed before native AIR launch");
+                plan.requireCurrent(slice);
                 var admittedGoal = new GoalComposite(ready.positions().stream().map(GoalBlock::new)
                         .toArray(dev.lodekeeper.navigation.kernel.api.pathing.goals.Goal[]::new));
                 slice.check();
@@ -696,10 +697,17 @@ final class MovementController {
         private final Object player = client.player, world = client.world, network = client.getNetworkHandler();
         private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime owner = dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current();
         private final dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.Session session = owner == null ? null : owner.captureSession();
-        private final BlockPos origin = client.player.getBlockPos().toImmutable();
-        private final net.minecraft.util.math.Box bounds = client.player.getBoundingBox();
+        private final long policyGeneration = owner == null ? -1 : owner.policyGeneration();
+        private final BlockPos episodeOrigin = client.player.getBlockPos().toImmutable();
+        private final net.minecraft.util.math.Box authorityBounds = client.player.getBoundingBox();
         private final Object pose = client.player.getPose();
-        private final double x = client.player.getX(), y = client.player.getY(), z = client.player.getZ();
+        private final double episodeX = client.player.getX(), episodeY = client.player.getY(), episodeZ = client.player.getZ();
+        private final net.minecraft.util.math.Box episodeCoverage = authorityBounds.offset(episodeOrigin.getX() - 12 + .5 - episodeX,
+                episodeOrigin.getY() - 1 - episodeY, episodeOrigin.getZ() - 12 + .5 - episodeZ).stretch(24, 17, 24);
+        private BlockPos origin = episodeOrigin;
+        private net.minecraft.util.math.Box bounds = authorityBounds;
+        private double x = episodeX, y = episodeY, z = episodeZ;
+        private final boolean manual;
         private final Set<BlockPos> rejected;
         private final AirExitPreference preference;
         private AirSwimSearch swim;
@@ -712,37 +720,79 @@ final class MovementController {
         private List<BlockPos> route;
         private BlockPos endpoint;
         private boolean prepared;
-        private int slices, diagnosticSamples;
+        private int slices, diagnosticSamples, reanchors, retiredProbes, retiredVisited;
+        private String reanchorReason = "none", previousAnchor = "none";
         private long diagnosticAt;
 
         AirPlanning(boolean manual, Set<BlockPos> rejected, AirExitPreference preference) {
-            this.rejected = rejected; this.preference = preference;
+            this.manual = manual; this.rejected = rejected; this.preference = preference;
             if (manual) swim = new AirSwimSearch(this, origin);
             else nativeSearch = new AirRecoverySearch(this, rejected, preference);
         }
 
-        boolean current() {
+        private boolean authorityCurrent() {
             if (client.player != player || client.world != world || client.getNetworkHandler() != network
                     || owner == null || dev.lodekeeper.navigation.kernel.OwnedKernelRuntime.current() != owner
-                    || !owner.isCurrent(session) || session.world() != world
+                    || !owner.isCurrent(session) || session.world() != world || owner.policyGeneration() != policyGeneration
                     || !Objects.equals(pose, client.player.getPose())) return false;
             var actual = client.player.getBoundingBox();
-            double dx = client.player.getX() - x, dy = client.player.getY() - y, dz = client.player.getZ() - z;
-            // Passive water bobbing may stay in this cell. Dimension comparison tolerates only subtraction rounding;
-            // final admission still uses the exact actual body, and native collision geometry has no added epsilon.
-            return client.player.getBlockPos().equals(origin) && dx * dx + dy * dy + dz * dz <= .0625
-                    && Math.abs((actual.maxX - actual.minX) - (bounds.maxX - bounds.minX)) <= 1e-9
-                    && Math.abs((actual.maxY - actual.minY) - (bounds.maxY - bounds.minY)) <= 1e-9
-                    && Math.abs((actual.maxZ - actual.minZ) - (bounds.maxZ - bounds.minZ)) <= 1e-9;
+            // Only bounding-box subtraction rounding is tolerated; collision checks use the exact actual body.
+            return Math.abs((actual.maxX - actual.minX) - (authorityBounds.maxX - authorityBounds.minX)) <= 1e-9
+                    && Math.abs((actual.maxY - actual.minY) - (authorityBounds.maxY - authorityBounds.minY)) <= 1e-9
+                    && Math.abs((actual.maxZ - actual.minZ) - (authorityBounds.maxZ - authorityBounds.minZ)) <= 1e-9;
+        }
+
+        void requireCurrent(AirPlanningSlice slice) {
+            slice.check();
+            if (!authorityCurrent()) throw new AirSwimCoverageFailure("retained planning authority, policy, pose or body changed");
+            BlockPos actualOrigin = client.player.getBlockPos();
+            double actualX = client.player.getX(), actualY = client.player.getY(), actualZ = client.player.getZ();
+            double horizontalX = actualX - episodeX, horizontalZ = actualZ - episodeZ;
+            if (actualOrigin.getX() != episodeOrigin.getX() || actualOrigin.getZ() != episodeOrigin.getZ()
+                    || horizontalX * horizontalX + horizontalZ * horizontalZ > .0625
+                    || !withinDomain(actualOrigin) || !withinDomain(client.player.getBoundingBox()))
+                throw new AirSwimCoverageFailure("retained planning position left its original horizontal limit or domain");
+            double dx = actualX - x, dy = actualY - y, dz = actualZ - z;
+            if (dx * dx + dz * dz > .0625)
+                throw new AirSwimCoverageFailure("retained planning horizontal anchor limit changed");
+            if (actualOrigin.equals(origin) && dx * dx + dy * dy + dz * dz <= .0625) return;
+
+            // A new positional forecast stays under this owner's original authority and cumulative budgets.
+            slice.observation();
+            requireAirPlanningIdle();
+            slice.check();
+            if (!authorityCurrent()) throw new AirSwimCoverageFailure("planning authority changed before reanchor");
+            if (reanchors >= AIR_PLANNING_MAX_REANCHORS) throw new AirSwimCoverageFailure("planning position reanchor limit");
+            reanchorReason = actualOrigin.equals(origin) ? "vertical-drift" : "vertical-cell";
+            previousAnchor = x + "," + y + "," + z;
+            retiredProbes = probes(); retiredVisited = visited(); reanchors++;
+            origin = actualOrigin.toImmutable(); bounds = client.player.getBoundingBox();
+            x = actualX; y = actualY; z = actualZ;
+            obstacles = null; states.clear(); shapes.clear(); blockBodies.clear();
+            route = null; endpoint = null; prepared = false;
+            airSwimOrigin = airSwimSeparationStep = null;
+            swim = manual ? new AirSwimSearch(this, origin) : null;
+            nativeSearch = manual ? null : new AirRecoverySearch(this, rejected, preference);
+            diagnostic(slice, "reanchor");
+            // Never advance or admit movement in a reanchor tick, even if the slice has time left.
+            throw new AirPlanningYield();
+        }
+
+        boolean withinDomain(BlockPos position) {
+            return withinAirSwimBounds(position, episodeOrigin);
+        }
+
+        private boolean withinDomain(net.minecraft.util.math.Box body) {
+            return finiteAirSwimBox(body) && body.minX >= episodeCoverage.minX && body.minY >= episodeCoverage.minY
+                    && body.minZ >= episodeCoverage.minZ && body.maxX <= episodeCoverage.maxX
+                    && body.maxY <= episodeCoverage.maxY && body.maxZ <= episodeCoverage.maxZ;
         }
 
         AirPlanResult advance(AirPlanningSlice slice) {
             slice.check();
             if (obstacles == null) {
                 slice.observation();
-                var coverage = bounds.offset(origin.getX() - 12 + .5 - x, origin.getY() - 1 - y,
-                        origin.getZ() - 12 + .5 - z).stretch(24, 17, 24);
-                obstacles = airSwimObstacles(coverage, slice.deadline, true);
+                obstacles = airSwimObstacles(episodeCoverage, slice.deadline, true);
                 slice.check();
             }
             if (swim != null && route == null) {
@@ -777,6 +827,8 @@ final class MovementController {
             var actual = client.player.getBoundingBox();
             var destination = actual.offset(endpoint.getX() + .5 - client.player.getX(),
                     endpoint.getY() - client.player.getY(), endpoint.getZ() + .5 - client.player.getZ());
+            if (!withinDomain(actual) || !withinDomain(destination))
+                throw new AirSwimCoverageFailure("fresh native AIR body or endpoint left the original domain");
             // A complete fresh query for each offered endpoint and current body; native full-path clearance is unproved.
             var fresh = airSwimObstacles(actual, slice.deadline);
             boolean currentClear = fresh.clear(actual) && airSwimBlockClear(actual, slice.deadline, fresh);
@@ -828,17 +880,22 @@ final class MovementController {
 
         String stage() { return route != null && !route.isEmpty() ? "swim-admission"
                 : endpoint != null ? "native-admission" : nativeSearch != null ? nativeSearch.stage() : swim.stage(); }
-        int probes() { return (swim == null ? 0 : swim.probes) + (nativeSearch == null ? 0 : nativeSearch.probes); }
+        int probes() { return retiredProbes + (swim == null ? 0 : swim.probes) + (nativeSearch == null ? 0 : nativeSearch.probes); }
+        int visited() { return retiredVisited + (swim == null ? 0 : swim.parents.size()); }
         void diagnostic(AirPlanningSlice slice, String outcome) {
             if (!config.debugLogging || diagnosticSamples >= 16) return;
             long now = System.nanoTime();
             if (diagnosticSamples != 0 && now - diagnosticAt < 1_000_000_000L
-                    && !outcome.equals("refused")) return;
+                    && !outcome.equals("refused") && !outcome.equals("reanchor")) return;
             diagnosticAt = now; diagnosticSamples++;
             logNativeDebug("AIR_PLAN outcome=" + outcome + " stage=" + stage() + " probes=" + probes()
                     + " slices=" + slices + " work=" + slice.work + " workCap=" + AIR_PLANNING_MAX_WORK
                     + " sliceBudgetMs=4 expired=" + (now > slice.deadline)
-                    + " visited=" + (swim == null ? 0 : swim.parents.size()));
+                    + " visited=" + visited() + " reanchors=" + reanchors + " reanchorCap=" + AIR_PLANNING_MAX_REANCHORS
+                    + " reanchorReason=" + reanchorReason + " previousAnchor=" + previousAnchor
+                    + " episodeAnchor=" + episodeX + "," + episodeY + "," + episodeZ
+                    + " anchor=" + x + "," + y + "," + z + " actual="
+                    + (client.player == null ? "unavailable" : client.player.getX() + "," + client.player.getY() + "," + client.player.getZ()));
         }
     }
     private final class AirRecoverySearch {
@@ -913,7 +970,7 @@ final class MovementController {
             int x = center.getX() + dx, y = center.getY() + dy, z = center.getZ() + dz;
             if (!inWorld(y) || !inWorld(y + 1) || !inWorld(y + 2) || !inWorld(y - 1)) return null;
             BlockPos feet = new BlockPos(x, y, z), head = feet.up(), overhead = feet.up(2), support = feet.down();
-            if (rejectedGoals.contains(feet) || !plan.obstacles.loadedChunks().contains(((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL))) return null;
+            if (!plan.withinDomain(feet) || rejectedGoals.contains(feet) || !plan.obstacles.loadedChunks().contains(((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL))) return null;
             BlockState feetState = forecast ? plan.state(feet, slice) : freshAirState(feet, slice);
             BlockState headState = forecast ? plan.state(head, slice) : freshAirState(head, slice);
             if (hazardousAirRecoveryState(feetState) || hazardousAirRecoveryState(headState)
@@ -1129,6 +1186,7 @@ final class MovementController {
                 startingSoftOverlap = plan.obstacles.softOverlap(plan.bounds);
                 AirSwimCell start = inspect(origin, slice);
                 if (start == null) return emptyResult(slice);
+                if (plan.visited() >= AIR_SWIM_MAX_VISITED) throw new AirSwimCoverageFailure("cumulative swim visited limit");
                 parents.put(origin, null); frontier.addLast(new AirSwimNode(origin, 0)); initialized = true;
                 if (start.surface() && !startingSoftOverlap) surfaceFallback = origin;
                 originDry = start.dryExit() && !startingSoftOverlap;
@@ -1150,8 +1208,9 @@ final class MovementController {
                     int[] step = AIR_SWIM_STEPS[neighborIndex];
                     pendingNext = new BlockPos(current.position().getX() + step[0],
                             current.position().getY() + step[1], current.position().getZ() + step[2]);
-                    if (!withinAirSwimBounds(pendingNext, origin) || parents.containsKey(pendingNext)) { nextNeighbor(); continue; }
-                    if (parents.size() >= AIR_SWIM_MAX_VISITED) { exhausted = true; break; }
+                    if (!withinAirSwimBounds(pendingNext, origin) || !plan.withinDomain(pendingNext)
+                            || parents.containsKey(pendingNext)) { nextNeighbor(); continue; }
+                    if (plan.visited() >= AIR_SWIM_MAX_VISITED) { exhausted = true; break; }
                 }
                 if (!inspected) { pendingCell = inspect(pendingNext, slice); inspected = true; }
                 if (pendingCell == null) { nextNeighbor(); continue; }
@@ -1185,7 +1244,7 @@ final class MovementController {
         }
         private AirSwimCell inspect(BlockPos position, AirPlanningSlice slice) {
             int x = position.getX(), y = position.getY(), z = position.getZ();
-            if (!withinAirSwimBounds(position, origin) || !airSwimInWorld(y - 1)
+            if (!withinAirSwimBounds(position, origin) || !plan.withinDomain(position) || !airSwimInWorld(y - 1)
                     || !airSwimInWorld(y) || !airSwimInWorld(y + 1) || !airSwimInWorld(y + 2)
                     || !plan.obstacles.loadedChunks().contains(((long) (x >> 4) << 32) | ((z >> 4) & 0xffffffffL))) return null;
             var body = position.equals(origin) ? plan.bounds : boundsAt(x, y, z);
