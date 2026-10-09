@@ -1,0 +1,645 @@
+{
+  "recordedAtUtc": "2026-10-09T03:07:11.582870+00:00",
+  "scope": "Frozen main1b0bf10 unchanged primary roof control after vertical AIR reanchor repair",
+  "sourceCommit": "1b0bf10356a86488cd66f3980fb60deedc323302",
+  "sourceCleanAtArtifactFreeze": true,
+  "sourceChecks": {
+    "source": [
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+        "sha256": "6c397c16f8c516b8cd8fb1b27e8031abddfb8cca956d8dd1936bf35843482501"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+        "sha256": "c6264a5ca7bba21bfd5b1c04655937a8bb3b0633bf3a5adfa9c63d64023d7b5f"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java",
+        "sha256": "7c5bada2e589d63ea893f4ce0a0f03093cec79ec7cd10acccac21839582c0e31"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java",
+        "sha256": "5d0a09782e8ecaeba39f9553d9a5ae3b0c31b95332ec136c79e782a2697b6d4c"
+      }
+    ],
+    "reviews": [
+      {
+        "path": "/tmp/lodekeeper-native-animal-air-reanchor-r1-review-a.md",
+        "sha256": "4e521875ccd0589139fe6ece0b0d8b420b9db3d29c4ced4cfb7bb764accbca9d",
+        "status": "clean_static"
+      },
+      {
+        "path": "/tmp/lodekeeper-native-animal-air-reanchor-r1-review-b.md",
+        "sha256": "8a82c1ae5ab36de812eaf2be5eaec5be261e6525a950ac64ca8f5c30059286bc",
+        "status": "clean_static"
+      },
+      {
+        "path": "/tmp/lodekeeper-native-animal-air-reanchor-r1-review-c.md",
+        "sha256": "e14b632224eebb369c596260c0fbd36811e54a411d1b4cb4fd855f95a39205fd",
+        "status": "clean_static"
+      }
+    ],
+    "existingChecks": {
+      "primary": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1211": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "modern": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-modern": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    },
+    "builds": [
+      {
+        "version": "1.21.1",
+        "log": "/tmp/lodekeeper-native-animal-air-reanchor-r1-1.21.1-build.log",
+        "sha256": "1ed22195035217ab7f0fd022c1d9be8413f84bee7c8bca6b97091966131f4e1e"
+      },
+      {
+        "version": "26.3",
+        "log": "/tmp/lodekeeper-native-animal-air-reanchor-r1-26.3-build.log",
+        "sha256": "0a6926ca83c93b4ee30055e274e8323035e5c4181521d542845055f07a891836"
+      }
+    ]
+  },
+  "frozenArtifacts": {
+    "frozenAtUtc": "2026-10-09T02:55:06.717512+00:00",
+    "sourceCommit": "1b0bf10356a86488cd66f3980fb60deedc323302",
+    "sourceBaseline": "19a2ee198c97ad87bffc1c2f970e65c9dc480652",
+    "sourceCleanAtFreeze": true,
+    "sourceManifest": [
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/MovementController.java",
+        "sha256": "6c397c16f8c516b8cd8fb1b27e8031abddfb8cca956d8dd1936bf35843482501"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/MovementController.java",
+        "sha256": "c6264a5ca7bba21bfd5b1c04655937a8bb3b0633bf3a5adfa9c63d64023d7b5f"
+      },
+      {
+        "path": "fabric/src/main/java/dev/lodekeeper/fabric/AirRecoveryAction.java",
+        "sha256": "7c5bada2e589d63ea893f4ce0a0f03093cec79ec7cd10acccac21839582c0e31"
+      },
+      {
+        "path": "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AirRecoveryAction.java",
+        "sha256": "5d0a09782e8ecaeba39f9553d9a5ae3b0c31b95332ec136c79e782a2697b6d4c"
+      }
+    ],
+    "sourceManifestPath": "/tmp/lodekeeper-native-animal-air-reanchor-r1-canonical-manifest.txt",
+    "sourceManifestSha256": "854b59d3891ab69b039e0eec7be8f75a69df4775d04b83b3376f8f3492ea80ba",
+    "artifacts": [
+      {
+        "family": "primary",
+        "minecraftVersion": "1.21.1",
+        "buildOutputPath": "/Users/luinbytes/src/lodekeeper/fabric-1211/build/libs/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "path": "/tmp/lodekeeper-native-animal-1b0bf10-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+        "bytes": 1788107,
+        "sha256": "95b6e5f4845bd89c1d9bd7eab1bd096d7ef38c09f2bb8c174e6436d882a5027b",
+        "buildLog": "/tmp/lodekeeper-native-animal-air-reanchor-r1-1.21.1-build.log",
+        "buildLogSha256": "1ed22195035217ab7f0fd022c1d9be8413f84bee7c8bca6b97091966131f4e1e"
+      },
+      {
+        "family": "modern",
+        "minecraftVersion": "26.3",
+        "buildOutputPath": "/Users/luinbytes/src/lodekeeper/fabric-modern/build/libs/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "path": "/tmp/lodekeeper-native-animal-1b0bf10-artifacts/lodekeeper-26.3-0.1.0-preview.11.jar",
+        "bytes": 1860484,
+        "sha256": "2a30c9cab6b12c3bf1b79e11bf2269917451579ed5254c55ca8c220febf5c3f2",
+        "buildLog": "/tmp/lodekeeper-native-animal-air-reanchor-r1-26.3-build.log",
+        "buildLogSha256": "0a6926ca83c93b4ee30055e274e8323035e5c4181521d542845055f07a891836"
+      }
+    ],
+    "existingChecks": {
+      "primary": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-1211": {
+          "tests": 48,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      },
+      "modern": {
+        "core": {
+          "tests": 167,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "nav": {
+          "tests": 98,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "fabric-modern": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      }
+    },
+    "nativeCasesRun": [],
+    "nativeStatus": "unrun",
+    "note": "Exact committed AIR source and frozen production jars; work-in-progress main, not a newly released preview. Full native-path entity clearance is not established by bounded current/endpoint admission."
+  },
+  "ciSnapshot": {
+    "runUrl": "https://github.com/luinbytes/lodekeeper/actions/runs/37876822647",
+    "conclusion": "",
+    "headSha": "1b0bf10356a86488cd66f3980fb60deedc323302",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20, 17, fabric)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.5, 21, fabric-1211)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.1, 21, fabric-1211)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21, 21, fabric-1211)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.6, 21, fabric-1211)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.4, 17, fabric-1202)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.2, 17, fabric-1202)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.3, 17, fabric-1202)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.20.1, 17, fabric)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.4, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.11, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (26.3, 25, fabric-modern)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.3, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.2, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.5, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (1.21.8, 21, fabric-1212)",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (1.21.7, 21, fabric-1212)",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (1.21.9, 21, fabric-1212)",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": "success",
+        "name": "adapters (1.21.6, 21, fabric-1212)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (26.1, 25, fabric-modern)",
+        "status": "queued"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (1.21.10, 21, fabric-1212)",
+        "status": "in_progress"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (26.1.1, 25, fabric-modern)",
+        "status": "queued"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (26.1.2, 25, fabric-modern)",
+        "status": "queued"
+      },
+      {
+        "conclusion": "",
+        "name": "adapters (26.2, 25, fabric-modern)",
+        "status": "queued"
+      }
+    ],
+    "status": "queued"
+  },
+  "nativeStatus": "primary_roof_failed_modern_roof_and_four_animal_reruns_unrun",
+  "publicScreenshotManifest": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1b0bf10-air-roof-screenshots.json",
+  "publicScreenshotChecks": [
+    {
+      "assetName": "main-1b0bf10-air-roof-screenshots.json",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1b0bf10-air-roof-screenshots.json",
+      "anonymousHttpStatus": 200,
+      "bytes": 1017,
+      "sha256": "8d68957f823cc09d1b8770689a316853d37359b1c5906707d65ecaf28822b821"
+    },
+    {
+      "assetName": "main-1b0bf10-primary-prepared-air-recovery.png",
+      "url": "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1b0bf10-primary-prepared-air-recovery.png",
+      "anonymousHttpStatus": 200,
+      "bytes": 107675,
+      "sha256": "7202ddfe7d2e496552a96ad56efd557d2d0b5201bee4e9a314b65e3ad00914be"
+    }
+  ],
+  "loggedOutBrowserDecode": {
+    "verifiedAtUtc": "2026-10-09T03:06:00.435Z",
+    "loggedOut": true,
+    "count": 1,
+    "loaded": 1,
+    "verifiedUrls": [
+      "https://github.com/luinbytes/lodekeeper/releases/download/main-gameplay-evidence/main-1b0bf10-primary-prepared-air-recovery.png"
+    ],
+    "failures": [],
+    "dimensions": [
+      [
+        640,
+        360
+      ]
+    ]
+  },
+  "deletedLocalPngCopies": [
+    "/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/verification/evidence/screenshots/lodekeeper-2026-10-09T02-56-40-492538Z-8b411b33-failed-prepared_air_recovery_bucket.png",
+    "/tmp/lodekeeper-native-animal-1b0bf10-air-screenshot-upload/main-1b0bf10-primary-prepared-air-recovery.png"
+  ],
+  "run": {
+    "nativeReceiptPath": "/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/verification/evidence/run-2026-10-09T02-56-40-492538Z-8b411b33.json",
+    "nativeReceiptSha256": "ac4a8f7fc0b5160b0d96a9811925d343fd5b43482e8e0759ae017c47918f30fc",
+    "runnerReceiptPath": "/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/runner-receipt.json",
+    "runnerReceiptSha256": "2bab8116df6c15049cd4e63a4a4f2c0854b82e225d7378082557adb5e9ef5064",
+    "sourceReportedAtRunnerLaunch": {
+      "commit": "1b0bf10356a86488cd66f3980fb60deedc323302",
+      "dirty": true,
+      "dirtyPaths": [
+        "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/AutomationEngine.java",
+        "fabric-modern/src/main/java/dev/lodekeeper/fabric/modern/PlayerActions.java",
+        "fabric/src/main/java/dev/lodekeeper/fabric/AutomationEngine.java",
+        "fabric/src/main/java/dev/lodekeeper/fabric/PlayerActions.java"
+      ],
+      "gitStatusError": null
+    },
+    "productionJar": {
+      "minecraftDependency": "1.21.1",
+      "modId": "lodekeeper",
+      "modVersion": "0.1.0-preview.11",
+      "path": "/private/tmp/lodekeeper-native-animal-1b0bf10-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+      "productionClassEntries": [
+        "dev/lodekeeper/fabric/AutomationEngine.class"
+      ],
+      "sha256": "95b6e5f4845bd89c1d9bd7eab1bd096d7ef38c09f2bb8c174e6436d882a5027b"
+    },
+    "artifactUnchangedDuringRun": true,
+    "classLoadProvenance": {
+      "foreignKernelClasses": 0,
+      "generatedClasses": 217,
+      "lodekeeperClasses": 650,
+      "log": "/private/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/class-load.log",
+      "productionArtifactClasses": 413,
+      "productionJarClasses": 0,
+      "runtimeArtifactTransformation": {
+        "cacheDirectory": "/private/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/.fabric/processedMods",
+        "cacheWasFresh": true,
+        "candidateCount": 1,
+        "candidatePaths": [
+          "/private/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar"
+        ],
+        "devLodekeeperEntryCount": 810,
+        "devLodekeeperEntryNamesMatch": true,
+        "fabricModJsonMatches": true,
+        "identityPreservedClasses": {
+          "dev/lodekeeper/core/": {
+            "bytesMatch": true,
+            "classCount": 145,
+            "namesMatch": true
+          },
+          "dev/lodekeeper/nav/": {
+            "bytesMatch": true,
+            "classCount": 40,
+            "namesMatch": true
+          }
+        },
+        "inputArtifact": {
+          "path": "/private/tmp/lodekeeper-native-animal-1b0bf10-artifacts/lodekeeper-1.21.1-0.1.0-preview.11.jar",
+          "sha256": "95b6e5f4845bd89c1d9bd7eab1bd096d7ef38c09f2bb8c174e6436d882a5027b"
+        },
+        "loadedClassCount": 413,
+        "loadedClassesPresentInInputAndOutput": true,
+        "manifestMatches": true,
+        "observedSourceCount": 1,
+        "runtimeArtifact": {
+          "filenameMatchesLoaderPattern": true,
+          "path": "/private/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar",
+          "sha256": "56d82430885ab4054b9c6646c93758ec6b7a9903d5669f8f66d0ce20b2a77dfe"
+        },
+        "runtimeModId": "lodekeeper",
+        "runtimeModVersion": "0.1.0-preview.11",
+        "transformation": "fabric-loader-runtime-remap",
+        "verified": true
+      },
+      "runtimeRemappedClasses": 413,
+      "sourceCounts": {
+        "/Users/luinbytes/src/lodekeeper/fabric-1211/build/classes/java/verification": 20,
+        "/private/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/.fabric/processedMods/lodekeeper-0.1.0-preview.11-64b5720b4b825f21.jar": 413
+      },
+      "verifierClasses": 20,
+      "violations": []
+    },
+    "rawNative": {
+      "runId": "2026-10-09T02-56-40-492538Z-8b411b33",
+      "status": "failed",
+      "minecraftVersion": "1.21.1",
+      "worldKind": "isolated_superflat_fixture",
+      "preparedWorld": true,
+      "threatWaterRetreat": false,
+      "threatCreeperContact": false,
+      "stationRoomTunnel": false,
+      "stationRoomTunnelProperty": null,
+      "stationRoomSetupScreenshot": null,
+      "preparedSafetyProperty": "air",
+      "evidenceAuthority": "integrated_server_air_health_hunger_position_and_inventory",
+      "verificationMode": "prepared_safety_air",
+      "shieldScenario": null,
+      "worldPolicy": null,
+      "settingsUiChatEntryConfirmed": false,
+      "settingsUiReceipt": null,
+      "settingsUiScreenshots": null,
+      "settingsUiFinalScreenshot": null,
+      "elapsedMillis": 31818,
+      "clientTicks": 525,
+      "failure": "prepared safety automation paused during prepared_air_recovery_bucket: paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+      "serverTableOpened": false,
+      "serverFurnaceOpened": false,
+      "serverTableOpenings": 0,
+      "serverFurnaceOpenings": 0,
+      "preparedSafetyFixtureGrants": "3 iron ingots, 2 cooked beef, health 3, food level 20 with zero saturation, air 200 at setup, 50 source water cells in a bedrock-bounded 5x5 pool, 24 bedrock roof blocks with one exit gap, bedrock ledge at 3,66,0, and one placed crafting table at 4,66,0",
+      "cases": [
+        {
+          "name": "prepared_air_recovery_bucket",
+          "item": "minecraft:bucket",
+          "expected": 1,
+          "serverObserved": 0,
+          "inventoryEmptyAtStart": false,
+          "passed": false,
+          "clientTicks": 304,
+          "worldTicks": 303,
+          "engineStatus": "paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "detail": "prepared safety automation paused during prepared_air_recovery_bucket: paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "serverHealth": 5.0,
+          "serverDifficulty": "NORMAL",
+          "serverCraftingTableOpenedDuringCase": false,
+          "serverFurnaceOpenedDuringCase": false,
+          "serverIronPickaxeCount": 0,
+          "serverFoodLevelAtStart": 20,
+          "serverFoodLevelObserved": 17,
+          "serverBreadAtStart": 0,
+          "serverBreadObserved": 0,
+          "serverPosition": [
+            2.647040791507941,
+            66.07970327547203,
+            0.5
+          ],
+          "screenshot": "screenshots/lodekeeper-2026-10-09T02-56-40-492538Z-8b411b33-failed-prepared_air_recovery_bucket.png",
+          "initialStorageInventory": {
+            "minecraft:cooked_beef": 2,
+            "minecraft:iron_ingot": 3
+          },
+          "finalStorageInventory": {
+            "minecraft:cooked_beef": 2,
+            "minecraft:iron_ingot": 3
+          },
+          "fullServerHeldInventory": {
+            "minecraft:cooked_beef": 2,
+            "minecraft:iron_ingot": 3
+          },
+          "elapsedMillisFromCommand": 15196,
+          "baritoneCompletionGuardEnabled": true,
+          "baritoneNavigationStoppedAtReceipt": true,
+          "initialEquipmentSlotItems": {},
+          "serverEquipmentSlotItems": {},
+          "initialServerCursorEmpty": true,
+          "serverCursorEmpty": true,
+          "noMaintenanceQueuedBeforeForeground": true,
+          "maintainedReservationObservedBeforeForeground": false,
+          "maintainedReservationPresentAtCompletion": false,
+          "noMaintenanceQueued": true,
+          "initialPreparedThreatReceipt": {},
+          "serverPreparedThreatReceipt": {},
+          "initialPreparedStationRoomReceipt": {},
+          "serverPreparedStationRoomReceipt": {},
+          "initialPreparedPursuitReceipt": {},
+          "serverPreparedPursuitReceipt": {},
+          "initialPreparedAirReceipt": {
+            "airSupply": "172",
+            "craftingTablePresent": "true",
+            "deathsObserved": "0",
+            "dryExitPresent": "true",
+            "exitDistance": "3.605551275463989",
+            "firstHeadInWaterServerTick": "70",
+            "firstHeadOutOfWaterServerTick": "-1",
+            "fixtureAirSupply": "200",
+            "foodLevel": "20",
+            "headInWater": "true",
+            "headInWaterAtStart": "true",
+            "initialHealth": "3.0",
+            "lowWaterRoofPresent": "true",
+            "maxAirSupply": "300",
+            "maximumDistanceFromStart": "0.0",
+            "minimumAirSupply": "172",
+            "minimumHealth": "3.0",
+            "saturation": "0.0",
+            "serverCurrentPosition": "0.5,64.0,0.5",
+            "serverLastObservedTick": "96",
+            "serverPositionSamples": "68=0.5,64.0,0.5;78=0.5,64.0,0.5;88=0.5,64.0,0.5",
+            "serverStartPosition": "0.5,64.0,0.5",
+            "serverStartTick": "68",
+            "waterBoundaryPresent": "true",
+            "waterSourceCellsPresent": "true"
+          },
+          "serverPreparedAirReceipt": {
+            "airSupply": "102",
+            "craftingTablePresent": "true",
+            "deathsObserved": "0",
+            "dryExitPresent": "true",
+            "exitDistance": "3.605551275463989",
+            "firstHeadInWaterServerTick": "70",
+            "firstHeadOutOfWaterServerTick": "130",
+            "fixtureAirSupply": "200",
+            "foodLevel": "17",
+            "headInWater": "false",
+            "headInWaterAtStart": "true",
+            "initialHealth": "3.0",
+            "lowWaterRoofPresent": "true",
+            "maxAirSupply": "300",
+            "maximumDistanceFromStart": "3.0361972493964497",
+            "minimumAirSupply": "54",
+            "minimumHealth": "3.0",
+            "saturation": "0.0",
+            "serverCurrentPosition": "2.647040791507941,66.07970327547203,0.5",
+            "serverLastObservedTick": "396",
+            "serverPositionSamples": "68=0.5,64.0,0.5;78=0.5,64.0,0.5;88=0.5,64.0,0.5;98=0.5,64.0,0.5;108=0.6605632014333725,64.20000004768372,0.5;118=1.497240374557502,64.20000004768372,0.5;128=2.4422512505792406,64.23500004678965,0.5;138=2.699999988079071,65.4851295957809,0.5;148=2.699999988079071,65.35796526095382,0.5;158=2.699999988079071,64.43623398364339,0.5;168=2.699999988079071,64.11410736290081,0.5;178=2.699999988079071,64.0,0.5;188=2.699999988079071,64.0,0.5;198=2.699999988079071,64.0,0.5;208=2.699999988079071,64.0,0.5;218=2.699999988079071,64.0,0.5;228=2.699999988079071,64.0,0.5;238=2.699999988079071,64.0,0.5;248=2.699999988079071,64.0,0.5;258=2.699999988079071,64.0,0.5;268=2.699999988079071,64.0,0.5;278=2.699999988079071,64.0,0.5;288=2.699999988079071,64.0,0.5;298=2.699999988079071,64.0,0.5;308=2.699999988079071,64.0,0.5;318=2.699999988079071,64.0,0.5;328=2.699999988079071,64.0,0.5;338=2.699999988079071,64.0,0.5;348=2.699999988079071,64.0,0.5;358=2.699999988079071,64.0,0.5;368=2.699999988079071,64.0,0.5;378=2.699999988079071,64.0,0.5;388=2.699999988079071,64.67180063697732,0.5",
+            "serverStartPosition": "0.5,64.0,0.5",
+            "serverStartTick": "68",
+            "waterBoundaryPresent": "true",
+            "waterSourceCellsPresent": "true"
+          },
+          "airRecoveryObserved": true,
+          "airRecoveryCompletedBeforeCraft": false,
+          "airRecoveryObservedClientTick": 223,
+          "airRecoveryTransitionClientTick": 525,
+          "airRecoveryCompletionClientTick": -1,
+          "airRecoveryCompletionServerTick": -1,
+          "airRecoveryTransitionObservationSequence": 18,
+          "airRecoveryTableOpeningsAtTransition": 0,
+          "airRecoveryBucketCountAtCompletion": -1,
+          "airRecoveryEndEngineStatus": "paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued",
+          "airRecoveryCompletionReceipt": {}
+        }
+      ],
+      "explorationFixture": false,
+      "diamondBootsFixture": false,
+      "ironPickaxeFixture": false,
+      "coalRecoveryFixture": false,
+      "bulkWoodFixtureLogCount": 0,
+      "woodToolsFlag": false,
+      "woodToolsEnabled": false,
+      "miningRequestLimit": false,
+      "miningZeroYield": false,
+      "threatContact": false,
+      "threatContactManualInput": false,
+      "threatStaircase": false,
+      "threatContactLowHealth": false,
+      "resourceInitiallyLoaded": false,
+      "explorationAttempts": 0
+    },
+    "runnerFailures": [
+      "native run receipt verification/evidence/run-2026-10-09T02-56-40-492538Z-8b411b33.json status is 'failed'",
+      "native run receipt verification/evidence/run-2026-10-09T02-56-40-492538Z-8b411b33.json reports failure 'prepared safety automation paused during prepared_air_recovery_bucket: paused \u00b7 air recovery needs attention: no breathable route after three attempts \u00b7 0 foreground queued \u00b7 0 maintenance queued'"
+    ],
+    "diagnosticLog": "/tmp/lodekeeper-native-animal-1b0bf10-prepared_air_recovery-primary-r1/run/logs/latest.log",
+    "diagnosticLogSha256": "493e4755324a0bbbbe75d4fb29d5e3a74299f7446890f147614adfe55901f548",
+    "boundedDiagnosticEvents": [
+      "[03:56:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=begin phase=DRAINING air=168 maxAir=300 submerged=true attempts=0 elapsedMs=0 swimIndex=0 swimSteps=0 feet=0.5,64.0,0.5",
+      "[03:56:57] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=swim phase=SWIMMING air=166 maxAir=300 submerged=true attempts=1 elapsedMs=132 swimIndex=0 swimSteps=5 feet=0.5,64.0,0.5",
+      "[03:56:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR_SAMPLE sample=3 sampleCap=16 sampleIntervalMs=1000 observationPoint=air-tick-exit phase=SWIMMING action=71841018 actionStartNanos=1362934222493429 movement=470697297 ownerPlayer=736961715 player=736961715 playerUuid=4c4af65a-e991-33a8-a762-2d145c215578 ownerWorld=42430155 world=42430155 input=1202546053 air=192 maxAir=300 submerged=false waterContact=false onGround=false pose=STANDING health=3.0 feet=2.647040791507941,66.1096291306299,0.5 feetCell=BlockPos{x=2, y=66, z=0} feetFluidAtCell=net.minecraft.fluid.EmptyFluid@3644df7a eye=2.647040791507941,67.72962913539827,0.5 velocity=-0.03035687089094045,0.047865886281558453,1.970220573005126E-18 horizontalCollision=false verticalCollision=false bbox=AABB[2.347040779587012, 66.1096291306299, 0.19999998807907104] -> [2.94704080342887, 67.90962908294618, 0.800000011920929] attempts=1 elapsedMs=2079 swimIndex=4 routeSize=5 currentTarget=BlockPos{x=3, y=66, z=0} followingTarget=null nativeTarget=unavailable-read-only-api inputOwned=true inputClass=BotInput ownedInputState=intendedForward=1.0,intendedSideways=0.0,intendedJump=true,intendedSneak=false,appliedForward=0.90199995,appliedSideways=0.0,appliedJump=true,appliedSneak=false appliedTiming=last-vanilla-input-update nativeForcedInput=unavailable-air-action-api hostileCapability=loaded-client-entities hostilePolicy=monster-marker-includes-neutral nearbyRadius=16 coverage=loaded-entity-prefix inspected=1 inspectedCap=32 hostileCount=0 hostileCap=8 coverageCapped=false nearbyHostiles=",
+      "[03:56:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=swim-retry phase=STOPPING air=208 maxAir=300 submerged=false attempts=1 elapsedMs=2284 swimIndex=4 swimSteps=5 feet=2.699999988079071,65.83126560227069,0.5",
+      "[03:56:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] KERNEL AIR_PLAN outcome=reanchor stage=native-offset-0-vertical-0 probes=78 slices=3 work=2 workCap=128 sliceBudgetMs=4 expired=false visited=0 reanchors=1 reanchorCap=8 reanchorReason=vertical-drift previousAnchor=2.699999988079071,65.57109874770656,0.5 episodeAnchor=2.699999988079071,65.57109874770656,0.5 anchor=2.699999988079071,65.18245846901088,0.5 actual=2.699999988079071,65.18245846901088,0.5",
+      "[03:56:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] KERNEL AIR_PLAN outcome=reanchor stage=native-offset-0-vertical-0 probes=117 slices=5 work=2 workCap=128 sliceBudgetMs=4 expired=false visited=0 reanchors=2 reanchorCap=8 reanchorReason=vertical-cell previousAnchor=2.699999988079071,65.18245846901088,0.5 episodeAnchor=2.699999988079071,65.57109874770656,0.5 anchor=2.699999988079071,64.91572868311371,0.5 actual=2.699999988079071,64.91572868311371,0.5",
+      "[03:56:59] [Render thread/INFO] (lodekeeper) [Lodekeeper] KERNEL AIR_PLAN outcome=reanchor stage=native-offset-0-vertical-0 probes=198 slices=8 work=2 workCap=128 sliceBudgetMs=4 expired=false visited=0 reanchors=3 reanchorCap=8 reanchorReason=vertical-drift previousAnchor=2.699999988079071,64.91572868311371,0.5 episodeAnchor=2.699999988079071,65.57109874770656,0.5 anchor=2.699999988079071,64.65270354467268,0.5 actual=2.699999988079071,64.65270354467268,0.5",
+      "[03:57:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] KERNEL AIR_PLAN outcome=reanchor stage=native-offset-0-vertical-0 probes=361 slices=13 work=2 workCap=128 sliceBudgetMs=4 expired=false visited=0 reanchors=4 reanchorCap=8 reanchorReason=vertical-drift previousAnchor=2.699999988079071,64.65270354467268,0.5 episodeAnchor=2.699999988079071,65.57109874770656,0.5 anchor=2.699999988079071,64.39507343617464,0.5 actual=2.699999988079071,64.39507343617464,0.5",
+      "[03:57:00] [Render thread/INFO] (lodekeeper) [Lodekeeper] KERNEL AIR_PLAN outcome=reanchor stage=native-offset-0-vertical-0 probes=646 slices=21 work=2 workCap=128 sliceBudgetMs=4 expired=false visited=0 reanchors=5 reanchorCap=8 reanchorReason=vertical-drift previousAnchor=2.699999988079071,64.39507343617464,0.5 episodeAnchor=2.699999988079071,65.57109874770656,0.5 anchor=2.699999988079071,64.1412763964463,0.5 actual=2.699999988079071,64.1412763964463,0.5",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=route phase=ESCAPING air=72 maxAir=300 submerged=true attempts=2 elapsedMs=13335 swimIndex=0 swimSteps=0 feet=2.699999988079071,64.0,0.5",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CALC_STARTED elapsedMs=18",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CALC_FAILED elapsedMs=139",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=139",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=208",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=241",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=309",
+      "[03:57:10] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=343",
+      "[03:57:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=410",
+      "[03:57:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=445",
+      "[03:57:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] NAV backend=owned-navigation mode=AIR event=CANCELED elapsedMs=479",
+      "[03:57:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=retry phase=STOPPING air=61 maxAir=300 submerged=true attempts=2 elapsedMs=13878 swimIndex=0 swimSteps=0 feet=2.699999988079071,64.0,0.5",
+      "[03:57:11] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=swim phase=SWIMMING air=59 maxAir=300 submerged=true attempts=3 elapsedMs=13981 swimIndex=0 swimSteps=3 feet=2.699999988079071,64.0,0.5",
+      "[03:57:12] [Render thread/INFO] (lodekeeper) [Lodekeeper] AIR event=swim-retry phase=STOPPING air=114 maxAir=300 submerged=false attempts=3 elapsedMs=14975 swimIndex=2 swimSteps=3 feet=2.6746234027201163,65.99036467017372,0.5"
+    ]
+  },
+  "limits": [
+    "Prepared fixture and unchanged assertions/deadline; no natural gameplay acceptance claim.",
+    "Cooking draft edits existed at launch; production artifact and verifier outputs were frozen first. These edits were not built into the executed jar.",
+    "Five vertical reanchors are directly logged with cumulative probes retained. This branch is witnessed; dry-ledge recovery still fails.",
+    "The first swim reaches final ledge target with westward velocity, then falls below ledge height. Horizontal reversal is a supported physics diagnosis; the old retry log does not identify each failing disjunct.",
+    "Modern roof and four animal AIR reruns were not run after the primary failure. Earlier45b animal passes remain evidence of45b only.",
+    "Full native-path entity clearance and user acceptance remain unproved."
+  ]
+}
