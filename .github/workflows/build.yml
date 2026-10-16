@@ -7,14 +7,72 @@ on:
       - 'README.md'
       - 'AGENTS.md'
       - 'LICENSE'
+      - '**.md'
+  schedule:
+    - cron: '0 6 * * 0'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
-  adapters:
+  # Push to main: one representative version per Gradle module (5 jobs instead of 24).
+  adapters-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - minecraft: '26.3'
+            java: '25'
+            module: fabric-modern
+          - minecraft: '1.21.1'
+            java: '21'
+            module: fabric-1211
+          - minecraft: '1.20.1'
+            java: '17'
+            module: fabric
+          - minecraft: '1.21.11'
+            java: '21'
+            module: fabric-1212
+          - minecraft: '1.20.4'
+            java: '17'
+            module: fabric-1202
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: gradle
+      - name: Compile, check and package the exact game adapter
+        run: ./scripts/build-version.sh '${{ matrix.minecraft }}' --no-daemon ':${{ matrix.module }}:verificationClasses'
+      - name: Preserve regression failure details
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: regression-failures-${{ matrix.minecraft }}
+          path: |
+            core/build/test-results/test/*.xml
+            nav/build/test-results/test/*.xml
+            ${{ matrix.module }}/build/test-results/test/*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Record artifact digest
+        run: sha256sum '${{ matrix.module }}'/build/libs/*.jar > '${{ matrix.module }}'/build/libs/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lodekeeper-${{ matrix.minecraft }}-development
+          path: ${{ matrix.module }}/build/libs/
+          if-no-files-found: error
+
+  # Weekly / manual: full version matrix (all adapters).
+  adapters-full:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
